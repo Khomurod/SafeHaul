@@ -40,7 +40,7 @@ export function ApplicationIntegrationsPanel({ integrations, onChange, readOnly 
         <Card padding="none" className="overflow-hidden" aria-labelledby={titleId}>
             <div className="flex items-center gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <Icon icon={Blocks} size="lg" className="text-ds-content-muted" />
-                <h4 id={titleId} className="text-ds-body font-bold text-ds-content">Application Integrations</h4>
+                <h4 id={titleId} className="text-ds-body font-bold text-ds-content">Report uploads</h4>
             </div>
             <p className="border-b border-ds-border-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-muted">
                 Optional. A company that leaves these off is not affected in any way. When on, imported information helps the

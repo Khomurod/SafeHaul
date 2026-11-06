@@ -44,7 +44,7 @@ export function isListNarrowed({ scope, searchQuery = '', filters = {}, segment 
 const NOTHING_YET = {
     applications: () => ({
         title: 'No applications yet',
-        description: 'Share your personal link (Settings → My profile) with drivers. Their applications show up here.',
+        description: 'Share your personal link (on your Profile page) with drivers. Their applications show up here.',
     }),
     company_leads: ({ canImportLeads }) => ({
         title: 'No leads yet',

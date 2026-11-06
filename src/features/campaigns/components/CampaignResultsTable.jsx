@@ -67,11 +67,13 @@ const logError = (err) => console.error('Failed to fetch logs:', err);
 /** `refreshKey` reloads the log, as after a delivery check. */
 export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) {
     const [searchTerm, setSearchTerm] = useState('');
+    // Bumped by "Try again" after the log could not be read.
+    const [retryKey, setRetryKey] = useState(0);
     const searchId = useId();
-    const { logs, loading, total, hasMore, loadMore, loadingMore, loadMoreFailed } = useCampaignLogs({
+    const { logs, loading, failed, total, hasMore, loadMore, loadingMore, loadMoreFailed } = useCampaignLogs({
         companyId,
         sessionId: campaignId,
-        refreshKey,
+        refreshKey: `${refreshKey}:${retryKey}`,
         onError: logError,
     });
     const { buttonRef, doneRef, showDone, press } = useLoadMoreFocus({
@@ -99,6 +101,18 @@ export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) 
                     Loading detailed results...
                 </p>
             </Card>
+        );
+    }
+
+    // A log that could not be read is said, never shown as "No messages sent yet."
+    if (failed && logs.length === 0) {
+        return (
+            <Notice
+                tone="danger"
+                actions={<Button variant="secondary" size="sm" onClick={() => setRetryKey((key) => key + 1)}>Try again</Button>}
+            >
+                The recipient log could not be loaded.
+            </Notice>
         );
     }
 

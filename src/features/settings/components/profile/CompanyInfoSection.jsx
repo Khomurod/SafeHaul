@@ -45,6 +45,7 @@ function ProfileField({
 export function CompanyInfoSection({
     compData,
     isEditing,
+    plan,
     logoUploading,
     onLogoUpload,
     onFieldChange,
@@ -98,6 +99,13 @@ export function CompanyInfoSection({
                             onFieldChange={onFieldChange}
                         />
                     </div>
+
+                    {/* Read only, so it is not among the fields Edit Profile opens. */}
+                    {!isEditing && plan && (
+                        <FieldDisplay label="Plan">
+                            {plan} — to change it, contact support.
+                        </FieldDisplay>
+                    )}
                 </div>
             </Card>
 

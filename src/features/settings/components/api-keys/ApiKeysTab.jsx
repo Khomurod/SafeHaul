@@ -13,8 +13,8 @@ import { useCompanyApiKeys } from './useCompanyApiKeys';
  * Settings → API Keys: a Company Admin lets another service, such as their TMS,
  * read the applications drivers submit, and turns that off again.
  *
- * Its own tab rather than a card under Integrations, because Integrations is
- * hidden with call tracking and every company may make keys. The server checks
+ * Its own tab rather than a card under Facebook leads, because Facebook leads
+ * shows only where a super admin switched it on and every company may make keys. The server checks
  * Company Admin for each call; this page only shows what it answers.
  */
 export function ApiKeysTab({ companyId }) {

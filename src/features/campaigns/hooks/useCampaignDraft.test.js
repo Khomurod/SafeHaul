@@ -1,12 +1,12 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Firestore is mocked: `doc` surfaces its path and `serverTimestamp` a marker,
+// Firestore is mocked: `doc` surfaces its path and `Timestamp.now` a marker,
 // so the exact write can be asserted. Nothing reaches Firebase.
 const fs = vi.hoisted(() => ({
     doc: vi.fn(),
     setDoc: vi.fn(),
-    serverTimestamp: vi.fn(),
+    Timestamp: { now: vi.fn() },
 }));
 
 vi.mock('firebase/firestore', () => fs);
@@ -18,11 +18,11 @@ beforeEach(() => {
     vi.resetAllMocks();
     fs.doc.mockImplementation((_db, ...segments) => ({ path: segments.join('/') }));
     fs.setDoc.mockImplementation(async () => {});
-    fs.serverTimestamp.mockImplementation(() => '__serverTimestamp__');
+    fs.Timestamp.now.mockImplementation(() => '__now__');
 });
 
 describe('useCampaignDraft — saveDraft', () => {
-    it('merges the data into the draft document', async () => {
+    it('merges the data into the draft document, and leaves its times alone', async () => {
         const { result } = renderHook(() => useCampaignDraft('co-1'));
 
         await expect(result.current.saveDraft('camp-1', { name: 'Spring drive' })).resolves.toBe(true);
@@ -30,6 +30,22 @@ describe('useCampaignDraft — saveDraft', () => {
         expect(fs.setDoc).toHaveBeenCalledWith(
             { path: 'companies/co-1/campaign_drafts/camp-1' },
             { name: 'Spring drive' },
+            { merge: true },
+        );
+        expect(fs.Timestamp.now).not.toHaveBeenCalled();
+    });
+
+    // A new campaign has no draft until its first save, which creates it with
+    // the times the Drafts list orders by.
+    it('creates the draft with its created and updated times when asked to', async () => {
+        const { result } = renderHook(() => useCampaignDraft('co-1'));
+
+        await expect(result.current.saveDraft('camp-1', { name: 'Spring drive' }, { create: true })).resolves.toBe(true);
+
+        expect(fs.setDoc).toHaveBeenCalledTimes(1);
+        expect(fs.setDoc).toHaveBeenCalledWith(
+            { path: 'companies/co-1/campaign_drafts/camp-1' },
+            { name: 'Spring drive', createdAt: '__now__', updatedAt: '__now__' },
             { merge: true },
         );
     });

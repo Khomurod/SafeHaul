@@ -20,6 +20,9 @@ const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
  * address, as drivers see them. "Edit Profile" opens the fields; Save stores
  * them through `saveCompanySettings` with only these keys. The application
  * form has its own section (`ApplicationFormTab`).
+ *
+ * It also shows the company's plan, read only: `planType` is a label a super
+ * admin sets (`paid` is Pro, anything else Free) and nothing here changes it.
  */
 export function CompanyProfileTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -37,6 +40,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     const editStartRef = useRef({});
 
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
+    const planName = currentCompanyProfile?.planType === 'paid' ? 'Pro Plan' : 'Free Plan';
 
     // The company as saved; while the fields are open, what is typed stays.
     useEffect(() => {
@@ -157,7 +161,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 </>)}
             />
 
-            <CompanyInfoSection compData={compData} isEditing={isEditing} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
+            <CompanyInfoSection compData={compData} isEditing={isEditing} plan={planName} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
         </div>
     );
 }

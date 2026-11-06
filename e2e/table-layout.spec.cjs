@@ -37,7 +37,7 @@ const { uploadLeadFile } = require('./helpers/leadImport.cjs');
  * company's alert interactions (read from its `feature_alerts`) and the
  * dossier's own tables. The import-leads preview is covered: the screen picks
  * a made-up file, as a person would; so is the stats backfill preview, from a
- * dry run answered by `callables`, a finished campaign's results and report,
+ * dry run answered by `callables`, a finished campaign's results (its report),
  * from the `e2eCampaign=mock` seed, and a company's applications dialog and the
  * Unified Driver Database, from the `e2eCompanies=mock` seed.
  */
@@ -194,16 +194,9 @@ const SCREENS = [
     {
         name: 'campaign results',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: (page) => openFinishedCampaign(page, /^Details$/i),
+        open: openFinishedCampaign,
         row: 'E2E Recipient 12',
         table: 'Recipient delivery log',
-    },
-    {
-        name: 'campaign delivery report',
-        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: (page) => openFinishedCampaign(page, 'View Report'),
-        row: 'Carrier rejected the message.',
-        table: 'Per-recipient delivery results',
     },
     {
         name: 'super admin company features',
@@ -220,10 +213,10 @@ const SCREENS = [
     },
 ];
 
-/** Opens the seeded finished campaign's details or report, as a person would. */
-async function openFinishedCampaign(page, button) {
-    await page.getByRole('tab', { name: /Past Sequences/i }).click();
-    await page.getByRole('button', { name: button }).first().click();
+/** Opens the seeded finished campaign's details, its report, as a person would. */
+async function openFinishedCampaign(page) {
+    await page.getByRole('tab', { name: /Sent & live/i }).click();
+    await page.getByRole('button', { name: /^Details$/i }).first().click();
 }
 
 /**

@@ -124,14 +124,14 @@ describe('CampaignCard', () => {
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
-    it('shows View Report for non-draft statuses only, and calls the handler', () => {
-        const onViewReport = vi.fn();
-        const { rerender } = render(<CampaignCard campaign={draft()} onViewReport={onViewReport} />);
-        expect(screen.queryByRole('button', { name: 'View Report' })).not.toBeInTheDocument();
+    // A sent campaign has one report screen, which Details opens: no second link to it.
+    it('offers Details, and no separate View Report, on a sent campaign', () => {
+        const onClick = vi.fn();
+        render(<CampaignCard campaign={{ id: '1', name: 'C', status: 'completed' }} onClick={onClick} />);
 
-        rerender(<CampaignCard campaign={{ id: '1', name: 'C', status: 'completed' }} onViewReport={onViewReport} />);
-        fireEvent.click(screen.getByRole('button', { name: 'View Report' }));
-        expect(onViewReport).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('button', { name: /View Report/i })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Details/ }));
+        expect(onClick).toHaveBeenCalledTimes(1);
     });
 
     it('opens the campaign from the keyboard-accessible Details button and from a card body click', () => {
@@ -151,7 +151,6 @@ describe('CampaignCard', () => {
             <CampaignCard
                 campaign={{ id: '1', name: 'Live', status: 'active', progress: { processedCount: 5, totalCount: 10, failedCount: 1 }, messageConfig: { method: 'SMS' } }}
                 onCancel={vi.fn()}
-                onViewReport={vi.fn()}
             />,
         );
         expect((await axe(container)).violations).toEqual([]);

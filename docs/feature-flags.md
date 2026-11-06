@@ -4,7 +4,7 @@ Per-tenant feature toggles live on **`companies/{companyId}`** as two parallel m
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off.** |
+| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off** — except `callTracking` (Facebook leads), which is off until an explicit `true`. |
 | `featureSchedules` | `Record<string, string \| null>` | ISO-8601 datetime when a feature should auto-disable |
 
 Super admins manage both on each company's own screen, its Features tab ([`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx)). Only they can: the rules refuse a company admin's write to either. Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
@@ -13,7 +13,7 @@ Super admins manage both on each company's own screen, its Features tab ([`Featu
 
 ## Canonical feature keys
 
-Defined in `ALL_FEATURES` in [`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx):
+Defined in `COMPANY_FEATURES` in [`features.js`](../src/features/super-admin/config/features.js), with each one's default; `isFeatureOn(company, key)` reads a flag by it:
 
 | Key | Label (admin UI) | Enforced in product |
 |-----|------------------|---------------------|
@@ -21,7 +21,7 @@ Defined in `ALL_FEATURES` in [`FeaturesView.jsx`](../src/features/super-admin/co
 | `campaignsEnabled` | Campaigns | Sidebar; [`CampaignsDashboard.jsx`](../src/features/campaigns/CampaignsDashboard.jsx) uses `!== false` (default on) |
 | `eDocs` | E-Docs | Sidebar; [`DocumentsManager.jsx`](../src/features/company-admin/views/DocumentsManager.jsx) when `=== false` |
 | `importLeads` | Import Leads | Leads page's Import leads button (admin); [`ImportLeadsPage.jsx`](../src/features/company-admin/views/ImportLeadsPage.jsx) when `=== false` |
-| `callTracking` | Call Tracking | [`CompanySettings.jsx`](../src/features/settings/components/CompanySettings.jsx) "Facebook leads" section hidden when `=== false` |
+| `callTracking` | Facebook leads | [`CompanySettings.jsx`](../src/features/settings/components/CompanySettings.jsx) "Facebook leads" section shown only when `=== true` (default **off**; the stored key keeps its old name) |
 
 Routes without a `featureFlag` in [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) (dashboard, applications, leads, pipeline, Add lead, profile, settings) are **always visible** to company team regardless of `features`.
 
@@ -55,9 +55,9 @@ Stricter checks on direct URL access:
 | E-Docs | `features.eDocs !== false` |
 | Campaigns | `features.campaignsEnabled !== false` |
 | PEV tab | `features.pev !== false` |
-| Call tracking settings | `features.callTracking !== false` |
+| Facebook leads settings section | `features.callTracking === true` |
 
-**Asymmetry:** most flags opt-out (`=== false` disables).
+**Asymmetry:** every flag is opt-out (`=== false` disables) except `callTracking`, which is opt-in (`=== true` enables): Facebook lead capture is switched off, so the section shows only where a super admin switched it on.
 
 ### 3. Public surfaces
 
@@ -180,5 +180,5 @@ After scheduler runs past June 1:
 
 ## Gaps / implementation notes
 
-1. **Default-on** — flags disable only on explicit `false`; a missing key means the feature is on.
+1. **Default-on** — flags disable only on explicit `false`; a missing key means the feature is on. The one exception is `callTracking` (Facebook leads), off unless `true`.
 2. **Scale** — scheduler loads all companies each run; acceptable at current scale per code comment; would need indexing if tenant count grows large.

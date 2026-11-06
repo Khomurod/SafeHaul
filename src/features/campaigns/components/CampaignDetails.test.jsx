@@ -135,7 +135,7 @@ describe('CampaignDetails — action visibility', () => {
         expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Details & Cancel' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Retry Failed' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Retry failed' })).not.toBeInTheDocument();
     });
 
     it('shows Resume + Cancel for a paused campaign (no Pause)', () => {
@@ -145,9 +145,9 @@ describe('CampaignDetails — action visibility', () => {
         expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
     });
 
-    it('shows Retry Failed only on a non-active campaign with failures', () => {
+    it('shows Retry failed only on a non-active campaign with failures', () => {
         renderDetails(makeCampaign({ status: 'completed', progress: { processedCount: 10, totalCount: 10, successCount: 8, failedCount: 2 } }));
-        expect(screen.getByRole('button', { name: 'Retry Failed' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Details & Cancel' })).not.toBeInTheDocument();
     });
@@ -157,7 +157,7 @@ describe('CampaignDetails — action visibility', () => {
         expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Details & Cancel' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Retry Failed' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Retry failed' })).not.toBeInTheDocument();
     });
 });
 
@@ -222,7 +222,7 @@ describe('CampaignDetails — callables & outcomes', () => {
         callables.retryFailedAttempts.mockResolvedValue({ data: { success: true, targetCount: 9 } });
         const { onClose } = renderDetails(failedCampaign());
 
-        fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Start retry campaign' }));
 
@@ -233,12 +233,41 @@ describe('CampaignDetails — callables & outcomes', () => {
 
     it('does not retry when the confirmation is cancelled', async () => {
         renderDetails(failedCampaign());
-        fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
-        // Retry Failed never texts a driver whose text may already have arrived.
+        // The cost is spelled out: a whole new campaign, permanent errors included.
+        expect(dialog).toHaveTextContent(/creates a new campaign/i);
+        expect(dialog).toHaveTextContent(/permanent errors/i);
+        // Retry failed never texts a driver whose text may already have arrived.
         expect(dialog).toHaveTextContent('Texts the SMS provider never answered are left out, as they may already have been delivered.');
         fireEvent.click(within(dialog).getByRole('button', { name: "Don't retry" }));
         expect(callables.retryFailedAttempts).not.toHaveBeenCalled();
+    });
+
+    it('does not retry when the confirmation is dismissed with Escape', async () => {
+        renderDetails(failedCampaign());
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
+        fireEvent.keyDown(dialog, { key: 'Escape' });
+        expect(callables.retryFailedAttempts).not.toHaveBeenCalled();
+    });
+
+    it('starts the retry once even when it is confirmed twice in the same tick', async () => {
+        let release;
+        callables.retryFailedAttempts.mockImplementation(() => new Promise((resolve) => {
+            release = () => resolve({ data: { success: true, targetCount: 3 } });
+        }));
+        renderDetails(failedCampaign());
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
+        const confirm = within(dialog).getByRole('button', { name: 'Start retry campaign' });
+
+        fireEvent.click(confirm);
+        fireEvent.click(confirm);
+        expect(callables.retryFailedAttempts).toHaveBeenCalledTimes(1);
+
+        release();
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
     });
 
     it('surfaces retry failure branches (success:false and thrown)', async () => {
@@ -246,7 +275,7 @@ describe('CampaignDetails — callables & outcomes', () => {
         callables.retryFailedAttempts.mockResolvedValueOnce({ data: { success: false } });
         renderDetails(failedCampaign());
 
-        fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
         const confirm = within(dialog).getByRole('button', { name: 'Start retry campaign' });
 

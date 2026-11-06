@@ -37,7 +37,26 @@ function draftToSave(campaignData) {
     return { ...rest, filters: cleanFilters };
 }
 
-export function CampaignEditor({ companyId, campaignId, onClose, onViewReport }) {
+/**
+ * The audience as the recruiter chose it, to tell an edit from a recount: key
+ * order does not count, and the uploaded rows (React state only) count by
+ * identity once there are any.
+ */
+function audienceOf(filters) {
+    const { rawData, ...chosen } = filters || {};
+    const sorted = (value) => (value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, sorted(value[key])]))
+        : value);
+    return { key: JSON.stringify(sorted(chosen)), rows: rawData?.length ? rawData : null };
+}
+
+/**
+ * `isNew`: a campaign "Create campaign" opened, with no draft yet. Its first
+ * save (the autosave after an edit, or the save before Launch) creates the
+ * draft under `campaignId` and later saves update it; leaving before then
+ * writes nothing.
+ */
+export function CampaignEditor({ companyId, campaignId, isNew = false, onClose, onViewReport }) {
     const [activeSection, setActiveSection] = useState('audience');
     const [campaignData, setCampaignData] = useState({
         name: 'Untitled Campaign',
@@ -52,7 +71,16 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
 
     // #9 FIX: Track whether user has made actual changes — prevents auto-save on mount with defaults
     const [isDirty, setIsDirty] = useState(false);
-    const isInitializedRef = React.useRef(false);
+    // A new campaign starts from the defaults: there is no snapshot to wait for.
+    const isInitializedRef = React.useRef(isNew);
+    // Whether the draft is stored: the ref decides what a save writes, the state shows it.
+    const storedRef = React.useRef(!isNew);
+    // Saves run one after another, so a save made while the first is on its
+    // way (an autosave and the save before Launch) updates the draft the first
+    // created rather than creating it again with later times.
+    const saveChainRef = React.useRef(Promise.resolve());
+    const [isStored, setIsStored] = useState(!isNew);
+    const reportedAudienceRef = React.useRef(null);
 
     // 1. Sync Logic (Read)
     useEffect(() => {
@@ -87,6 +115,22 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
         return () => unsub();
     }, [companyId, campaignId, isE2ECampaignMock]);
 
+    // The first save creates the draft, every later one updates it. The id is
+    // fixed when the editor opens, so saves that overlap still make one draft.
+    const persist = useCallback((data) => {
+        const run = saveChainRef.current.then(async () => {
+            const saved = await saveDraft(campaignId, draftToSave(data), { create: !storedRef.current });
+            if (saved) {
+                storedRef.current = true;
+                setIsStored(true);
+            }
+            return saved;
+        });
+        // A failed save does not stop the next one from running.
+        saveChainRef.current = run.catch(() => {});
+        return run;
+    }, [campaignId, saveDraft]);
+
     // 2. Auto-Save Logic (Write)
     // We debounce the save to avoid thrashing Firestore
     // #9 FIX: Only save when user has actually made changes (isDirty)
@@ -94,21 +138,23 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
     useEffect(() => {
         if (!isDirty || !isInitializedRef.current || isLaunched) return;
         const timer = setTimeout(() => {
-            if (campaignId) saveDraft(campaignId, draftToSave(campaignData));
+            if (campaignId) persist(campaignData);
         }, 2000); // 2 second auto-save delay
         return () => clearTimeout(timer);
-    }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
+    }, [campaignData, campaignId, persist, isDirty, isLaunched]);
 
     // Launch sends what the editor shows, so an edit autosave has not written
     // yet is saved first: the draft the server claims, and keeps as the
     // record, holds the same, and the claim's update brings back nothing older.
+    // A campaign never saved is saved, edited or not: the server claims a draft.
     // A failed save stops the launch, so nothing goes out that the draft lacks.
     const saveBeforeLaunch = useCallback(async () => {
-        if (!campaignId || !isDirty || !isInitializedRef.current || isLaunched) return;
-        if (await saveDraft(campaignId, draftToSave(campaignData)) === false) {
+        if (!campaignId || !isInitializedRef.current || isLaunched) return;
+        if (!isDirty && storedRef.current) return;
+        if (await persist(campaignData) === false) {
             throw new Error('We could not save the campaign. Check your connection and try again.');
         }
-    }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
+    }, [campaignData, campaignId, persist, isDirty, isLaunched]);
 
     // The server marked the draft launched (`launchedAt`, `sessionId`) before it
     // answered, so it leaves Drafts and cannot be launched again.
@@ -126,7 +172,13 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
 
     // `countedFor` names the channel the count was made for, and how many it
     // left out as already messaged by that channel; the launch checks it.
+    // The audience step also reports on its own (when it opens, and when the
+    // server recounts): only a report whose audience differs from the last one
+    // is the recruiter's edit, so opening a campaign saves nothing.
     const handleAudienceChange = useCallback((newFilters, count, countedFor = null) => {
+        const audience = audienceOf(newFilters);
+        const last = reportedAudienceRef.current;
+        reportedAudienceRef.current = audience;
         setCampaignData(prev => {
             // Guard against no-op updates to avoid render loops from effect-driven callbacks.
             if (prev.filters === newFilters && (prev.matchCount || 0) === (count || 0)
@@ -136,7 +188,7 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
             }
             return { ...prev, filters: newFilters, matchCount: count, countedFor };
         });
-        setIsDirty(true);
+        if (last && (last.key !== audience.key || last.rows !== audience.rows)) setIsDirty(true);
     }, []);
 
     const isSectionComplete = (sectionId) => {
@@ -220,7 +272,7 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
 
                 <div className="mt-auto border-t border-ds-border-subtle p-ds-4">
                     <div className="flex items-center justify-between text-ds-xs font-bold text-ds-content-muted">
-                        <span role="status" aria-live="polite">{isSaving ? 'Saving...' : 'Auto-Saved'}</span>
+                        <span role="status" aria-live="polite">{isSaving ? 'Saving...' : (isStored ? 'Auto-Saved' : 'Not saved yet')}</span>
                         <Icon icon={Save} size="sm" className={isSaving ? 'animate-pulse text-ds-action-primary' : ''} />
                     </div>
                 </div>

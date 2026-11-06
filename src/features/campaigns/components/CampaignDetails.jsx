@@ -268,7 +268,7 @@ export function CampaignDetails({ campaign, onClose }) {
                     {hasFailures && !isActive && (
                         <Button variant="danger" size="sm" onClick={() => setPendingRetry(true)} loading={retrying}>
                             {!retrying && <Icon icon={RefreshCw} size="sm" />}
-                            {retrying ? 'Starting...' : 'Retry Failed'}
+                            {retrying ? 'Starting...' : 'Retry failed'}
                         </Button>
                     )}
                 </div>

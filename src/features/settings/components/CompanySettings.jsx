@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
-    Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
+    Icon, Building, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
 } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
@@ -11,15 +11,14 @@ import { CompanyProfileTab } from './CompanyProfileTab';
 import { ApplicationFormTab } from './ApplicationFormTab';
 import { TeamManagementTab } from './TeamManagementTab';
 import { EmailSettingsTab } from './EmailSettingsTab';
-import { PersonalProfileTab } from './PersonalProfileTab';
 import { IntegrationsTab } from './IntegrationsTab';
-import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { SettingsMenu } from './SettingsMenu';
 import { ButtonLink, SectionNavigation } from '@/design-system/components';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { isFeatureOn } from '@features/super-admin/config/features';
 
 /**
  * The sections, grouped. Every id is also its `?section=` value, so a link to a
@@ -49,22 +48,35 @@ function settingsGroups(profile) {
             id: 'connections',
             label: 'Connections',
             items: [
-                // Every company may make keys; Facebook leads is hidden with call tracking.
+                // Every company may make keys. Facebook leads shows only where a
+                // super admin switched it on (stored as `features.callTracking`).
                 { id: 'api_keys', label: 'API keys', icon: KeyRound },
-                ...(profile?.features?.callTracking !== false
+                ...(isFeatureOn(profile, 'callTracking')
                     ? [{ id: 'integrations', label: 'Facebook leads', icon: Blocks }]
                     : []),
             ],
         },
-        {
-            id: 'account',
-            label: 'Account',
-            items: [
-                { id: 'billing', label: 'Plan', icon: CreditCard },
-                { id: 'personal', label: 'My profile', icon: User },
-            ],
-        },
     ];
+}
+
+/**
+ * Sections that moved, and where an old link to one lands now, with the
+ * address's other parameters (`e2eAuth`) kept. My profile is the Profile page,
+ * open to every staff member; Plan is a line in Company profile.
+ */
+const MOVED_SECTIONS = {
+    personal: { pathname: '/company/profile' },
+    billing: { pathname: '/company/settings', section: 'company' },
+};
+
+function movedSectionTarget(searchParams) {
+    const moved = MOVED_SECTIONS[searchParams.get('section')];
+    if (!moved) return null;
+    const params = new URLSearchParams(searchParams);
+    if (moved.section) params.set('section', moved.section);
+    else params.delete('section');
+    const search = params.toString();
+    return { pathname: moved.pathname, search: search ? `?${search}` : '' };
 }
 
 /** The phone's menu of sections: shown when the address names no section. */
@@ -72,8 +84,11 @@ const MENU = 'menu';
 
 export function CompanySettings() {
     const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
+    const [searchParams] = useSearchParams();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
 
+    const moved = movedSectionTarget(searchParams);
+    if (moved) return <Navigate to={moved} replace />;
     if (!isCompanyAdmin && currentCompanyProfile) {
         return <Navigate to="/company/dashboard" replace />;
     }
@@ -168,8 +183,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                         isCompanyAdmin={isCompanyAdmin}
                     />
                 );
-            case 'personal':
-                return <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />;
             case 'email':
                 return <EmailSettingsTab currentCompanyProfile={currentCompanyProfile} />;
             case 'sms':
@@ -180,8 +193,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                 return <IntegrationsTab companyId={currentCompanyProfile.id} />;
             case 'api_keys':
                 return <ApiKeysTab companyId={currentCompanyProfile.id} />;
-            case 'billing':
-                return <BillingTab currentCompanyProfile={currentCompanyProfile} />;
             default:
                 return null;
         }

@@ -51,6 +51,21 @@ test.describe('Company Settings Company Profile information compatibility slice'
     ).toBe(true);
   });
 
+  test('shows the plan as one read-only line, where an old Plan address now lands', async ({ page }) => {
+    // Settings → Plan is gone; its address opens Company profile, other parameters kept.
+    await page.goto(`${SETTINGS_URL}&section=billing`);
+    await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin&section=company$/);
+    const information = page.getByTestId('company-information');
+    await expect(information).toBeVisible();
+    // The E2E company fixture carries no paid plan, so it resolves to Free Plan.
+    await expect(information.getByText('Plan', { exact: true })).toBeVisible();
+    await expect(information.getByText('Free Plan — to change it, contact support.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Plan/ })).toHaveCount(0);
+
+    await enterEditMode(page);
+    await expect(information.getByText(/Free Plan/)).toHaveCount(0);
+  });
+
   test('keeps tablet fields aligned without document or nested overflow', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Tablet geometry check.');
     await page.setViewportSize({ width: 1024, height: 768 });

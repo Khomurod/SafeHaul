@@ -174,8 +174,8 @@ export function FeaturesView({ company, onChanged }) {
             header: 'On',
             width: 'sm',
             render: (f) => {
-                // On unless switched off, as every screen that honours the flag
-                // reads it (`features.{key} === false` hides it).
+                // As every screen that honours the flag reads it (`isFeatureOn`):
+                // on unless switched off; Facebook leads off unless switched on.
                 const isEnabled = isFeatureOn(company, f.key);
                 return (
                     <Switch

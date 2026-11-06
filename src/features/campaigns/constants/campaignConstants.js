@@ -49,7 +49,7 @@ const DELIVERY_RESULTS = {
  * when the SMS provider or the mail server took the message: that is "Sent",
  * not proof it arrived, until the delivery check records what RingCentral did.
  * A send the SMS provider never answered (`sendUnconfirmed`) is "May have been
- * sent", with the server's explanation as a note: Retry Failed leaves it out.
+ * sent", with the server's explanation as a note: Retry failed leaves it out.
  * Anything else is "Not sent" ("Not delivered" when RingCentral refused it
  * later), with the reason the server recorded.
  */

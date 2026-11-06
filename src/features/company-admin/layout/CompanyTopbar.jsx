@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
-import { Avatar, IconButton } from '@/design-system/components';
+import { Avatar, ButtonLink, IconButton } from '@/design-system/components';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { NotificationDropdown } from '../components/NotificationDropdown';
-import { getPortalUser } from '@features/auth';
+import { getPortalUser, onPortalUserForgotten } from '@features/auth';
 import { isSuperAdminClaims } from '@app/auth/roles';
+
+const PROFILE_PATH = '/company/profile';
 
 // Helper to get user role label
 const getUserRoleLabel = (claims, companyId) => {
@@ -28,16 +30,19 @@ export const CompanyTopbar = ({
     // from the bell all leave the page: unsaved changes ask first.
     const guard = useUnsavedChangesGuard();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const companyId = currentCompanyProfile?.id;
 
     const [displayName, setDisplayName] = useState(currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User');
 
     useEffect(() => {
+        let current = true;
         const fetchUserName = async () => {
             if (!currentUser?.uid) return;
             try {
                 // Try to get name from Firestore profile which is more reliable
                 const userDoc = await getPortalUser(currentUser.uid);
+                if (!current) return;
                 if (userDoc?.name) {
                     setDisplayName(userDoc.name);
                 } else if (currentUser.displayName) {
@@ -48,6 +53,14 @@ export const CompanyTopbar = ({
             }
         };
         fetchUserName();
+        // A name saved on Profile forgets the kept copy: read it again.
+        const unsubscribe = onPortalUserForgotten((userId) => {
+            if (!userId || userId === currentUser?.uid) fetchUserName();
+        });
+        return () => {
+            current = false;
+            unsubscribe();
+        };
     }, [currentUser]);
 
     // `false` when the person is still signed in, so the unsaved-changes
@@ -61,6 +74,16 @@ export const CompanyTopbar = ({
         }
     };
 
+
+    // The name and avatar open Profile. A plain press stays in the app and asks
+    // first while the page holds unsaved changes; a new-tab or modified press
+    // opens as the browser would.
+    const openProfile = (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (pathname === PROFILE_PATH) return;
+        guard.request(() => navigate(PROFILE_PATH));
+    };
 
     const roleLabel = getUserRoleLabel(currentUserClaims, companyId);
     // Use displayName for initials
@@ -99,21 +122,24 @@ export const CompanyTopbar = ({
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden sm:block" aria-hidden="true" />
 
-                {/* User Info */}
-                <div className="items-center gap-3 hidden md:flex">
-                    <div className="flex flex-col items-end hidden md:flex">
-                        <span className="text-ds-body font-semibold text-ds-content">
-                            {displayName}
+                {/* User Info: the way to Profile, named "Your profile" and what it shows */}
+                <div className="hidden md:flex">
+                    <ButtonLink href={PROFILE_PATH} variant="ghost" onClick={openProfile}>
+                        <span className="sr-only">Your profile: </span>
+                        <span className="flex flex-col items-end">
+                            <span className="text-ds-body font-semibold text-ds-content">
+                                {displayName}
+                            </span>{' '}
+                            <span className="text-ds-xs font-normal text-ds-content-muted">
+                                {roleLabel}
+                            </span>
                         </span>
-                        <span className="text-ds-xs text-ds-content-muted">
-                            {roleLabel}
-                        </span>
-                    </div>
 
-                    {/* Avatar */}
-                    <Avatar size="md" tone="primary">
-                        {initials}
-                    </Avatar>
+                        {/* Avatar */}
+                        <Avatar size="md" tone="primary">
+                            {initials}
+                        </Avatar>
+                    </ButtonLink>
                 </div>
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden md:block" aria-hidden="true" />

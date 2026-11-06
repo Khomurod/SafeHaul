@@ -279,7 +279,7 @@ const SCREENS = [
     {
         name: 'super-admin-company-features',
         url: '/super-admin/companies/e2e-co-1?e2eAuth=super_admin&e2eCompanies=mock',
-        ready: (page) => page.getByRole('rowheader', { name: 'Call Tracking' }),
+        ready: (page) => page.getByRole('rowheader', { name: 'Facebook leads' }),
     },
     /*
      * A company's applications dialog, opened from the companies table on made-up
@@ -300,15 +300,15 @@ const SCREENS = [
     },
     /*
      * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
-     * and its delivery report dialog. Twelve made-up recipients, so both capped
-     * tables scroll. Details scrolls inside its own panel, below the masthead, so
+     * the campaign's one report screen. Twelve made-up recipients, so the capped
+     * table scrolls. Details scrolls inside its own panel, below the masthead, so
      * the shot brings the log into view there; the window does not move.
      */
     {
         name: 'company-campaign-results',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
         open: async (page) => {
-            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('tab', { name: /Sent & live/i }).click();
             await page.getByRole('button', { name: /^Details$/i }).first().click();
             await page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }).waitFor();
             // Only the panel that scrolls moves: `scrollIntoView` would also shift the
@@ -320,16 +320,6 @@ const SCREENS = [
             });
         },
         ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
-    },
-    {
-        name: 'company-campaign-report',
-        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: async (page) => {
-            await page.getByRole('tab', { name: /Past Sequences/i }).click();
-            await page.getByRole('button', { name: 'View Report' }).first().click();
-        },
-        ready: (page) => page.getByRole('dialog', { name: 'Delivery Report' })
-            .getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
     },
     {
         name: 'login',

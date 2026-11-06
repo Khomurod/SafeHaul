@@ -1,5 +1,8 @@
-// E2E coverage for the Company Settings "Integrations" tab
-// (IntegrationsTab). This is a presentation-only migration: the SDK-load,
+// E2E coverage for Settings → Connections → Facebook leads (IntegrationsTab,
+// section id `integrations`). The section shows only for a company a super
+// admin switched Facebook leads on for (`features.callTracking === true`);
+// `?e2eFacebookLeads=on` gives the fixture company that switch, and without it
+// the section is hidden. This is a presentation-only migration: the SDK-load,
 // login, Graph API and connectFacebookPage callable contracts are frozen and
 // covered by IntegrationsTab.contract.test.jsx; the labelling/live-region/
 // colour-only defects are covered by IntegrationsTab.a11y.test.jsx. This spec
@@ -18,7 +21,7 @@
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
-const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
+const SETTINGS_URL = '/company/settings?e2eAuth=company_admin&e2eFacebookLeads=on';
 
 const FB_SDK_STUB = `
   window.__fbLoginCalls = 0;
@@ -51,12 +54,21 @@ async function expectNoHorizontalOverflow(page, label) {
 test.describe('Company Settings Integrations', () => {
   test.describe.configure({ timeout: 90_000 });
 
-  test('renders the Facebook Lead Ads card and the "coming soon" placeholder', async ({ page }) => {
+  test('renders the Facebook Lead Ads card, and no "coming soon" placeholder', async ({ page }) => {
     await openIntegrationsTab(page);
     await expect(page.getByText('Automatically import leads from your Facebook Lead Gen forms.', { exact: false }))
       .toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: 'More Integrations Coming Soon' }))
-      .toBeVisible();
+    await expect(page.getByRole('heading', { name: /Coming Soon/i })).toHaveCount(0);
+    await expect(page.getByText(/Tenstreet|Driver Pulse/)).toHaveCount(0);
+  });
+
+  test('is hidden, and its address opens Company profile, unless Facebook leads is switched on', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Beside the rail from 768px up; a phone opens its menu.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/company/settings?e2eAuth=company_admin&section=integrations');
+    await expect(page.getByRole('heading', { level: 1, name: 'Company profile' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Facebook leads', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'API keys', exact: true })).toBeVisible();
   });
 
   test('shows a reachable, named Connect Facebook control, enabled once the SDK has loaded', async ({ page }) => {
