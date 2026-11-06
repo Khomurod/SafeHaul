@@ -8,7 +8,7 @@
 jest.mock('firebase-functions/v2/https', () => ({
     onCall: jest.fn((optsOrFn, maybeFn) => (typeof maybeFn === 'function' ? maybeFn : optsOrFn)),
     HttpsError: class HttpsError extends Error {
-        constructor(code, message) { super(message); this.code = code; }
+        constructor(code, message, details) { super(message); this.code = code; this.details = details; }
     },
 }));
 jest.mock('firebase-functions', () => ({ logger: { info: jest.fn(), warn: jest.fn() } }));
@@ -76,7 +76,12 @@ jest.mock('../../firebaseAdmin', () => ({
                     set: async (data, opts) => mockReviews.set(id, { ...(opts?.merge ? mockReviews.get(id) : {}), ...data }),
                 }),
             }
-            : { doc: () => ({ collection: () => ({ doc: () => mockAppRef }) }) }),
+            : {
+                doc: () => ({
+                    get: async () => ({ exists: true, data: () => ({ companyName: 'Acme Freight' }) }),
+                    collection: () => ({ doc: () => mockAppRef }),
+                }),
+            }),
         // Firestore's guarantee, and all this mock models of it: transactions
         // run as if one after another, each seeing the writes of those before.
         runTransaction: (fn) => {
@@ -183,5 +188,42 @@ describe('a newer review link', () => {
         mockReviews.set('other', { ...target, applicationId: 'app2', status: 'open' });
         await createChangeReview({ auth, data: target });
         expect(mockReviews.get('other').status).toBe('open');
+    });
+});
+
+describe('a proposal made while the review page is open', () => {
+    const decide = (token, shown) => submitChangeResolution({
+        data: { token, resolutions: [{ fieldKey: 'phone', action: 'approve', shown }] },
+    });
+
+    it('is not approved by a page that showed the earlier value', async () => {
+        propose('phone', '555-0100');
+        const { token } = await createChangeReview({ auth, data: target });
+        const page = await getChangeReview({ data: { token } });
+        expect(page.companyName).toBe('Acme Freight');
+
+        // The company changes its mind while the driver reads the page.
+        propose('phone', '555-0199');
+        await expect(decide(token, page.changes[0].proposedValue)).rejects.toMatchObject({
+            code: 'failed-precondition', details: { reason: 'changes-updated' },
+        });
+        expect(mockAppDoc.phone).toBeUndefined();
+        expect(mockPending.get('phone')).toMatchObject({ status: 'pending', proposedValue: '555-0199' });
+        expect(mockReviews.get(token).status).toBe('open');
+
+        // The page loads the review again and the driver approves what it now shows.
+        const again = await getChangeReview({ data: { token } });
+        await decide(token, again.changes[0].proposedValue);
+        expect(mockAppDoc.phone).toBe('555-0199');
+        expect(mockReviews.get(token).status).toBe('completed');
+    });
+
+    it('is approved, as before, by a page that does not say what it showed', async () => {
+        propose('phone', '555-0100');
+        const { token } = await createChangeReview({ auth, data: target });
+        propose('phone', '555-0199');
+
+        await approve(token, 'phone');
+        expect(mockAppDoc.phone).toBe('555-0199');
     });
 });
