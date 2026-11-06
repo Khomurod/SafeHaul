@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import InputField from '@shared/components/form/InputField';
 import { useFieldValidation } from '@shared/hooks/useFieldValidation';
 import { required, email as emailRule, phone as phoneRule, PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
@@ -9,7 +9,7 @@ import RadioGroup from '@shared/components/form/RadioGroup';
 import { useData } from '@/context/DataContext';
 import { Icon, AlertCircle } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
-import { Checkbox, FieldMessage, FormSection } from '@/design-system/components';
+import { Checkbox, FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
 import { postalCodeField } from './components/postalCodeField';
@@ -47,24 +47,48 @@ const FIELD_ID_BY_NAME = {
     zip: 'zip',
 };
 
+const DOB_UNDER_21 = 'This date of birth indicates you are under 21. '
+    + 'Interstate CMV positions require age 21 or older — please verify the date.';
+
+const isBlank = (value) => value === undefined || value === null || String(value).trim() === '';
+
+/**
+ * What stops Continue about the date of birth, or null. A required date must be
+ * there and real; any date, required or not, must make the applicant 21 or older.
+ * An optional date that cannot be read is let through, as it always was.
+ */
+function dobProblem(dob, dobConfig) {
+    if (dobConfig.hidden) return null;
+    if (isBlank(dob)) return dobConfig.required ? 'Date of birth is required.' : null;
+    const age = ageFromIsoDate(dob);
+    if (age === null) return dobConfig.required ? 'Please enter a valid date of birth.' : null;
+    return age < 21 ? DOB_UNDER_21 : null;
+}
+
 /**
  * Presentation uses the approved `FormSection` / `FormField` / `Select` /
  * `Checkbox` primitives and the shared field adapters.
  *
  * Unchanged: every field key, the `applicationConfig` hidden/required resolution,
  * the `known-by-other-name` default-to-'no' effect, the on-blur/revalidate
- * behaviour, the soft-format warnings, the authoritative `validateStep()` order
- * and its exact toast strings, the age-21 rules, the focus-first-error behaviour,
- * and the `previousAddresses` row shape.
+ * behaviour, the soft-format warnings, the authoritative `validateStep()` order,
+ * what it refuses, the focus-first-error behaviour, and the `previousAddresses`
+ * row shape.
  *
  * The per-step "Step 1 of 9" legend was removed: `Stepper` renders the
  * authoritative step title as the page `<h1>`, and this copy also said "of 9"
  * even when custom questions made it ten steps.
  *
- * The date-of-birth age check is also shown inline the moment the date changes,
- * not only as a toast on Continue, and the company's
- * `requirePreviousAddressUnderThreeYears` rule asks for a previous address as
- * soon as the applicant answers No to the three-year question. The
+ * **The date of birth and the State say what is wrong at the field**, never in a
+ * toast that is gone in seconds: the date's message is `TypedDateField`'s own
+ * error (announced, and describing every box), the State's is the list's. The
+ * age is said the moment the date makes the applicant under 21; a missing or
+ * unreadable date, and a missing State, once Continue is pressed. Continue still
+ * refuses all of them and puts the focus on the field. The other fields' toasts
+ * repeat the message their field already shows.
+ *
+ * The company's `requirePreviousAddressUnderThreeYears` rule asks for a previous
+ * address as soon as the applicant answers No to the three-year question. The
  * previous-address editor is `PreviousAddressesSection`.
  *
  * The applicant's own name, contact, date-of-birth and current-address fields
@@ -98,9 +122,13 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     const previousAddressRequired = rules.requirePreviousAddressUnderThreeYears
         && !historyConfig.hidden && residenceThreeYears === 'no';
 
-    // Immediate: recalculated on every change of the date, not only on Continue.
-    const dobAge = !dobConfig.hidden && formData.dob ? ageFromIsoDate(formData.dob) : null;
-    const dobUnder21 = dobAge !== null && dobAge < 21;
+    // Set by the first Continue: from then on the fields Continue checks without
+    // a validator of their own say what is still wrong as the applicant fixes it.
+    const [continuePressed, setContinuePressed] = useState(false);
+    const dobMessage = dobProblem(formData.dob, dobConfig);
+    // The age is said at once, recalculated on every change of the date.
+    const dobError = continuePressed || dobMessage === DOB_UNDER_21 ? dobMessage : null;
+    const stateError = continuePressed && isBlank(formData.state) ? 'State is required.' : null;
 
     useEffect(() => {
         if (formData['known-by-other-name'] === undefined) {
@@ -143,7 +171,15 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
         updateFormData(name, value);
     };
 
-    const validateStep = () => {
+    /**
+     * The page's checks, in order; false holds the page. `focused` says whether
+     * the inline pass already put the focus on a field, which the State and the
+     * date of birth then leave where it is.
+     */
+    const validateStep = (focused) => {
+        const focusUnlessFocused = (id) => {
+            if (!focused) document.getElementById(id)?.focus?.();
+        };
         const requiredFields = {
             firstName: 'First Name',
             lastName: 'Last Name',
@@ -157,10 +193,12 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
 
         // 1. Check Not Empty
         for (const [field, label] of Object.entries(requiredFields)) {
-            if (!formData[field] || formData[field].trim() === '') {
-                showError(`${label} is required.`);
-                return false;
-            }
+            if (!isBlank(formData[field])) continue;
+            // The State list says so itself; the other fields' own line already does
+            // too, and the toast repeats it.
+            if (field === 'state') focusUnlessFocused('state');
+            else showError(`${label} is required.`);
+            return false;
         }
 
         // 2. Email — the rule the final pre-flight and the field's inline check apply
@@ -180,26 +218,10 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             return false;
         }
 
-        if (!dobConfig.hidden && dobConfig.required) {
-            if (!formData.dob || String(formData.dob).trim() === '') {
-                showError('Date of birth is required.');
-                return false;
-            }
-            const age = ageFromIsoDate(formData.dob);
-            if (age === null) {
-                showError('Please enter a valid date of birth.');
-                return false;
-            }
-            if (age < 21) {
-                showError('You must be at least 21 years old for interstate CMV positions.');
-                return false;
-            }
-        } else if (!dobConfig.hidden && formData.dob) {
-            const age = ageFromIsoDate(formData.dob);
-            if (age !== null && age < 21) {
-                showError('Date of birth indicates under 21 — interstate CMV roles typically require age 21+. Please verify.');
-                return false;
-            }
+        // 4. Date of birth — said under the field (`dobError`), where the focus goes.
+        if (dobMessage) {
+            focusUnlessFocused('dob-month');
+            return false;
         }
 
         return true;
@@ -208,12 +230,13 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     const handleContinue = () => {
         // C5: surface per-field inline errors for the basic fields, then fall
         // through to the authoritative validateStep() gate (which also enforces
-        // DOB/age rules and shows the summary toast).
+        // the State and DOB/age rules at their fields).
+        setContinuePressed(true);
         const { firstErrorField } = validateAll(formData);
         if (firstErrorField) {
             document.getElementById(FIELD_ID_BY_NAME[firstErrorField] || firstErrorField)?.focus?.();
         }
-        if (!validateStep()) return;
+        if (!validateStep(Boolean(firstErrorField))) return;
 
         const form = document.getElementById('driver-form');
         if (form) {
@@ -296,12 +319,8 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                                 minYear={1920}
                                 helpText="Type the month, day and year in numbers, for example 03 14 1984."
                                 autoComplete="bday"
+                                error={dobError || undefined}
                             />
-                            {dobUnder21 && (
-                                <FieldMessage tone="error" className="mt-ds-1" data-testid="dob-age-message">
-                                    This date of birth indicates you are under 21. Interstate CMV positions require age 21 or older — please verify the date.
-                                </FieldMessage>
-                            )}
                         </div>
                     )}
                 </div>
@@ -356,6 +375,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                         groups={NORTH_AMERICAN_REGION_GROUPS}
                         value={formData.state}
                         onChange={(e) => handleStateChange(e.target.name, e.target.value)}
+                        error={stateError || undefined}
                     />
                     <div>
                         <InputField label={postal.label} id="zip" name="zip" autoComplete="postal-code" inputMode={postal.inputMode} required={true} value={formData.zip} onChange={handleChange} onBlur={handleFieldBlur} error={errors.zip} placeholder={postal.placeholder} />

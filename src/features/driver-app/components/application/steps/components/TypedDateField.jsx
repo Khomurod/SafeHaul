@@ -67,7 +67,8 @@ function isoOf(parts) {
  * `error` is the page's own message about the date, such as a required date left
  * empty when the form was sent. It is shown and announced in the same place, and
  * gives way to the field's own message about a complete date that does not
- * exist, so the two never stack.
+ * exist, so the two never stack. Whichever is shown describes every box as well
+ * as the group, so a screen reader reads it on the box that has focus.
  *
  * Frozen like `DateTripletField`'s: the `${idPrefix}-month|day|year` element
  * ids, and `autoComplete="bday"` giving `bday-month`, `bday-day`, `bday-year`.
@@ -175,6 +176,7 @@ export default function TypedDateField({
                             onChange={onPartChange(key, length)}
                             required={required}
                             aria-invalid={(showError ? problem.part === key : Boolean(error)) || undefined}
+                            aria-describedby={message ? errorId : undefined}
                         />
                     </div>
                 ))}
