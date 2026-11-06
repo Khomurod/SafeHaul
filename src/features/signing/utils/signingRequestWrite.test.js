@@ -60,6 +60,13 @@ vi.mock('firebase/firestore', () => ({
         fx.writes.push(['updateDoc', ref.path, data]);
     },
     getDoc: async () => ({ exists: () => fx.before !== null, data: () => fx.before }),
+    // A correction reads the request and writes it in one transaction.
+    runTransaction: async (_db, run) => run({
+        get: async () => ({ exists: () => fx.before !== null, data: () => fx.before }),
+        update: (ref, data) => {
+            fx.writes.push(['transaction.update', ref.path, data]);
+        },
+    }),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
     deleteField: () => 'DELETE_FIELD',
     Timestamp: { fromMillis: (ms) => ({ ms }) },
@@ -367,7 +374,7 @@ describe('a correction of a sent request in the envelope editor', () => {
         });
 
         expect(fx.writes).toStrictEqual([
-            ['updateDoc', 'companies/co-1/signing_requests/req-1', {
+            ['transaction.update', 'companies/co-1/signing_requests/req-1', {
                 companyId: 'co-1',
                 title: 'Offer Letter',
                 fields: STORED_EDITOR_FIELDS,

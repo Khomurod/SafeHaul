@@ -1,5 +1,5 @@
 // The envelope editor's Firebase persistence paths, kept apart from
-// `EnvelopeCreator.jsx` for the source-size standard. Two functions, both
+// `EnvelopeCreator.jsx` for the source-size standard. Three functions, all
 // React-free:
 //
 //  - `hydrateEnvelopeForEdit` — the "Correct" / "Edit Template" load: reads
@@ -9,13 +9,15 @@
 //  - `saveEnvelope` — the save/send action: validation, prefill resolution,
 //    Storage upload and the template/request writes. A new request is written
 //    and announced by `signingRequestWrite.js`, as the template wizard's is.
+//  - `correctRecipient` — Fix recipient and resend: Correct's checks and write
+//    for a new recipient alone, on the request as it is when the write lands.
 //
-// Neither function holds state; every state change flows back through the
-// setters and callbacks the component provides.
+// None holds state; every state change flows back through the setters and
+// callbacks the caller provides.
 import { db, auth } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteField, runTransaction } from 'firebase/firestore';
 import {
     buildPrefillContext,
     normalizePrefillPolicy,
@@ -149,6 +151,144 @@ function correctionMessage(before, after) {
     return `Document updated. The signing link is on its way by ${channels}.`;
 }
 
+/** A correction refused for its reason, which its sender is shown. Nothing was written. */
+class CorrectionRefused extends Error {}
+
+const NO_LONGER_SENT = 'This document is no longer waiting for a signature: it was signed, voided or is being signed. The correction was not saved.';
+
+/**
+ * Writes a correction to request `docRef` in one transaction, refused unless
+ * the request still waits for its signer (`sent`) as the write lands: a signer
+ * who submitted since the editor or form opened keeps what they signed, and a
+ * voided request stays voided. `updateFor(current)` builds the update from the
+ * request as it is now. Answers that request.
+ */
+function writeCorrection(docRef, updateFor) {
+    return runTransaction(db, async (tx) => {
+        const snap = await tx.get(docRef);
+        const current = (snap.exists() && snap.data()) || {};
+        if (current.status !== 'sent') throw new CorrectionRefused(NO_LONGER_SENT);
+        tx.update(docRef, updateFor(current));
+        return current;
+    });
+}
+
+/** Who a corrected request goes to and how, and the send records of the channels it turns off. */
+function recipientUpdate({ recipientName, recipientEmail, recipientPhone }, delivery) {
+    return {
+        recipientEmail: recipientEmail || null,
+        recipientName,
+        recipientPhone: recipientPhone || null,
+        ...delivery,
+        ...clearedChannelRecords(delivery),
+    };
+}
+
+/** Why a request cannot go to this recipient, or null: it needs a name, and an email or phone for each channel. */
+function recipientProblem({ recipientName, recipientEmail, recipientPhone, deliveryMethod }) {
+    if (!recipientName) return 'Please provide a recipient name.';
+    if ((deliveryMethod === 'email' || deliveryMethod === 'both') && !recipientEmail) {
+        return 'Email is required for email delivery.';
+    }
+    if ((deliveryMethod === 'sms' || deliveryMethod === 'both') && !recipientPhone) {
+        return 'Phone number is required for SMS delivery.';
+    }
+    return null;
+}
+
+/**
+ * `fields` resolved for the recipient in `prefillContext`, as a document goes
+ * out, or `error`: a company signature without its image (a template may leave
+ * it for each document, a document never goes out without it), or a locked
+ * required field the prefill leaves empty.
+ */
+function fieldsForDelivery(fields, prefillContext) {
+    if (fieldsMissingCompanySignature(fields).length > 0) return { error: COMPANY_SIGNATURE_MISSING_MESSAGE };
+    const { fields: resolvedFields, missingLockedRequired } = resolveFieldsForSend(fields, prefillContext);
+    if (missingLockedRequired.length > 0) {
+        return {
+            error: `Cannot send yet. These locked required fields are missing prefill data: ${missingLockedRequired.join(', ')}.`,
+        };
+    }
+    return {
+        fields: resolvedFields.map((resolvedField, index) => ({ ...resolvedField, bindingKey: fields[index].bindingKey || '' })),
+    };
+}
+
+const SENT_NOWHERE_AGAIN = {
+    email: 'Not saved: nothing would be sent again. The email failed to this address, and Save and resend sends '
+        + 'only to a changed one: change it, or press Cancel, then Resend to send to it again.',
+    sms: 'Not saved: nothing would be sent again. The text failed to this number, and Save and resend sends '
+        + 'only to a changed one: change it, or press Cancel, then Resend to text it again.',
+};
+
+/**
+ * Why Save and resend would send nothing while a failed send stays on, or
+ * null. The correction trigger sends only where the link has not been
+ * (`correctionDelivery`), so a correction that keeps the address or number a
+ * send failed to (a new name, a channel turned off beside it) sends nothing
+ * there. Resend (Remind) is what sends there again.
+ */
+function failedSendLeft(before, after) {
+    const delivery = correctionDelivery(before, after);
+    if (delivery?.email || delivery?.sms) return null;
+    if (before.emailStatus === 'failed' && after.sendEmail) return SENT_NOWHERE_AGAIN.email;
+    if (before.smsStatus === 'failed' && after.sendSms) return SENT_NOWHERE_AGAIN.sms;
+    return null;
+}
+
+/**
+ * Fix recipient and resend (`useSentDocumentActions`): Correct Document's
+ * checks and write for a new recipient and channels, and nothing else. One
+ * transaction applies it to request `requestId` as it is when the write lands
+ * (`writeCorrection`): the request's own fields, resolved again for the new
+ * recipient, and its own title, so an edit saved since the dialog opened is
+ * kept. Refused, writing nothing, when it would send nothing while a failed
+ * send stays on (`failedSendLeft`). It reports by itself, as `saveEnvelope`
+ * does, and answers whether it saved.
+ */
+export async function correctRecipient({
+    companyId,
+    companyName,
+    requestId,
+    recipientName,
+    recipientEmail,
+    recipientPhone,
+    deliveryMethod,
+    showError,
+    showSuccess,
+}) {
+    const recipient = { recipientName, recipientEmail, recipientPhone };
+    const problem = recipientProblem({ ...recipient, deliveryMethod });
+    if (problem) {
+        showError(problem);
+        return false;
+    }
+    const prefillContext = buildPrefillContext({ ...recipient, companyName });
+    const delivery = deliveryFields(deliveryMethod);
+    const after = { recipientEmail, recipientPhone, ...delivery };
+    try {
+        const before = await writeCorrection(doc(db, 'companies', companyId, 'signing_requests', requestId), (current) => {
+            const left = failedSendLeft(current, after);
+            if (left) throw new CorrectionRefused(left);
+            const stored = (current.fields || []).filter((field) => field != null).map(deserializeTemplateField);
+            const resolved = fieldsForDelivery(stored, prefillContext);
+            if (resolved.error) throw new CorrectionRefused(resolved.error);
+            return {
+                fields: serializeTemplateFields(resolved.fields),
+                updatedAt: serverTimestamp(),
+                ...recipientUpdate(recipient, delivery),
+            };
+        });
+        showSuccess(correctionMessage(before, after));
+        return true;
+    } catch (err) {
+        if (!(err instanceof CorrectionRefused)) throw err;
+        showError(err.message);
+        return false;
+    }
+}
+
 /** Only reachable from a completed write. Also a safe history reset point. */
 export async function saveEnvelope({
     file,
@@ -181,27 +321,14 @@ export async function saveEnvelope({
     }
 
     if (creatorMode === 'request' && !isEditingTemplate) {
-        if (!recipientName) {
-            showError('Please provide a recipient name.');
-            return;
-        }
-        if ((deliveryMethod === 'email' || deliveryMethod === 'both') && !recipientEmail) {
-            showError('Email is required for email delivery.');
-            return;
-        }
-        if ((deliveryMethod === 'sms' || deliveryMethod === 'both') && !recipientPhone) {
-            showError('Phone number is required for SMS delivery.');
+        const problem = recipientProblem({ recipientName, recipientEmail, recipientPhone, deliveryMethod });
+        if (problem) {
+            showError(problem);
             return;
         }
     }
 
     const shouldResolveForDelivery = creatorMode === 'request' || isEditingRequest;
-    // A document never goes out without its company signature; a template may
-    // leave the image for each document.
-    if (shouldResolveForDelivery && fieldsMissingCompanySignature(fields).length > 0) {
-        showError(COMPANY_SIGNATURE_MISSING_MESSAGE);
-        return;
-    }
     const prefillContext = buildPrefillContext({
         recipientName,
         recipientEmail,
@@ -209,20 +336,14 @@ export async function saveEnvelope({
         companyName,
     });
 
-    let processedFields = [];
+    let processedFields;
     if (shouldResolveForDelivery) {
-        const { fields: resolvedFields, missingLockedRequired } = resolveFieldsForSend(fields, prefillContext);
-        processedFields = resolvedFields.map((resolvedField, index) => ({
-            ...resolvedField,
-            bindingKey: fields[index].bindingKey || '',
-        }));
-
-        if (missingLockedRequired.length > 0) {
-            showError(
-                `Cannot send yet. These locked required fields are missing prefill data: ${missingLockedRequired.join(', ')}.`
-            );
+        const resolved = fieldsForDelivery(fields, prefillContext);
+        if (resolved.error) {
+            showError(resolved.error);
             return;
         }
+        processedFields = resolved.fields;
     } else {
         // Template save/edit keeps raw placeholder tokens instead of pre-resolving values.
         processedFields = fields.map((field) => {
@@ -250,17 +371,11 @@ export async function saveEnvelope({
         };
 
         if (isEditingRequest) {
-            const docRef = doc(db, 'companies', companyId, 'signing_requests', editRequestId);
-            const before = (await getDoc(docRef)).data() || {};
             const delivery = deliveryFields(deliveryMethod);
-            await updateDoc(docRef, {
+            const before = await writeCorrection(doc(db, 'companies', companyId, 'signing_requests', editRequestId), () => ({
                 ...commonData,
-                recipientEmail: recipientEmail || null,
-                recipientName,
-                recipientPhone: recipientPhone || null,
-                ...delivery,
-                ...clearedChannelRecords(delivery),
-            });
+                ...recipientUpdate({ recipientName, recipientEmail, recipientPhone }, delivery),
+            }));
             showSuccess(correctionMessage(before, { recipientEmail, recipientPhone, ...delivery }));
             markSaved();
             if (onClose) onClose();
@@ -315,9 +430,13 @@ export async function saveEnvelope({
         markSaved();
         if (onClose) onClose();
     } catch (err) {
-        console.error('Error saving:', err);
         // Never claim "Saved" after a failed write — the edits are still local.
         setSaveState(SAVE_STATES.ERROR);
+        if (err instanceof CorrectionRefused) {
+            showError(err.message);
+            return;
+        }
+        console.error('Error saving:', err);
         // Surface the real reason (e.g. permission-denied, storage/unauthorized,
         // invalid-argument) instead of a generic message. An opaque "Action failed"
         // is undebuggable; a precise code/message means this is never a mystery again.

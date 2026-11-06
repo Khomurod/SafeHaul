@@ -19,6 +19,13 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 
+/** The signing request a transaction reads, as the server holds it when the write lands. */
+export const stored = { current: null };
+export const transaction = {
+    get: vi.fn(async () => ({ exists: () => stored.current !== null, data: () => stored.current })),
+    update: vi.fn(),
+};
+const runInTransaction = async (_db, run) => run(transaction);
 export const fs = {
     collection: vi.fn((_db, ...segments) => ({ __path: segments.join('/') })),
     query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
@@ -27,6 +34,7 @@ export const fs = {
     onSnapshot: vi.fn(),
     doc: vi.fn((_db, ...segments) => ({ __docPath: segments.join('/') })),
     updateDoc: vi.fn(),
+    runTransaction: vi.fn(runInTransaction),
     serverTimestamp: vi.fn(() => '__serverTimestamp__'),
 };
 export const callables = {
@@ -113,6 +121,8 @@ export function resetHarness() {
     unsubSpy = vi.fn();
     snapshotCb = undefined;
     errorCb = undefined;
+    stored.current = { status: 'sent' };
+    fs.runTransaction.mockImplementation(runInTransaction);
     fs.onSnapshot.mockImplementation((q, onNext, onError) => {
         snapshotCb = onNext;
         errorCb = onError;

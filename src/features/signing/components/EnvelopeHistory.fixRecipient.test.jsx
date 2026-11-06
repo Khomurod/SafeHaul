@@ -1,8 +1,9 @@
 // EnvelopeHistory: Fix recipient and resend, on an open document whose send
-// failed. It saves the correction Correct Document saves (`saveEnvelope`), so
-// the server's correction trigger sends the new link; the editor never opens.
-// The shared harness lives in `EnvelopeHistory.support.jsx`; every fixture is
-// artificial (see its PRIVACY note).
+// failed. It saves Correct Document's correction for the recipient alone
+// (`correctRecipient`), so the server's correction trigger sends the new link;
+// the editor never opens. The shared harness lives in
+// `EnvelopeHistory.support.jsx`; every fixture is artificial (see its PRIVACY
+// note).
 import React from 'react';
 import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,25 +13,20 @@ vi.mock('firebase/functions', async () => (await import('./EnvelopeHistory.suppo
 vi.mock('@lib/firebase', async () => (await import('./EnvelopeHistory.support')).libFirebaseMock());
 vi.mock('@shared/components/feedback', async () => (await import('./EnvelopeHistory.support')).feedbackMock());
 // The correction itself: what it is given is the contract here, and its own
-// suites (`envelopePersistence.correction.test.js`) cover what it writes.
-const { saveEnvelope, savedAndClosed } = vi.hoisted(() => {
-    const saved = async ({ onClose, showSuccess }) => {
+// suite (`envelopePersistence.correction.test.js`) covers what it writes.
+const { correctRecipient, savedAndReported } = vi.hoisted(() => {
+    const saved = async ({ showSuccess }) => {
         showSuccess('Document corrected. A new signing link is on its way by Email, and the old one no longer works.');
-        onClose();
+        return true;
     };
-    return { saveEnvelope: vi.fn(saved), savedAndClosed: saved };
+    return { correctRecipient: vi.fn(saved), savedAndReported: saved };
 });
-vi.mock('@features/signing/utils/envelopePersistence', () => ({ saveEnvelope }));
+vi.mock('@features/signing/utils/envelopePersistence', () => ({ correctRecipient }));
 
 import EnvelopeHistory from './EnvelopeHistory';
 import { makeRenderHistory, resetHarness, restoreHarness, makeDoc, emit, openDetails, fs, toast } from './EnvelopeHistory.support';
 
 const renderHistory = makeRenderHistory(EnvelopeHistory);
-
-const STORED_FIELDS = [
-    { id: 'sig1', type: 'signature', label: 'Signature', pageNumber: 1, xPosition: 10, yPosition: 80, width: 30, height: 6, required: true },
-    { id: 'name1', type: 'text', label: 'Name', pageNumber: 1, xPosition: 10, yPosition: 20, width: 30, height: 5, bindingKey: 'full_name', defaultValue: 'Pat Example', readOnly: true, prefillPolicy: 'locked' },
-];
 
 const failedOpen = (overrides = {}) => makeDoc({
     status: 'sent',
@@ -39,19 +35,28 @@ const failedOpen = (overrides = {}) => makeDoc({
     emailStatus: 'failed',
     emailError: "Failed to send email: Can't send mail - all recipients were rejected: 550 5.1.1 Recipient address rejected: User unknown",
     storagePath: 'secure_documents/co-1/originals/offer.pdf',
-    fields: STORED_FIELDS,
+    fields: [{ id: 'sig1', type: 'signature', label: 'Signature', pageNumber: 1, xPosition: 10, yPosition: 80, width: 30, height: 6, required: true }],
     ...overrides,
 });
 
+/** Opens the form on `rowName`'s dialog, changes the email, and presses Save and resend. */
+async function saveNewEmail(rowName = 'Details for Offer Letter') {
+    const dialog = await openDetails(rowName);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fix recipient and resend' }));
+    fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: 'pat.fixed@example.test' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+    return dialog;
+}
+
 beforeEach(() => {
     resetHarness();
-    saveEnvelope.mockImplementation(savedAndClosed);
+    correctRecipient.mockImplementation(savedAndReported);
 });
 
 afterEach(restoreHarness);
 
 describe('EnvelopeHistory — Fix recipient and resend', () => {
-    it('saves the edited recipient through the correction Correct Document saves, then closes', async () => {
+    it('saves the edited recipient for this request, and only that, then closes', async () => {
         renderHistory({ companyName: 'Artificial Freight Co', onCorrect: vi.fn() });
         emit([failedOpen()]);
 
@@ -62,51 +67,45 @@ describe('EnvelopeHistory — Fix recipient and resend', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
 
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-        expect(saveEnvelope).toHaveBeenCalledTimes(1);
-        const call = saveEnvelope.mock.calls[0][0];
+        expect(correctRecipient).toHaveBeenCalledTimes(1);
+        const call = correctRecipient.mock.calls[0][0];
         expect(call).toMatchObject({
-            creatorMode: 'request',
-            isEditingTemplate: false,
-            isEditingRequest: true,
-            editRequestId: 'req-1',
-            editTemplateId: null,
             companyId: 'co-1',
             companyName: 'Artificial Freight Co',
-            title: 'Offer Letter',
+            requestId: 'req-1',
             recipientName: 'Pat Example',
             recipientEmail: 'pat.fixed@example.test',
             recipientPhone: '',
             deliveryMethod: 'email',
         });
-        // The stored fields, as Correct's editor loads them, and no PDF: a correction keeps the request's own.
-        expect(call.fields.map((field) => [field.id, field.page, field.x, field.defaultValue])).toEqual([
-            ['sig1', 1, 10, ''],
-            ['name1', 1, 10, 'Pat Example'],
-        ]);
-        expect(call.file).toBeNull();
+        // The dialog's copy of the fields and title is not written back: the
+        // correction reads the request as it is when the write lands.
+        expect(call).not.toHaveProperty('fields');
+        expect(call).not.toHaveProperty('title');
         expect(toast.showSuccess).toHaveBeenCalledWith(expect.stringMatching(/^Document corrected\./));
         // No Firestore write of its own: the correction is the only one.
         expect(fs.updateDoc).not.toHaveBeenCalled();
+        expect(fs.runTransaction).not.toHaveBeenCalled();
     });
 
     it('keeps the dialog and the form open when the correction is refused', async () => {
-        saveEnvelope.mockImplementation(async ({ showError }) => { showError('Email is required for email delivery.'); });
+        correctRecipient.mockImplementation(async ({ showError }) => {
+            showError('This document is no longer waiting for a signature: it was signed, voided or is being signed. The correction was not saved.');
+            return false;
+        });
         renderHistory();
         emit([failedOpen()]);
 
-        const dialog = await openDetails();
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Fix recipient and resend' }));
-        fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: '' } });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+        await saveNewEmail();
 
-        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith('Email is required for email delivery.'));
-        expect(within(screen.getByRole('dialog')).getByLabelText(/^Email/)).toBeInTheDocument();
         await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save and resend' })).toBeEnabled());
+        expect(toast.showError).toHaveBeenCalledWith(expect.stringMatching(/^This document is no longer waiting for a signature/));
+        expect(within(screen.getByRole('dialog')).getByLabelText(/^Email/)).toHaveValue('pat.fixed@example.test');
     });
 
     it('saves once even when pressed twice in the same tick', async () => {
         let finish;
-        saveEnvelope.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+        correctRecipient.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
         renderHistory();
         emit([failedOpen()]);
 
@@ -117,8 +116,27 @@ describe('EnvelopeHistory — Fix recipient and resend', () => {
         fireEvent.click(save);
         fireEvent.click(save);
 
-        await waitFor(() => expect(saveEnvelope).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(within(dialog).getByRole('button', { name: /Save and resend/ })).toBeDisabled());
-        await React.act(async () => { finish(); });
+        expect(correctRecipient).toHaveBeenCalledTimes(1);
+        await React.act(async () => { finish(true); });
+    });
+
+    it('closes only the dialog it was saved from: one opened since stays open', async () => {
+        let finish;
+        correctRecipient.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+        renderHistory();
+        emit([failedOpen(), makeDoc({ id: 'req-2', title: 'NDA', status: 'sent' })]);
+
+        const first = await saveNewEmail();
+        await waitFor(() => expect(within(first).getByRole('button', { name: /Save and resend/ })).toBeDisabled());
+        // Closed while it saves, and another document opened.
+        fireEvent.click(within(first).getByRole('button', { name: 'Close' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        const second = await openDetails('Details for NDA');
+        expect(second).toHaveAccessibleName('NDA');
+
+        await React.act(async () => { finish(true); });
+
+        expect(screen.getByRole('dialog')).toHaveAccessibleName('NDA');
     });
 });
