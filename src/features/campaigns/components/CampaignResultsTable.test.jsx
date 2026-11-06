@@ -67,6 +67,25 @@ describe('CampaignResultsTable', () => {
         });
     });
 
+    // A failed read is said, with a way to try again: never "No messages sent yet."
+    it('says the log could not be loaded, and reads it again on Try again', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        getDocs.mockRejectedValueOnce(new Error('permission-denied'));
+        getDocs.mockResolvedValueOnce(asSnapshot(recipients(0, 2)));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+
+        expect(await screen.findByText('The recipient log could not be loaded.')).toBeInTheDocument();
+        expect(screen.queryByText('No messages sent yet.')).not.toBeInTheDocument();
+        expect(getDocs).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+        expect(await screen.findByRole('rowheader', { name: 'Recipient 2' })).toBeInTheDocument();
+        expect(screen.queryByText('The recipient log could not be loaded.')).not.toBeInTheDocument();
+        expect(getDocs).toHaveBeenCalledTimes(2);
+        consoleError.mockRestore();
+    });
+
     it('issues the exact Firestore query once (path, order, limit, getDocs)', async () => {
         getDocs.mockResolvedValue({ docs: [] });
         render(<CampaignResultsTable companyId="co-9" campaignId="camp-9" />);

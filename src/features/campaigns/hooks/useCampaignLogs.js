@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { collection, getCountFromServer, getDocs, limit, orderBy, query, startAfter, where } from 'firebase/firestore';
+import { collection, getCountFromServer, getDocs, limit, orderBy, query, startAfter } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { E2E_SEED_LOGS } from '../components/campaignLogsMock';
@@ -29,8 +29,6 @@ function firestoreLogs(companyId, sessionId) {
         },
         // The list's own order, so the count leaves out what the list leaves out (no `timestamp`).
         countAll: async () => countOf(query(logsRef, orderBy('timestamp', 'desc'))),
-        // Exactly the logs `retryFailedAttempts` reads; it leaves out a text that may have gone out.
-        countFailed: async () => countOf(query(logsRef, where('status', '==', 'failed'))),
     };
 }
 
@@ -44,7 +42,6 @@ function fixtureLogs(paged) {
             return { entries, next: entries.length === size ? offset + size : null };
         },
         countAll: async () => E2E_SEED_LOGS.length,
-        countFailed: async () => E2E_SEED_LOGS.filter((log) => log.status === 'failed').length,
     };
 }
 
@@ -57,26 +54,26 @@ function logSource(companyId, sessionId) {
 
 /**
  * A campaign's recipient logs, `LOG_PAGE_SIZE` at a time, with a server count
- * of all of them (`total`) and, with `countFailed`, of the failed ones
- * (`failedTotal`). A count that fails is `null`; the rows never wait for one.
+ * of all of them (`total`). A count that fails is `null`; the rows never wait for one.
  *
- * - Nothing is read while `enabled` is false or an id is missing.
+ * - Nothing is read while an id is missing.
  * - Another session clears the rows and is `loading` in its very first render,
  *   so no screen paints its empty state before the first read settles.
  * - `refreshKey` reads again as many rows as are shown (at least one page),
  *   keeping the rows on screen meanwhile; an older answer is dropped.
+ * - `failed` says the last read of the rows failed, until one succeeds.
  * - `onError` runs once for each failed read of the rows; a change to it reads
  *   nothing again.
  */
-export function useCampaignLogs({ companyId, sessionId, enabled = true, refreshKey = 0, countFailed = false, onError }) {
-    const sessionKey = enabled && companyId && sessionId ? `${companyId}/${sessionId}` : null;
+export function useCampaignLogs({ companyId, sessionId, refreshKey = 0, onError }) {
+    const sessionKey = companyId && sessionId ? `${companyId}/${sessionId}` : null;
     const [shownKey, setShownKey] = useState(sessionKey);
     const [logs, setLogs] = useState([]);
     // The last log read, where the next page starts; null when none remain.
     const [next, setNext] = useState(null);
     const [loading, setLoading] = useState(sessionKey !== null);
+    const [failed, setFailed] = useState(false);
     const [total, setTotal] = useState(null);
-    const [failedTotal, setFailedTotal] = useState(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [loadMoreFailed, setLoadMoreFailed] = useState(false);
     // Each first read or reload; an answer for an earlier one is dropped.
@@ -87,13 +84,13 @@ export function useCampaignLogs({ companyId, sessionId, enabled = true, refreshK
     const onErrorRef = useRef(onError);
     const shownCountRef = useRef(0);
 
-    // Another session (or the report opening): render-time adjustment, not an effect.
+    // Another session: render-time adjustment, not an effect.
     if (shownKey !== sessionKey) {
         setShownKey(sessionKey);
         setLogs([]);
         setNext(null);
+        setFailed(false);
         setTotal(null);
-        setFailedTotal(null);
         setLoadingMore(false);
         setLoadMoreFailed(false);
         setLoading(sessionKey !== null);
@@ -120,23 +117,23 @@ export function useCampaignLogs({ companyId, sessionId, enabled = true, refreshK
             if (!isCurrent()) return;
             setLogs(page.entries);
             setNext(page.next);
+            setFailed(false);
             setLoading(false);
         }, (err) => {
             if (!isCurrent()) return;
+            setFailed(true);
             setLoading(false);
             onErrorRef.current?.(err);
         });
 
-        const settleCount = (counting, setCount) => counting.then(
-            (count) => { if (isCurrent()) setCount(count); },
+        source.countAll().then(
+            (count) => { if (isCurrent()) setTotal(count); },
             (err) => {
                 console.error('Failed to count campaign logs:', err);
-                if (isCurrent()) setCount(null);
+                if (isCurrent()) setTotal(null);
             },
         );
-        settleCount(source.countAll(), setTotal);
-        if (countFailed) settleCount(source.countFailed(), setFailedTotal);
-    }, [sessionKey, companyId, sessionId, countFailed, refreshKey]);
+    }, [sessionKey, companyId, sessionId, refreshKey]);
 
     const loadMore = useCallback(async () => {
         const source = sourceRef.current;
@@ -164,5 +161,5 @@ export function useCampaignLogs({ companyId, sessionId, enabled = true, refreshK
 
     const hasMore = next !== null && (total === null || logs.length < total);
 
-    return { logs, loading, total, failedTotal, hasMore, loadMore, loadingMore, loadMoreFailed };
+    return { logs, loading, failed, total, hasMore, loadMore, loadingMore, loadMoreFailed };
 }

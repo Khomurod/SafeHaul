@@ -1,7 +1,8 @@
 // E2E coverage for the CampaignCard design-system migration. Uses the dashboard's
 // e2eCampaign=mock seed (a draft + a completed session) to verify the status
-// badge, the accessible options menu, the keyboard-focusable Details/View Report
-// controls, responsive overflow at 1440/1024/412, and a scoped axe pass.
+// badge, the accessible options menu, the keyboard-focusable Details control
+// (a sent campaign's one report), responsive overflow at 1440/1024/412, and a
+// scoped axe pass.
 // Destructive actions are not triggered here (they hit Firestore/callables via
 // the dashboard); their callbacks are covered by the vitest suite.
 const { test, expect } = require('@playwright/test');
@@ -52,12 +53,14 @@ test.describe('CampaignCard compatibility slice', () => {
     expect(focus.boxShadow !== 'none' || focus.outline !== 'none').toBe(true);
   });
 
-  test('shows View Report on a completed session in Past Sequences', async ({ page }) => {
+  test('opens a completed session in Past Sequences from Details, its one report', async ({ page }) => {
     await openCampaigns(page);
     await page.getByRole('tab', { name: /Past Sequences/i }).click();
     await expect(page.getByText('E2E Completed Session')).toBeVisible();
     await expect(page.getByText('Completed', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'View Report' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /View Report/i })).toHaveCount(0);
+    await page.getByRole('button', { name: /^Details$/i }).first().click();
+    await expect(page.getByRole('table', { name: 'Recipient delivery log' })).toBeVisible({ timeout: 20_000 });
   });
 
   test('keeps the card grid within the viewport on desktop and tablet', async ({ page }, testInfo) => {

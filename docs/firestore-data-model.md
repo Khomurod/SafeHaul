@@ -90,7 +90,7 @@ Used by Cloud Functions with Admin SDK:
 | `templates/{id}` | read: team · write: admin | Hiring offer/form templates; `fields` as on a signing request (below) |
 | `message_templates/{id}` | read: team · write: admin | Campaign message templates |
 | `bulk_sessions/{id}` | read/write: team | Bulk SMS/email sessions; `progress.unconfirmedInARow` counts texts the SMS provider never answered since the last sent one (3 pause the session) |
-| `bulk_sessions/{id}/logs/{id}` | read: team | Per-message send logs; an SMS keeps RingCentral's `providerMessageId` and its `delivery` state; `sendUnconfirmed: true` marks a failed send the provider never answered (it may have gone out; Retry Failed leaves it out) |
+| `bulk_sessions/{id}/logs/{id}` | read: team | Per-message send logs; an SMS keeps RingCentral's `providerMessageId` and its `delivery` state; `sendUnconfirmed: true` marks a failed send the provider never answered (it may have gone out; Retry failed leaves it out) |
 | `campaign_drafts/{id}` | read/write: team; no client writes `launchClaim`, nor changes `launchedAt`/`sessionId` once launched | Campaign wizard persistence; `launchClaim` (a launch running), `launchedAt` and `sessionId` are written by `initBulkSession` |
 | `segments/{id}` | read: team · write: admin | Smart segments |
 | `segments/{id}/members/{id}` | read: team · write: admin | Segment membership |

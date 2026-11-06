@@ -120,10 +120,6 @@ vi.mock('./CampaignEditor', () => ({
     },
 }));
 
-vi.mock('./components/DetailedReportModal', () => ({
-    default: ({ sessionId, isOpen }) => (isOpen ? <div role="dialog" aria-label="Delivery Report">{sessionId}</div> : null),
-}));
-
 vi.mock('./components/CampaignDetails', () => ({
     CampaignDetails: ({ campaign, onClose }) => (
         <div data-testid="campaign-details">
@@ -465,15 +461,39 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.queryByRole('heading', { name: 'No Drafts Found' })).not.toBeInTheDocument();
     });
 
-    it("opens a launched campaign's report from its editor, back on the list", async () => {
-        await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
+    // One report screen: the editor's link opens the same details a sent campaign's card opens.
+    it("opens a launched campaign's report from its editor in the campaign's details", async () => {
+        await renderReady({
+            drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }],
+            sessions: [{ id: 'session-launched', name: 'Spring drive', status: 'completed', progress: { processedCount: 4 } }],
+        });
         fireEvent.click(screen.getByText('open d1'));
 
         fireEvent.click(screen.getByRole('button', { name: 'view launched report' }));
 
         expect(screen.queryByText('Editor')).not.toBeInTheDocument();
-        expect(screen.getByRole('dialog', { name: 'Delivery Report' })).toHaveTextContent('session-launched');
-        expect(screen.getByRole('tablist', { name: 'Campaign views' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: completed, 4 sent');
+
+        // Back from the details, the list shows the sent campaigns it belongs to.
+        fireEvent.click(screen.getByRole('button', { name: 'close details' }));
+        expect(screen.getByRole('tab', { name: /Past Sequences/i })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it("lands on the sent campaigns while a launched campaign's session is not listed yet", async () => {
+        await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
+        fireEvent.click(screen.getByText('open d1'));
+
+        fireEvent.click(screen.getByRole('button', { name: 'view launched report' }));
+
+        expect(screen.queryByTestId('campaign-details')).not.toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /Past Sequences/i })).toHaveAttribute('aria-selected', 'true');
+
+        // The session arrives: its details open.
+        await React.act(async () => {
+            callbacks.history(snapshot([{ id: 'session-launched', name: 'Spring drive', status: 'active' }]));
+        });
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: active, 0 sent');
     });
 
     it('starts a fresh editor for each campaign: a new one, then a stored draft', async () => {
@@ -675,14 +695,16 @@ describe('CampaignsDashboard shell', () => {
         expect(draftProps.onCancel).toBeUndefined(); // drafts cannot be cancelled
         expect(typeof draftProps.onClick).toBe('function');
         expect(typeof draftProps.onDelete).toBe('function');
-        expect(typeof draftProps.onViewReport).toBe('function');
+        // A sent campaign's report is its details, which onClick opens: no second link.
+        expect(draftProps).not.toHaveProperty('onViewReport');
 
         fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
 
         const sessionProps = mockCardProps.find((p) => p.campaign.id === 's1');
         expect(typeof sessionProps.onCancel).toBe('function'); // sessions offer Cancel
         expect(typeof sessionProps.onDelete).toBe('function');
-        expect(typeof sessionProps.onViewReport).toBe('function');
+        expect(typeof sessionProps.onClick).toBe('function');
+        expect(sessionProps).not.toHaveProperty('onViewReport');
     });
 
     it('has no accessibility violations in the loaded dashboard', async () => {

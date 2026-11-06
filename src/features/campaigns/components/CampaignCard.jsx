@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon, Calendar, Users, MessageSquare, ChevronRight, MoreVertical, Trash2, Ban } from '@design-system/icons';
-import { Badge, Button, Card, IconButton } from '@/design-system/components';
+import { Badge, Card, IconButton } from '@/design-system/components';
 import { isCancellableSessionStatus } from '../constants/campaignConstants';
 
 /**
@@ -27,7 +27,8 @@ function statusPresentation(status) {
     return { tone, label };
 }
 
-export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewReport }) {
+/** `onClick` opens the campaign: a draft in its editor, a sent or live one in its report. */
+export function CampaignCard({ campaign, onClick, onDelete, onCancel }) {
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef(null);
 
@@ -164,23 +165,13 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                     {campaign.updatedAt?.toDate() ? new Date(campaign.updatedAt.toDate()).toLocaleDateString() : 'Just now'}
                 </span>
 
-                <div className="flex items-center gap-ds-3">
-                    {onViewReport && campaign.status !== 'draft' && (
-                        <Button
-                            variant="link"
-                            onClick={(e) => { e.stopPropagation(); onViewReport(); }}
-                        >
-                            View Report
-                        </Button>
-                    )}
-                    <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-                        className="flex items-center gap-0.5 rounded-ds-sm text-ds-content-muted transition-colors hover:text-ds-action-primary group-hover:text-ds-action-primary focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    >
-                        Details <Icon icon={ChevronRight} size="xs" />
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+                    className="flex items-center gap-0.5 rounded-ds-sm text-ds-content-muted transition-colors hover:text-ds-action-primary group-hover:text-ds-action-primary focus-visible:outline-none focus-visible:shadow-ds-focus"
+                >
+                    Details <Icon icon={ChevronRight} size="xs" />
+                </button>
             </div>
         </Card>
     );

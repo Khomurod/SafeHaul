@@ -8,7 +8,6 @@ import { CampaignCard } from './components/CampaignCard';
 import { CampaignListMore } from './components/CampaignListMore';
 import { CampaignEditor } from './CampaignEditor';
 import { CampaignDetails } from './components/CampaignDetails';
-import DetailedReportModal from './components/DetailedReportModal';
 import { useCampaignLists } from './hooks/useCampaignLists';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
@@ -44,8 +43,8 @@ export function CampaignsDashboard({ companyId }) {
     const [activeTab, setActiveTab] = useState('drafts'); // 'drafts' | 'history'
     // The campaign open in the editor: `{ id, isNew }`, `isNew` until its first save creates the draft.
     const [openCampaign, setOpenCampaign] = useState(null);
+    // A sent or live campaign's one report screen (`CampaignDetails`), by session id.
     const [viewingSessionId, setViewingSessionId] = useState(null);
-    const [selectedReportSessionId, setSelectedReportSessionId] = useState(null);
     // Replace the two blocking `window.confirm` guards. Each holds the target
     // captured at the moment its dialog opened, so a tab switch or a live
     // `onSnapshot` update cannot retarget an open confirmation.
@@ -176,10 +175,11 @@ export function CampaignsDashboard({ companyId }) {
                 campaignId={openCampaign.id}
                 isNew={openCampaign.isNew}
                 onClose={() => setOpenCampaign(null)}
-                // A launched draft's report: the same one View Report opens on Past Sequences.
+                // A launched draft's report: the same screen its card opens on Past Sequences.
                 onViewReport={(sessionId) => {
                     setOpenCampaign(null);
-                    setSelectedReportSessionId(sessionId);
+                    setActiveTab('history');
+                    setViewingSessionId(sessionId);
                 }}
             />
         );
@@ -288,7 +288,6 @@ export function CampaignsDashboard({ companyId }) {
                                                 onClick={() => activeTab === 'drafts' ? setOpenCampaign({ id: campaign.id, isNew: false }) : setViewingSessionId(campaign.id)}
                                                 onDelete={requestDeleteCampaign}
                                                 onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
-                                                onViewReport={() => setSelectedReportSessionId(campaign.id)}
                                             />
                                         ))}
                                     </ResponsiveGrid>
@@ -303,13 +302,6 @@ export function CampaignsDashboard({ companyId }) {
                     </Section>
                 </Stack>
             </PageContainer>
-
-            <DetailedReportModal
-                companyId={companyId}
-                sessionId={selectedReportSessionId}
-                isOpen={!!selectedReportSessionId}
-                onClose={() => setSelectedReportSessionId(null)}
-            />
 
             {/* Replaces `window.confirm("Cancel \"{name}\"? …")`. */}
             <ConfirmDialog

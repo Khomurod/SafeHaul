@@ -76,35 +76,22 @@ describe('useCampaignLogs — the first read', () => {
             ref: { __collection: PATH },
             constraints: [{ __orderBy: ['timestamp', 'desc'] }],
         });
-        expect(result.current.failedTotal).toBeNull();
         expect(fs.where).not.toHaveBeenCalled();
     });
 
-    it('with countFailed, also counts the logs with status failed', async () => {
-        fs.getCountFromServer.mockImplementation(async (q) => countOf(q.constraints.some((c) => c.__where) ? 3 : 450));
-        const { result } = renderLogs({ countFailed: true });
-
-        await waitFor(() => expect(result.current.failedTotal).toBe(3));
-        expect(result.current.total).toBe(450);
-        expect(fs.getCountFromServer).toHaveBeenCalledWith({
-            ref: { __collection: PATH },
-            constraints: [{ __where: ['status', '==', 'failed'] }],
-        });
-    });
-
-    it('is loading in the very first render after it is enabled', async () => {
+    it('is loading in the very first render after the session arrives', async () => {
         const committed = [];
         const { result, rerender } = renderHook((p) => {
             const logs = useCampaignLogs(p);
             // Only what is committed (painted); a render React throws away is not recorded.
             useLayoutEffect(() => { committed.push(logs.loading); });
             return logs;
-        }, { initialProps: { companyId: 'co-1', sessionId: 's-1', enabled: false } });
+        }, { initialProps: { companyId: 'co-1', sessionId: null } });
 
         expect(committed).toEqual([false]);
         const read = deferred();
         fs.getDocs.mockReturnValueOnce(read.promise);
-        rerender({ companyId: 'co-1', sessionId: 's-1', enabled: true });
+        rerender({ companyId: 'co-1', sessionId: 's-1' });
 
         expect(committed[1]).toBe(true);
         await act(async () => { read.resolve(snapshot(logDocs(0, 1))); });
@@ -112,7 +99,6 @@ describe('useCampaignLogs — the first read', () => {
     });
 
     it.each([
-        ['disabled', { enabled: false }],
         ['the company id is missing', { companyId: undefined }],
         ['the session id is missing', { sessionId: null }],
     ])('reads nothing when %s', async (_label, props) => {
@@ -159,12 +145,28 @@ describe('useCampaignLogs — the first read', () => {
         const { result, rerender } = renderLogs({ onError });
 
         await waitFor(() => expect(onError).toHaveBeenCalledWith(failure));
-        expect(result.current).toMatchObject({ loading: false, logs: [] });
+        expect(result.current).toMatchObject({ loading: false, failed: true, logs: [] });
         rerender({ companyId: 'co-1', sessionId: 's-1', onError: vi.fn() });
         await act(async () => {});
 
         expect(onError).toHaveBeenCalledTimes(1);
         expect(fs.getDocs).toHaveBeenCalledTimes(1);
+    });
+
+    it('says the read failed until a reload reads the rows', async () => {
+        fs.getDocs.mockRejectedValueOnce(new Error('unavailable'));
+        const { result, rerender } = renderLogs({ onError: vi.fn() });
+        await waitFor(() => expect(result.current.failed).toBe(true));
+
+        const reload = deferred();
+        fs.getDocs.mockReturnValueOnce(reload.promise);
+        rerender({ companyId: 'co-1', sessionId: 's-1', refreshKey: 1 });
+        // Still failed while the reload is out: nothing reads as an empty log meanwhile.
+        expect(result.current).toMatchObject({ failed: true, logs: [] });
+
+        await act(async () => { reload.resolve(snapshot(logDocs(0, 2))); });
+        expect(result.current.failed).toBe(false);
+        expect(result.current.logs.map((log) => log.id)).toEqual(['log-0', 'log-1']);
     });
 });
 

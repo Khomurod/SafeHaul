@@ -300,8 +300,8 @@ const SCREENS = [
     },
     /*
      * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
-     * and its delivery report dialog. Twelve made-up recipients, so both capped
-     * tables scroll. Details scrolls inside its own panel, below the masthead, so
+     * the campaign's one report screen. Twelve made-up recipients, so the capped
+     * table scrolls. Details scrolls inside its own panel, below the masthead, so
      * the shot brings the log into view there; the window does not move.
      */
     {
@@ -320,16 +320,6 @@ const SCREENS = [
             });
         },
         ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
-    },
-    {
-        name: 'company-campaign-report',
-        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: async (page) => {
-            await page.getByRole('tab', { name: /Past Sequences/i }).click();
-            await page.getByRole('button', { name: 'View Report' }).first().click();
-        },
-        ready: (page) => page.getByRole('dialog', { name: 'Delivery Report' })
-            .getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
     },
     {
         name: 'login',
