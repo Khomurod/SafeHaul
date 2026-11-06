@@ -474,6 +474,43 @@ describe('SentDocumentDetailsDialog — an open document whose send failed', () 
             expect(within(dialog).queryByRole('button', { name: /^(Resend|Void|Copy Link)$/ })).not.toBeInTheDocument();
         });
 
+        it('starts at the channels the request is sent by, whatever its delivery method says', () => {
+            // The server sends by `sendEmail` and `sendSms`: an email switched off stays off.
+            openForm(makeDoc({
+                deliveryMethod: 'both', sendEmail: false, sendSms: true, smsStatus: 'failed', smsError: 'SMS integration is disabled for this company.',
+            }));
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByRole('button', { name: 'SMS' })).toHaveAttribute('aria-pressed', 'true');
+            expect(within(dialog).getByRole('button', { name: 'Email + SMS' })).toHaveAttribute('aria-pressed', 'false');
+        });
+
+        it('reads the delivery method only for a request that records no channel', () => {
+            openForm(failedOpen({ sendEmail: undefined, deliveryMethod: 'both' }));
+            expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Email + SMS' })).toHaveAttribute('aria-pressed', 'true');
+        });
+
+        it('asks for a usable email address before saving when the link goes by email', () => {
+            const { props } = openForm();
+            const dialog = screen.getByRole('dialog');
+            fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: 'not-an-email' } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+
+            expect(props.onFixRecipient).not.toHaveBeenCalled();
+            expect(within(dialog).getByText('Enter a full email address, such as name@example.com, or send by SMS.')).toBeInTheDocument();
+            expect(within(dialog).getByLabelText(/^Email/)).toHaveValue('not-an-email');
+        });
+
+        it('does not check the email of a correction that sends by SMS only', () => {
+            const { props } = openForm();
+            const dialog = screen.getByRole('dialog');
+            fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: '' } });
+            fireEvent.change(within(dialog).getByLabelText(/^Phone/), { target: { value: '555-0199' } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'SMS' }));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+
+            expect(props.onFixRecipient).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ recipientEmail: '', deliveryMethod: 'sms' }));
+        });
+
         it('saves the edited recipient and channels for this document', () => {
             const document = failedOpen();
             const { props } = openForm(document);
@@ -546,7 +583,8 @@ describe('SentDocumentDetailsDialog — a text not sent to an opted-out number',
             deliveryMethod: 'both',
             emailStatus: 'sent',
             smsStatus: 'skipped',
-            smsError: 'Not texted: this number opted out of texts.',
+            // Where the sender records why (`functions/notifySignerSMS.js`).
+            smsNote: 'Not texted: this number opted out of texts.',
         }));
         const dialog = screen.getByRole('dialog');
         expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();

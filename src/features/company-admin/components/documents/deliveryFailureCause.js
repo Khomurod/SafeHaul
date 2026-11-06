@@ -10,7 +10,7 @@
  *   - email: `functions/emailService.js` (every error as "Failed to send email:
  *     …", and a missing SMTP setup by name), `functions/shared/smtpSettings.js`
  *     (a password it cannot decrypt) and nodemailer's own (Invalid login,
- *     ECONNREFUSED, a refused recipient);
+ *     ECONNREFUSED, a refused sender or recipient);
  *   - text: `functions/integrations/factory.js` (no provider, SMS switched off,
  *     a line with no key), the SMS adapters (a refused login, a line not allowed
  *     to text, a timeout, a refused number) and `functions/notifySignerSMS.js`
@@ -45,6 +45,13 @@ const EMAIL_CAUSES = [
         pattern: /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|EHOSTUNREACH|ESOCKET|ECONNECTION|getaddrinfo|Connection (timeout|closed)|Greeting never received|certificate|wrong version number|socket hang up/i,
         cause: "SafeHaul could not reach the company's email server.",
         fix: `A company admin can check the server and port in ${EMAIL_SETTINGS}, then press Resend.`,
+    },
+    {
+        // Before the recipient's: nodemailer's refused MAIL FROM, and a server's own
+        // "Sender address rejected", are about the company's address.
+        pattern: /Mail command failed|Sender address rejected/i,
+        cause: "The email server refused the company's sending address.",
+        fix: `A company admin can check the address in ${EMAIL_SETTINGS}, then press Resend.`,
     },
     {
         pattern: /No recipients defined|recipients were rejected|address rejected|mailbox unavailable|user unknown|no such user|does not exist|invalid (recipient|address|mailbox)|EENVELOPE/i,
@@ -126,12 +133,12 @@ export function deliveryFailureCause(document) {
 }
 
 /**
- * The note for a text deliberately not sent (`smsStatus: 'skipped'`), which is
- * not a failure: today only an opted-out number when the email went.
+ * The note for a text deliberately not sent (`smsStatus: 'skipped'`, why in
+ * `smsNote`), which is not a failure: today only an opted-out number beside an email.
  */
 export function skippedTextNote(document) {
     if (document?.smsStatus !== 'skipped') return null;
-    return OPTED_OUT.test(String(document.smsError || ''))
+    return OPTED_OUT.test(String(document.smsNote || ''))
         ? 'Not sent: this number opted out of text messages.'
         : 'Not sent.';
 }

@@ -130,6 +130,20 @@ describe('what the section lists', () => {
         expect(within(row).queryByText('Not delivered')).toBeNull();
     });
 
+    it('notes the skipped text beside a failed email too: neither reached the signer', () => {
+        withRows({ requests: [{
+            id: 'r-lease', templateId: 'tpl-lease', title: 'Lease', status: 'sent', sendEmail: true, sendSms: true,
+            recipientEmail: 'dana@example.test', emailStatus: 'failed', emailError: 'Mailbox unavailable (artificial)',
+            smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.', createdAt: at(-2), expiresAt: at(5),
+        }] });
+        renderSection();
+
+        const row = rowOf('Lease');
+        expect(within(row).getByText('Not delivered')).toBeInTheDocument();
+        expect(row).toHaveTextContent('Email not delivered: Mailbox unavailable (artificial)');
+        expect(within(row).getByText('Not texted: this number opted out of texts.').className).not.toMatch(/danger/);
+    });
+
     it('offers Send to driver on the forms nobody sent, named after each form, and on nothing else', () => {
         withRows();
         renderSection();

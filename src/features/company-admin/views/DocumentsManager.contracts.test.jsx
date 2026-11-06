@@ -192,8 +192,9 @@ describe('DocumentsManager view contracts', () => {
             const confirm = await screen.findByRole('dialog', { name: /^Delete / });
             fireEvent.click(within(confirm).getByRole('button', { name: 'Delete template' }));
 
-            await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('Only a company admin can delete templates.'));
-            expect(within(confirm).getByRole('button', { name: 'Delete template' })).toBeEnabled();
+            // The rendered consequence first: the button comes back once the delete has settled.
+            await waitFor(() => expect(within(confirm).getByRole('button', { name: 'Delete template' })).toBeEnabled());
+            expect(toastMocks.showError).toHaveBeenCalledWith('Only a company admin can delete templates.');
             expect(screen.getByRole('dialog', { name: /^Delete / })).toBeInTheDocument();
         });
 

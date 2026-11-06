@@ -1,6 +1,7 @@
 import React, { forwardRef, useId, useState } from 'react';
 import { FormField, Input, SegmentedControl } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { isValidEmail } from '@shared/utils/validation';
 
 /**
  * "Fix recipient and resend", inside a sent document's details dialog: the
@@ -8,12 +9,13 @@ import { Stack } from '@/design-system/layouts';
  * document. The dialog's footer holds its Save and resend (`form={id}`) and
  * Cancel.
  *
- * It checks only that something changed: an unchanged recipient has nothing to
- * correct, and Resend is what sends the link again to the same details. What a
- * correction needs (a name; an email for Email, a phone for SMS) is checked
- * where Correct Document checks it, by the save the dialog's caller makes
- * (`saveEnvelope`), so both ways to correct follow one rule. The form has
- * `noValidate`: the browser's own bubbles would be a second, different rule.
+ * It checks that something changed (an unchanged recipient has nothing to
+ * correct, and Resend is what sends the link again to the same details) and,
+ * when the link goes by email, that the address is a whole one: this form is
+ * where a refused address is fixed. What else a correction needs (a name; a
+ * phone for SMS) is checked where Correct Document checks it, by the save the
+ * dialog's caller makes (`correctRecipient`). The form has `noValidate`: the
+ * browser's own bubbles would be a second, different rule.
  */
 
 /** The channels, as Correct Document's delivery methods name them. */
@@ -23,11 +25,20 @@ const CHANNELS = Object.freeze([
     { value: 'both', label: 'Email + SMS' },
 ]);
 
-/** How a document was sent: `both`, `sms` or `email` (a link only copied, or nothing recorded, starts at Email). */
+const BAD_EMAIL = 'Enter a full email address, such as name@example.com, or send by SMS.';
+const UNCHANGED = 'Nothing changed. To send the link again to the same details, use Resend.';
+
+/**
+ * How a document is sent: `both`, `sms` or `email` (a link only copied, or
+ * nothing recorded, starts at Email). Its `sendEmail` and `sendSms` decide, as
+ * they decide for the server's senders; `deliveryMethod` only for a request
+ * that records neither.
+ */
 function channelOf(document) {
     const method = document?.deliveryMethod;
-    const email = document?.sendEmail === true || method === 'email' || method === 'both';
-    const sms = document?.sendSms === true || method === 'sms' || method === 'both';
+    const flagged = typeof document?.sendEmail === 'boolean' || typeof document?.sendSms === 'boolean';
+    const email = flagged ? document.sendEmail !== false : method === 'email' || method === 'both';
+    const sms = flagged ? document.sendSms === true : method === 'sms' || method === 'both';
     if (email && sms) return 'both';
     return sms ? 'sms' : 'email';
 }
@@ -50,10 +61,10 @@ export const FixRecipientForm = /* @__PURE__ */ forwardRef(function FixRecipient
     const headingId = `fix-recipient-heading-${rawId}`;
     const channelsId = `fix-recipient-channels-${rawId}`;
     const [values, setValues] = useState(() => recipientOf(document));
-    const [unchanged, setUnchanged] = useState(false);
+    const [message, setMessage] = useState('');
 
     const update = (key, value) => {
-        setUnchanged(false);
+        setMessage('');
         setValues((prev) => ({ ...prev, [key]: value }));
     };
 
@@ -66,7 +77,11 @@ export const FixRecipientForm = /* @__PURE__ */ forwardRef(function FixRecipient
             deliveryMethod: values.deliveryMethod,
         };
         if (sameRecipient(next, recipientOf(document))) {
-            setUnchanged(true);
+            setMessage(UNCHANGED);
+            return;
+        }
+        if (next.deliveryMethod !== 'sms' && !isValidEmail(next.recipientEmail)) {
+            setMessage(BAD_EMAIL);
             return;
         }
         onSubmit(next);
@@ -115,7 +130,7 @@ export const FixRecipientForm = /* @__PURE__ */ forwardRef(function FixRecipient
                 </div>
                 {/* Always in the page, so the sentence is announced when it appears. */}
                 <p role="status" className="text-ds-sm text-ds-status-warning-fg">
-                    {unchanged && 'Nothing changed. To send the link again to the same details, use Resend.'}
+                    {message}
                 </p>
             </Stack>
         </form>

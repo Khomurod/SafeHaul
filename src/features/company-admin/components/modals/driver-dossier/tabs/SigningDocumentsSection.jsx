@@ -58,8 +58,9 @@ function rowDates(row) {
 function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
     const presentation = STATE_PRESENTATION[row.state] || STATE_PRESENTATION.other;
     // Both only while the document is with its signer; a signed or voided one says just that.
+    // A text skipped beside a failed email is noted too: then neither reached the signer.
     const failure = row.state === 'not_delivered' ? deliveryFailure(row.request) : null;
-    const note = ['awaiting', 'link_expired'].includes(row.state) ? deliveryNote(row.request) : null;
+    const note = ['awaiting', 'link_expired', 'not_delivered'].includes(row.state) ? deliveryNote(row.request) : null;
     const canOpen = row.state === 'signed' && Boolean(row.request?.signedPdfUrl);
 
     return (

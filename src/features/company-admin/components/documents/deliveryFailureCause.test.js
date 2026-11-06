@@ -3,7 +3,7 @@
 // nodemailer, `functions/integrations/factory.js`, the SMS adapters and
 // `functions/notifySignerSMS.js`). Every address, number and id is artificial.
 import { describe, expect, it } from 'vitest';
-import { deliveryFailureCause } from './deliveryFailureCause';
+import { deliveryFailureCause, skippedTextNote } from './deliveryFailureCause';
 
 const emailFailed = (emailError, overrides = {}) => ({ status: 'sent', emailStatus: 'failed', emailError, ...overrides });
 const textFailed = (smsError, overrides = {}) => ({ status: 'sent', sendSms: true, smsStatus: 'failed', smsError, ...overrides });
@@ -56,6 +56,19 @@ describe('deliveryFailureCause', () => {
             'Mailbox unavailable',
             'The email address was refused.',
             'Fix recipient and resend',
+        ],
+        [
+            // Nodemailer's words for a refused MAIL FROM: the company's address, not the signer's.
+            'the sending address refused',
+            'Failed to send email: Mail command failed: 553 5.7.1 <hr@carrier.example.test>: Sender address rejected: not owned by user',
+            "The email server refused the company's sending address.",
+            'Settings → Email',
+        ],
+        [
+            "the sending address refused, in a server's own words",
+            'Failed to send email: 550 5.7.1 Sender address rejected: Access denied',
+            "The email server refused the company's sending address.",
+            'Settings → Email',
         ],
     ])('explains an email that failed because of %s', (_label, error, cause, pointer) => {
         const explained = deliveryFailureCause(emailFailed(error));
@@ -142,5 +155,20 @@ describe('deliveryFailureCause', () => {
             cause: 'The email could not be sent, and SafeHaul does not recognise the reason.',
             raw: '',
         });
+    });
+});
+
+describe('skippedTextNote', () => {
+    it('reads why the text was skipped from smsNote, where the sender records it', () => {
+        expect(skippedTextNote({ smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.' }))
+            .toBe('Not sent: this number opted out of text messages.');
+    });
+
+    it('says only that it was not sent when no reason was recorded', () => {
+        expect(skippedTextNote({ smsStatus: 'skipped' })).toBe('Not sent.');
+    });
+
+    it('has nothing to say about a text that was not skipped', () => {
+        expect(skippedTextNote({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' })).toBeNull();
     });
 });
