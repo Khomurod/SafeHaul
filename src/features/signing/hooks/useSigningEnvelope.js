@@ -5,6 +5,11 @@
  * (or the E2E mock), normalize its fields, and initialize field values —
  * seeding locked/default values and merging any persisted local draft.
  * Presentation, navigation, and submission stay in SigningRoom.
+ *
+ * A link that does not open keeps the server's reason (`linkProblem`, for
+ * `LinkProblemScreen`) and, unless the link could not be checked at all, the
+ * company's public name to say who to ask. A link this device already used to
+ * sign reads as the signed document it is (`alreadySigned.js`).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
@@ -14,7 +19,10 @@ import { isCompanySignatureField } from '@features/signing/utils/companySignatur
 import { normalizeSignerField } from '@features/signing/utils/signerFieldStyle';
 import { browserTimeZone, rollSignedDateFields } from '@features/signing/utils/signedDate';
 import { readDraft } from '@features/signing/utils/signingDraft';
+import { signedHereAt } from '@features/signing/utils/alreadySigned';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { LINK_PROBLEM, linkProblemFromError } from '@shared/components/public-link';
+import { fetchPublicCompanyName } from '@shared/services/publicCompanyName';
 
 /** Minimal data-URL PDF used by the E2E mock shell (no network fetch). */
 export const E2E_MOCK_PDF_URL =
@@ -91,11 +99,31 @@ function initializeFieldValues(fields, companyId, requestId) {
     return initial;
 }
 
+/**
+ * The link was refused: whose reason to show, or the signed document this device
+ * already sent with it. A submission deletes the token, so the server answers a
+ * used link like a wrong or replaced one.
+ */
+function refusedLink(err, companyId, requestId) {
+    const problem = linkProblemFromError(err, 'This document could not be opened.');
+    if (err?.code !== 'functions/permission-denied') return { problem };
+    const signedAt = signedHereAt(companyId, requestId);
+    if (signedAt) return { signed: { status: 'signed', signedAt } };
+    return {
+        problem: { ...problem, detail: 'It may have been replaced by a newer link, or the document may already be signed.' },
+    };
+}
+
 export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     const [request, setRequest] = useState(null);
     const [fieldValues, setFieldValues] = useState({});
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    // `{ reason, detail? }` when the link did not open (`LinkProblemScreen`).
+    const [linkProblem, setLinkProblem] = useState(null);
+    // The sender, named on that screen when its public profile has a name.
+    const [companyName, setCompanyName] = useState(null);
+    // Bumped by Try again, which loads the envelope once more.
+    const [attempt, setAttempt] = useState(0);
     // How far this device's clock sits from the server's, measured once from the
     // instant the server stamped the Date Signed fields. Everything time-related
     // in this room is derived through it, so a wrong device clock cannot put a
@@ -103,9 +131,18 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     const clockOffsetMs = useRef(0);
 
     useEffect(() => {
+        /** The screen names who to ask; a link that could not be checked asks nobody yet. */
+        async function showProblem(problem) {
+            if (problem.reason !== LINK_PROBLEM.UNAVAILABLE) {
+                setCompanyName(await fetchPublicCompanyName(companyId));
+            }
+            setLinkProblem(problem);
+        }
+
         async function load() {
             if (!accessToken) {
-                setError("Invalid Link: No access token provided.");
+                // The link was cut short: the token is what makes it a link.
+                await showProblem({ reason: LINK_PROBLEM.NOT_FOUND });
                 setLoading(false);
                 return;
             }
@@ -147,13 +184,21 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
                 }
             } catch (err) {
                 console.error("Load Error:", err);
-                setError("Document not found or link expired.");
+                const refused = refusedLink(err, companyId, requestId);
+                if (refused.signed) setRequest(refused.signed);
+                else await showProblem(refused.problem);
             } finally {
                 setLoading(false);
             }
         }
         load();
-    }, [companyId, requestId, accessToken]);
+    }, [companyId, requestId, accessToken, attempt]);
+
+    const retry = useCallback(() => {
+        setLinkProblem(null);
+        setLoading(true);
+        setAttempt((n) => n + 1);
+    }, []);
 
     /**
      * Bring the displayed Date Signed up to the server's current day, for the
@@ -174,5 +219,7 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
         ) || null;
     }, [request, fieldValues]);
 
-    return { request, fieldValues, setFieldValues, loading, error, refreshSignedDate };
+    return {
+        request, fieldValues, setFieldValues, loading, linkProblem, companyName, retry, refreshSignedDate,
+    };
 }

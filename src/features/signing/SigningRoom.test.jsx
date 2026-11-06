@@ -191,7 +191,7 @@ describe('SigningRoom', () => {
     });
   });
 
-  it('shows error when access token is missing', async () => {
+  it('says a link with no access token is not valid, without asking the server', async () => {
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={['/sign/co1/req1']}>
@@ -201,9 +201,8 @@ describe('SigningRoom', () => {
         </MemoryRouter>
       </ToastProvider>,
     );
-    await waitFor(() => {
-      expect(screen.getByText(/Invalid Link/i)).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('heading', { level: 1, name: 'This link is not valid' })).toBeInTheDocument();
+    expect(getEnvelopeFn).not.toHaveBeenCalled();
   });
 
   it('renders the document page at a larger width after zooming in', async () => {
@@ -353,6 +352,23 @@ describe('SigningRoom', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 700));
       expect(storedDraft()).toBeNull();
+    });
+
+    it('is replaced, once the server took the document, by a note that this device signed it', async () => {
+      const { container } = await renderRoomPastConsent();
+      fireEvent.click(screen.getByRole('button', { name: /Tap to sign/i }));
+      await screen.findByRole('dialog', { name: /Draw your signature/i });
+      fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+      fireEvent.click(container.querySelector('[data-field-id="check1"] input'));
+      fireEvent.change(container.querySelector('[data-signer-input="date1"]'), { target: { value: '2026-10-15' } });
+      fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
+      expect(localStorage.getItem('signing_signed_v1:co1:req1')).toBeNull();
+
+      fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/i })[0]);
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Document Signed!' })).toBeInTheDocument();
+      // Ids and a time only: never a value the signer typed.
+      expect(Date.parse(localStorage.getItem('signing_signed_v1:co1:req1'))).not.toBeNaN();
     });
   });
 });
