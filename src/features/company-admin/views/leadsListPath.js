@@ -1,11 +1,13 @@
+import { LEAD_LIST_TABS } from './leadLists';
+
+const pathOf = (scope) => LEAD_LIST_TABS.find((tab) => tab.scope === scope).path;
+
 /**
- * The leads list a staff member works from: a company admin, all the company's
- * leads; anyone else, the leads assigned to them. Add lead and Import leads
- * return to it.
+ * The leads list a staff member works from: a company admin, All (every lead
+ * of the company); anyone else, Assigned to me. The menu's Leads item opens it
+ * (`LeadsRedirect`), and Add lead and Import leads return to it.
  *
  * @param {boolean} isCompanyAdmin `isCompanyAdminForRoute` for the company
  * @returns {string}
  */
-export const leadsListPath = (isCompanyAdmin) => (
-    isCompanyAdmin ? '/company/drivers/leads/company' : '/company/drivers/leads/my'
-);
+export const leadsListPath = (isCompanyAdmin) => pathOf(isCompanyAdmin ? 'company_leads' : 'my_leads');

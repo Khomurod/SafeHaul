@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { leadsListPath } from '@features/company-admin/views/leadsListPath';
 
 /**
  * The menu's Leads item: the tab a person starts on. A company admin, who
@@ -14,9 +15,7 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
 export function LeadsRedirect() {
   const { currentUserClaims, currentCompanyProfile } = useData();
   const { search, state } = useLocation();
-  const pathname = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id)
-    ? '/company/drivers/leads/company'
-    : '/company/drivers/leads/my';
+  const pathname = leadsListPath(isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id));
   return <Navigate to={{ pathname, search }} state={state} replace />;
 }
 
