@@ -1,14 +1,15 @@
 /**
  * The company shell opens the record the top bar asks for (a notification in
- * its bell) in the driver dossier, over whichever page is showing, and closes
- * it with the dossier's own Close or when the page changes.
+ * its bell), or a navigation names (Add lead, once the lead is saved), in the
+ * driver dossier, over whichever page is showing, and closes it with the
+ * dossier's own Close or when the page changes.
  *
  * All ids below are artificial.
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const fx = vi.hoisted(() => ({ deactivated: false, logout: vi.fn() }));
@@ -36,7 +37,23 @@ import { CompanyAppShell } from './CompanyAppShell';
 
 function Dashboard() {
     const navigate = useNavigate();
-    return <button type="button" onClick={() => navigate('/company/other')}>Go elsewhere</button>;
+    return (
+        <>
+            <button type="button" onClick={() => navigate('/company/other')}>Go elsewhere</button>
+            <button
+                type="button"
+                onClick={() => navigate('/company/leads', { state: { openRecordId: 'lead-9', segment: 'new' } })}
+            >
+                Save a lead
+            </button>
+        </>
+    );
+}
+
+/** The leads list the saved lead is shown over, and the state it was opened with. */
+function Leads() {
+    const { state } = useLocation();
+    return <output data-testid="leads-state">{JSON.stringify(state)}</output>;
 }
 
 function renderShell() {
@@ -46,6 +63,7 @@ function renderShell() {
                 <Route path="/company" element={<CompanyAppShell />}>
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="other" element={<p>Other page</p>} />
+                    <Route path="leads" element={<Leads />} />
                 </Route>
             </Routes>
         </MemoryRouter>,
@@ -83,6 +101,28 @@ describe('the record a notification names', () => {
 
         expect(await screen.findByText('Other page')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Driver dossier' })).not.toBeInTheDocument();
+    });
+});
+
+describe('the record a page sends the person on to', () => {
+    it('opens over the page it lands on', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save a lead' }));
+
+        await screen.findByRole('button', { name: 'Close dossier' });
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveAttribute('data-record', 'lead-9');
+    });
+
+    it('opens once: the navigation forgets it and keeps the rest of its state', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save a lead' }));
+        await screen.findByRole('button', { name: 'Close dossier' });
+
+        // A reload or a Back to this entry finds no record to open.
+        expect(screen.getByTestId('leads-state')).toHaveTextContent('{"segment":"new"}');
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toBeInTheDocument();
     });
 });
 

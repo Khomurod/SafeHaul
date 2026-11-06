@@ -16,7 +16,8 @@ import {
     normalizeSearchConfirmation,
     normalizeSearchApplicationId,
 } from '@shared/utils/searchNormalization';
-import { getStatusesForSegment, statusMatchesSegment } from '@shared/utils/applicationStatus';
+import { APPLICATION_STATUS_GROUPS, getStatusesForSegment, statusMatchesSegment } from '@shared/utils/applicationStatus';
+import { ATS_INTERESTED_STATUS, CONTACT_ATTEMPT_STATUSES, LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
 import { NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs } from '@shared/utils/northAmericanRegions';
 import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
@@ -171,18 +172,61 @@ export function recordMatchesSearch(record, classified) {
     );
 }
 
-/** Lead pipeline segments keep their existing exact status vocabularies. */
-const LEAD_SEGMENT_STATUSES = {
-    attempting: ['Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3'],
-    in_process: ['In Process'],
-    interested: ['Interested'],
-};
+/**
+ * The leads lists, one tab each: All (`company_leads`), Assigned to me
+ * (`my_leads`) and Unassigned (`unassigned_leads`). Each reads the leads
+ * collection with the leads' segments.
+ */
+export const LEAD_TABS = Object.freeze(['company_leads', 'my_leads', 'unassigned_leads']);
+
+/** Whether a list tab is one of the leads lists. */
+export const isLeadsTab = (tab) => LEAD_TABS.includes(tab);
+
+/** The Assigned to filter's Unassigned choice: a record whose `assignedTo` is empty. */
+export const UNASSIGNED = '__unassigned__';
+
+/**
+ * Each lead segment's stored statuses, from the shared vocabulary. New and
+ * Declined hold every value the dossier names so (`dossierStatusLabel`): New is
+ * the funnel's New, the older New Application and the import's New Lead;
+ * Declined is Declined and the older Rejected.
+ */
+const LEAD_SEGMENT_STATUSES = Object.freeze({
+    new: Object.freeze([...APPLICATION_STATUS_GROUPS.new, LEAD_DEFAULT_STATUS]),
+    attempting: Object.freeze([...CONTACT_ATTEMPT_STATUSES]),
+    in_process: Object.freeze(['In Process']),
+    interested: Object.freeze([ATS_INTERESTED_STATUS]),
+    declined: APPLICATION_STATUS_GROUPS.declined,
+});
+
+/** The stored statuses a lead segment asks for; `null` for All or a segment leads have not got. */
+export function leadStatusesForSegment(segmentId) {
+    const statuses = LEAD_SEGMENT_STATUSES[segmentId];
+    return statuses ? [...statuses] : null;
+}
 
 export function leadStatusMatchesSegment(rawStatus, segmentId) {
     if (!segmentId || segmentId === 'all') return true;
     const statuses = LEAD_SEGMENT_STATUSES[segmentId];
     if (!statuses) return true;
     return statuses.includes(String(rawStatus ?? ''));
+}
+
+/**
+ * The assignees a list asks for, once each (`UNASSIGNED` for nobody). Assigned
+ * to me asks for the signed-in recruiter and Unassigned for nobody, and nothing
+ * else: neither shows the Assigned to filter, so a pick carried over from
+ * another list is not applied there. Every other list asks for the Assigned to
+ * pick, and Applications with Only mine for the signed-in recruiter as well.
+ * Two different assignees match no record.
+ */
+export function listAssignees({ activeTab, filters = {}, currentUid = null }) {
+    if (activeTab === 'my_leads') return currentUid ? [currentUid] : [];
+    if (activeTab === 'unassigned_leads') return [UNASSIGNED];
+    const wanted = [];
+    if (activeTab === 'applications' && filters.myAssignmentsOnly && currentUid) wanted.push(currentUid);
+    if (filters.assignee) wanted.push(filters.assignee);
+    return [...new Set(wanted)];
 }
 
 const REGION_BY_LOWER_NAME = new Map(NORTH_AMERICAN_REGION_NAMES.map((name) => [name.toLowerCase(), name]));
@@ -240,14 +284,15 @@ export const QUERY_ALTERNATIVES_LIMIT = 30;
 /**
  * The State filter's spellings for a list beside its segment's `status in`: as
  * many as Firestore's 30 alternatives leave room for. Every segment leaves all
- * seven, but In process's twelve statuses leave two (the name and the postal
- * code), so there a lower-case or other spelling a lead import kept is not found.
- * The query and its client-side mirror both use it.
+ * seven (a lead's New, three statuses, leaves ten), but the applications' In
+ * process, twelve statuses, leaves two (the name and the postal code), so there
+ * a lower-case or other spelling is not found. The query and its client-side
+ * mirror both use it.
  */
 export function stateValuesForSegment(state, { activeTab, pipelineSegment } = {}) {
     const statuses = activeTab === 'applications'
         ? getStatusesForSegment(pipelineSegment)
-        : LEAD_SEGMENT_STATUSES[pipelineSegment];
+        : leadStatusesForSegment(pipelineSegment);
     return stateFilterValues(state, Math.floor(QUERY_ALTERNATIVES_LIMIT / Math.max(1, statuses?.length || 1)));
 }
 
@@ -352,23 +397,9 @@ export function applyClientSideFilters(records, {
             return false;
         }
 
-        if (activeTab === 'my_leads' && currentUid && record.assignedTo !== currentUid) {
+        const assignees = listAssignees({ activeTab, filters, currentUid });
+        if (!assignees.every((wanted) => (wanted === UNASSIGNED ? !record.assignedTo : record.assignedTo === wanted))) {
             return false;
-        }
-        if (
-            filters.myAssignmentsOnly &&
-            currentUid &&
-            (activeTab === 'applications' || activeTab === 'company_leads') &&
-            record.assignedTo !== currentUid
-        ) {
-            return false;
-        }
-        if (filters.assignee) {
-            if (filters.assignee === '__unassigned__') {
-                if (record.assignedTo) return false;
-            } else if (record.assignedTo !== filters.assignee) {
-                return false;
-            }
         }
         if (filters.state && !stateValuesForSegment(filters.state, { activeTab, pipelineSegment }).includes(record.state)) {
             return false;

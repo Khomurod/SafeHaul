@@ -34,6 +34,10 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     stateValuesForSegment,
+    isLeadsTab,
+    leadStatusesForSegment,
+    listAssignees,
+    UNASSIGNED,
     addedWindow,
     hiredWindow,
     SEARCH_PLAN_LIMIT,
@@ -49,29 +53,24 @@ function pipelineConstraints({ activeTab, pipelineSegment }) {
         if (statuses) return [where('status', 'in', statuses)];
         return [];
     }
-    if (activeTab === 'company_leads' || activeTab === 'my_leads') {
-        if (pipelineSegment === 'attempting') {
-            return [where('status', 'in', ['Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3'])];
-        }
-        if (pipelineSegment === 'in_process') return [where('status', '==', 'In Process')];
-        if (pipelineSegment === 'interested') return [where('status', '==', 'Interested')];
+    if (isLeadsTab(activeTab)) {
+        // The shared vocabulary (`leadStatusesForSegment`): 'new' covers 'New',
+        // 'New Application' and 'New Lead', 'declined' 'Declined' and 'Rejected'.
+        const statuses = leadStatusesForSegment(pipelineSegment);
+        if (statuses?.length === 1) return [where('status', '==', statuses[0])];
+        if (statuses) return [where('status', 'in', statuses)];
     }
     return [];
 }
 
 /**
- * The assignees a list asks for, once each: the signed-in recruiter on My Leads
- * and with My assignments, and the Assigned to pick ('' for Unassigned).
+ * The assignees a list asks for, once each (`listAssignees`): the signed-in
+ * recruiter on Assigned to me, nobody ('') on Unassigned, else the Assigned to
+ * pick and, on Applications with Only mine, the signed-in recruiter.
  */
 function wantedAssignees({ activeTab, filters }) {
-    const uid = auth.currentUser?.uid;
-    const wanted = [];
-    if (activeTab === 'my_leads' && uid) wanted.push(uid);
-    if (filters.myAssignmentsOnly && uid && (activeTab === 'applications' || activeTab === 'company_leads')) {
-        wanted.push(uid);
-    }
-    if (filters.assignee) wanted.push(filters.assignee === '__unassigned__' ? '' : filters.assignee);
-    return [...new Set(wanted)];
+    return listAssignees({ activeTab, filters, currentUid: auth.currentUser?.uid })
+        .map((assignee) => (assignee === UNASSIGNED ? '' : assignee));
 }
 
 /**

@@ -44,8 +44,14 @@ test.describe('Company workspace shell and dashboard', () => {
     expect(await page.evaluate(() => localStorage.getItem('companySidebarMode')))
       .toBe('minimized');
 
-    await page.getByRole('link', { name: 'Import Leads' }).click();
-    await expect(page.getByRole('heading', { name: 'Import Leads' })).toBeVisible();
+    // A collapsed menu still leads somewhere. Import Leads is no longer a menu
+    // item (the Leads page's header offers it: `lead-intake.spec.cjs`).
+    const companyMenu = page.getByRole('navigation', { name: 'Company sections' });
+    await expect(companyMenu.getByRole('link', { name: 'Import Leads' })).toHaveCount(0);
+    await expect(companyMenu.getByRole('link', { name: /quick add/i })).toHaveCount(0);
+    await companyMenu.getByRole('link', { name: 'Settings' }).click();
+    await expect(page).toHaveURL(/\/company\/settings/);
+    await expect(page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ })).toBeVisible();
   });
 
   test('opens the Hired applications from the Hired card', async ({ page }) => {

@@ -34,11 +34,13 @@ import { buildDashboardConstraints, hiredPeriodConstraints } from './dashboardQu
 
 const INDEXES = JSON.parse(readFileSync(resolve(process.cwd(), 'firestore.indexes.json'), 'utf8')).indexes;
 
-const COLLECTION_BY_TAB = { applications: 'applications', company_leads: 'leads', my_leads: 'leads' };
+const COLLECTION_BY_TAB = { applications: 'applications', company_leads: 'leads', my_leads: 'leads', unassigned_leads: 'leads' };
+const LEAD_SEGMENTS = ['all', 'new', 'attempting', 'in_process', 'interested', 'declined'];
 const SEGMENTS_BY_TAB = {
     applications: ['all', 'new', 'in_process', 'hired', 'terminated', 'declined'],
-    company_leads: ['all', 'attempting', 'in_process', 'interested'],
-    my_leads: ['all', 'attempting', 'in_process', 'interested'],
+    company_leads: LEAD_SEGMENTS,
+    my_leads: LEAD_SEGMENTS,
+    unassigned_leads: LEAD_SEGMENTS,
 };
 
 /**
@@ -460,24 +462,102 @@ describe('the order of the lists', () => {
 
 describe('a list that asks for two assignees at once', () => {
     it.each([
-        ['my_leads', { assignee: 'recruiter-2' }],
-        ['my_leads', { assignee: '__unassigned__' }],
-        ['company_leads', { myAssignmentsOnly: true, assignee: 'recruiter-2' }],
         ['applications', { myAssignmentsOnly: true, assignee: '__unassigned__' }],
+        ['applications', { myAssignmentsOnly: true, assignee: 'recruiter-2' }],
     ])('asks Firestore nothing on %s with %o, as no record has two assignees', (activeTab, filters) => {
         expect(buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters })).toBeNull();
         expect(buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters, ordered: false })).toBeNull();
     });
 
-    it.each([
-        ['my_leads', { assignee: 'recruiter-1' }],
-        ['company_leads', { myAssignmentsOnly: true, assignee: 'recruiter-1' }],
-    ])('asks once for the same assignee named twice on %s', (activeTab, filters) => {
-        const constraints = buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters });
+    it('asks once for the same assignee named twice on applications', () => {
+        const constraints = buildDashboardConstraints({
+            activeTab: 'applications', pipelineSegment: 'all', filters: { myAssignmentsOnly: true, assignee: 'recruiter-1' },
+        });
 
         expect(constraints.filter((c) => c.field === 'assignedTo')).toEqual([
             { kind: 'where', field: 'assignedTo', op: '==', value: 'recruiter-1' },
         ]);
+    });
+});
+
+describe('the leads tabs and their assignee', () => {
+    const assigneeOf = (activeTab, filters = {}) => buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters })
+        .filter((c) => c.field === 'assignedTo');
+    const asks = (value) => [{ kind: 'where', field: 'assignedTo', op: '==', value }];
+
+    it('asks Unassigned for the leads whose assignedTo is empty, as the Assigned to filter does', () => {
+        expect(assigneeOf('unassigned_leads')).toEqual(asks(''));
+        expect(assigneeOf('company_leads', { assignee: '__unassigned__' })).toEqual(asks(''));
+    });
+
+    it('asks Assigned to me for the signed-in recruiter', () => {
+        expect(assigneeOf('my_leads')).toEqual(asks('recruiter-1'));
+    });
+
+    it.each([
+        ['my_leads', 'recruiter-1'],
+        ['unassigned_leads', ''],
+    ])('keeps %s to its own assignee, whatever Assigned to or Only mine a list left behind', (activeTab, own) => {
+        for (const filters of [
+            { assignee: 'recruiter-2' },
+            { assignee: '__unassigned__' },
+            { assignee: 'recruiter-1' },
+            { myAssignmentsOnly: true },
+            { myAssignmentsOnly: true, assignee: 'recruiter-2' },
+        ]) {
+            expect(assigneeOf(activeTab, filters)).toEqual(asks(own));
+            expect(buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters, ordered: false })
+                .filter((c) => c.field === 'assignedTo')).toEqual(asks(own));
+        }
+    });
+
+    it('applies the Assigned to pick on All, and no Only mine, which only Applications offers', () => {
+        expect(assigneeOf('company_leads', { assignee: 'recruiter-2' })).toEqual(asks('recruiter-2'));
+        expect(assigneeOf('company_leads', { myAssignmentsOnly: true })).toEqual([]);
+        expect(assigneeOf('company_leads', { myAssignmentsOnly: true, assignee: 'recruiter-2' })).toEqual(asks('recruiter-2'));
+        expect(assigneeOf('applications', { myAssignmentsOnly: true })).toEqual(asks('recruiter-1'));
+    });
+
+    it('finds on Unassigned only the leads stored with an empty assignedTo, not older ones without it', () => {
+        // Artificial records. A lead stored with `null` or no field at all is
+        // found only after Data cleanup → Old lead fields: no query asks for a
+        // missing field.
+        const stored = [
+            { id: 'empty', assignedTo: '' },
+            { id: 'null', assignedTo: null },
+            { id: 'missing' },
+            { id: 'taken', assignedTo: 'recruiter-1' },
+        ].map((record) => ({ ...record, createdAt: new Date('2026-10-01T15:00:00Z') }));
+        const constraints = buildDashboardConstraints({ activeTab: 'unassigned_leads', pipelineSegment: 'all', filters: {} });
+
+        expect(stored.filter((record) => matches(record, constraints)).map((record) => record.id)).toEqual(['empty']);
+    });
+});
+
+describe('the lead segments', () => {
+    // Artificial records, dated, one per stored status, each held by whoever the tab lists.
+    const STATUSES = ['New', 'New Lead', 'New Application', 'Contact Attempt 2', 'In Process', 'Interested', 'Declined', 'Rejected', 'Hired'];
+    const HOLDER = { company_leads: 'recruiter-2', my_leads: 'recruiter-1', unassigned_leads: '' };
+    const found = (activeTab, pipelineSegment) => STATUSES
+        .map((status) => ({ id: status, status, assignedTo: HOLDER[activeTab], createdAt: new Date('2026-10-01T15:00:00Z') }))
+        .filter((record) => matches(record, buildDashboardConstraints({ activeTab, pipelineSegment, filters: {} })))
+        .map((record) => record.id);
+
+    it.each(Object.keys(HOLDER))('find the same statuses on %s', (activeTab) => {
+        expect(found(activeTab, 'new')).toEqual(['New', 'New Lead', 'New Application']);
+        expect(found(activeTab, 'attempting')).toEqual(['Contact Attempt 2']);
+        expect(found(activeTab, 'in_process')).toEqual(['In Process']);
+        expect(found(activeTab, 'interested')).toEqual(['Interested']);
+        expect(found(activeTab, 'declined')).toEqual(['Declined', 'Rejected']);
+        expect(found(activeTab, 'all')).toEqual(STATUSES);
+    });
+
+    it('ask In Process and Interested by one value, as before', () => {
+        const statusOf = (pipelineSegment) => buildDashboardConstraints({ activeTab: 'company_leads', pipelineSegment, filters: {} })
+            .filter((c) => c.field === 'status');
+
+        expect(statusOf('in_process')).toEqual([{ kind: 'where', field: 'status', op: '==', value: 'In Process' }]);
+        expect(statusOf('interested')).toEqual([{ kind: 'where', field: 'status', op: '==', value: 'Interested' }]);
     });
 });
 

@@ -1,6 +1,13 @@
 /**
  * Single source of truth for company workspace routes and sidebar navigation.
  * Route registration and menu rendering should read from this manifest to avoid drift.
+ *
+ * Who may open a page belongs to the page, not to its menu item: `adminOnly`
+ * (the route guard, `CompanyAdminRoute`, refuses everyone but a company admin)
+ * and `featureFlag` (the company feature the page needs) sit on the entry
+ * itself, so a page with no `nav`, or whose item is removed, keeps them. The
+ * sidebar, and any page that links to another page as a button, offer a page
+ * only when these allow it (`canOfferCompanyRoute`).
  */
 export const COMPANY_ROUTE_MANIFEST = Object.freeze([
   {
@@ -51,20 +58,41 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     featureName: 'Start an Application',
   },
   {
+    // The menu's one Leads item. Its address has no screen: it opens the tab a
+    // person starts on, All for a company admin and Assigned to me for anyone
+    // else (`LeadsRedirect`). Every tab's address sits under this one, so the
+    // menu reads the item as current on each of them. It picks by the person's
+    // role in the company they work in, so it waits for that company.
+    id: 'leads',
+    path: 'drivers/leads',
+    screen: 'leadsRedirect',
+    featureName: 'Leads',
+    requiresCompanyProfile: true,
+    nav: { kind: 'group-item', group: 'applications', label: 'Leads', icon: 'Building2' },
+  },
+  {
+    // The Leads tabs (`LeadListTabs`): one route each and no menu item. All and
+    // Assigned to me keep the old Company Leads and My Leads addresses, so a
+    // bookmark or a dashboard tile still opens its list.
     id: 'companyLeads',
     path: 'drivers/leads/company',
     screen: 'companyCandidatesListPage',
-    featureName: 'Company Leads',
+    featureName: 'Leads',
     props: { scope: 'company_leads' },
-    nav: { kind: 'group-item', group: 'applications', label: 'Company Leads', icon: 'Building2' },
   },
   {
     id: 'myLeads',
     path: 'drivers/leads/my',
     screen: 'companyCandidatesListPage',
-    featureName: 'My Leads',
+    featureName: 'Leads',
     props: { scope: 'my_leads' },
-    nav: { kind: 'group-item', group: 'applications', label: 'My Leads', icon: 'User' },
+  },
+  {
+    id: 'unassignedLeads',
+    path: 'drivers/leads/unassigned',
+    screen: 'companyCandidatesListPage',
+    featureName: 'Leads',
+    props: { scope: 'unassigned_leads' },
   },
   {
     id: 'referralLinks',
@@ -81,41 +109,34 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     screen: 'companyCampaignsPage',
     featureName: 'Campaigns',
     requiresCompanyProfile: true,
-    nav: {
-      kind: 'item',
-      section: 'main',
-      label: 'Campaigns',
-      icon: 'Megaphone',
-      featureFlag: 'campaignsEnabled',
-    },
+    featureFlag: 'campaignsEnabled',
+    nav: { kind: 'item', section: 'main', label: 'Campaigns', icon: 'Megaphone' },
   },
   {
     id: 'eDocs',
     path: 'e-docs',
     screen: 'documentsManager',
     featureName: 'E-Docs',
-    nav: { kind: 'item', section: 'main', label: 'E-Docs', icon: 'FileText', featureFlag: 'eDocs' },
+    featureFlag: 'eDocs',
+    nav: { kind: 'item', section: 'main', label: 'E-Docs', icon: 'FileText' },
   },
   {
+    // No `nav`: the Leads page's header offers it (`LeadsHeaderActions`), to a
+    // company admin of a company with the feature on, and the URL still works.
     id: 'importLeads',
     path: 'import-leads',
     screen: 'importLeadsPage',
     featureName: 'Import Leads',
-    nav: {
-      kind: 'item',
-      section: 'admin',
-      label: 'Import Leads',
-      icon: 'Upload',
-      adminOnly: true,
-      featureFlag: 'importLeads',
-    },
+    adminOnly: true,
+    featureFlag: 'importLeads',
   },
   {
+    // No `nav`: the Leads page's header offers it to every staff member. Not
+    // `adminOnly`: a recruiter's lead is assigned to them (`QuickAddLeadPage`).
     id: 'quickAddLead',
     path: 'quick-add-lead',
     screen: 'quickAddLeadPage',
-    featureName: 'Quick Add Lead',
-    nav: { kind: 'item', section: 'admin', label: 'Quick Add Leads', icon: 'PlusCircle', adminOnly: true },
+    featureName: 'Add Lead',
   },
   {
     id: 'profile',
@@ -130,7 +151,8 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     screen: 'companySettings',
     featureName: 'Company Settings',
     requiresCompanyProfile: true,
-    nav: { kind: 'item', section: 'account', label: 'Settings', icon: 'Settings', adminOnly: true },
+    adminOnly: true,
+    nav: { kind: 'item', section: 'account', label: 'Settings', icon: 'Settings' },
   },
 ]);
 
@@ -147,8 +169,6 @@ export const COMPANY_NAV_LAYOUT = Object.freeze([
   { type: 'group', group: 'applications' },
   { type: 'divider' },
   { type: 'section', section: 'main' },
-  { type: 'divider' },
-  { type: 'section', section: 'admin' },
   { type: 'divider' },
   { type: 'section', section: 'account' },
 ]);

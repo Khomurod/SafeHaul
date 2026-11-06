@@ -6,6 +6,10 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     leadStatusMatchesSegment,
+    leadStatusesForSegment,
+    listAssignees,
+    LEAD_TABS,
+    isLeadsTab,
     stateFilterValues,
     stateValuesForSegment,
     addedWindow,
@@ -223,6 +227,71 @@ describe('applyClientSideFilters', () => {
         expect(leadStatusMatchesSegment('New Lead', 'attempting')).toBe(false);
         expect(leadStatusMatchesSegment('In Process', 'in_process')).toBe(true);
     });
+
+    it("lead New and Declined hold what the dossier calls New and Declined", () => {
+        expect(leadStatusesForSegment('new')).toEqual(['New', 'New Application', 'New Lead']);
+        expect(leadStatusesForSegment('declined')).toEqual(['Declined', 'Rejected']);
+        expect(leadStatusMatchesSegment('New Lead', 'new')).toBe(true);
+        expect(leadStatusMatchesSegment('Rejected', 'declined')).toBe(true);
+        expect(leadStatusMatchesSegment('Contact Attempt 1', 'new')).toBe(false);
+        expect(leadStatusesForSegment('all')).toBeNull();
+    });
+
+    describe('on the leads tabs', () => {
+        // Artificial leads.
+        const leads = [
+            { id: 'mine', status: 'New Lead', assignedTo: 'u1' },
+            { id: 'theirs', status: 'New', assignedTo: 'u2' },
+            { id: 'free', status: 'Declined', assignedTo: '' },
+            { id: 'old-import', status: 'Rejected', assignedTo: null },
+        ];
+        const ids = (activeTab, extra = {}) => applyClientSideFilters(leads, {
+            activeTab, pipelineSegment: 'all', currentUid: 'u1', ...extra,
+        }).map((r) => r.id);
+
+        it('lists everyone on All, Assigned to me the reader and Unassigned nobody, as the queries do', () => {
+            expect(ids('company_leads')).toEqual(['mine', 'theirs', 'free', 'old-import']);
+            expect(ids('my_leads')).toEqual(['mine']);
+            // Search finds an older lead stored with `null`, as the Unassigned filter's mirror always has.
+            expect(ids('unassigned_leads')).toEqual(['free', 'old-import']);
+        });
+
+        it('leaves out an Assigned to pick or Only mine on the tabs that name their assignee', () => {
+            const carried = { filters: { assignee: 'u2', myAssignmentsOnly: true } };
+            expect(ids('my_leads', carried)).toEqual(['mine']);
+            expect(ids('unassigned_leads', carried)).toEqual(['free', 'old-import']);
+            expect(ids('company_leads', carried)).toEqual(['theirs']);
+        });
+
+        it('narrows each tab by the new segments', () => {
+            expect(ids('unassigned_leads', { pipelineSegment: 'declined' })).toEqual(['free', 'old-import']);
+            expect(ids('company_leads', { pipelineSegment: 'new' })).toEqual(['mine', 'theirs']);
+        });
+    });
+});
+
+describe('listAssignees', () => {
+    it('names the tab its leads lists are, and no other', () => {
+        expect(LEAD_TABS).toEqual(['company_leads', 'my_leads', 'unassigned_leads']);
+        expect(LEAD_TABS.every(isLeadsTab)).toBe(true);
+        expect(isLeadsTab('applications')).toBe(false);
+    });
+
+    it('gives a tab that names its assignee only that one', () => {
+        const filters = { assignee: 'u2', myAssignmentsOnly: true };
+        expect(listAssignees({ activeTab: 'my_leads', filters, currentUid: 'u1' })).toEqual(['u1']);
+        expect(listAssignees({ activeTab: 'unassigned_leads', filters, currentUid: 'u1' })).toEqual(['__unassigned__']);
+    });
+
+    it('gives the other lists the Assigned to pick, and Applications Only mine too, once each', () => {
+        expect(listAssignees({ activeTab: 'company_leads', filters: { assignee: 'u2', myAssignmentsOnly: true }, currentUid: 'u1' }))
+            .toEqual(['u2']);
+        expect(listAssignees({ activeTab: 'applications', filters: { assignee: 'u2', myAssignmentsOnly: true }, currentUid: 'u1' }))
+            .toEqual(['u1', 'u2']);
+        expect(listAssignees({ activeTab: 'applications', filters: { assignee: 'u1', myAssignmentsOnly: true }, currentUid: 'u1' }))
+            .toEqual(['u1']);
+        expect(listAssignees({ activeTab: 'applications', filters: {}, currentUid: 'u1' })).toEqual([]);
+    });
 });
 
 describe('stateFilterValues', () => {
@@ -268,8 +337,10 @@ describe('the State spellings beside a segment', () => {
         for (const pipelineSegment of ['all', 'new', 'hired', 'terminated', 'declined']) {
             expect(stateValuesForSegment('Texas', { activeTab: 'applications', pipelineSegment })).toEqual(texas);
         }
-        for (const pipelineSegment of ['all', 'attempting', 'in_process', 'interested']) {
-            expect(stateValuesForSegment('Texas', { activeTab: 'company_leads', pipelineSegment })).toEqual(texas);
+        for (const activeTab of ['company_leads', 'my_leads', 'unassigned_leads']) {
+            for (const pipelineSegment of ['all', 'new', 'attempting', 'in_process', 'interested', 'declined']) {
+                expect(stateValuesForSegment('Texas', { activeTab, pipelineSegment })).toEqual(texas);
+            }
         }
         expect(stateValuesForSegment('Texas', { activeTab: 'applications', pipelineSegment: 'in_process' })).toEqual(['Texas', 'TX']);
     });

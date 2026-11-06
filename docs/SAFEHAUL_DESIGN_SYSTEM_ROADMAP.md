@@ -271,8 +271,9 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
   one heading with the count, one `ListToolbar` row, one row per record in a
   `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
-  Example: the `Patterns/List page` stories; Applications and My Leads follow
-  all six; Company Leads scrolls on a phone for its bulk checkboxes, and
+  Example: the `Patterns/List page` stories; Applications and Leads → Assigned
+  to me follow all six; Leads → All and Unassigned scroll on a phone for their
+  bulk checkboxes, and
   Unfinished applications and E-Docs Sent Documents (its count in the
   workspace heading) do not sort from headers. Short lists
   with no toolbar or sorting take the heading, the rows and the cards: Referral
@@ -527,7 +528,7 @@ it does:
 | Icons | `icons/` (`Icon` + glyph tokens); one recorded exception, `VOEDocument.jsx` (§5) |
 | Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5) |
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
-| Navigation and external links; tab strip; single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
+| Navigation and external links; tab strip; tab strip of links (`TabNav`, views with their own address: the Leads tabs; **Needs review**: no 1440/412 or visual-contract review yet); single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
 | Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
 | Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
 | Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |

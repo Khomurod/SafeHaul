@@ -35,7 +35,11 @@ const timeAgo = (date) => {
 
 // The server's notifications name the record they are about: the dossier
 // finds an application or a lead by its id, and E-Docs lists a signing request.
-const openerOf = (notif, onOpenRecord, onOpenDocuments) => {
+// An import's summary ("15 leads assigned to you", `leads_assigned`) names no
+// record, so its type opens the reader's Assigned to me list: those already
+// sent open it too.
+const openerOf = (notif, onOpenRecord, onOpenDocuments, onOpenAssignedLeads) => {
+    if (notif.type === 'leads_assigned') return onOpenAssignedLeads || null;
     if (!notif.relatedId) return null;
     if (onOpenRecord && (notif.relatedType === 'application' || notif.relatedType === 'lead')) {
         return () => onOpenRecord(notif.relatedId);
@@ -45,9 +49,10 @@ const openerOf = (notif, onOpenRecord, onOpenDocuments) => {
 
 /**
  * `onOpenRecord(id)` opens a record's dossier; the shell renders it.
- * `onOpenDocuments()` opens E-Docs.
+ * `onOpenDocuments()` opens E-Docs; `onOpenAssignedLeads()` the Leads list's
+ * Assigned to me tab.
  */
-export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments }) {
+export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments, onOpenAssignedLeads }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const bellRef = useRef(null);
@@ -142,7 +147,7 @@ export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments 
                             </div>
                         ) : (
                             notifications.map((notif) => {
-                                const open = openerOf(notif, onOpenRecord, onOpenDocuments);
+                                const open = openerOf(notif, onOpenRecord, onOpenDocuments, onOpenAssignedLeads);
                                 const content = (
                                     <>
                                         <span className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>

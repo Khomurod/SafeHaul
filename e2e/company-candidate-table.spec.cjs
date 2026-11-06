@@ -93,7 +93,7 @@ test.describe('Company candidate-list DataTable pilot', () => {
   });
 
   test('uses native page-aware selection with a mixed select-all state', async ({ page }) => {
-    await openCandidatePage(page, '/company/drivers/leads/company', 'Company Leads');
+    await openCandidatePage(page, '/company/drivers/leads/company', 'Leads');
 
     const selectAll = page.getByRole('checkbox', { name: 'Select all candidates on this page' });
     const lena = page.getByRole('checkbox', { name: 'Select Lena Leadsen' });
@@ -112,13 +112,51 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('checkbox', { name: 'Select Omar Attempt' })).not.toBeChecked();
   });
 
-  test('preserves the My Leads scope and its non-bulk-selection permissions', async ({ page }) => {
-    await openCandidatePage(page, '/company/drivers/leads/my', 'My Leads');
+  test('preserves the Assigned to me scope and its non-bulk-selection permissions', async ({ page }) => {
+    await openCandidatePage(page, '/company/drivers/leads/my', 'Leads');
 
+    await expect(page.getByRole('link', { name: 'Assigned to me' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByText('Lena Leadsen')).toBeVisible();
     await expect(page.getByText('Omar Attempt')).toHaveCount(0);
     await expect(page.getByRole('checkbox')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Assign \(/ })).toHaveCount(0);
+    // The tab names its assignee: no "My leads" switch, no Assigned to filter.
+    await expect(page.getByRole('switch')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await expect(page.getByLabel('Assigned to', { exact: true })).toHaveCount(0);
+  });
+
+  test('lists the leads nobody is assigned to on Unassigned, which an admin can assign', async ({ page }) => {
+    await openCandidatePage(page, '/company/drivers/leads/unassigned', 'Leads');
+
+    await expect(page.getByRole('link', { name: 'Unassigned' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByText('Omar Attempt')).toBeVisible();
+    await expect(page.getByText('Lena Leadsen')).toHaveCount(0);
+    await page.getByRole('checkbox', { name: 'Select Omar Attempt' }).check();
+    await expect(page.getByRole('button', { name: 'Assign (1)' })).toBeVisible();
+  });
+
+  test('opens Leads from the menu on All, and moves between its tabs by their links', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'The desktop menu.');
+    await page.goto(`/company/dashboard${AUTH}`);
+    const menu = page.getByRole('navigation', { name: 'Company sections' });
+
+    await menu.getByRole('link', { name: 'Leads', exact: true }).click();
+    await expect(page).toHaveURL(/\/company\/drivers\/leads\/company/);
+    await expect(page.getByRole('heading', { name: 'Leads', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'All', exact: true })).toHaveAttribute('aria-current', 'page');
+
+    const tabs = page.getByRole('navigation', { name: 'Lead lists' });
+    await tabs.getByRole('link', { name: 'Unassigned' }).click();
+    await expect(page).toHaveURL(/\/company\/drivers\/leads\/unassigned/);
+    await expect(page.getByText('Omar Attempt')).toBeVisible();
+    // The menu item stays current on every tab.
+    await expect(menu.getByRole('link', { name: 'Leads', exact: true })).toHaveAttribute('aria-current', 'page');
+
+    await tabs.getByRole('link', { name: 'Assigned to me' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/company\/drivers\/leads\/my/);
+    await expect(page.getByText('Lena Leadsen')).toBeVisible();
   });
 
   test('shows Applications as one card per driver on a phone @mobile', async ({ page }, testInfo) => {
@@ -153,12 +191,12 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
   });
 
-  test('keeps Company Leads, with its checkboxes, a table that scrolls on a phone @mobile', async ({ page }, testInfo) => {
+  test('keeps All leads, with its checkboxes, a table that scrolls on a phone @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation is verified in a mobile project.');
-    await openCandidatePage(page, '/company/drivers/leads/company', 'Company Leads');
+    await openCandidatePage(page, '/company/drivers/leads/company', 'Leads');
 
     const region = page.getByRole('region', {
-      name: 'Company Leads table. Scroll horizontally to view all columns.',
+      name: 'Leads table. Scroll horizontally to view all columns.',
     });
     const dimensions = await region.evaluate((element) => ({
       clientWidth: element.clientWidth,
@@ -202,7 +240,7 @@ test.describe('Company candidate-list DataTable pilot', () => {
   });
 
   test('has no serious or critical accessibility violations in the table surface', async ({ page }) => {
-    await openCandidatePage(page, '/company/drivers/leads/company', 'Company Leads');
+    await openCandidatePage(page, '/company/drivers/leads/company', 'Leads');
 
     const { violations } = await new AxeBuilder({ page })
       .include('.ds-data-table')

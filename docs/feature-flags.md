@@ -20,25 +20,28 @@ Defined in `ALL_FEATURES` in [`FeaturesView.jsx`](../src/features/super-admin/co
 | `pev` | PEV | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) blocks when `=== false` |
 | `campaignsEnabled` | Campaigns | Sidebar; [`CampaignsDashboard.jsx`](../src/features/campaigns/CampaignsDashboard.jsx) uses `!== false` (default on) |
 | `eDocs` | E-Docs | Sidebar; [`DocumentsManager.jsx`](../src/features/company-admin/views/DocumentsManager.jsx) when `=== false` |
-| `importLeads` | Import Leads | Sidebar (admin); [`ImportLeadsPage.jsx`](../src/features/company-admin/views/ImportLeadsPage.jsx) when `=== false` |
+| `importLeads` | Import Leads | Leads page's Import leads button (admin); [`ImportLeadsPage.jsx`](../src/features/company-admin/views/ImportLeadsPage.jsx) when `=== false` |
 | `callTracking` | Call Tracking | [`CompanySettings.jsx`](../src/features/settings/components/CompanySettings.jsx) "Facebook leads" section hidden when `=== false` |
 
-Routes without a `featureFlag` in [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) (dashboard, applications, leads, pipeline, quick-add, profile, settings) are **always visible** to company team regardless of `features`.
+Routes without a `featureFlag` in [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) (dashboard, applications, leads, pipeline, Add lead, profile, settings) are **always visible** to company team regardless of `features`.
 
 ---
 
 ## How enforcement works
 
-### 1. Sidebar visibility
+### 1. Sidebar and page buttons
 
-[`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx):
+A route's `featureFlag` sits on its manifest entry, not its menu item. The
+sidebar ([`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx))
+and the buttons that lead to a page (the Leads page's Import leads) offer it
+through [`canOfferCompanyRoute`](../src/app/routes/companyRouteAccess.js):
 
 ```javascript
-if (nav.featureFlag && featureFlags[nav.featureFlag] === false) return false;
+if (route.featureFlag && features?.[route.featureFlag] === false) return false;
 ```
 
-- Missing key or `undefined` → nav item **shown**
-- Explicit `false` → nav item **hidden**
+- Missing key or `undefined` → **offered**
+- Explicit `false` → **hidden**
 
 Manifest flags: `campaignsEnabled`, `eDocs`, `importLeads` ([`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js)).
 

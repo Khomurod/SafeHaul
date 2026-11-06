@@ -8,19 +8,22 @@ import { Icon, Save, X } from '@design-system/icons';
 import { ATS_STATUS_NEW } from '@shared/constants/atsStatus';
 import { normalizePhone } from '@shared/utils/helpers';
 import { normalizeSearchEmail } from '@shared/utils/searchNormalization';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 import {
     Button, Card, FormField, FormSection, Input, Select, Textarea,
 } from '@/design-system/components';
 import {
     PageContainer, PageHeader, ResponsiveGrid, Stack,
 } from '@/design-system/layouts';
+import { leadsListPath } from './leadsListPath';
 
 /**
- * Manual single-lead entry.
+ * Add lead: manual single-lead entry, open to every staff member and reached
+ * from the Leads page's header (`LeadsHeaderActions`).
  *
  * Feature-owned: the field set, the required rule, the Firestore write to
- * `companies/{companyId}/leads`, and every user-facing string. All layout and
- * controls come from the design system.
+ * `companies/{companyId}/leads`, who the lead is assigned to, and every
+ * user-facing string. All layout and controls come from the design system.
  *
  * Rules this page keeps:
  *
@@ -42,8 +45,12 @@ import {
  * Frozen: the nine form keys and their initial values (`cdlClass: 'A'`), the
  * First Name / Last Name / Phone required rule, the CDL options, the exact
  * payload (`companyId`, derived `name`, `createdAt`, `updatedAt`,
- * `ATS_STATUS_NEW`, `source: 'manual_entry'`, `createdBy`), all four messages,
- * and every navigation destination.
+ * `ATS_STATUS_NEW`, `source: 'manual_entry'`, `createdBy`), and all four
+ * messages.
+ *
+ * Saving and Cancel return to the person's leads list (`leadsListPath`); once
+ * saved, the new lead's dossier opens over it (the company shell opens the
+ * `openRecordId` the navigation names).
  */
 const REQUIRED_FIELDS = [
     { name: 'firstName', label: 'First Name' },
@@ -51,11 +58,24 @@ const REQUIRED_FIELDS = [
     { name: 'phone', label: 'Phone' },
 ];
 
+/**
+ * Who a new lead is assigned to. A company admin's stays unassigned (`''`, as
+ * the lists' Unassigned filter asks for), for the admin to hand out; anyone
+ * else's is theirs (decision Д13), so it is in their My Leads at once. Named as
+ * their account is, as the lead import names the person importing.
+ */
+function assigneeOf(isCompanyAdmin, user) {
+    if (isCompanyAdmin || !user?.uid) return { assignedTo: '', assignedToName: '' };
+    return { assignedTo: user.uid, assignedToName: user.displayName || user.email || '' };
+}
+
 export const QuickAddLeadPage = () => {
-    const { currentCompanyProfile, currentUser } = useData();
+    const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
     const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
     const companyId = currentCompanyProfile?.id;
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
+    const listPath = leadsListPath(isCompanyAdmin);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -123,19 +143,17 @@ export const QuickAddLeadPage = () => {
                 status: ATS_STATUS_NEW,
                 source: 'manual_entry',
                 createdBy: currentUser?.uid || 'unknown',
-                // As the lead import writes them: unassigned as the lists'
-                // Unassigned filter matches it, the phone key the import
+                ...assigneeOf(isCompanyAdmin, currentUser),
+                // As the lead import writes them: the phone key the import
                 // finds a duplicate by, and the email an application is
                 // matched to its lead by (functions/shared/leadApplicationLink.js).
-                assignedTo: '',
-                assignedToName: '',
                 normalizedPhone: normalizePhone(formData.phone),
                 emailNormalized: normalizeSearchEmail(formData.email),
             };
 
-            await addDoc(collection(db, 'companies', companyId, 'leads'), leadData);
+            const added = await addDoc(collection(db, 'companies', companyId, 'leads'), leadData);
             showSuccess('Lead added successfully!');
-            navigate('/company/drivers/leads/company');
+            navigate(listPath, { state: { openRecordId: added.id } });
         } catch (err) {
             console.error('Error adding lead:', err);
             showError('Failed to add lead. Please try again.');
@@ -175,7 +193,7 @@ export const QuickAddLeadPage = () => {
             <PageContainer width="standard">
                 <Stack gap="lg">
                     <PageHeader
-                        title="Quick Add Lead"
+                        title="Add lead"
                         description="Manually add a new lead to your pipeline."
                     />
 
@@ -305,7 +323,7 @@ export const QuickAddLeadPage = () => {
                                 <div className="flex flex-wrap justify-end gap-ds-3 border-t border-ds-border-subtle pt-ds-4">
                                     <Button
                                         variant="secondary"
-                                        onClick={() => navigate('/company/dashboard')}
+                                        onClick={() => navigate(listPath)}
                                     >
                                         <Icon icon={X} /> Cancel
                                     </Button>

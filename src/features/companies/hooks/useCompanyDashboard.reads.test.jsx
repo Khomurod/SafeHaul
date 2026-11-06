@@ -56,6 +56,7 @@ describe('a candidate list', () => {
         ['applications', 'companies/co-1/applications'],
         ['company_leads', 'companies/co-1/leads'],
         ['my_leads', 'companies/co-1/leads'],
+        ['unassigned_leads', 'companies/co-1/leads'],
     ])('on %s reads only its own collection', async (tab, own) => {
         const { result } = renderHook(() => useCompanyDashboard('co-1', { initialTab: tab }));
 

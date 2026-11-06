@@ -40,7 +40,8 @@ function withFeatureBoundary(featureName, element) {
 }
 
 // --- MAIN ROUTER ---
-function AppRoutes() {
+// Exported for the routing tests (`companyRouteGuards.test.jsx`).
+export function AppRoutes() {
   const { currentCompanyProfile } = useData();
   const CompanyWorkspaceLayout = featureScreens[COMPANY_WORKSPACE_ROUTE.screen];
 
@@ -127,7 +128,8 @@ function AppRoutes() {
                 )
               : <Screen {...(routeDef.props || {})} />;
 
-            // UI-006: admin-only pages get a route guard that mirrors the sidebar.
+            // UI-006: a page the manifest marks `adminOnly` gets the route guard,
+            // whether or not it has a menu item.
             const content = routeDef.adminOnly
               ? <CompanyAdminRoute>{screenContent}</CompanyAdminRoute>
               : screenContent;

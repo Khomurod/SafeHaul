@@ -11,7 +11,7 @@ export { SegmentedControl } from './segmented';
 export { SelectableCard } from './selectable-card';
 export { Skeleton } from './skeleton';
 export { Switch } from './switch';
-export { TabList, TabPanel, tabIds } from './tabs';
+export { TabList, TabNav, TabPanel, tabIds } from './tabs';
 export { ProgressBar } from './progress';
 export { SectionNavigation } from './section-navigation';
 export { StatusMedallion } from './status-medallion';

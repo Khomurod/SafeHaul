@@ -38,7 +38,9 @@ import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 const ITEMS_PER_PAGE = 20;
 
 /**
- * applications: all | new | in_process | hired | terminated | declined — leads: all | attempting | in_process | interested.
+ * Tabs: applications, and the leads lists company_leads (All), my_leads (Assigned to me) and
+ * unassigned_leads (Unassigned) (`LEAD_TABS`). Segments: applications all | new | in_process | hired |
+ * terminated | declined — leads all | new | attempting | in_process | interested | declined.
  * `initialPeriod` (`{ field, month }`, `dashboardPeriods.js`) opens the list on a month of
  * applications added or hired, as the dashboard's brief does; `filters.period`, cleared with null.
  * `navigationKey` (the location's key) ties it to that navigation: a new one opens on its own

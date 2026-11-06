@@ -1,8 +1,9 @@
 /**
  * A notification in the bell opens the record it is about: one naming an
  * application or a lead asks for that record's dossier and closes the panel,
- * one naming a signing request opens E-Docs, and opening one marks it read.
- * One about no record is plain text.
+ * one naming a signing request opens E-Docs, an import's Leads Assigned (no
+ * record, read by its type) opens the reader's Assigned to me list, and
+ * opening one marks it read. One about no record is plain text.
  *
  * All names and ids below are artificial.
  */
@@ -40,10 +41,17 @@ const SIGNED = {
     relatedId: 'req-4', relatedType: 'signing_request', recipientId: 'user-1', read: false, createdAt: at,
 };
 
-function openBell(notifications, { onOpenDocuments = vi.fn() } = {}) {
+function openBell(notifications, { onOpenDocuments = vi.fn(), onOpenAssignedLeads = vi.fn() } = {}) {
     hook.notifications = notifications;
     const onOpenRecord = vi.fn();
-    render(<NotificationDropdown companyId="co-1" onOpenRecord={onOpenRecord} onOpenDocuments={onOpenDocuments} />);
+    render(
+        <NotificationDropdown
+            companyId="co-1"
+            onOpenRecord={onOpenRecord}
+            onOpenDocuments={onOpenDocuments}
+            onOpenAssignedLeads={onOpenAssignedLeads}
+        />,
+    );
     return userEvent.click(screen.getByRole('button', { name: 'Notifications' })).then(() => onOpenRecord);
 }
 
@@ -117,23 +125,57 @@ describe('a notification in the bell', () => {
         expect(screen.queryByText('Open E-Docs')).not.toBeInTheDocument();
     });
 
-    it('opens an application assigned to the reader, and shows an import summary as plain text', async () => {
+    it('opens an application assigned to the reader', async () => {
         const ASSIGNED = {
             id: 'n-5', type: 'application_assigned', title: 'Application Assigned', message: 'Ann Baker was assigned to you',
             relatedId: 'app-9', relatedType: 'application', recipientId: 'user-1', read: false, createdAt: at,
         };
-        const IMPORTED = {
-            id: 'n-6', type: 'leads_assigned', title: 'Leads Assigned', message: '15 leads assigned to you',
-            recipientId: 'user-1', count: 15, read: false, createdAt: at,
-        };
-        const onOpenRecord = await openBell([ASSIGNED, IMPORTED]);
+        const onOpenRecord = await openBell([ASSIGNED]);
 
-        expect(screen.getByText('15 leads assigned to you')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Leads Assigned/ })).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: /Application Assigned/ }));
 
         expect(onOpenRecord).toHaveBeenCalledWith('app-9');
         expect(hook.markAsRead).toHaveBeenCalledWith('n-5');
+    });
+
+    // As the importer's browser writes it (`importAssignmentNotices.js`): a
+    // count, no record, so the bell reads where it goes from its type.
+    const IMPORTED = {
+        id: 'n-6', type: 'leads_assigned', title: 'Leads Assigned', message: '15 leads assigned to you',
+        recipientId: 'user-1', count: 15, actorId: 'admin-1', read: false, createdAt: at,
+    };
+
+    it("opens the reader's Assigned to me list from an import's Leads Assigned, marks itself read and closes", async () => {
+        const onOpenAssignedLeads = vi.fn();
+        const onOpenRecord = await openBell([IMPORTED], { onOpenAssignedLeads });
+
+        await userEvent.click(screen.getByRole('button', { name: /Leads Assigned.*15 leads assigned to you/ }));
+
+        expect(onOpenAssignedLeads).toHaveBeenCalledTimes(1);
+        expect(onOpenRecord).not.toHaveBeenCalled();
+        expect(hook.markAsRead).toHaveBeenCalledWith('n-6');
+        expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Notifications' })).toHaveFocus();
+    });
+
+    it('opens the list from a Leads Assigned already read, from the keyboard, without marking it again', async () => {
+        const onOpenAssignedLeads = vi.fn();
+        await openBell([{ ...IMPORTED, read: true }], { onOpenAssignedLeads });
+
+        screen.getByRole('button', { name: /Leads Assigned/ }).focus();
+        await userEvent.keyboard('{Enter}');
+
+        expect(onOpenAssignedLeads).toHaveBeenCalledTimes(1);
+        expect(hook.markAsRead).not.toHaveBeenCalled();
+    });
+
+    it('shows a Leads Assigned as plain text where the leads cannot be opened', async () => {
+        hook.notifications = [IMPORTED];
+        render(<NotificationDropdown companyId="co-1" onOpenRecord={vi.fn()} onOpenDocuments={vi.fn()} />);
+        await userEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+
+        expect(screen.getByText('15 leads assigned to you')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Leads Assigned/ })).not.toBeInTheDocument();
     });
 
     it('opens the driver\'s dossier from a DQ deadline notice, a warning while it expires soon and a danger once expired', async () => {

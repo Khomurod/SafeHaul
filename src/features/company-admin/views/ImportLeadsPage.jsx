@@ -9,9 +9,12 @@ import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 
 import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { leadsListPath } from './leadsListPath';
 
 /**
- * Company "Import Leads" page.
+ * Company "Import Leads" page, reached from the Leads page's header
+ * (`LeadsHeaderActions`). A page of its own, not a dialog: the wizard is long,
+ * and a stray click outside a dialog would throw away the preview.
  *
  * Feature-owned: the permission rule, the `importLeads` feature flag, the
  * destination after a completed import, and every string on this page. All
@@ -29,9 +32,11 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  *  3. Both states use `--ds-*` tokens, not hard-coded palette classes.
  *
  * Frozen: the "Import Leads" heading and its description, the access-denied
- * copy, the "Return to Dashboard" label, the feature-flag rule (locked only when
- * explicitly `false`, and checked before the permission rule), and both
- * navigation destinations.
+ * copy, the "Return to Dashboard" label and destination, and the feature-flag
+ * rule (locked only when explicitly `false`, and checked before the permission
+ * rule). Every other way out — closing the import, its Close once done, the
+ * import finishing, dismissing the feature-locked notice — returns to the
+ * person's leads list (`leadsListPath`).
  */
 export const ImportLeadsPage = () => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -39,13 +44,10 @@ export const ImportLeadsPage = () => {
     const companyId = currentCompanyProfile?.id;
 
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
-
-    const handleUploadComplete = () => {
-        navigate('/company/drivers/leads/company');
-    };
+    const returnToLeads = () => navigate(leadsListPath(isCompanyAdmin));
 
     if (currentCompanyProfile?.features?.importLeads === false) {
-        return <FeatureLockedModal featureName="Import Leads" onClose={() => navigate('/company/dashboard')} />;
+        return <FeatureLockedModal featureName="Import Leads" onClose={returnToLeads} />;
     }
 
     if (!isCompanyAdmin) {
@@ -95,8 +97,8 @@ export const ImportLeadsPage = () => {
                     <div className="mx-auto w-full max-w-3xl">
                         <CompanyBulkUpload
                             companyId={companyId}
-                            onClose={() => navigate('/company/dashboard')}
-                            onUploadComplete={handleUploadComplete}
+                            onClose={returnToLeads}
+                            onUploadComplete={returnToLeads}
                             isEmbedded={true}
                         />
                     </div>

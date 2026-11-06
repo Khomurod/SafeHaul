@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { WorkspaceFrame } from '@/design-system/layouts';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { CompanySidebar } from './CompanySidebar';
@@ -16,6 +16,7 @@ const SIDEBAR_STORAGE_KEY = 'companySidebarMode';
 export const CompanyAppShell = () => {
     const isMobile = useIsMobile();
     const location = useLocation();
+    const navigate = useNavigate();
     const navigationTriggerRef = useRef(null);
     const { currentCompanyProfile } = useData();
     const deactivated = useCompanyDeactivated();
@@ -37,6 +38,22 @@ export const CompanyAppShell = () => {
         setIsNavigationOpen(false);
         setOpenRecordId(null);
     }, [location.pathname]);
+
+    // A page that sends the person on to a record names it in the navigation's
+    // state (`openRecordId`: Add lead, once the lead is saved), and it opens here
+    // over the page it lands on. Once: the state is dropped, so a reload or a Back
+    // to that page does not open it again.
+    useEffect(() => {
+        const recordId = location.state?.openRecordId;
+        if (!recordId) return;
+        setOpenRecordId(recordId);
+        const state = { ...location.state };
+        delete state.openRecordId;
+        navigate(
+            { pathname: location.pathname, search: location.search, hash: location.hash },
+            { replace: true, state },
+        );
+    }, [location, navigate]);
 
     if (deactivated) return <CompanyDeactivatedScreen />;
 
@@ -68,9 +85,9 @@ export const CompanyAppShell = () => {
                 <Outlet />
             </WorkspaceFrame>
             {/*
-              The record a notification names opens here, over the page and
-              outside the top bar's stacking layer, which a dialog must not
-              render inside.
+              The record a notification or a navigation names opens here, over
+              the page and outside the top bar's stacking layer, which a dialog
+              must not render inside.
             */}
             {openRecordId && currentCompanyProfile?.id && (
                 <DriverDossier

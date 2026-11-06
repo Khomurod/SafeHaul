@@ -61,6 +61,7 @@ beforeEach(() => {
     dataMock.value = {
         currentCompanyProfile: { id: COMPANY_ID },
         currentUser: { uid: 'artificial-user-1' },
+        currentUserClaims: { roles: { [COMPANY_ID]: 'company_admin' } },
     };
     fsMocks.addDoc.mockResolvedValue({ id: 'artificial-lead-1' });
 });
@@ -89,7 +90,7 @@ describe('QuickAddLeadPage — labelling (defect 1)', () => {
     it('renders a single level-1 page heading', () => {
         render(<QuickAddLeadPage />);
         expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Quick Add Lead');
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add lead');
     });
 });
 
@@ -217,7 +218,10 @@ describe('QuickAddLeadPage — duplicate submission (defect 3)', () => {
         fsMocks.addDoc.mockResolvedValue({ id: 'artificial-lead-1' });
         submit();
         await waitFor(() => expect(fsMocks.addDoc).toHaveBeenCalledTimes(2));
-        expect(navigateMock).toHaveBeenCalledWith('/company/drivers/leads/company');
+        expect(navigateMock).toHaveBeenCalledWith(
+            '/company/drivers/leads/company',
+            { state: { openRecordId: 'artificial-lead-1' } },
+        );
     });
 });
 

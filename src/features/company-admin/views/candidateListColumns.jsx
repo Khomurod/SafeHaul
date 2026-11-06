@@ -1,9 +1,9 @@
 import React from 'react';
 import { Badge, Button, defineTableColumns } from '@/design-system/components';
 import { formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
-import { applicationStatusLabel } from '@shared/utils/applicationStatus';
 import { toUsStateCode } from '@shared/utils/usStates';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
+import { dossierStatusLabel } from '../components/modals/driver-dossier/dossierStatusLabel';
 
 /**
  * The candidate list's columns and their pure display helpers. One fact per
@@ -14,11 +14,11 @@ import { StatusBadge } from '@shared/components/badges/StatusBadge';
  *
  * Each list fits the 1,134px a 1440px window leaves it: Applications 1,112px.
  * A lead list's Driver column is `xl`, because a stale first attempt ("Stale")
- * sits beside the name there. Company Leads (1,124px with its selection column)
- * leaves out State, which its filter and the dossier still show; My Leads
- * (1,036px) leaves out Recruiter, which would name the reader on every row. A
- * longer value is shortened with an ellipsis (`truncate`) rather than widening
- * a column.
+ * sits beside the name there. All leads (1,124px with its selection column)
+ * leaves out State, which its filter and the dossier still show; Assigned to me
+ * (1,036px) and Unassigned (1,092px with its selection column) leave out
+ * Recruiter, which would say the same on every row. A longer value is shortened
+ * with an ellipsis (`truncate`) rather than widening a column.
  */
 
 /**
@@ -107,11 +107,15 @@ export const APPLICATION_PIPELINE_TABS = [
     { id: 'declined', label: 'Declined' },
 ];
 
+// Segment ids map to the lead vocabulary in `features/companies/hooks/dashboardSearch.js`
+// ('new' covers 'New', 'New Application' and 'New Lead', 'declined' 'Declined' and 'Rejected').
 export const LEAD_PIPELINE_TABS = [
     { id: 'all', label: 'All Leads' },
+    { id: 'new', label: 'New' },
     { id: 'attempting', label: 'Attempting to Contact' },
     { id: 'in_process', label: 'In Process' },
     { id: 'interested', label: 'Interested' },
+    { id: 'declined', label: 'Declined' },
 ];
 
 /** An empty cell, said quietly. */
@@ -123,7 +127,7 @@ const clipped = (value) => (value ? <span title={value}>{value}</span> : quiet()
 /**
  * @param {object} ctx
  * @param {(event: object, item: object) => void} ctx.handlePhoneClick
- * @param {'applications'|'company_leads'|'my_leads'} [ctx.scope]
+ * @param {'applications'|'company_leads'|'my_leads'|'unassigned_leads'} [ctx.scope]
  * @param {Array<{ id: string, name?: string }>} [ctx.teamMembers] `useCompanyTeam`'s team
  */
 export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [] }) {
@@ -184,11 +188,10 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
             // `lg`: the widest status a list shows ("Contact Attempt 1") is a
             // non-wrapping badge.
             width: 'lg',
-            // An application shows one name per pipeline group ("New Application"
-            // reads "New"), the names its segments use; a lead's status as stored.
-            render: (item) => (
-                <StatusBadge status={(isApplications ? applicationStatusLabel(item.status) : item.status) || 'New'} />
-            ),
+            // The dossier's name for the stored status: one per stage ("New
+            // Application" and a lead's "New Lead" read "New", "Rejected"
+            // "Declined"), the names the segments use.
+            render: (item) => <StatusBadge status={dossierStatusLabel(item.status) || 'New'} />,
         },
         {
             key: 'freight',
@@ -228,7 +231,7 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
                 return outcome ? <span title={item.lastCallOutcome}>{outcome}</span> : quiet();
             },
         },
-        ...(scope === 'my_leads' ? [] : [{
+        ...(scope === 'my_leads' || scope === 'unassigned_leads' ? [] : [{
             key: 'assignee',
             header: 'Recruiter',
             width: 'sm',

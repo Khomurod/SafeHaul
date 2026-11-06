@@ -23,24 +23,40 @@ describe('company route manifest contract', () => {
       featureName: route.featureName,
       props: route.props,
       requiresCompanyProfile: route.requiresCompanyProfile,
-      adminOnly: route.nav?.adminOnly === true,
+      adminOnly: route.adminOnly === true,
     }));
 
     expect(companyChildRouteDefs).toEqual(manifestProjection);
   });
 
-  it('UI-006: adminOnly route defs mirror the sidebar adminOnly nav flags', () => {
-    // Every route def marked adminOnly must correspond to a nav item flagged
-    // adminOnly, and vice versa — so the route guard and the menu agree.
-    const navAdminOnly = new Set(
-      COMPANY_ROUTE_MANIFEST.filter((r) => r.nav?.adminOnly === true).map((r) => r.id),
-    );
-    const routeAdminOnly = new Set(
-      companyChildRouteDefs.filter((r) => r.adminOnly === true).map((r) => r.id),
-    );
-    expect(routeAdminOnly).toEqual(navAdminOnly);
-    // Settings must be guarded (the reported UI-006 page).
-    expect(routeAdminOnly.has('settings')).toBe(true);
+  describe('UI-006: who may open a page is the page\'s own', () => {
+    it('guards the admin-only pages, Import Leads with no menu item', () => {
+      const guarded = companyChildRouteDefs.filter((r) => r.adminOnly).map((r) => r.id);
+      expect(guarded.sort()).toEqual(['importLeads', 'settings']);
+    });
+
+    it('keeps no admin or feature rule on a menu item, where removing it would drop the rule', () => {
+      for (const route of COMPANY_ROUTE_MANIFEST) {
+        expect(route.nav?.adminOnly, route.id).toBeUndefined();
+        expect(route.nav?.featureFlag, route.id).toBeUndefined();
+      }
+    });
+
+    it('leaves Add lead open to every staff member', () => {
+      const addLead = COMPANY_ROUTE_MANIFEST.find((route) => route.id === 'quickAddLead');
+      expect(addLead.path).toBe('quick-add-lead');
+      expect(addLead.adminOnly).toBeUndefined();
+    });
+  });
+
+  it('keeps Add lead and Import Leads reachable by URL, with no menu item', () => {
+    // The Leads page's header offers both (`LeadsHeaderActions`).
+    for (const [id, path] of [['quickAddLead', 'quick-add-lead'], ['importLeads', 'import-leads']]) {
+      const route = COMPANY_ROUTE_MANIFEST.find((entry) => entry.id === id);
+      expect(route.path).toBe(path);
+      expect(route.nav).toBeUndefined();
+    }
+    expect(COMPANY_ROUTE_MANIFEST.find((route) => route.id === 'importLeads').featureFlag).toBe('importLeads');
   });
 
   it('has valid route and group references in nav layout', () => {
@@ -113,6 +129,49 @@ describe('company route manifest contract', () => {
     });
   });
 
+  /**
+   * One Leads item, three tabs. Company Leads and My Leads were one page under
+   * two items; Leads opens the tab a person starts on, and each tab is its own
+   * route with no item, the old two addresses among them.
+   */
+  describe('the leads lists', () => {
+    const routeById = (id) => COMPANY_ROUTE_MANIFEST.find((route) => route.id === id);
+
+    it('has one menu item, Leads, which opens the starting tab', () => {
+      const leadsItems = COMPANY_ROUTE_MANIFEST
+        .filter((route) => route.nav && /lead/i.test(route.nav.label) && route.nav.group === 'applications')
+        .map((route) => route.nav.label);
+      const leads = routeById('leads');
+
+      expect(leadsItems).toEqual(['Leads']);
+      expect(leads.path).toBe('drivers/leads');
+      expect(leads.screen).toBe('leadsRedirect');
+      expect(leads.nav).toMatchObject({ kind: 'group-item', group: 'applications', label: 'Leads' });
+      expect(leads.nav.adminOnly).toBeUndefined();
+    });
+
+    it.each([
+      ['companyLeads', 'drivers/leads/company', 'company_leads'],
+      ['myLeads', 'drivers/leads/my', 'my_leads'],
+      ['unassignedLeads', 'drivers/leads/unassigned', 'unassigned_leads'],
+    ])('routes the %s tab at %s to its list, with no item of its own', (id, path, scope) => {
+      const tab = routeById(id);
+
+      expect(tab.path).toBe(path);
+      expect(tab.screen).toBe('companyCandidatesListPage');
+      expect(tab.props).toEqual({ scope });
+      expect(tab.nav).toBeUndefined();
+      // Every tab sits under the item's address, so the menu reads it as current there.
+      expect(tab.path.startsWith(`${routeById('leads').path}/`)).toBe(true);
+    });
+
+    it('is the same for everyone who may open it: no tab is admin-only', () => {
+      for (const id of ['leads', 'companyLeads', 'myLeads', 'unassignedLeads']) {
+        expect(companyChildRouteDefs.find((route) => route.id === id).adminOnly).toBe(false);
+      }
+    });
+  });
+
   it('registers campaigns as a standalone feature route', () => {
     const campaignsRoute = COMPANY_ROUTE_MANIFEST.find((route) => route.id === 'campaigns');
 
@@ -120,6 +179,6 @@ describe('company route manifest contract', () => {
     expect(campaignsRoute.path).toBe('campaigns');
     expect(campaignsRoute.screen).toBe('companyCampaignsPage');
     expect(campaignsRoute.requiresCompanyProfile).toBe(true);
-    expect(campaignsRoute.nav?.featureFlag).toBe('campaignsEnabled');
+    expect(campaignsRoute.featureFlag).toBe('campaignsEnabled');
   });
 });

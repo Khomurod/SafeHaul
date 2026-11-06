@@ -125,6 +125,25 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(onChange).toHaveBeenCalledWith('new');
     });
 
+    it('leaves the Assigned to filter out of a list that names its assignee, and does not count one it holds', () => {
+        renderToolbar({ showAssigneeFilter: false, filters: { assignee: 'u2', state: 'Texas' } });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filters 1 applied' }));
+
+        expect(screen.queryByLabelText('Assigned to')).toBeNull();
+        expect(screen.getByLabelText('State')).toBeInTheDocument();
+        expect(screen.getByLabelText('Freight type')).toBeInTheDocument();
+        expect(screen.getByLabelText('Filter by date')).toBeInTheDocument();
+    });
+
+    it('offers the Assigned to filter, Unassigned among it, by default', () => {
+        renderToolbar({ filters: { assignee: '__unassigned__' } });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filters 1 applied' }));
+
+        expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('__unassigned__');
+    });
+
     it('offers Assign only to someone who can assign, once rows are selected', () => {
         const onAssignLeads = vi.fn();
         const { rerender } = renderToolbar({ canAssign: true, selectedCount: 0, onAssignLeads });
