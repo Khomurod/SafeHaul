@@ -6,7 +6,7 @@
 // lives in `DossierBodies.contract.support.jsx`; the registrations below
 // delegate to it. See that file's header for the scope of this freeze.
 import React from 'react';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./DossierBodies.contract.support')).libFirebaseMock());
@@ -194,10 +194,34 @@ describe('NotesTab — reads', () => {
     });
 });
 
+describe('NotesTab — what a note is', () => {
+    // The call window writes one of these with each call (`useCallOutcome`).
+    it('marks a note the call window wrote as a call, and only that one', async () => {
+        fs.getDocs.mockResolvedValue(snap([
+            ['n1', { text: '[Call Log: Interested]\nWants a start date', author: 'Rita Recruiter', type: 'call_log', createdAt: { seconds: 2000 } }],
+            ['n2', { text: 'Interview went well', author: 'Rita Recruiter', type: 'note', createdAt: { seconds: 1000 } }],
+        ]));
+        renderNotes();
+
+        const call = (await screen.findByText(/Wants a start date/)).closest('article');
+        expect(within(call).getByText('Call')).toBeInTheDocument();
+        const note = screen.getByText('Interview went well').closest('article');
+        expect(within(note).queryByText('Call')).toBeNull();
+    });
+
+    // A call written as a note moves no stage, sets no callback and is not counted.
+    it('does not suggest logging a call in a note', async () => {
+        renderNotes();
+        const field = await screen.findByLabelText('New note');
+        expect(field).toHaveAccessibleDescription('Visible only to your team');
+        expect(field.getAttribute('placeholder')).not.toMatch(/call/i);
+    });
+});
+
 describe('NotesTab — write contract', () => {
     async function addNote(text = 'Spoke with the driver') {
         renderNotes();
-        const field = await screen.findByLabelText(/Internal Note \(Private\)/);
+        const field = await screen.findByLabelText('New note');
         fireEvent.change(field, { target: { value: text } });
         fireEvent.click(screen.getByRole('button', { name: /Add Note/ }));
     }
@@ -230,12 +254,12 @@ describe('NotesTab — write contract', () => {
     it('optimistically shows the new note and clears the composer', async () => {
         await addNote();
         expect(await screen.findByText('Spoke with the driver')).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByLabelText(/Internal Note \(Private\)/)).toHaveValue(''));
+        await waitFor(() => expect(screen.getByLabelText('New note')).toHaveValue(''));
     });
 
     it('ignores an empty or whitespace-only note', async () => {
         renderNotes();
-        const field = await screen.findByLabelText(/Internal Note \(Private\)/);
+        const field = await screen.findByLabelText('New note');
         fireEvent.change(field, { target: { value: '   ' } });
         fireEvent.submit(field.closest('form'));
         expect(fs.addDoc).not.toHaveBeenCalled();
@@ -258,7 +282,7 @@ describe('NotesTab — write contract', () => {
         fs.addDoc.mockImplementation(() => new Promise((resolve) => { release = () => resolve({ id: 'n9' }); }));
 
         renderNotes();
-        const field = await screen.findByLabelText(/Internal Note \(Private\)/);
+        const field = await screen.findByLabelText('New note');
         fireEvent.change(field, { target: { value: 'note' } });
         const form = field.closest('form');
         fireEvent.submit(form);
