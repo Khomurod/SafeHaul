@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { Button, IconButton } from '@/design-system/components';
-import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
+import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import {
@@ -10,6 +10,7 @@ import {
   COMPANY_NAV_GROUPS,
   COMPANY_NAV_LAYOUT,
 } from '@app/routes/companyRouteManifest';
+import { canOfferCompanyRoute } from '@app/routes/companyRouteAccess';
 
 const ICON_MAP = Object.freeze({
   LayoutDashboard,
@@ -19,8 +20,6 @@ const ICON_MAP = Object.freeze({
   Search,
   FileText,
   Megaphone,
-  Upload,
-  PlusCircle,
   Settings,
   GitBranch,
   Hourglass,
@@ -163,13 +162,11 @@ export const CompanySidebar = ({
   // menu and direct-URL access can never disagree.
   const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
 
-  const isRouteVisible = useCallback((route) => {
-    const nav = route?.nav;
-    if (!nav) return false;
-    if (nav.adminOnly && !isCompanyAdmin) return false;
-    if (nav.featureFlag && featureFlags[nav.featureFlag] === false) return false;
-    return true;
-  }, [featureFlags, isCompanyAdmin]);
+  // A route with no `nav` has no item; the rest show when the page's own
+  // `adminOnly` and `featureFlag` allow it, as its route guard does.
+  const isRouteVisible = useCallback((route) => (
+    Boolean(route?.nav) && canOfferCompanyRoute(route, { isCompanyAdmin, features: featureFlags })
+  ), [featureFlags, isCompanyAdmin]);
 
   const toMenuItem = useCallback((route) => ({
     id: route.id,

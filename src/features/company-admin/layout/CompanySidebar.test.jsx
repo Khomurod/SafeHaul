@@ -71,6 +71,14 @@ describe('CompanySidebar', () => {
         expect(screen.getByText('Team Member')).toBeInTheDocument();
     });
 
+    it('has no Add lead or Import Leads item: the Leads page offers both', () => {
+        renderSidebar({ role: 'company_admin' });
+
+        const menu = screen.getByRole('navigation', { name: 'Company sections' });
+        expect(within(menu).queryByRole('link', { name: /import leads/i })).not.toBeInTheDocument();
+        expect(within(menu).queryByRole('link', { name: /quick add|add lead/i })).not.toBeInTheDocument();
+    });
+
     it("leads a company admin into Settings once, through the account section's item", () => {
         renderSidebar({ role: 'company_admin' });
 
