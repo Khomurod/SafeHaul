@@ -151,7 +151,7 @@ read, not stored); the AI fills only empty fields. Edit on Review, then Continue
 returns to Review; the submission pre-flight and the server still check it all.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
-Application form has four tabs: *Questions* (show / hide / require the DOT
+Application questions has four tabs: *Questions* (show / hide / require the DOT
 questions, plus custom ones), *Rules* (§5), *Agreements* (versioned legal
 wording, saved on their own) and *Integrations* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
@@ -289,8 +289,8 @@ Facebook Lead Ads webhook, or a referral quick form. **Leads** is one page with
 three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segments
 are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
 Process, Interested and Declined (`Declined`, `Rejected`). Assign (admins) is on
-All and Unassigned, the Assigned to filter on All and Applications, Only mine on
-Applications. **Add lead** (any staff member) assigns a recruiter's lead to them
+All and Unassigned, the Assigned to filter on All and Applications, the Assigned
+to me switch on Applications; the lists' column reads Assignee (no wider column fits at 1440px). **Add lead** (any staff member) assigns a recruiter's lead to them
 (Д13; an admin's stays unassigned) and opens it in the dossier on the person's
 list; **Import leads** (admins, `importLeads`) returns there. **Driver referral links**
 (Referral Links page: any staff member makes one; admins see all, others
@@ -532,6 +532,24 @@ and a claim over 10 minutes old (its launch died first) is taken over. The
 rules keep these fields the server's: no client writes `launchClaim`, and a
 launched draft keeps `launchedAt` and `sessionId`. Kept, off Drafts; opened, it links its report, not Launch. Screens that name no
 draft (Production's, until a release) launch unclaimed.
+
+**How screens report.** A failure reads as one plain sentence — what failed and what
+to do — never a Firebase code, a database's own text or a stack
+(`plainErrorMessage`; the detail goes to the console). A callable's own sentence is
+shown as the server wrote it, except an `internal` or `unknown` one (the signed-copy
+send trusts its own). Someone who came by a link (signer, past employer, applicant,
+driver reviewing a change) is told about the link, never to ask an admin or sign in
+again. A success or note
+toast stays 4 s, an error or warning 10 s. The bell, Notes and Activity say "could not
+be loaded" with Retry instead of a false empty state. An empty list says "No … yet"
+with where they come from, apart from "No … match" with Clear search and filters.
+A row or card delete is a small bin icon that asks first. Settings → Email, Automated
+texts and My profile save through the save bar, which warns before leaving with
+unsaved changes (Company profile keeps Edit/Save). Automated texts writes only the
+changed templates; when they cannot be read it says so above the fields, with Retry. Email has one Save for what
+changed; Test Connection checks what is typed and, if it connects, saves the
+connection; the password field empties after a save. Team's Add person needs a
+password of at least 6 characters.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,
@@ -1316,6 +1334,9 @@ the daily count**; refusing is a recorded outcome.
   sent and why, failed) leaves one `Automated SMS` Activity entry, without the message or number (`shared/smsPermission.js`).
   The entry is written before the provider is called, so a repeated delivery of the same change finds it and sends
   nothing, even when the first run stopped before recording a result; an entry that cannot be written sends nothing.
+  The dossier's stage picker warns first: a Contact Attempt option reads "— texts the driver" when its template,
+  the consent and a usable phone are there, "— may text the driver" while it cannot tell, and the saved toast says
+  so (`contactAttemptText.js`). It does not read the opt-out lists, which stay the server's check.
   `{application link}` becomes the company's apply page with the assignee's recruiter link
   (`?r=`), else the plain page (`shared/applicationLink.js`); campaigns' `[Application Link]` too.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
@@ -1593,6 +1614,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 **Current limitations:**
 
 - **Browser errors are not collected anywhere**; users must report them.
+- **A callable that wraps any failure as `internal` now reads generic** ("… could
+  not be … Please try again"), because its text is often a raw error passed on
+  (`createPortalUser`, `testEmailConnection`, line inventory, provider config, SMS,
+  company delete, PEV requests). Its log keeps the detail. Test line connection
+  still shows the provider's own text after "Connection Failed:".
 - **Sent Documents search and filters cover the loaded documents** (newest 100,
   more on request), and say so; the server totals refresh when a loaded
   document changes or the page reopens, so a change to an older document shows

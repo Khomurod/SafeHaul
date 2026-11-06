@@ -83,10 +83,11 @@ describe('EnvelopeHistory — subscription', () => {
 describe('EnvelopeHistory — status presentation', () => {
     it.each([
         ['signed', 'Signed', 'success'],
-        ['sent', 'Sent', 'info'],
+        ['sent', 'Awaiting signature', 'info'],
+        ['opened', 'Awaiting signature', 'info'],
         ['voided', 'Voided', 'danger'],
-        ['pending_seal', 'Sealing...', 'warning'],
-        ['error_sealing', 'Seal Failed', 'danger'],
+        ['pending_seal', 'Sealing', 'warning'],
+        ['error_sealing', 'Seal failed', 'danger'],
         ['processing', 'Processing', 'warning'],
     ])('maps %s to "%s" with tone %s and text (never colour-only)', (status, label, tone) => {
         renderHistory();
@@ -105,7 +106,7 @@ describe('EnvelopeHistory — status presentation', () => {
         renderHistory();
         emit([makeDoc({ status: 'sent', emailStatus: 'failed', emailError: 'SMTP 550 rejected' })]);
         expect(screen.getByText('Delivery Failed')).toBeInTheDocument();
-        expect(screen.queryByText('Sent')).not.toBeInTheDocument();
+        expect(screen.queryByText('Awaiting signature')).not.toBeInTheDocument();
         expect(screen.getByText('SMTP 550 rejected')).toBeInTheDocument();
     });
 
@@ -133,7 +134,7 @@ describe('EnvelopeHistory — status presentation', () => {
         renderHistory();
         emit([makeDoc({ status: 'sent', sendSms: true, smsStatus: 'failed', smsError: 'Line unavailable (artificial)' })]);
         expect(screen.getByText('Delivery Failed')).toBeInTheDocument();
-        expect(screen.queryByText('Sent')).not.toBeInTheDocument();
+        expect(screen.queryByText('Awaiting signature')).not.toBeInTheDocument();
         expect(screen.getByText('Line unavailable (artificial)')).toBeInTheDocument();
     });
 

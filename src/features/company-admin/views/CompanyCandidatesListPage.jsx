@@ -19,7 +19,9 @@ import { UndatedRecordsNotice } from './UndatedRecordsNotice';
 import { PeriodNotice } from './PeriodNotice';
 import { LeadsHeaderActions } from './LeadsHeaderActions';
 import { LeadListTabs } from './LeadListTabs';
+import { CLEARED_NARROWING, candidateListEmpty, isListNarrowed } from './candidateListEmpty';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { canOfferCompanyRoute, companyRoute } from '@app/routes/companyRouteAccess';
 
 // The table is memoized: what the page hands it is built here, or memoized
 // below, so typing in the search (which changes nothing in the rows until the
@@ -32,11 +34,6 @@ function rowTone(item) {
 
 const dossierRowLabel = (item) => `Open driver dossier for ${getCandidateName(item)}`;
 const selectRowLabel = (item) => `Select ${getCandidateName(item)}`;
-
-const EMPTY_STATE = {
-    title: 'No records found.',
-    description: 'Try adjusting your search or filters.',
-};
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -79,7 +76,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const { dateOrder, setDateOrder } = dashboard;
     const sort = useMemo(() => ({ key: 'addedDate', direction: dateOrder }), [dateOrder]);
     const handleSortChange = useCallback(({ direction }) => setDateOrder(direction), [setDateOrder]);
-    const { setFilters, refreshData, nextPage, prevPage } = dashboard;
+    const { setFilters, refreshData, nextPage, prevPage, setSearchQuery, setPipelineSegment } = dashboard;
 
     // Force hook to respect the scope prop
     useEffect(() => {
@@ -117,6 +114,13 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const handleAssignLeads = useCallback(() => setAssigningLeads(selectedRowIds), [selectedRowIds]);
 
     const handleShowAll = useCallback(() => setFilters((prev) => ({ ...prev, period: null })), [setFilters]);
+
+    // The empty list's way back: no search, no filter, the whole list.
+    const handleClearNarrowing = useCallback(() => {
+        setSearchQuery('');
+        setFilters((prev) => ({ ...prev, ...CLEARED_NARROWING }));
+        setPipelineSegment('all');
+    }, [setSearchQuery, setFilters, setPipelineSegment]);
 
     const handleToggleMyAssignments = useCallback(
         (next) => setFilters((prev) => ({ ...prev, myAssignmentsOnly: next })),
@@ -200,6 +204,25 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         }
         : undefined), [dashboard.error, dashboard.listCountError, refreshData]);
 
+    // Nothing in the list yet, or nothing matching what narrows it
+    // (`candidateListEmpty`). Worked out only while the list shows no row: a
+    // list with rows hands the table one value, so typing redraws nothing.
+    const showsNoRow = !dashboard.loading && sortedData.length === 0;
+    const narrowed = showsNoRow && isListNarrowed({
+        scope,
+        searchQuery: dashboard.searchQuery,
+        filters: dashboard.filters,
+        segment: dashboard.pipelineSegment,
+    });
+    const canImportLeads = canOfferCompanyRoute(companyRoute('importLeads'), {
+        isCompanyAdmin,
+        features: currentCompanyProfile?.features,
+    });
+    const emptyState = useMemo(
+        () => candidateListEmpty({ scope, narrowed, canImportLeads, isCompanyAdmin, onClear: handleClearNarrowing }),
+        [scope, narrowed, canImportLeads, isCompanyAdmin, handleClearNarrowing],
+    );
+
     const pagination = useMemo(() => ({
         currentPage: dashboard.currentPage,
         totalPages: dashboard.totalPages,
@@ -259,7 +282,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                         canAssign={canAssign}
                         onAssignLeads={handleAssignLeads}
                         teamMembers={dashboard.teamMembers}
-                        // Only mine is the Applications list's: the leads lists
+                        // Assigned to me is a switch on Applications: the leads lists
                         // have Assigned to me as a tab. Assigned to me and
                         // Unassigned name their assignee, so they offer no
                         // Assigned to filter (`listAssignees` ignores one).
@@ -282,7 +305,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                             onRowActivate={setSelectedApp}
                             isLoading={dashboard.loading}
                             loadingLabel={`Loading ${getPageTitle().toLowerCase()}`}
-                            empty={EMPTY_STATE}
+                            empty={emptyState}
                             error={tableError}
                             selection={selection}
                             density="compact"

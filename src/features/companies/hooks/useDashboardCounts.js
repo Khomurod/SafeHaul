@@ -6,6 +6,7 @@ import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import { applyClientSideFilters } from './dashboardSearch';
 import { loadDashboardStats } from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * The company dashboard's four counts — applications, company leads, the
@@ -54,7 +55,7 @@ export function useDashboardCounts(companyId) {
         } catch (e) {
             if (version !== versionRef.current) return;
             console.error('Error fetching stats:', e);
-            setFailure({ companyId, message: e?.message || 'Could not load dashboard counts.' });
+            setFailure({ companyId, message: plainErrorMessage(e, 'Some dashboard numbers could not load.') });
         }
     }, [companyId]);
 

@@ -62,8 +62,8 @@ export function EditorTopBar({
             <div className="flex min-w-0 flex-1 items-center gap-ds-3">
                 <Button variant="ghost" size="sm" className="shrink-0" onClick={onBack}>
                     <Icon icon={ArrowLeft} />
-                    {!compact && 'Back to Documents'}
-                    {compact && <span className="ds-visually-hidden">Back to Documents</span>}
+                    {!compact && 'Back to E-Docs'}
+                    {compact && <span className="ds-visually-hidden">Back to E-Docs</span>}
                 </Button>
 
                 <div className="min-w-0 flex-1">

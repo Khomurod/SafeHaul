@@ -11,11 +11,12 @@ import { AddPersonDialog } from './team/AddPersonDialog';
 import { DailyGoalsDialog } from './team/DailyGoalsDialog';
 import { teamColumns } from './team/teamColumns';
 import { teamMemberName } from './team/teamMemberStatus';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Settings → Team: everyone who recruits for the company, on the page itself.
  * "Add person" opens a dialog (`createPortalUser`); each row copies the member's
- * recruiting link, sets their daily goals, or removes them (`deletePortalUser`).
+ * personal link, sets their daily goals, or removes them (`deletePortalUser`).
  * The roster comes from `listCompanyTeam` through `useTeamRoster`. Company
  * admins only.
  */
@@ -41,7 +42,7 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
         const link = `${base}/apply/${currentCompanyProfile.appSlug || companyId}?recruiter=${member.id}`;
         try {
             await navigator.clipboard.writeText(link);
-            showSuccess('Custom recruiter link copied!');
+            showSuccess('Personal link copied!');
         } catch {
             // Nothing reached the clipboard: give the link itself.
             showError(`Could not copy the link. Copy it by hand: ${link}`);
@@ -59,7 +60,7 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
             roster.reload();
         } catch (error) {
             console.error('Error deleting user:', error);
-            showError('Failed to remove user: ' + (error.message || 'Unknown error'));
+            showError(plainErrorMessage(error, `${name || 'The person'} could not be removed from the team.`));
         } finally {
             setDeletingId(null);
         }

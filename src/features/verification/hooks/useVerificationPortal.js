@@ -10,6 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { serverMessageOf } from '@shared/utils/callableErrors';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * E2E-only load scenarios, reachable as `?e2eVerify=<mode>` under
@@ -164,7 +165,7 @@ export function useVerificationPortal(token) {
                 } else if (err.code === 'functions/not-found') {
                     setError(INVALID_LINK);
                 } else {
-                    setError(err.message || 'Failed to load verification request.');
+                    setError(plainErrorMessage(err, 'This verification request could not be loaded.', { viaLink: true }));
                 }
             } finally {
                 setLoading(false);

@@ -7,6 +7,7 @@ import { Icon, Save, Send, Database, CheckCircle } from '@design-system/icons';
 import { Badge, Button, Card, Checkbox, FormField, Input, Notice } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { LineManager } from './LineManager';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Super Admin SMS integration manager — provider credentials, sandbox toggle,
@@ -212,7 +213,7 @@ export function IntegrationManager({ companyId, companyName }) {
             }
         } catch (error) {
             console.error(error);
-            showError(`Save Failed: ${error.message} `);
+            showError(plainErrorMessage(error, 'The integration could not be saved.'));
         } finally {
             setIsLoading(false);
         }
@@ -231,10 +232,11 @@ export function IntegrationManager({ companyId, companyName }) {
             }
         } catch (error) {
             console.error(error);
-            let userMessage = error.message;
+            let userMessage = plainErrorMessage(error, 'The test message could not be sent.');
 
             // Detect DNS / Connectivity issues
-            if (error.message.includes('ENOTFOUND') || error.message.includes('network') || error.message.includes('fetch')) {
+            const raw = String(error?.message ?? '');
+            if (raw.includes('ENOTFOUND') || raw.includes('network') || raw.includes('fetch')) {
                 userMessage = `The ${provider} server appears to be unreachable.This is likely a temporary service or DNS outage at ${provider}. Your settings are saved, but testing is currently disabled by the provider.`;
             }
 

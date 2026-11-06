@@ -156,6 +156,21 @@ describe('DossierHeader status control', () => {
     expect(props.onStatusUpdate).toHaveBeenCalledWith('Contact Attempt 1');
     expect(props.onStatusUpdate).toHaveBeenCalledTimes(1);
   });
+
+  // У5.3: the server texts the driver on a move into a Contact Attempt stage.
+  it('warns on each stage that texts the driver, and keeps every value', () => {
+    const outlooks = { 'Contact Attempt 2': 'texts', 'Contact Attempt 3': 'may' };
+    renderHeader({ currentStatus: 'Contact Attempt 1', textOutlookFor: (stage) => outlooks[stage] || null });
+
+    const expected = asOptions(STAGES).map((option) => {
+      if (option.value === 'Contact Attempt 2') return { ...option, label: 'Contact Attempt 2 — texts the driver' };
+      if (option.value === 'Contact Attempt 3') return { ...option, label: 'Contact Attempt 3 — may text the driver' };
+      return option;
+    });
+    expect(optionsOf(statusSelect())).toEqual(expected);
+    // The stage the record is in reads as itself.
+    expect(statusSelect().selectedOptions[0].textContent).toBe('Contact Attempt 1');
+  });
 });
 
 describe('DossierHeader assignment control', () => {

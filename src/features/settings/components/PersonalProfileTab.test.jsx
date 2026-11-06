@@ -1,7 +1,8 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { browserWouldAsk, renderWithLeaveGuard } from './leaveGuard.support';
 
 const firestoreMocks = vi.hoisted(() => ({
     getDoc: vi.fn(),
@@ -24,7 +25,7 @@ const linkSnapshot = (path) => {
 };
 
 vi.mock('firebase/firestore', () => ({
-    doc: vi.fn((_db, ...segments) => segments.join('/')),
+    doc: (_db, ...segments) => segments.join('/'),
     getDoc: (path) => (path.startsWith('recruiter_links/') ? Promise.resolve(linkSnapshot(path)) : firestoreMocks.getDoc(path)),
     updateDoc: firestoreMocks.updateDoc,
     // A transaction reads the link store and commits its writes through
@@ -65,14 +66,13 @@ function existingUser(data = {}) {
     };
 }
 
+const saveBar = () => screen.queryByRole('region', { name: 'Unsaved changes' });
+const barButton = (name) => within(saveBar()).getByRole('button', { name });
+
 describe('PersonalProfileTab compatibility slice', () => {
     beforeEach(() => {
-        firestoreMocks.getDoc.mockReset();
-        firestoreMocks.setDoc.mockReset();
-        firestoreMocks.updateDoc.mockReset();
-        forgetPortalUser.mockReset();
-        toastMocks.showError.mockReset();
-        toastMocks.showSuccess.mockReset();
+        // Every test starts from the same defaults, with no queued answer left over.
+        vi.resetAllMocks();
         firestoreMocks.getDoc.mockResolvedValue(existingUser());
         firestoreMocks.links = { 'recruiter_links/ABC123': { userId: 'user-1', companyId: 'company-1' } };
         firestoreMocks.setDoc.mockResolvedValue();
@@ -117,18 +117,18 @@ describe('PersonalProfileTab compatibility slice', () => {
 
         const name = await screen.findByRole('textbox', { name: 'Full Name' });
         fireEvent.change(name, { target: { value: 'Updated Admin' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Update Profile' }));
+        fireEvent.click(barButton('Save'));
 
-        await waitFor(() => {
-            expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
-                'users/user-1',
-                { name: 'Updated Admin' },
-            );
-        });
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+            'users/user-1',
+            { name: 'Updated Admin' },
+        );
         expect(toastMocks.showSuccess)
             .toHaveBeenCalledWith('Personal profile updated successfully.');
         // The top bar's copy of the profile is forgotten, so the new name shows.
         expect(forgetPortalUser).toHaveBeenCalledWith('user-1');
+        expect(name).toHaveValue('Updated Admin');
     });
 
     it('preserves recruiting-link generation and clipboard behavior', async () => {
@@ -161,7 +161,7 @@ describe('PersonalProfileTab compatibility slice', () => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
             `${window.location.origin}/apply/safehaul-logistics?r=${generatedCode}`,
         );
-        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Short link copied!'));
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Personal link copied!'));
         expect(generatedCode).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
     });
 
@@ -241,7 +241,7 @@ describe('PersonalProfileTab compatibility slice', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
         await waitFor(() => expect(toastMocks.showError)
             .toHaveBeenCalledWith('Could not copy the link. Select it and copy it yourself.'));
-        expect(toastMocks.showSuccess).not.toHaveBeenCalledWith('Short link copied!');
+        expect(toastMocks.showSuccess).not.toHaveBeenCalledWith('Personal link copied!');
     });
 
     it('preserves the recruiting-link generation error feedback', async () => {
@@ -260,30 +260,136 @@ describe('PersonalProfileTab compatibility slice', () => {
 
         await waitFor(() => {
             expect(toastMocks.showError)
-                .toHaveBeenCalledWith('Could not generate tracking link.');
+                .toHaveBeenCalledWith('Could not generate your personal link.');
         });
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         consoleError.mockRestore();
     });
 
-    it('preserves the existing save error path and re-enables the action', async () => {
-        firestoreMocks.updateDoc.mockRejectedValueOnce(new Error('offline'));
-        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 
-        render(
-            <PersonalProfileTab
-                currentUser={currentUser}
-                currentCompanyProfile={currentCompanyProfile}
-            />,
+describe('PersonalProfileTab save bar', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        firestoreMocks.getDoc.mockResolvedValue(existingUser());
+        firestoreMocks.links = { 'recruiter_links/ABC123': { userId: 'user-1', companyId: 'company-1' } };
+        firestoreMocks.setDoc.mockResolvedValue();
+        firestoreMocks.updateDoc.mockResolvedValue();
+    });
+
+    const renderTab = () => render(
+        <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />,
+    );
+
+    it('shows no save bar until the name changes, then names it', async () => {
+        renderTab();
+        const name = await screen.findByRole('textbox', { name: 'Full Name' });
+        expect(saveBar()).toBeNull();
+        // No Save of its own: the bar is the page's one way to save.
+        expect(screen.queryByRole('button', { name: /update profile|save/i })).toBeNull();
+
+        fireEvent.change(name, { target: { value: 'Updated Admin' } });
+        expect(saveBar()).toHaveTextContent('1 change · Full Name');
+
+        // Typed back to what is saved: nothing left to save.
+        fireEvent.change(name, { target: { value: 'Admin User' } });
+        expect(saveBar()).toBeNull();
+    });
+
+    it('keeps a name being typed, and the bar, when the page reads the profile again', async () => {
+        const { rerender } = renderTab();
+        const name = await screen.findByRole('textbox', { name: 'Full Name' });
+        fireEvent.change(name, { target: { value: 'Updated Admin' } });
+
+        // A new user object for the same person, and a company switch: both read again.
+        rerender(<PersonalProfileTab currentUser={{ ...currentUser }} currentCompanyProfile={currentCompanyProfile} />);
+        rerender(
+            <PersonalProfileTab currentUser={{ ...currentUser }} currentCompanyProfile={{ id: 'company-2', appSlug: 'blue-line' }} />,
         );
+        expect(await screen.findByText(/\/apply\/blue-line\?recruiter=user-1$/)).toBeInTheDocument();
 
-        await screen.findByRole('textbox', { name: 'Full Name' });
-        fireEvent.click(screen.getByRole('button', { name: 'Update Profile' }));
+        expect(name).toHaveValue('Updated Admin');
+        expect(saveBar()).toHaveTextContent('1 change · Full Name');
+        expect(firestoreMocks.getDoc).toHaveBeenCalledTimes(2);
+    });
 
-        await waitFor(() => {
-            expect(toastMocks.showError).toHaveBeenCalledWith('Failed to update profile.');
-        });
-        expect(screen.getByRole('button', { name: 'Update Profile' })).toBeEnabled();
+    it('puts the saved name back on Discard', async () => {
+        renderTab();
+        const name = await screen.findByRole('textbox', { name: 'Full Name' });
+        fireEvent.change(name, { target: { value: 'Typo Admin' } });
+
+        fireEvent.click(barButton('Discard'));
+
+        expect(saveBar()).toBeNull();
+        expect(name).toHaveValue('Admin User');
+        expect(firestoreMocks.updateDoc).not.toHaveBeenCalledWith('users/user-1', expect.objectContaining({ name: expect.anything() }));
+    });
+
+    it('shows Save busy and holds Discard while saving', async () => {
+        let resolveSave;
+        firestoreMocks.updateDoc.mockImplementation(() => new Promise((resolve) => { resolveSave = resolve; }));
+        renderTab();
+        fireEvent.change(await screen.findByRole('textbox', { name: 'Full Name' }), { target: { value: 'Updated Admin' } });
+
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(barButton('Save')).toHaveAttribute('aria-busy', 'true'));
+        expect(barButton('Discard')).toBeDisabled();
+        await act(async () => resolveSave());
+        await waitFor(() => expect(saveBar()).toBeNull());
+    });
+
+    it('keeps the edit and the bar, with a plain message, when saving fails', async () => {
+        const failure = Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
+        firestoreMocks.updateDoc.mockRejectedValueOnce(failure);
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        renderTab();
+        const name = await screen.findByRole('textbox', { name: 'Full Name' });
+        fireEvent.change(name, { target: { value: 'Updated Admin' } });
+
+        fireEvent.click(barButton('Save'));
+
+        const alert = await within(saveBar()).findByRole('alert');
+        expect(alert).toHaveTextContent('Your profile could not be saved.');
+        // The database's own words stay in the console, for whoever investigates.
+        expect(alert).not.toHaveTextContent(/insufficient permissions/i);
+        expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+        expect(name).toHaveValue('Updated Admin');
+        expect(barButton('Save')).toBeEnabled();
+        expect(forgetPortalUser).not.toHaveBeenCalled();
+        expect(toastMocks.showSuccess).not.toHaveBeenCalled();
         consoleError.mockRestore();
+    });
+
+    it('asks before a move leaves an unsaved name, and lets a clean page go', async () => {
+        const { leave } = renderWithLeaveGuard(
+            <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />,
+        );
+        const name = await screen.findByRole('textbox', { name: 'Full Name' });
+
+        expect(browserWouldAsk()).toBe(false);
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        expect(leave).toHaveBeenCalledTimes(1);
+
+        fireEvent.change(name, { target: { value: 'Unsaved Admin' } });
+        expect(browserWouldAsk()).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+        expect(leave).toHaveBeenCalledTimes(1);
+        expect(name).toHaveValue('Unsaved Admin');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        fireEvent.click(within(await screen.findByRole('dialog', { name: 'Leave without saving?' }))
+            .getByRole('button', { name: 'Discard changes' }));
+        expect(leave).toHaveBeenCalledTimes(2);
+    });
+
+    it('has no accessibility violations with an unsaved name', async () => {
+        const { container } = renderTab();
+        fireEvent.change(await screen.findByRole('textbox', { name: 'Full Name' }), { target: { value: 'Unsaved Admin' } });
+        // The link is still being made: let it settle before the scan.
+        await screen.findByRole('button', { name: 'Copy' });
+        expect((await axe(container)).violations).toEqual([]);
     });
 });

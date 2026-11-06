@@ -8,6 +8,7 @@ import { toIsoDay } from '@/config/applicationDates';
 import { ATS_INTERESTED_STATUS } from '@shared/constants/atsStatus';
 import { normalizeApplicationStatus } from '@shared/utils/applicationStatus';
 import { statusChangeStamp } from '@shared/utils/changeStamps';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 const DECLINED = 'Declined';
 
@@ -282,7 +283,7 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose, knownCollecti
 
         } catch (error) {
             console.error("Error logging call:", error);
-            showError(`Failed to save call log. Error: ${error.message}`);
+            showError(plainErrorMessage(error, 'The call could not be logged.'));
         } finally {
             setSaving(false);
         }

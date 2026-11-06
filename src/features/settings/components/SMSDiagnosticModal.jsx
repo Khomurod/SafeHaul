@@ -6,6 +6,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Button, FieldMessage, FormField, Input, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * SMS Diagnostic Lab Modal
@@ -35,7 +36,8 @@ export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
             const result = await verifyFn({ companyId });
             setVerificationResult({ success: true, message: result.data.message });
         } catch (error) {
-            setVerificationResult({ success: false, message: error.message });
+            console.error('SMS configuration check failed:', error);
+            setVerificationResult({ success: false, message: plainErrorMessage(error, 'The configuration could not be checked.') });
         } finally {
             setVerifying(false);
         }
@@ -63,7 +65,7 @@ export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
             onClose();
         } catch (error) {
             console.error(error);
-            showError(error.message || "Failed to send test.");
+            showError(plainErrorMessage(error, 'The test message could not be sent.'));
         } finally {
             setSending(false);
         }

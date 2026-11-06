@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Sync Public Profiles, on the Maintenance page: the `backfillPublicProfiles`
@@ -41,7 +42,7 @@ export function usePublicProfileSync() {
         } catch (error) {
             console.error("Backfill failed:", error);
             setBackfillStatus('error');
-            addLog(`❌ Backfill Failed: ${error.message}`, "error");
+            addLog(`❌ ${plainErrorMessage(error, 'The backfill could not run.')}`, "error");
         }
     };
 

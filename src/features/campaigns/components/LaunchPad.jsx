@@ -7,6 +7,7 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { MAX_RECIPIENTS_PER_LAUNCH } from '../constants/campaignConstants';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * The campaign's last step. `campaignId` names its draft: the server launches a
@@ -75,7 +76,7 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaun
                 ? "Campaign infrastructure not ready. Please contact support."
                 : msg.includes('PROCESS_BULK_BATCH_URL')
                     ? "Campaign worker URL is not configured on the server. Please contact support."
-                    : (msg || "Failed to launch campaign");
+                    : plainErrorMessage(err, 'The campaign could not be launched.');
             showError(friendlyMsg);
         } finally {
             setIsLaunching(false);

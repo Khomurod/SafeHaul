@@ -205,7 +205,8 @@ export default function EnvelopeHistory({
         {
             key: 'status',
             header: 'Status',
-            width: 'md',
+            // `lg`: the widest status ("Awaiting signature") is a non-wrapping badge.
+            width: 'lg',
             render: (docItem) => (hasCompanySignature(docItem) && signedCopy.recordFor(docItem) ? (
                 <div className="flex flex-col items-start gap-ds-1">
                     <EnvelopeStatusBadge document={docItem} />

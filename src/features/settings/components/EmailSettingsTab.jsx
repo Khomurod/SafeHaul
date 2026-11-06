@@ -1,8 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { httpsCallable } from "firebase/functions";
-import { functions } from '@lib/firebase';
-import { Icon, Save, Loader2, CheckCircle, AlertTriangle, Mail, Server, HelpCircle, TestTube } from '@design-system/icons';
-import { useToast } from '@shared/components/feedback';
+import React, { useState } from 'react';
+import { Icon, Loader2, CheckCircle, AlertTriangle, Mail, Server, HelpCircle, TestTube } from '@design-system/icons';
 import {
     Badge,
     Button,
@@ -16,184 +13,59 @@ import {
     Textarea,
 } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
+import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { PevCopiesSection } from './PevCopiesSection';
+import { useSmtpSettingsDraft } from '../hooks/useSmtpSettingsDraft';
+import { usePevCopiesDraft } from '../hooks/usePevCopiesDraft';
+import { saveBarSummary } from '../utils/saveBarSummary';
 
+/**
+ * Settings → Email: the company's SMTP server (`useSmtpSettingsDraft`) and the
+ * people verification requests copy (`usePevCopiesDraft`). Edits to either stay
+ * on the page until the save bar's Save, which checks both and writes only the
+ * parts changed; the company shell's leave guard watches them. Test Connection
+ * checks what is typed and, when it connects, saves the server settings itself.
+ */
 export function EmailSettingsTab({ currentCompanyProfile }) {
-    const { showSuccess, showError } = useToast();
-    const [emailSettings, setEmailSettings] = useState({
-        smtpHost: '',
-        smtpPort: 587,
-        smtpUser: '',
-        // NOTE: smtpPass is intentionally NOT stored in this state object.
-        // The password lives only in a server-only document.
-        signature: '',
-        isVerified: false
-    });
-    // Password input state — NEVER hydrated from any source, always starts empty.
-    const [smtpPassInput, setSmtpPassInput] = useState('');
-    // Tracks whether the company already has an SMTP password saved (from callable)
-    const [hasExistingPassword, setHasExistingPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [testing, setTesting] = useState(false);
-    const [testResult, setTestResult] = useState(null);
+    const smtp = useSmtpSettingsDraft(currentCompanyProfile?.id);
+    const copies = usePevCopiesDraft(currentCompanyProfile);
     const [showGuide, setShowGuide] = useState(false);
-    const [settingsLoading, setSettingsLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(null);
 
-    // REFACTOR: Load settings via callable — never read smtpPass from Firestore directly.
-    // The getEmailSettingsMeta callable returns sanitized data (hasPassword flag, no actual password).
-    useEffect(() => {
-        if (!currentCompanyProfile?.id) {
-            setSettingsLoading(false);
+    const dirty = smtp.dirty || copies.dirty;
+    useUnsavedChanges(dirty);
+    // A failure is about changes that are no longer there once the page is clean.
+    if (!dirty && saveError) setSaveError(null);
+
+    const handleSave = async () => {
+        setSaveError(null);
+        // Nothing is written while either part cannot be saved as it is.
+        const problems = [smtp.dirty && smtp.validate(), copies.dirty && copies.validate()].filter(Boolean);
+        if (problems.length > 0) {
+            setSaveError(problems.join(' '));
             return;
         }
-
-        const loadSettings = async () => {
-            setSettingsLoading(true);
-            try {
-                const getMetaFn = httpsCallable(functions, 'getEmailSettingsMeta');
-                const result = await getMetaFn({ companyId: currentCompanyProfile.id });
-
-                if (result.data?.success && result.data.settings) {
-                    const meta = result.data.settings;
-                    setEmailSettings(prev => ({
-                        ...prev,
-                        smtpHost: meta.smtpHost || '',
-                        smtpPort: meta.smtpPort || 587,
-                        smtpUser: meta.smtpUser || '',
-                        signature: meta.signature || '',
-                        isVerified: meta.isVerified || false,
-                    }));
-                    setHasExistingPassword(meta.hasPassword || false);
-                    // IMPORTANT: smtpPassInput stays empty — never hydrated
-                }
-            } catch (err) {
-                console.warn('[EmailSettingsTab] Failed to load settings meta:', err.message);
-                // Gracefully degrade — settings form still usable for first-time setup
-            } finally {
-                setSettingsLoading(false);
-            }
-        };
-
-        loadSettings();
-    }, [currentCompanyProfile?.id]);
-
-    // The server checks the connection on every save; "Successfully Linked" follows its answer.
-    const reportUnverifiedSave = (data) => {
-        setEmailSettings(prev => ({ ...prev, isVerified: false }));
-        setTestResult({
-            success: false,
-            message: `Settings saved, but the server could not connect with them: ${data.verificationError || 'The connection could not be verified.'}`,
-        });
-        showError('Settings saved, but the connection could not be verified.');
-    };
-
-    const handleTestConnection = async () => {
-        // Test connection always requires a plaintext password from user input.
-        if (!smtpPassInput) {
-            showError('Please enter your SMTP password to test the connection.');
-            return;
-        }
-
-        setTesting(true);
-        setTestResult(null);
-
+        setSaving(true);
         try {
-            const testEmailConnectionFn = httpsCallable(functions, 'testEmailConnection');
-            const result = await testEmailConnectionFn({
-                smtpHost: emailSettings.smtpHost,
-                smtpPort: emailSettings.smtpPort,
-                smtpUser: emailSettings.smtpUser,
-                smtpPass: smtpPassInput, // Always plaintext from user input
-            });
-
-            if (result.data.success) {
-                const verifiedSettings = { ...emailSettings, isVerified: true };
-                setEmailSettings(verifiedSettings);
-
-                // Auto-save on successful test
-                try {
-                    const saveSettingsFn = httpsCallable(functions, 'saveEmailSettings');
-                    const saved = await saveSettingsFn({
-                        companyId: currentCompanyProfile.id,
-                        smtpHost: emailSettings.smtpHost,
-                        smtpPort: emailSettings.smtpPort,
-                        smtpUser: emailSettings.smtpUser,
-                        smtpPass: smtpPassInput, // Always plaintext from user input
-                        signature: emailSettings.signature,
-                    });
-                    setHasExistingPassword(true); // Password now saved
-                    if (saved?.data?.verified === false) {
-                        reportUnverifiedSave(saved.data);
-                    } else {
-                        setTestResult({ success: true, message: 'Settings verified and saved securely!' });
-                        showSuccess('✅ Connection successful and settings saved!');
-                    }
-                } catch (saveError) {
-                    console.error('Save error:', saveError);
-                    setTestResult({ success: false, message: 'Verified but failed to save to database.' });
-                    showError('Verified but failed to save.');
-                }
-            } else {
-                setTestResult({ success: false, message: result.data.error });
-                showError(`Connection failed: ${result.data.error}`);
-            }
-        } catch (error) {
-            console.error('Test connection error:', error);
-            setTestResult({
-                success: false,
-                message: error.message || 'Failed to test connection'
-            });
-            showError('Connection test failed. Please check your credentials.');
+            const failures = [];
+            if (smtp.dirty) failures.push(await smtp.save());
+            if (copies.dirty) failures.push(await copies.save());
+            const failed = failures.filter(Boolean);
+            if (failed.length > 0) setSaveError(failed.join(' '));
         } finally {
-            setTesting(false);
+            setSaving(false);
         }
     };
 
-    const handleSaveEmailSettings = async () => {
-        // Validate required fields
-        if (!emailSettings.smtpHost || !emailSettings.smtpUser) {
-            showError('Please fill in SMTP Host and Username.');
-            return;
-        }
-        if (!smtpPassInput && !hasExistingPassword) {
-            showError('Please enter your SMTP password.');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const saveSettingsFn = httpsCallable(functions, 'saveEmailSettings');
-            // PARTIAL UPDATE: Only include smtpPass if user entered a new one.
-            // If empty, the backend will preserve the existing password in the subcollection.
-            const payload = {
-                companyId: currentCompanyProfile.id,
-                smtpHost: emailSettings.smtpHost,
-                smtpPort: emailSettings.smtpPort,
-                smtpUser: emailSettings.smtpUser,
-                signature: emailSettings.signature,
-            };
-            if (smtpPassInput) {
-                payload.smtpPass = smtpPassInput; // Only send plaintext if user typed a new password
-            }
-            const saved = await saveSettingsFn(payload);
-            if (smtpPassInput) setHasExistingPassword(true);
-            if (saved?.data?.verified === false) {
-                reportUnverifiedSave(saved.data);
-            } else {
-                if (saved?.data?.verified === true) setEmailSettings(prev => ({ ...prev, isVerified: true }));
-                showSuccess('Email settings saved securely!');
-                setTestResult(null);
-            }
-        } catch (error) {
-            console.error("Error saving email settings:", error);
-            showError("Failed to save email settings.");
-        } finally {
-            setLoading(false);
-        }
+    const discard = () => {
+        smtp.discard();
+        copies.discard();
+        setSaveError(null);
     };
 
     // Show loading state while callable fetches settings
-    if (settingsLoading) {
+    if (smtp.loading) {
         return (
             <div className="space-y-ds-6" data-testid="email-settings">
                 <PageHeader title="Email" description="Loading email settings…" />
@@ -208,7 +80,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
         );
     }
 
-    const isConnected = emailSettings.isVerified && emailSettings.smtpUser;
+    const { form, testResult } = smtp;
+    const changed = [...smtp.changed, ...(copies.dirty ? ['Verification copies'] : [])];
 
     return (
         <div className="space-y-ds-6" data-testid="email-settings">
@@ -219,11 +92,11 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
 
             {/* Connection Status Banner */}
             <Card padding="md" aria-label="Email connection status">
-                {isConnected ? (
+                {smtp.isConnected ? (
                     <div className="flex flex-col gap-ds-2">
                         <Badge tone="success" icon={CheckCircle}>Successfully Linked</Badge>
                         <p className="text-ds-sm text-ds-content">
-                            Currently linked and sending emails as: <strong>{emailSettings.smtpUser}</strong>
+                            Currently linked and sending emails as: <strong>{smtp.savedUser}</strong>
                         </p>
                         <p className="text-ds-sm text-ds-content">
                             This email account is automatically being used to safely send <strong>E-Docs</strong> and <strong>Previous Employment Verification (PEV)</strong> forms.
@@ -251,8 +124,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     >
                         <Input
                             type="text"
-                            value={emailSettings.smtpHost || ''}
-                            onChange={e => setEmailSettings({ ...emailSettings, smtpHost: e.target.value, isVerified: false })}
+                            value={form.smtpHost || ''}
+                            onChange={e => smtp.setField('smtpHost', e.target.value)}
                             placeholder="smtp.gmail.com"
                         />
                     </FormField>
@@ -267,8 +140,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                             type="number"
                             min="1"
                             max="65535"
-                            value={emailSettings.smtpPort || 587}
-                            onChange={e => setEmailSettings({ ...emailSettings, smtpPort: parseInt(e.target.value), isVerified: false })}
+                            value={form.smtpPort || 587}
+                            onChange={e => smtp.setField('smtpPort', parseInt(e.target.value))}
                             placeholder="587"
                         />
                     </FormField>
@@ -276,8 +149,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     <FormField id="email-smtp-user" label="SMTP Username" required>
                         <Input
                             type="email"
-                            value={emailSettings.smtpUser || ''}
-                            onChange={e => setEmailSettings({ ...emailSettings, smtpUser: e.target.value, isVerified: false })}
+                            value={form.smtpUser || ''}
+                            onChange={e => smtp.setField('smtpUser', e.target.value)}
                             placeholder="your-email@company.com"
                         />
                     </FormField>
@@ -286,16 +159,16 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         className="md:col-span-2"
                         id="email-smtp-password"
                         label="SMTP Password"
-                        required={!hasExistingPassword}
-                        description={hasExistingPassword
+                        required={!smtp.hasPassword}
+                        description={smtp.hasPassword
                             ? 'Password already saved. Enter a new password only if you want to change it.'
                             : 'For Gmail, use an App Password, not your regular password.'}
                     >
                         <Input
                             type="password"
-                            value={smtpPassInput}
-                            onChange={e => { setSmtpPassInput(e.target.value); setEmailSettings(prev => ({ ...prev, isVerified: false })); }}
-                            placeholder={hasExistingPassword ? 'Password is saved but hidden. Enter new to rotate.' : '••••••••••••'}
+                            value={smtp.password}
+                            onChange={e => smtp.setPassword(e.target.value)}
+                            placeholder={smtp.hasPassword ? 'Password is saved but hidden. Enter new to rotate.' : '••••••••••••'}
                         />
                     </FormField>
                 </div>
@@ -305,11 +178,12 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     <Button
                         type="button"
                         variant="secondary"
-                        loading={testing}
-                        disabled={!emailSettings.smtpHost || !emailSettings.smtpUser || !smtpPassInput}
-                        onClick={handleTestConnection}
+                        loading={smtp.testing}
+                        // Not while Save is writing: both write the same settings.
+                        disabled={!form.smtpHost || !form.smtpUser || !smtp.password || saving}
+                        onClick={smtp.test}
                     >
-                        {!testing && <Icon icon={TestTube} size="lg" />}
+                        {!smtp.testing && <Icon icon={TestTube} size="lg" />}
                         Test Connection
                     </Button>
 
@@ -342,14 +216,14 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     description="This signature will be automatically appended to all outgoing emails."
                 >
                     <Textarea
-                        value={emailSettings.signature || ''}
-                        onChange={e => setEmailSettings({ ...emailSettings, signature: e.target.value })}
+                        value={form.signature || ''}
+                        onChange={e => smtp.setField('signature', e.target.value)}
                         placeholder={"Best regards,\n[Your Name]\n[Your Company]"}
                     />
                 </FormField>
             </FormSection>
 
-            <PevCopiesSection currentCompanyProfile={currentCompanyProfile} />
+            <PevCopiesSection text={copies.text} error={copies.error} onChange={copies.onChange} />
 
             {/* Setup Guide (feature-owned content) */}
             <Card padding="md">
@@ -440,19 +314,16 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                 </Disclosure>
             </Card>
 
-            {/* Save */}
-            <div className="flex justify-end pt-ds-2">
-                <Button
-                    type="button"
-                    variant="primary"
-                    loading={loading}
-                    disabled={!emailSettings.smtpHost || !emailSettings.smtpUser || (!smtpPassInput && !hasExistingPassword)}
-                    onClick={handleSaveEmailSettings}
-                >
-                    {!loading && <Icon icon={Save} size="lg" />}
-                    Save Settings
-                </Button>
-            </div>
+            {dirty && (
+                <SaveBar
+                    summary={saveBarSummary(changed)}
+                    // A successful Test Connection saves the server settings too.
+                    saving={saving || smtp.testing}
+                    error={saveError}
+                    onSave={handleSave}
+                    onDiscard={discard}
+                />
+            )}
         </div>
     );
 }

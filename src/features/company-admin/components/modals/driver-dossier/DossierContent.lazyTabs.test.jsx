@@ -63,6 +63,15 @@ afterEach(() => {
 });
 
 describe('the dossier tabs that load later', () => {
+    // First in the file: a tab's code loads once, and a later render of it does not wait.
+    it("announces the standard loading state while a tab's code loads", async () => {
+        render(<DossierContent activeTab="activity" appData={{}} driverId="app-1" companyId="co-1" collectionName="applications" />);
+
+        expect(screen.getByRole('status')).toHaveTextContent('Loading this tab…');
+        expect(screen.getByRole('heading', { level: 4, name: 'Loading this tab…' })).toBeInTheDocument();
+        expect(await screen.findByText('Audit trail')).toBeInTheDocument();
+    });
+
     it.each([
         ['activity', 'Audit trail'],
         ['notes', 'Notes'],

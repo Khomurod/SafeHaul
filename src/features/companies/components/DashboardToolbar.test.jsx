@@ -103,13 +103,13 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
     });
 
-    it('shows the "only mine" switch with its words, and reports the value it moves to', () => {
+    it('shows the "Assigned to me" switch with its words, and reports the value it moves to', () => {
         const onToggleMyAssignments = vi.fn();
         renderToolbar({ showMyAssignmentsToggle: true, myAssignmentsOnly: false, onToggleMyAssignments });
 
-        fireEvent.click(screen.getByText('Only mine'));
+        fireEvent.click(screen.getByText('Assigned to me'));
 
-        expect(screen.getByRole('switch', { name: 'Only mine' })).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'Assigned to me' })).toBeInTheDocument();
         expect(onToggleMyAssignments).toHaveBeenCalledWith(true);
     });
 

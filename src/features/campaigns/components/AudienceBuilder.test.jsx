@@ -435,7 +435,7 @@ describe('AudienceBuilder — migrated presentation', () => {
             expect.objectContaining({ method: 'sms' }),
         );
         expect(screen.getByLabelText('Source')).toHaveValue('applications');
-        expect(screen.getByLabelText('Owner')).toHaveValue('all');
+        expect(screen.getByLabelText('Assigned to')).toHaveValue('all');
         expect(screen.getByRole('button', { name: 'New Application' })).toHaveAttribute('aria-pressed', 'true');
     });
 
@@ -492,10 +492,10 @@ describe('AudienceBuilder — migrated presentation', () => {
         const source = screen.getByLabelText('Source');
         expect([...source.options].map(o => o.value)).toEqual(['applications', 'leads']);
         // `leads` is every company lead, so it reads Leads; the owner picker's
-        // Current User Only is the reader's own.
+        // Me is the reader's own.
         expect([...source.options].map(o => o.textContent)).toEqual(['Applicants', 'Leads']);
 
-        const owner = screen.getByLabelText('Owner');
+        const owner = screen.getByLabelText('Assigned to');
         expect([...owner.options].map(o => o.value)).toEqual(['all', 'my_leads', 'recruiter1', 'recruiter2']);
 
         const exclude = screen.getByLabelText('Exclude Previously Messaged');
@@ -517,7 +517,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'leads' } });
         expect(onChange.mock.calls.at(-1)[0].leadType).toBe('leads');
 
-        fireEvent.change(screen.getByLabelText('Owner'), { target: { value: 'recruiter2' } });
+        fireEvent.change(screen.getByLabelText('Assigned to'), { target: { value: 'recruiter2' } });
         expect(onChange.mock.calls.at(-1)[0].recruiterId).toBe('recruiter2');
 
         fireEvent.change(screen.getByLabelText('Limit Volume'), { target: { value: '250' } });

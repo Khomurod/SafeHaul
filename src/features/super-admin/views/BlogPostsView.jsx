@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon, ExternalLink, RefreshCw, Trash2 } from '@design-system/icons';
 
-import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
+import { Badge, Button, Card, DataTable, FieldMessage, IconButton } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useToast } from '@shared/components/feedback';
@@ -175,7 +175,7 @@ export function BlogPostsView() {
         {
             key: 'actions',
             header: 'Actions',
-            // `lg`: View and Delete side by side, each with its word.
+            // `lg`: View, with its word, and Delete side by side.
             width: 'lg',
             align: 'end',
             // On a phone card the buttons take the card's width, unlabelled.
@@ -199,16 +199,18 @@ export function BlogPostsView() {
                                     <Icon icon={ExternalLink} size="sm" /> View
                                 </Button>
                             )}
-                            <Button
+                            {/* The one look of a row delete, named for the article. */}
+                            <IconButton
                                 size="sm"
-                                variant="danger"
+                                variant="ghost"
+                                label={`Delete ${post.title || 'Untitled article'}`}
                                 onClick={() => {
                                     setDeleteError(null);
                                     setDeleteTarget(post);
                                 }}
                             >
-                                <Icon icon={Trash2} size="sm" /> Delete
-                            </Button>
+                                <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                            </IconButton>
                         </>
                     )}
                 </div>

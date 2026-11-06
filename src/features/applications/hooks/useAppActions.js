@@ -33,7 +33,7 @@ export function useAppActions({
   onStatusUpdate
 }) {
   const { showSuccess, showError } = useToast();
-  // While a save of Assign To is open the picker shows the newest pick; once
+  // While a save of Assigned to is open the picker shows the newest pick; once
   // none is open it shows what the record holds. `latest` numbers the picks.
   const assignSaves = useRef({ open: 0, saved: '', latest: 0 });
 
@@ -90,7 +90,9 @@ export function useAppActions({
     }
   };
 
-  const handleStatusUpdate = async (newStatus) => {
+  // `note` ends the confirmation: what else the change set off, such as the
+  // driver's Contact Attempt text (the dossier's `savedTextNote`).
+  const handleStatusUpdate = async (newStatus, { note = '' } = {}) => {
     try {
       const docRef = getDocRef();
       const oldStatus = currentStatus || 'Unknown';
@@ -104,7 +106,7 @@ export function useAppActions({
       await logActivity(companyId, collectionName, applicationId, "Status Changed", `Transitioned from ${oldStatus} to ${newStatus}`);
 
       setCurrentStatus(newStatus);
-      showSuccess(`Status updated to ${newStatus}`);
+      showSuccess(note ? `Status updated to ${newStatus}. ${note}` : `Status updated to ${newStatus}`);
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error("Error updating status:", error);

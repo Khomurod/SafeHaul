@@ -74,7 +74,7 @@ beforeEach(() => {
 describe('ApplicationFormTab', () => {
     it('is its own page with four tabs, Questions first, and nothing to save yet', () => {
         renderForm();
-        expect(screen.getByRole('heading', { level: 1, name: 'Application form' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Application questions' })).toBeInTheDocument();
         expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Questions', 'Rules', 'Agreements', 'Integrations']);
         expect(screen.getByRole('tab', { name: 'Questions' })).toHaveAttribute('aria-selected', 'true');
         expect(saveBar()).toBeNull();
@@ -139,13 +139,15 @@ describe('ApplicationFormTab', () => {
     });
 
     it('keeps the edits and the bar when saving fails', async () => {
-        mocks.saveCompanySettings.mockRejectedValue(new Error('offline'));
+        mocks.saveCompanySettings.mockRejectedValue(Object.assign(new Error('Failed to get document because the client is offline.'), { code: 'unavailable' }));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderForm();
         fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
         fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
 
-        await waitFor(() => expect(mocks.showError).toHaveBeenCalledWith('Failed to save settings: offline'));
+        await waitFor(() => expect(mocks.showError).toHaveBeenCalledWith(
+            'The application questions could not be saved. Check your internet connection and try again.',
+        ));
         expect(saveBar()).toBeInTheDocument();
         expect(screen.getByText('Questions: 2')).toBeInTheDocument();
         consoleError.mockRestore();

@@ -14,6 +14,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 const SEALING_AGAIN ='Sealing again. The status here changes when it finishes.';
 
@@ -33,7 +34,7 @@ export function useSealRetry({ companyId, showSuccess, showError }) {
             return true;
         } catch (err) {
             console.error('Retry seal error:', err);
-            showError(err?.message || 'The document could not be sealed again. Try again.');
+            showError(plainErrorMessage(err, 'The document could not be sealed again.'));
             return false;
         } finally {
             inFlightRef.current = false;

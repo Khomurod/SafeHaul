@@ -14,7 +14,7 @@ const SECTION_SUMMARIES = {
     api_keys: 'Let another service read your applications',
     integrations: 'Leads from Facebook Lead Ads',
     billing: 'Your subscription',
-    personal: 'Your name and recruiting link',
+    personal: 'Your name and personal link',
 };
 
 /**

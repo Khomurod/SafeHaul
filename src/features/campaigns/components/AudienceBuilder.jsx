@@ -271,14 +271,14 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                             </Select>
                                         </FormField>
 
-                                        {/* Recruiter */}
-                                        <FormField label="Owner">
+                                        {/* Who the record is assigned to, by the name the lists use. */}
+                                        <FormField label="Assigned to">
                                             <Select
                                                 value={localFilters.recruiterId || 'all'}
                                                 onChange={(e) => handleFilterChange('recruiterId', e.target.value)}
                                             >
-                                                <option value="all">All Team Members</option>
-                                                <option value="my_leads">Current User Only</option>
+                                                <option value="all">Anyone</option>
+                                                <option value="my_leads">Me</option>
                                                 {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                             </Select>
                                         </FormField>

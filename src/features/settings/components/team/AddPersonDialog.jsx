@@ -5,6 +5,7 @@ import { Icon, UserPlus, X } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { Button, FormField, IconButton, Input, Select } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 const EMPTY = { fullName: '', email: '', password: '', role: 'hr_user' };
 
@@ -38,7 +39,7 @@ export function AddPersonDialog({ companyId, onClose, onAdded }) {
             onClose();
         } catch (error) {
             console.error(error);
-            showError('Failed to create user: ' + error.message);
+            showError(plainErrorMessage(error, 'The person could not be added.'));
         } finally {
             setSaving(false);
         }
@@ -69,10 +70,11 @@ export function AddPersonDialog({ companyId, onClose, onAdded }) {
                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                         />
                     </FormField>
-                    <FormField id="team-new-user-password" label="Password" required>
+                    <FormField id="team-new-user-password" label="Password" description="At least 6 characters." required>
                         <Input
                             type="password"
                             autoComplete="new-password"
+                            minLength={6}
                             value={newUser.password}
                             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         />

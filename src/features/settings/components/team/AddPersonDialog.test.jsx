@@ -119,14 +119,17 @@ describe('AddPersonDialog', () => {
     });
 
     it('surfaces the backend failure message, stays open, and never logs the password', async () => {
-        mocks.createFn.mockRejectedValue(new Error('This email is already registered.'));
+        mocks.createFn.mockRejectedValue(Object.assign(
+            new Error('This email is already registered.'),
+            { code: 'functions/already-exists' },
+        ));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const { onClose } = renderDialog();
         fillForm();
         submit();
 
         await waitFor(() => expect(mocks.showError)
-            .toHaveBeenCalledWith('Failed to create user: This email is already registered.'));
+            .toHaveBeenCalledWith('This email is already registered.'));
         expect(JSON.stringify(consoleError.mock.calls)).not.toContain(ARTIFICIAL_PASSWORD);
         expect(window.localStorage.getItem('password')).toBeNull();
         expect(onClose).not.toHaveBeenCalled();

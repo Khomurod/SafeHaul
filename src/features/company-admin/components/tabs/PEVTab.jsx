@@ -305,7 +305,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 <PaywallMessage
                     // `<h4>` under the dossier header's `<h3>` section title.
                     headingLevel="h4"
-                    title="PEV Module Unavailable"
+                    title="Previous Employment unavailable"
                     message="The Previous Employment Verification module is currently turned off for your company. Please contact our Sales Team to enable automated VOE."
                 />
             </div>

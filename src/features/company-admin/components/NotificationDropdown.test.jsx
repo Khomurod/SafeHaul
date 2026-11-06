@@ -13,13 +13,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const hook = vi.hoisted(() => ({ notifications: [], markAsRead: vi.fn(), markAllAsRead: vi.fn() }));
+const hook = vi.hoisted(() => ({
+    notifications: [], error: null, retry: vi.fn(), markAsRead: vi.fn(), markAllAsRead: vi.fn(),
+}));
 
 vi.mock('../hooks/useCompanyNotifications', () => ({
     useCompanyNotifications: () => ({
         notifications: hook.notifications,
         unreadCount: hook.notifications.filter((n) => !n.read).length,
         loading: false,
+        error: hook.error,
+        retry: hook.retry,
         markAsRead: hook.markAsRead,
         markAllAsRead: hook.markAllAsRead,
     }),
@@ -58,6 +62,7 @@ function openBell(notifications, { onOpenDocuments = vi.fn(), onOpenAssignedLead
 
 beforeEach(() => {
     vi.clearAllMocks();
+    hook.error = null;
     hook.markAsRead.mockResolvedValue(undefined);
 });
 
@@ -238,5 +243,42 @@ describe('a notification in the bell', () => {
         await userEvent.click(screen.getByRole('button', { name: /Status Updated/ }));
 
         expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined);
+    });
+});
+
+// A read that failed is not "All caught up!": the bell says the notifications
+// could not be loaded, and Retry asks the hook to read again.
+describe('a bell that could not read', () => {
+    it('says the notifications could not be loaded, not that the reader is caught up', async () => {
+        hook.error = 'Failed to load notifications';
+        await openBell([]);
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Notifications could not be loaded.');
+        expect(screen.getByRole('heading', { name: 'Notifications could not be loaded.', level: 4 })).toBeInTheDocument();
+        expect(screen.queryByText('All caught up!')).not.toBeInTheDocument();
+    });
+
+    it('reads again on Retry', async () => {
+        hook.error = 'Failed to load notifications';
+        await openBell([]);
+
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+        expect(hook.retry).toHaveBeenCalledTimes(1);
+    });
+
+    it("still lists the reader's own notices that did load, under the error", async () => {
+        hook.error = 'Failed to load notifications';
+        await openBell([STATUS]);
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Notifications could not be loaded.');
+        expect(screen.getByRole('button', { name: /Status Updated/ })).toBeInTheDocument();
+    });
+
+    it('says the reader is caught up when the read answered with nothing', async () => {
+        await openBell([]);
+
+        expect(screen.getByText('All caught up!')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 });

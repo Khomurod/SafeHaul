@@ -23,6 +23,7 @@ import {
 import { DATED_FILE_TYPES, DQ_FILE_TYPES } from '../../utils/dqFileTypes';
 import { calendarDay } from '../../utils/dqExpiry';
 import { fileDriverUploads } from './dqFileSync';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Driver Qualification file management for one application or lead.
@@ -292,7 +293,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
 
     } catch (err) {
       console.error("Upload failed:", err);
-      setError(`Upload failed: ${err.message}`);
+      setError(plainErrorMessage(err, 'The file could not be uploaded.'));
     } finally {
       setIsUploading(false);
     }
@@ -334,7 +335,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
 
     } catch (err) {
       console.error("Delete failed:", err);
-      setError(`Delete failed: ${err.message}`);
+      setError(plainErrorMessage(err, 'The file could not be deleted.'));
       setLoading(false);
     }
   };

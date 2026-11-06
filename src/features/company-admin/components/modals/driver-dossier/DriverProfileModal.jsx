@@ -1,15 +1,16 @@
 import React, { useId, useRef, useState } from 'react';
-import { Icon, Loader2, AlertTriangle } from '@design-system/icons';
 import { useApplicationView } from '@features/company-admin/hooks/useApplicationView';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { useData } from '@/context/DataContext';
-import { Modal } from '@design-system/patterns';
-import { Button, TabPanel } from '@/design-system/components';
+import { ConfirmDialog, LoadingState, Modal } from '@design-system/patterns';
+import { TabPanel } from '@/design-system/components';
 import { DossierDetails, DossierIdentityBar, DossierSectionTabs, DossierSidebar } from './DossierSidebar';
 import { DossierHeader } from './DossierHeader';
 import { DossierContent } from './DossierContent';
 import { DossierLogCall } from './DossierLogCall';
 import { useCompactViewport } from './useCompactViewport';
+import { useContactAttemptTexts } from './useContactAttemptTexts';
+import { savedTextNote } from './contactAttemptText';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
@@ -18,8 +19,8 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * The main container for the Driver Dossier. It manages the active tab state and
  * orchestrates data fetching via `useApplicationView`.
  *
- * Presentation uses the approved accessible `Modal`, the approved `Button`
- * and `--ds-*` tokens.
+ * Presentation uses the approved accessible `Modal`, `ConfirmDialog` and
+ * `LoadingState` patterns and `--ds-*` tokens.
  *
  * Frozen contracts: the dialog's accessible name **"Driver dossier"** and the
  * fact that Escape closes it (both asserted by
@@ -51,16 +52,22 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  *   the header's third row. The tab panel stays the one scroll container and
  *   the first focus on both layouts, at the top of what scrolls, so opening
  *   the dossier scrolls nothing away.
- * - Loading and error are announced: `role="status"` / `role="alert"`.
- * - The destructive confirmation opens with focus on Cancel, and names what
- *   it deletes: a lead (`collectionName`, the collection the record was found
- *   in), or an application.
+ * - Loading and error are announced: the design system's `LoadingState`
+ *   (`role="status"`) and a `role="alert"`.
+ * - The destructive confirmation is the standard `ConfirmDialog`: it opens
+ *   with focus on Cancel, Escape and Cancel are inert while the delete runs,
+ *   and it names what it deletes: a lead (`collectionName`, the collection the
+ *   record was found in), or an application.
  * - A lead and the application it became open each other here (the sidebar's
  *   "Open application" / "Open lead"): the dossier shows that record, on its
  *   first tab, until the page opens another.
  * - It opens on the `'application'` tab unless the opener names another as
  *   `initialTab` (a bell notice or a Needs attention row opens the tab it is
  *   about).
+ * - **Choosing a Contact Attempt stage says whether the driver is texted**
+ *   (`useContactAttemptTexts`): the picker's option warns, and the saved
+ *   status's confirmation adds that a text is queued, or that the driver may be
+ *   texted. The server alone sends it (`functions/atsContactSms.js`).
  * - A call logged here (`DossierLogCall`) reads the record again, so the stage
  *   it moved and the last call show, and reopens Activity and Notes on their
  *   newest entries; the tab the recruiter is on stays.
@@ -87,7 +94,6 @@ export function DriverProfileModal({
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     // Counts the calls logged here: Activity and Notes read again on each.
     const [callsLogged, setCallsLogged] = useState(0);
-    const cancelDeleteRef = useRef(null);
     const tabPanelRef = useRef(null);
     const openTab = (id) => {
         setActiveTab(id);
@@ -128,6 +134,15 @@ export function DriverProfileModal({
         refreshRecord,
     } = useApplicationView(companyId, recordId);
     const isLead = collectionName === 'leads';
+    // What moving to a Contact Attempt stage does: the text the server sends.
+    const textOutlookFor = useContactAttemptTexts({
+        companyId,
+        enabled: Boolean(isOpen && canEdit),
+        currentStatus,
+        record: loading || error ? null : appData,
+        isLead,
+    });
+    const handleStageChange = (stage) => handleStatusUpdate(stage, { note: savedTextNote(textOutlookFor(stage)) });
 
     const handleCallLogged = () => {
         refreshRecord?.();
@@ -185,7 +200,8 @@ export function DriverProfileModal({
                 loading={loading}
                 currentStatus={currentStatus}
                 onClose={onClose}
-                onStatusUpdate={handleStatusUpdate}
+                onStatusUpdate={handleStageChange}
+                textOutlookFor={textOutlookFor}
                 canEdit={canEdit}
                 teamMembers={teamMembers}
                 assignedTo={assignedTo}
@@ -202,7 +218,6 @@ export function DriverProfileModal({
 
     const body = loading ? (
         <div
-            role="status"
             /*
              * `raised`, the same layer as the header
              * above, and it still covers it: the tab
@@ -213,10 +228,11 @@ export function DriverProfileModal({
              * outranking a bare `z-10`, which is the
              * same outcome by a route nobody could name.
              */
-            className="absolute inset-0 z-ds-raised flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
+            className="absolute inset-0 z-ds-raised flex flex-col items-center justify-center bg-ds-surface/80"
         >
-            <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-action-primary" />
-            <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
+            {/* The standard loading state, its own polite region. `h4`: it
+                stands in for the section under the header's `h3`. */}
+            <LoadingState surface="bare" headingLevel={4} title="Loading driver dossier…" />
         </div>
     ) : error ? (
         <div role="alert" className="p-ds-8 text-center">
@@ -318,49 +334,18 @@ export function DriverProfileModal({
                 )}
             </Modal>
 
-            {confirmingDelete && (
-                <Modal
-                    onClose={deleting ? undefined : () => setConfirmingDelete(false)}
-                    labelledBy="delete-app-title"
-                    // Destructive dialogs open on the least destructive action.
-                    initialFocusRef={cancelDeleteRef}
-                    size="md"
-                >
-                    <div className="p-ds-6">
-                        <div className="mb-ds-3 flex items-center gap-ds-3">
-                            <span className="rounded-ds-md bg-ds-status-danger-bg p-ds-2 text-ds-status-danger-fg">
-                                {/* Same padding-sized tile, same two-pixel snap. */}
-                                <Icon icon={AlertTriangle} size="xl" />
-                            </span>
-                            <h2 id="delete-app-title" className="text-ds-body-lg font-bold text-ds-content">
-                                {isLead ? 'Delete this lead?' : 'Delete this application?'}
-                            </h2>
-                        </div>
-                        <p className="mb-ds-6 text-ds-sm text-ds-content-secondary">
-                            This permanently removes the {isLead ? 'lead' : 'application'}, its activity history, notes, and all
-                            uploaded documents. This cannot be undone.
-                        </p>
-                        <div className="flex flex-col justify-end gap-ds-3 sm:flex-row">
-                            <Button
-                                ref={cancelDeleteRef}
-                                variant="secondary"
-                                onClick={() => setConfirmingDelete(false)}
-                                disabled={deleting}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="danger"
-                                onClick={handleConfirmDelete}
-                                disabled={deleting}
-                                loading={deleting}
-                            >
-                                {deleting ? 'Deleting…' : 'Delete permanently'}
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
+            {/* Focus starts on Cancel; nothing closes it while the delete runs. */}
+            <ConfirmDialog
+                isOpen={confirmingDelete}
+                tone="danger"
+                title={isLead ? 'Delete this lead?' : 'Delete this application?'}
+                description={`This permanently removes the ${isLead ? 'lead' : 'application'}, its activity history, `
+                    + 'notes, and all uploaded documents. This cannot be undone.'}
+                confirmLabel={deleting ? 'Deleting…' : 'Delete permanently'}
+                loading={deleting}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setConfirmingDelete(false)}
+            />
         </>
     );
 }

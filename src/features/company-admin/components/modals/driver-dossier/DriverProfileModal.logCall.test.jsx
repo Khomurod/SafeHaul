@@ -22,6 +22,8 @@ vi.mock('@features/company-admin/hooks/useApplicationView', () => ({
 vi.mock('@features/applications/hooks/useApplicationDelete', () => ({
     useApplicationDelete: () => ({ deleting: false, deleteApplication: vi.fn() }),
 }));
+// The template read is Firestore's; `useContactAttemptTexts.test.js` covers it.
+vi.mock('./useContactAttemptTexts', () => ({ useContactAttemptTexts: () => () => null }));
 vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentUserClaims: { roles: { 'co-1': 'recruiter' } } }),
 }));

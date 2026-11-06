@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
  * things a stubbed query never shows. First, which stored records a filter
  * matches. Second, that `firestore.indexes.json` declares an index for every
  * query the lists can make: a missing one is invisible until a recruiter sets
- * that filter on the live site and the list answers "Missing Index".
+ * that filter on the live site and the list cannot be loaded.
  */
 vi.mock('firebase/firestore', () => ({
     collection: vi.fn(),

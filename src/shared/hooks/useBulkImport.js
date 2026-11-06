@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * How long the Google Sheet request and download may take together. A
@@ -8,6 +9,17 @@ import { useState } from 'react';
 const SHEET_TIMEOUT_MS = 60000;
 const SHEET_TIMEOUT_MESSAGE = `Google Sheets did not answer within ${SHEET_TIMEOUT_MS / 1000} seconds. `
     + 'Try again, or download the sheet and upload the file.';
+
+/**
+ * A sheet that is not shared sends the browser to Google's sign-in page, which a
+ * page may not read, so `fetch` fails exactly as it does offline: the message
+ * names both.
+ */
+const SHEET_UNREACHED_MESSAGE = "The sheet could not be downloaded. Make sure it has 'Anyone with the link' access "
+    + 'in Google Sheets sharing settings and that you are online, then try again.';
+
+/** The parser's own words (a CSV or Excel library's) stay in the console. */
+const FILE_UNREADABLE_MESSAGE = 'The file could not be read. Check that it is a CSV or Excel file laid out like the template, then try again.';
 
 /**
  * Shared spreadsheet/Google-Sheet import state machine.
@@ -54,8 +66,8 @@ export function useBulkImport(options = {}) {
                         resolve();
                     } else {
                         console.error("Worker Parse Error:", error);
-                        notifyError("Error reading file: " + error);
-                        reject(new Error(error));
+                        notifyError("Error reading file: " + FILE_UNREADABLE_MESSAGE);
+                        reject(new Error(FILE_UNREADABLE_MESSAGE));
                     }
                     worker.terminate();
                 };
@@ -99,14 +111,20 @@ export function useBulkImport(options = {}) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
         try {
-            const response = await fetch(exportUrl, { signal: controller.signal });
+            const response = await fetch(exportUrl, { signal: controller.signal }).catch((fetchError) => {
+                if (controller.signal.aborted) throw fetchError;
+                console.error('Sheet request failed:', fetchError);
+                throw new Error(SHEET_UNREACHED_MESSAGE);
+            });
             if (!response.ok) throw new Error("Failed to fetch sheet. Make sure the sheet has 'Anyone with the link' access enabled in Google Sheets sharing settings.");
             const arrayBuffer = await response.arrayBuffer();
             clearTimeout(timer);
             await parseBuffer(arrayBuffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'GoogleSheet.xlsx');
         } catch (error) {
             console.error("Sheet Error:", error);
-            notifyError("Error importing sheet: " + (controller.signal.aborted ? SHEET_TIMEOUT_MESSAGE : error.message));
+            notifyError("Error importing sheet: " + (controller.signal.aborted
+                ? SHEET_TIMEOUT_MESSAGE
+                : plainErrorMessage(error, 'The sheet could not be downloaded.')));
         } finally {
             clearTimeout(timer);
             setProcessingSheet(false);

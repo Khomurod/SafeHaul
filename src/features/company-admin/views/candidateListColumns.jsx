@@ -233,7 +233,10 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
         },
         ...(scope === 'my_leads' || scope === 'unassigned_leads' ? [] : [{
             key: 'assignee',
-            header: 'Recruiter',
+            // "Assigned to" does not fit `sm`, and the columns already fill the
+            // list at 1440px: a wider one would scroll it. The pickers and the
+            // filter say "Assigned to"; a header names the person.
+            header: 'Assignee',
             width: 'sm',
             truncate: true,
             render: (item) => {

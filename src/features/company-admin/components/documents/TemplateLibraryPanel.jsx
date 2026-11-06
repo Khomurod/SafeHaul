@@ -1,6 +1,6 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, Copy, Edit3, FileText, Loader2, Plus, Send, Settings, Trash2 } from '@design-system/icons';
-import { Badge, Button, Card, FormField, Input, Select } from '@/design-system/components';
+import { Badge, Button, Card, FormField, IconButton, Input, Select } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
     TEMPLATE_SORTS,
@@ -23,7 +23,9 @@ import {
  * system has no approved menu primitive yet (tracked in the roadmap), and the
  * previous card already showed its actions inline. Delete is offered only with
  * `onDelete`: the rules let a company admin alone delete a template, and the
- * workspace passes it to admins only.
+ * workspace passes it to admins only. It is the one look of a row or card
+ * delete, a quiet icon button in the card's corner, and the workspace's
+ * confirmation follows it.
  */
 export function TemplateLibraryPanel({
     templates,
@@ -127,7 +129,7 @@ export function TemplateLibraryPanel({
                                     >
                                         <Icon icon={FileText} size="2xl" />
                                     </span>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                         <h3 className="text-ds-body font-bold text-ds-content [overflow-wrap:anywhere]">
                                             {template.title}
                                         </h3>
@@ -143,6 +145,20 @@ export function TemplateLibraryPanel({
                                             )}
                                         </p>
                                     </div>
+                                    {/* The one look of a row or card delete: a quiet
+                                        icon button in the danger colour, named for
+                                        the template; the confirmation carries the weight. */}
+                                    {onDelete && (
+                                        <IconButton
+                                            variant="ghost"
+                                            size="sm"
+                                            className="shrink-0"
+                                            label={`Delete ${actionTitle}`}
+                                            onClick={() => onDelete(template.id)}
+                                        >
+                                            <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                                        </IconButton>
+                                    )}
                                 </div>
 
                                 <div className="mt-auto flex flex-col gap-ds-2">
@@ -183,20 +199,12 @@ export function TemplateLibraryPanel({
                                         </Button>
                                         <Button
                                             variant="secondary"
+                                            className="col-span-2"
                                             aria-label={`Configure ${actionTitle}`}
                                             onClick={() => onConfigure(template)}
                                         >
                                             <Icon icon={Settings} size="sm" /> Configure
                                         </Button>
-                                        {onDelete && (
-                                            <Button
-                                                variant="danger"
-                                                aria-label={`Delete ${actionTitle}`}
-                                                onClick={() => onDelete(template.id)}
-                                            >
-                                                <Icon icon={Trash2} size="sm" /> Delete
-                                            </Button>
-                                        )}
                                     </div>
                                 </div>
                             </Card>

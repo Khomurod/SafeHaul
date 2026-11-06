@@ -21,7 +21,7 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers
 
 async function openHistory(page, url = URL) {
   await page.goto(url);
-  await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeVisible({ timeout: 20_000 });
   // The workspace opens on Overview; the history table lives in Sent Documents.
   // On a phone the rows are cards, and the region drops "Scroll horizontally".
   await page.getByRole('tab', { name: /^Sent Documents/ }).click();

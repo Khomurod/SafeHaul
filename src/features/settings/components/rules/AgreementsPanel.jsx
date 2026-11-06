@@ -4,6 +4,7 @@ import { Icon, FileSignature, History, Loader2 } from '@design-system/icons';
 import { functions } from '@lib/firebase';
 import { Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { useToast } from '@shared/components/feedback';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Agreements — the versioned legal authorizations the applicant reads and accepts.
@@ -128,7 +129,8 @@ export function AgreementsPanel({ companyId, canPublish = false }) {
             const { data } = await call({ companyId });
             setAgreements(Array.isArray(data?.agreements) ? data.agreements : []);
         } catch (err) {
-            setError(err?.message || 'The agreements could not be loaded.');
+            console.error('Agreements load failed:', err);
+            setError(plainErrorMessage(err, 'The agreements could not be loaded.'));
         } finally {
             setLoading(false);
         }
@@ -144,7 +146,8 @@ export function AgreementsPanel({ companyId, canPublish = false }) {
             setAgreements(Array.isArray(data?.agreements) ? data.agreements : agreements);
             showSuccess(successMessage);
         } catch (err) {
-            showError(err?.message || 'The change could not be saved.');
+            console.error('Agreement change failed:', err);
+            showError(plainErrorMessage(err, 'The change could not be saved.'));
         } finally {
             setBusy(false);
         }

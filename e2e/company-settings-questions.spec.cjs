@@ -1,4 +1,4 @@
-// E2E coverage for Settings → Application form → "Questions", the design-system
+// E2E coverage for Settings → Application questions → "Questions", the design-system
 // slice. Verifies the accessible standard-field switches, the custom-question
 // editor (labelled fields, keyboard reorder controls, no nested interactives),
 // responsive overflow at 1440/1024/412, and a scoped axe pass. Data-shape and
@@ -10,7 +10,7 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openQuestions(page) {
   await page.goto(`${SETTINGS_URL}&section=application`);
-  await expect(page.getByRole('heading', { level: 1, name: 'Application form' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Application questions' })).toBeVisible();
   /*
    * A `tab`, not a `button`: this strip is the approved `TabList`, so the
    * control announces as a tab in a tablist and the panel it shows is a

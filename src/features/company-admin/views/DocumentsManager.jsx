@@ -38,7 +38,7 @@ const EnvelopeCreator = lazy(() => import('@features/signing/EnvelopeCreator'));
  * history table) with no sense of what needed doing. `?view=<id>` opens another
  * (the dashboard's Company setup links to `forms` and `templates`). `forms` is
  * named for what it holds, the templates sent after an application, apart from
- * Settings → Application form; its id, and so its address, stays.
+ * Settings → Application questions; its id, and so its address, stays.
  *
  * The design system has no approved Tabs primitive yet (tracked in the
  * roadmap), so this WAI-ARIA tab interface stays feature-owned.
@@ -318,7 +318,7 @@ export default function DocumentsManager() {
                     <Stack gap="sm">
                         {/* -ml-ds-3 cancels the sm button's own ds-space-3 inline
                             padding so the visible arrow/label sits flush with the
-                            Documents heading below, while the padded hit area and
+                            E-Docs heading below, while the padded hit area and
                             focus ring stay full size. */}
                         <Button
                             variant="ghost"
@@ -332,7 +332,7 @@ export default function DocumentsManager() {
                             and the sent documents. Below the design system's mobile
                             breakpoint the header stacks it under the title. */}
                         <PageHeader
-                            title="Documents"
+                            title="E-Docs"
                             count={showSentCount ? sentCount : undefined}
                             countLabel={sentCount === 1 ? 'sent document' : 'sent documents'}
                             description="Create, send, track and manage documents requiring completion or signature."
@@ -485,7 +485,7 @@ export default function DocumentsManager() {
                 tone="danger"
                 title={`Delete "${pendingTemplateDelete?.title ?? ''}"?`}
                 description={pendingTemplateDelete?.isPostSubmit
-                    ? 'This template is currently sent to applicants after they apply. Deleting it also removes it from the post-application forms, so applicants will stop receiving it. This cannot be undone.'
+                    ? 'This template is currently sent to applicants after they apply. Deleting it also removes it from the after-application forms, so applicants will stop receiving it. This cannot be undone.'
                     : 'This template will be permanently deleted. This cannot be undone.'}
                 confirmLabel="Delete template"
                 loading={deletingTemplate}

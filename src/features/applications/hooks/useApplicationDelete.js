@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Company-admin hard delete of an application/lead via the deleteApplication
@@ -25,7 +26,7 @@ export function useApplicationDelete() {
             return true;
         } catch (e) {
             console.error('[useApplicationDelete] delete failed:', e);
-            showError(e?.message || 'Could not delete the application.');
+            showError(plainErrorMessage(e, 'Could not delete the application.'));
             return false;
         } finally {
             setDeleting(false);

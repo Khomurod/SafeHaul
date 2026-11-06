@@ -12,6 +12,7 @@ import {
     Badge,
     Button,
     FormField,
+    IconButton,
     Input,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -280,20 +281,20 @@ export function buildProviderColumns({
                         {anyConfigured && firstField && (() => {
                             const target = provider.credentialFields.find((f) => f.configured) || firstField;
                             return (
-                                <Button
+                                <IconButton
                                     size="sm"
-                                    variant="danger"
-                                    // Named for the credential it deletes. A table
-                                    // of identical "Delete" buttons is unusable
-                                    // with a screen reader.
-                                    aria-label={`Delete ${provider.displayName} ${target.label}`}
+                                    variant="ghost"
+                                    // The one look of a row delete. Named for the
+                                    // credential it deletes: a table of identical
+                                    // "Delete" buttons is unusable with a screen reader.
+                                    label={`Delete ${provider.displayName} ${target.label}`}
                                     onClick={() => {
                                         setDeleteError(null);
                                         setDeleteTarget({ provider, field: target, kind: 'ai' });
                                     }}
                                 >
-                                    <Icon icon={Trash2} size="sm" /> Delete
-                                </Button>
+                                    <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                                </IconButton>
                             );
                         })()}
                     </div>

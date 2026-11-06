@@ -50,7 +50,7 @@ export function useRecordSigningRequests({ companyId, recordId, collectionName }
             setForms({ list: normalizePostApplicationTemplates(raw), loaded: true, error: null });
         }, (err) => {
             console.error('[useRecordSigningRequests] Could not load post-application forms:', err);
-            if (current) setForms({ list: [], loaded: true, error: 'Could not load the company\'s post-application forms.' });
+            if (current) setForms({ list: [], loaded: true, error: 'Could not load the company\'s after-application forms.' });
         });
         return () => { current = false; };
     }, [companyId, isApplication]);

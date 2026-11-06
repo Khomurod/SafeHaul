@@ -176,7 +176,7 @@ describe('CompanySettings shell', () => {
 
     it('leaves the page heading to each section: one level-1 heading wherever you are', () => {
         renderSettings();
-        const labels = ['Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile'];
+        const labels = ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile'];
         for (const label of labels) {
             fireEvent.click(screen.getByRole('button', { name: label }));
             expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
@@ -194,7 +194,7 @@ describe('CompanySettings shell', () => {
         renderSettings();
 
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
-        const application = screen.getByRole('button', { name: 'Application form' });
+        const application = screen.getByRole('button', { name: 'Application questions' });
         const myProfile = screen.getByRole('button', { name: 'My profile' });
 
         companyProfile.focus();
@@ -344,7 +344,7 @@ describe('Settings on a phone', () => {
         expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
-        for (const label of ['Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
+        for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
         expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();

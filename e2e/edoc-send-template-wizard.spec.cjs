@@ -22,7 +22,7 @@ function wizard(page) {
 
 async function openWizard(page) {
   await page.goto(URL);
-  await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeVisible({ timeout: 20_000 });
   await page.getByRole('tab', { name: /^Templates/ }).click();
   await expect(page.getByText('E2E Test Document')).toBeVisible();
   await page.getByRole('button', { name: 'Send E2E Test Document' }).click();

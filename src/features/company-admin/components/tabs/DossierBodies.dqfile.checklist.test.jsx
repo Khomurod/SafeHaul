@@ -276,13 +276,15 @@ describe('DQFileTab — the date on a record', () => {
 
     it('says why when it cannot save, and keeps the editor open', async () => {
         fs.getDocs.mockResolvedValue(snap([['f1', MEDICAL]]));
-        fs.updateDoc.mockRejectedValue(new Error('permission-denied'));
+        fs.updateDoc.mockRejectedValue(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }));
         renderDq();
 
         fireEvent.click(await screen.findByRole('button', { name: /^Set the valid-until date of Medical Card/ }));
         fireEvent.click(screen.getByRole('button', { name: 'Save date' }));
 
-        expect(await screen.findByText('Could not save the date: permission-denied')).toBeInTheDocument();
+        expect(await screen.findByText(
+            'The date could not be saved. You do not have permission to do this. If you think you should, ask your company admin.',
+        )).toBeInTheDocument();
         expect(screen.getByLabelText('Valid until')).toBeInTheDocument();
         expect(logActivity).not.toHaveBeenCalled();
     });

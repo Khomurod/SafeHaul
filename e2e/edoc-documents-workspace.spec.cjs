@@ -16,7 +16,7 @@ const URL = '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock';
 
 async function openDocuments(page) {
   await page.goto(URL);
-  await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('tablist', { name: 'Documents workspace views' })).toBeVisible();
 }
 

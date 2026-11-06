@@ -32,18 +32,38 @@ export const OPEN_STATUSES = Object.freeze(['sent', 'opened']);
 export const AWAITING_STATUSES = Object.freeze([...OPEN_STATUSES, 'processing', 'pending_seal']);
 
 /**
+ * What each stored status is called on screen, in the filter, the history's
+ * badge and the details dialog alike. `opened` (older documents) is still
+ * awaiting a signature.
+ */
+export const STATUS_NAMES = Object.freeze({
+    sent: 'Awaiting signature',
+    opened: 'Awaiting signature',
+    processing: 'Processing',
+    signed: 'Signed',
+    pending_seal: 'Sealing',
+    error_sealing: 'Seal failed',
+    voided: 'Voided',
+});
+
+/**
  * Status filter options. Values are the stored `status` values, unchanged, and
  * `expired`, a document awaiting signature whose link ran out (`isLinkExpired`).
  */
 export const STATUS_FILTERS = Object.freeze([
     { value: 'all', label: 'All statuses' },
-    { value: 'sent', label: 'Awaiting signature' },
+    { value: 'sent', label: STATUS_NAMES.sent },
     { value: 'expired', label: 'Link expired' },
-    { value: 'signed', label: 'Signed' },
-    { value: 'pending_seal', label: 'Sealing' },
-    { value: 'error_sealing', label: 'Seal failed' },
-    { value: 'voided', label: 'Voided' },
+    { value: 'signed', label: STATUS_NAMES.signed },
+    { value: 'pending_seal', label: STATUS_NAMES.pending_seal },
+    { value: 'error_sealing', label: STATUS_NAMES.error_sealing },
+    { value: 'voided', label: STATUS_NAMES.voided },
 ]);
+
+/** A stored status's name on screen, or the value as stored when it has none. */
+export function statusLabel(status) {
+    return Object.hasOwn(STATUS_NAMES, status) ? STATUS_NAMES[status] : status;
+}
 
 /**
  * Delivery filter options. The values are the exact stored `deliveryMethod`

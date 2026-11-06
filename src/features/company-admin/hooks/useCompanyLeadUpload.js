@@ -9,6 +9,7 @@ import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 import { matchExistingLeads } from './leadImportMatches';
 import { useAssignableTeam } from './useAssignableTeam';
 import { noticeImportAssignments } from './importAssignmentNotices';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Firestore-backed bulk lead import for a company.
@@ -131,7 +132,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
 
         } catch (error) {
             console.error("Repair Failed:", error);
-            notifyError("Repair failed: " + error.message);
+            notifyError(plainErrorMessage(error, 'The records could not be repaired.'));
             setUploading(false);
         }
     };
@@ -308,7 +309,8 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
 
         } catch (err) {
             console.error("Batch Upload Error:", err);
-            throw new Error(err.message || "Upload failed. Check permissions.");
+            // As it was thrown: the page turns it into a sentence for the person.
+            throw err;
         } finally {
             // One bell notification per recruiter, not one per lead.
             await noticeImportAssignments(companyId, assignedCounts, currentUser.uid);

@@ -66,7 +66,7 @@ function pipelineConstraints({ activeTab, pipelineSegment }) {
 /**
  * The assignees a list asks for, once each (`listAssignees`): the signed-in
  * recruiter on Assigned to me, nobody ('') on Unassigned, else the Assigned to
- * pick and, on Applications with Only mine, the signed-in recruiter.
+ * pick and, on Applications with Assigned to me, the signed-in recruiter.
  */
 function wantedAssignees({ activeTab, filters }) {
     return listAssignees({ activeTab, filters, currentUid: auth.currentUser?.uid })

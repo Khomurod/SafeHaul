@@ -108,6 +108,14 @@ describe('template card', () => {
         }
     });
 
+    it('makes Delete a quiet icon button, not a solid red one on every card', () => {
+        renderPanel();
+        const remove = screen.getByRole('button', { name: 'Delete Artificial Offer Letter' });
+        expect(remove).toHaveAttribute('data-variant', 'ghost');
+        expect(remove).toHaveClass('ds-icon-button');
+        expect(remove).not.toHaveTextContent('Delete');
+    });
+
     it('makes Send the primary action', () => {
         renderPanel();
         expect(screen.getByRole('button', { name: 'Send Artificial Offer Letter' })).toHaveAttribute(

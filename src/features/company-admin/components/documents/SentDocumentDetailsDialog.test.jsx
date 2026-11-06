@@ -59,7 +59,7 @@ describe('SentDocumentDetailsDialog — content', () => {
         expect(within(dialog).getByText('555-0142')).toBeInTheDocument();
         expect(within(dialog).getByText('Email + SMS')).toBeInTheDocument();
         expect(within(dialog).getByText(new Date(1700000000 * 1000).toLocaleDateString())).toBeInTheDocument();
-        expect(within(dialog).getByText('sent')).toBeInTheDocument();
+        expect(within(dialog).getByText('Awaiting signature')).toBeInTheDocument();
     });
 
     it('uses the Untitled fallback and em dashes for missing values', () => {
@@ -234,7 +234,7 @@ describe('SentDocumentDetailsDialog — a link that ran out, and Remind', () => 
         renderDialog(makeDoc({ sendEmail: true }), { onRemind: vi.fn() });
         const dialog = screen.getByRole('dialog');
         expect(within(dialog).getByRole('button', { name: 'Remind' })).toBeInTheDocument();
-        expect(statusRow(dialog)).toHaveTextContent(/^Statussent$/);
+        expect(statusRow(dialog)).toHaveTextContent(/^StatusAwaiting signature$/);
         expect(within(dialog).queryByRole('status')).not.toBeInTheDocument();
     });
 
@@ -565,7 +565,8 @@ describe('SentDocumentDetailsDialog — an open document whose send failed', () 
 describe('SentDocumentDetailsDialog — who voided it', () => {
     it('says when a voided document was voided, and by whom', () => {
         renderDialog(makeDoc({ status: 'voided', voidedAt: { seconds: 1700500000 }, voidedBy: 'user-1', voidedByName: 'Dana Admin' }));
-        const row = within(screen.getByRole('dialog')).getByText('Voided').closest('div');
+        // The row's label, not the status badge, which reads Voided too.
+        const row = within(screen.getByRole('dialog')).getByText('Voided', { selector: 'dt' }).closest('div');
         expect(row).toHaveTextContent(`${new Date(1700500000 * 1000).toLocaleDateString()} by Dana Admin`);
     });
 

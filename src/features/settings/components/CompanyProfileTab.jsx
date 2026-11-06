@@ -10,6 +10,7 @@ import { useUnsavedChanges } from '@/design-system/patterns';
 import { CompanyInfoSection } from './profile';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // The Company Information fields, which "Edit Profile" opens and Cancel puts back.
 const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
@@ -73,7 +74,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
             setIsEditing(false);
         } catch (error) {
             console.error("Save failed", error);
-            showError("Failed to save settings: " + error.message);
+            showError(plainErrorMessage(error, 'The company settings could not be saved.'));
         } finally {
             setLoading(false);
         }
@@ -91,7 +92,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
             showSuccess("Logo uploaded successfully!");
         } catch (error) {
             console.error("Logo failed", error);
-            showError("Logo upload failed: " + error.message);
+            showError(plainErrorMessage(error, 'The logo could not be uploaded.'));
         } finally {
             setLogoUploading(false);
         }

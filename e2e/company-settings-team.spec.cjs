@@ -24,7 +24,7 @@ test.describe('Company Settings → Team', () => {
     await expect(table.getByRole('row')).toHaveCount(4);
     await expect(table.getByText('Company admin')).toBeVisible();
     await expect(table.getByText('No sign-in account')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Copy recruiting link for Artificial Admin' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy personal link for Artificial Admin' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Daily goals for Artificial Admin' })).toBeVisible();
   });
 

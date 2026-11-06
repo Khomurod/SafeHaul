@@ -217,7 +217,7 @@ export function leadStatusMatchesSegment(rawStatus, segmentId) {
  * to me asks for the signed-in recruiter and Unassigned for nobody, and nothing
  * else: neither shows the Assigned to filter, so a pick carried over from
  * another list is not applied there. Every other list asks for the Assigned to
- * pick, and Applications with Only mine for the signed-in recruiter as well.
+ * pick, and Applications with Assigned to me for the signed-in recruiter as well.
  * Two different assignees match no record.
  */
 export function listAssignees({ activeTab, filters = {}, currentUid = null }) {

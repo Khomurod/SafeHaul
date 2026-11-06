@@ -32,7 +32,7 @@ function settingsGroups(profile) {
             label: 'Company',
             items: [
                 { id: 'company', label: 'Company profile', icon: Building },
-                { id: 'application', label: 'Application form', icon: ClipboardList },
+                { id: 'application', label: 'Application questions', icon: ClipboardList },
                 { id: 'team', label: 'Team', icon: Users },
             ],
         },

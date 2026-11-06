@@ -12,6 +12,7 @@ import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPan
 import { AgreementsPanel } from './rules/AgreementsPanel';
 import { withoutBlankOptions } from '@/config/customQuestionOptions';
 import { isCompanyAdminForRoute, isSuperAdminClaims } from '@app/auth/roles';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 const TABS = [
     { id: 'questions', label: 'Questions', icon: ListChecks },
@@ -46,7 +47,7 @@ const FIELDS = ['applicationConfig', 'customQuestions', 'applicationRules', 'app
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
- * Settings → Application form: what drivers are asked, what happens to their
+ * Settings → Application questions: what drivers are asked, what happens to their
  * answers, the agreements they sign, and optional imports. Questions, Rules and
  * Integrations are edited together and saved with one `SaveBar` through
  * `saveCompanySettings`, which writes only the parts changed here. Agreements save
@@ -117,7 +118,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
             showSuccess('Company settings saved successfully.');
         } catch (error) {
             console.error('Save failed', error);
-            showError('Failed to save settings: ' + error.message);
+            showError(plainErrorMessage(error, 'The application questions could not be saved.'));
         } finally {
             setSaving(false);
         }
@@ -128,11 +129,11 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
     return (
         <Stack gap="lg">
             <PageHeader
-                title="Application form"
+                title="Application questions"
                 description="What drivers are asked, what happens to their answers, and the agreements they sign."
             />
             <TabList
-                ariaLabel="Application form sections"
+                ariaLabel="Application questions sections"
                 idBase="application-form"
                 tabs={TABS}
                 activeTab={activeTab}
@@ -167,7 +168,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
             </TabPanel>
             {dirty && (
                 <SaveBar
-                    summary={`${changedParts.join(', ') || 'Application form'} changed`}
+                    summary={`${changedParts.join(', ') || 'Application questions'} changed`}
                     saving={saving}
                     onSave={handleSave}
                     onDiscard={discard}

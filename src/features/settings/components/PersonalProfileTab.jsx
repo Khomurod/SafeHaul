@@ -1,9 +1,9 @@
 // src/features/settings/components/PersonalProfileTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from '@lib/firebase';
 import { forgetPortalUser } from '@features/auth/services/userService';
-import { Icon, Save, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
+import { Icon, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
 import {
     Button,
     Card,
@@ -14,21 +14,40 @@ import {
     Notice,
 } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
+import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { useToast } from '@shared/components/feedback';
 import { recruiterCodeFor } from '../services/recruiterLinkCode';
+import { saveBarSummary } from '../utils/saveBarSummary';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
+/**
+ * Settings → My profile: the signed-in member's name and their recruiting
+ * link. A changed name stays on the page until the save bar's Save, which
+ * writes only `users/{uid}.name`; the company shell's leave guard watches it.
+ */
 export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
-    const [personalData, setPersonalData] = useState({ name: '' });
+    const [savedName, setSavedName] = useState('');
+    const [name, setName] = useState('');
     const [recruitingCode, setRecruitingCode] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(null);
     const [linkLoading, setLinkLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+
+    const dirty = name !== savedName;
+    useUnsavedChanges(dirty);
+    // What the field and the saved name are now, for a read that finishes later.
+    const nameState = useRef({ name, savedName });
+    nameState.current = { name, savedName };
+    // A failure is about a change that is no longer there once the page is clean.
+    if (!dirty && saveError) setSaveError(null);
 
     // FIX: Use Env var if present, otherwise fallback to current origin (robust for MVP)
     const appBaseUrl = import.meta.env.VITE_DRIVER_APP_URL || window.location.origin;
 
     const companyId = currentCompanyProfile?.id;
+    const uid = currentUser?.uid;
 
     useEffect(() => {
         // A company switch while the page is open asks again: a code made for
@@ -37,45 +56,57 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         setRecruitingCode(null);
         setLinkLoading(true);
         const fetchUserAndCode = async () => {
-            if (!currentUser?.uid) {
+            if (!uid) {
                 setLinkLoading(false);
                 return;
             }
             try {
-                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                const userDoc = await getDoc(doc(db, "users", uid));
                 if (!current || !userDoc.exists()) return;
                 const data = userDoc.data();
-                setPersonalData({ name: data.name || '' });
+                // A name being typed stays, still unsaved, when the read is a repeat.
+                const typed = nameState.current;
+                setSavedName(data.name || '');
+                if (typed.name === typed.savedName) setName(data.name || '');
 
                 const savedCode = data.recruitingCode;
-                const code = companyId ? await recruiterCodeFor(currentUser.uid, companyId, savedCode) : null;
-                if (code && code !== savedCode) forgetPortalUser(currentUser.uid);
+                const code = companyId ? await recruiterCodeFor(uid, companyId, savedCode) : null;
+                if (code && code !== savedCode) forgetPortalUser(uid);
                 if (current) setRecruitingCode(code);
             } catch (err) {
                 console.error("Error generating link:", err);
-                if (current) showError("Could not generate tracking link.");
+                if (current) showError("Could not generate your personal link.");
             } finally {
                 if (current) setLinkLoading(false);
             }
         };
         fetchUserAndCode();
         return () => { current = false; };
-    }, [currentUser, companyId, showError]);
+    }, [uid, companyId, showError]);
 
     const handleSavePersonal = async () => {
-        setLoading(true);
+        const sent = name;
+        setSaving(true);
+        setSaveError(null);
         try {
             const userRef = doc(db, "users", currentUser.uid);
-            await updateDoc(userRef, { name: personalData.name });
+            await updateDoc(userRef, { name: sent });
             // The next screen to show the name reads it again.
             forgetPortalUser(currentUser.uid);
+            // A name typed while the save was on its way stays, still unsaved.
+            setSavedName(sent);
             showSuccess('Personal profile updated successfully.');
         } catch (error) {
             console.error("User save failed", error);
-            showError("Failed to update profile.");
+            setSaveError(plainErrorMessage(error, 'Your profile could not be saved.'));
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
+    };
+
+    const discard = () => {
+        setName(savedName);
+        setSaveError(null);
     };
 
     // Construct the link
@@ -97,7 +128,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
             return;
         }
         setCopied(true);
-        showSuccess("Short link copied!");
+        showSuccess("Personal link copied!");
         setTimeout(() => setCopied(false), 2000);
     };
 
@@ -130,7 +161,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                                 id="personal-recruiting-link-title"
                                 className="text-ds-heading-sm font-bold mb-1 text-ds-status-info-fg"
                             >
-                                Your Short Recruiting Link
+                                Your personal link
                             </h2>
 
                             <p className="text-ds-sm text-ds-status-info-fg mb-4">
@@ -182,8 +213,8 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                     <FormField id="personal-profile-name" label="Full Name">
                         <Input
                             type="text"
-                            value={personalData.name}
-                            onChange={(e) => setPersonalData({ ...personalData, name: e.target.value })}
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
                         />
                     </FormField>
 
@@ -198,18 +229,17 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                             readOnly
                         />
                     </FormField>
-
-                    <div className="flex justify-end pt-2">
-                        <Button
-                            variant="primary"
-                            onClick={handleSavePersonal}
-                            loading={loading}
-                        >
-                            {!loading && <Icon icon={Save} size="lg" />}
-                            Update Profile
-                        </Button>
-                    </div>
                 </FormSection>
+
+                {dirty && (
+                    <SaveBar
+                        summary={saveBarSummary(['Full Name'])}
+                        saving={saving}
+                        error={saveError}
+                        onSave={handleSavePersonal}
+                        onDiscard={discard}
+                    />
+                )}
             </Stack>
         </div>
     );

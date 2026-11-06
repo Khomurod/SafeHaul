@@ -261,6 +261,21 @@ describe('CampaignDetails — callables & outcomes', () => {
         consoleError.mockRestore();
     });
 
+    it("reports a pause the server failed inside in a plain sentence, never the server's raw text", async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        callables.pauseBulkSession.mockRejectedValueOnce(Object.assign(
+            new Error('7 PERMISSION_DENIED: Missing or insufficient permissions.'),
+            { code: 'functions/internal' },
+        ));
+        renderDetails();
+        fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+            'The campaign could not be paused. Please try again. If it keeps happening, contact support.',
+        ));
+        consoleError.mockRestore();
+    });
+
     it('reports a pause error via the toast', async () => {
         callables.pauseBulkSession.mockRejectedValueOnce(new Error('pause failed'));
         const { onClose } = renderDetails();

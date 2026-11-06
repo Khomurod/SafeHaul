@@ -109,7 +109,7 @@ test.describe('Applications search and pipeline filters', () => {
 
     // No match: clear empty state, not an error.
     await searchFor(page, 'zzz-no-such-driver');
-    await expect(page.getByText('No records found.')).toBeVisible();
+    await expect(page.getByText('No applications match your search or filters')).toBeVisible();
 
     // Clearing the search restores the full list.
     await searchFor(page, '');
@@ -143,26 +143,26 @@ test.describe('Applications search and pipeline filters', () => {
 
     // Aisha exists but is Hired — search inside the New tab must exclude her.
     await searchFor(page, 'aisha');
-    await expect(page.getByText('No records found.')).toBeVisible();
+    await expect(page.getByText('No applications match your search or filters')).toBeVisible();
   });
 
-  test('Only mine combines with search and tabs', async ({ page }) => {
+  test('Assigned to me combines with search and tabs', async ({ page }) => {
     await openApplications(page);
 
-    await page.getByRole('switch', { name: 'Only mine' }).click();
+    await page.getByRole('switch', { name: 'Assigned to me' }).click();
     // Maria + Aisha are assigned to the e2e admin.
     await expect(listCount(page, 2)).toBeVisible();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
 
-    // Only mine + New tab -> only Maria.
+    // Assigned to me + New tab -> only Maria.
     await page.getByRole('button', { name: 'New', exact: true }).click();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(listCount(page, 1)).toBeVisible();
 
-    // Only mine + New + search for someone not assigned -> empty.
+    // Assigned to me + New + search for someone not assigned -> empty.
     await searchFor(page, 'james');
-    await expect(page.getByText('No records found.')).toBeVisible();
+    await expect(page.getByText('No applications match your search or filters')).toBeVisible();
   });
 
   test('the State filter picks a state by name and finds its applications', async ({ page }) => {

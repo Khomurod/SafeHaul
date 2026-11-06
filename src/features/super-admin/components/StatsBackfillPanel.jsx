@@ -6,6 +6,7 @@ import { Button, Card, DataTable, FormField, Input, Notice } from '@/design-syst
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useFocusAfterRun } from '../hooks/useFocusAfterRun';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Performance-stats backfill, a card on the Maintenance page.
@@ -106,7 +107,7 @@ export default function StatsBackfillPanel() {
             setResult(response.data);
         } catch (err) {
             console.error('Backfill error:', err);
-            setError(err.message || 'Failed to run backfill');
+            setError(plainErrorMessage(err, 'The backfill could not run.'));
         } finally {
             setLoading(false);
         }
@@ -134,7 +135,7 @@ export default function StatsBackfillPanel() {
             setResult(response.data);
         } catch (err) {
             console.error('Backfill All error:', err);
-            setError(err.message || 'Failed to run backfill');
+            setError(plainErrorMessage(err, 'The backfill could not run.'));
         } finally {
             setLoading(false);
         }

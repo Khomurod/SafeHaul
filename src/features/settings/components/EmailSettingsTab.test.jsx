@@ -1,7 +1,8 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { browserWouldAsk, renderWithLeaveGuard } from './leaveGuard.support';
 
 // Obviously-artificial credential used only to exercise the payload contract.
 // It is not a real secret and must never be treated as one.
@@ -18,13 +19,16 @@ const toastMocks = vi.hoisted(() => ({
     showSuccess: vi.fn(),
 }));
 
+const companyMocks = vi.hoisted(() => ({ saveCompanySettings: vi.fn(), getDoc: vi.fn() }));
+
 vi.mock('firebase/functions', () => ({
     // Dispatch by callable name so tests can assert the exact callable used.
     httpsCallable: (_functions, name) => callableMocks[name],
 }));
 vi.mock('@lib/firebase', () => ({ functions: {}, db: {} }));
-// The verification copies section reads the company document when it opens.
-vi.mock('firebase/firestore', () => ({ doc: () => 'company', getDoc: () => Promise.resolve({ exists: () => false }) }));
+// The verification copies are read from the company document when the page opens.
+vi.mock('firebase/firestore', () => ({ doc: (_db, ...parts) => parts.join('/'), getDoc: (...args) => companyMocks.getDoc(...args) }));
+vi.mock('@features/companies', () => ({ saveCompanySettings: companyMocks.saveCompanySettings }));
 vi.mock('@shared/components/feedback', () => ({
     useToast: () => toastMocks,
 }));
@@ -50,13 +54,18 @@ function metaResponse(overrides = {}) {
     };
 }
 
+/** A callable failure as the web SDK reports it: `functions/<code>` and the server's message. */
+const callableFailure = (code, message) => Object.assign(new Error(message), { code: `functions/${code}` });
+
 const host = () => screen.getByRole('textbox', { name: /SMTP Host/i });
 const user = () => screen.getByRole('textbox', { name: /SMTP Username/i });
 const port = () => screen.getByRole('spinbutton', { name: /SMTP Port/i });
 const password = () => screen.getByLabelText(/SMTP Password/i);
 const signature = () => screen.getByRole('textbox', { name: /Default Signature/i });
-const saveButton = () => screen.getByRole('button', { name: 'Save Settings' });
+const copies = () => screen.getByRole('textbox', { name: /CC addresses/i });
 const testButton = () => screen.getByRole('button', { name: 'Test Connection' });
+const saveBar = () => screen.queryByRole('region', { name: 'Unsaved changes' });
+const barButton = (name) => within(saveBar()).getByRole('button', { name });
 
 async function renderLoaded(props = {}) {
     const result = render(<EmailSettingsTab currentCompanyProfile={COMPANY} {...props} />);
@@ -64,17 +73,16 @@ async function renderLoaded(props = {}) {
     return result;
 }
 
-describe('EmailSettingsTab — metadata load', () => {
-    beforeEach(() => {
-        callableMocks.getEmailSettingsMeta.mockReset();
-        callableMocks.testEmailConnection.mockReset();
-        callableMocks.saveEmailSettings.mockReset();
-        toastMocks.showError.mockReset();
-        toastMocks.showSuccess.mockReset();
-        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse());
-        callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true } });
-    });
+beforeEach(() => {
+    // Every test starts from the same defaults, with no queued answer left over.
+    vi.resetAllMocks();
+    callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse());
+    callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true } });
+    companyMocks.getDoc.mockResolvedValue({ exists: () => false });
+    companyMocks.saveCompanySettings.mockResolvedValue({});
+});
 
+describe('EmailSettingsTab — metadata load', () => {
     it('loads via getEmailSettingsMeta with the exact company id request', async () => {
         await renderLoaded();
         expect(callableMocks.getEmailSettingsMeta).toHaveBeenCalledWith({ companyId: 'company-1' });
@@ -88,6 +96,8 @@ describe('EmailSettingsTab — metadata load', () => {
         expect(signature()).toHaveValue('Best regards');
         // Password is never hydrated from the callable response.
         expect(password()).toHaveValue('');
+        // Nothing is changed yet, so there is nothing to save.
+        expect(saveBar()).toBeNull();
     });
 
     it('reflects hasPassword=true as a saved-password state without a required marker', async () => {
@@ -100,15 +110,13 @@ describe('EmailSettingsTab — metadata load', () => {
             'Password is saved but hidden. Enter new to rotate.',
         );
         expect(password()).toHaveAccessibleDescription(/already saved/i);
-        // With a saved password, save is allowed even with an empty input.
-        expect(saveButton()).toBeEnabled();
+        expect(password()).not.toBeRequired();
     });
 
     it('reflects hasPassword=false as a required first-time password', async () => {
         await renderLoaded();
         expect(password()).toHaveAccessibleDescription(/App Password/i);
-        // No saved password and empty input blocks saving.
-        expect(saveButton()).toBeDisabled();
+        expect(password()).toBeRequired();
     });
 
     it('shows the verified connection banner only when verified with a user', async () => {
@@ -139,65 +147,111 @@ describe('EmailSettingsTab — metadata load', () => {
     });
 });
 
-describe('EmailSettingsTab — manual save', () => {
-    beforeEach(() => {
-        callableMocks.getEmailSettingsMeta.mockReset();
-        callableMocks.testEmailConnection.mockReset();
-        callableMocks.saveEmailSettings.mockReset();
-        toastMocks.showError.mockReset();
-        toastMocks.showSuccess.mockReset();
-        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse());
-        callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true } });
+describe('EmailSettingsTab — one save bar', () => {
+    it('shows no save bar until something changes, then names what changed', async () => {
+        await renderLoaded();
+        expect(saveBar()).toBeNull();
+        // The page's old buttons are gone: the bar is its one way to save.
+        expect(screen.queryByRole('button', { name: /save/i })).toBeNull();
+
+        fireEvent.change(host(), { target: { value: 'smtp.office365.com' } });
+        expect(saveBar()).toHaveTextContent('1 change · SMTP Host');
+
+        fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com' } });
+        expect(saveBar()).toHaveTextContent('3 changes · SMTP Host, SMTP Password, Verification copies');
+        // The bar names the password field, never what was typed into it.
+        expect(saveBar()).not.toHaveTextContent(FAKE_PASSWORD);
+        expect(screen.getAllByRole('button', { name: /save/i })).toHaveLength(1);
+
+        // Typed back to what is saved: only what still differs is named.
+        fireEvent.change(host(), { target: { value: 'smtp.gmail.com' } });
+        expect(saveBar()).toHaveTextContent('2 changes · SMTP Password, Verification copies');
     });
 
-    it('blocks saving when the host is empty', async () => {
+    it('treats an emptied port as the 587 it shows, and saves 587', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
+        await renderLoaded();
+        fireEvent.change(port(), { target: { value: '' } });
+        expect(port()).toHaveValue(587);
+        expect(saveBar()).toBeNull();
+
+        fireEvent.change(signature(), { target: { value: 'Thanks, Ops' } });
+        fireEvent.click(barButton('Save'));
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.saveEmailSettings.mock.calls[0][0].smtpPort).toBe(587);
+    });
+
+    it('does not count spaces, letter case or a repeat in the CC addresses as a change', async () => {
+        companyMocks.getDoc.mockResolvedValue({ exists: () => true, data: () => ({ pevCcEmails: ['safety@acme.com'] }) });
+        await renderLoaded();
+        await waitFor(() => expect(copies()).toHaveValue('safety@acme.com'));
+        fireEvent.change(copies(), { target: { value: ' Safety@Acme.com, safety@acme.com ' } });
+        expect(saveBar()).toBeNull();
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com, hr@acme.com' } });
+        expect(saveBar()).toHaveTextContent('1 change · Verification copies');
+    });
+
+    it('refuses to save without SMTP Host and Username, and says so', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         await renderLoaded();
         fireEvent.change(host(), { target: { value: '' } });
-        expect(saveButton()).toBeDisabled();
-    });
 
-    it('blocks saving when the username is empty', async () => {
-        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
-        await renderLoaded();
+        fireEvent.click(barButton('Save'));
+
+        expect(within(saveBar()).getByRole('alert')).toHaveTextContent('Please fill in SMTP Host and Username.');
+        fireEvent.change(host(), { target: { value: 'smtp.gmail.com' } });
         fireEvent.change(user(), { target: { value: '' } });
-        expect(saveButton()).toBeDisabled();
+        fireEvent.click(barButton('Save'));
+        expect(within(saveBar()).getByRole('alert')).toHaveTextContent('Please fill in SMTP Host and Username.');
+        expect(callableMocks.saveEmailSettings).not.toHaveBeenCalled();
     });
 
     it('requires a password for first-time setup', async () => {
         await renderLoaded();
-        expect(saveButton()).toBeDisabled();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+
+        fireEvent.click(barButton('Save'));
+        expect(within(saveBar()).getByRole('alert')).toHaveTextContent('Please enter your SMTP password.');
+        expect(callableMocks.saveEmailSettings).not.toHaveBeenCalled();
+
         fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
-        expect(saveButton()).toBeEnabled();
+        fireEvent.click(barButton('Save'));
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.saveEmailSettings.mock.calls[0][0].smtpPass).toBe(FAKE_PASSWORD);
     });
 
     it('saves without sending smtpPass when a password already exists', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks, Ops' } });
 
-        fireEvent.click(saveButton());
+        fireEvent.click(barButton('Save'));
 
-        await waitFor(() => expect(callableMocks.saveEmailSettings).toHaveBeenCalledOnce());
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.saveEmailSettings).toHaveBeenCalledOnce();
         const payload = callableMocks.saveEmailSettings.mock.calls[0][0];
         expect(payload).toEqual({
             companyId: 'company-1',
             smtpHost: 'smtp.gmail.com',
             smtpPort: 587,
             smtpUser: 'ops@acme.com',
-            signature: 'Best regards',
+            signature: 'Thanks, Ops',
         });
         expect(payload).not.toHaveProperty('smtpPass');
         expect(toastMocks.showSuccess).toHaveBeenCalledWith('Email settings saved securely!');
+        // Only the server settings changed, so the company document is not written.
+        expect(companyMocks.saveCompanySettings).not.toHaveBeenCalled();
     });
 
-    it('includes smtpPass only when the user enters a new password', async () => {
+    it('includes smtpPass only when the user enters a new password, then empties the field', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         await renderLoaded();
 
         fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
-        fireEvent.click(saveButton());
+        fireEvent.click(barButton('Save'));
 
-        await waitFor(() => expect(callableMocks.saveEmailSettings).toHaveBeenCalledOnce());
+        await waitFor(() => expect(saveBar()).toBeNull());
         const payload = callableMocks.saveEmailSettings.mock.calls[0][0];
         expect(payload.smtpPass).toBe(FAKE_PASSWORD);
         expect(payload).toMatchObject({
@@ -207,32 +261,79 @@ describe('EmailSettingsTab — manual save', () => {
             smtpUser: 'ops@acme.com',
             signature: 'Best regards',
         });
+        // Saved: the field goes back to saying a password is kept, and holds nothing.
+        expect(password()).toHaveValue('');
+        expect(password()).toHaveAttribute('placeholder', 'Password is saved but hidden. Enter new to rotate.');
     });
 
-    it('surfaces the save-error message and re-enables the action', async () => {
+    it('keeps the edits and the bar, with a plain message, when saving fails', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
-        callableMocks.saveEmailSettings.mockRejectedValueOnce(new Error('offline'));
+        // A server that never answered: the web SDK reports only the code.
+        const failure = callableFailure('internal', 'internal');
+        callableMocks.saveEmailSettings.mockRejectedValueOnce(failure);
         const err = vi.spyOn(console, 'error').mockImplementation(() => {});
         await renderLoaded();
+        fireEvent.change(host(), { target: { value: 'smtp.office365.com' } });
 
-        fireEvent.click(saveButton());
+        fireEvent.click(barButton('Save'));
 
-        await waitFor(() => {
-            expect(toastMocks.showError).toHaveBeenCalledWith('Failed to save email settings.');
-        });
-        expect(saveButton()).toBeEnabled();
+        const alert = await within(saveBar()).findByRole('alert');
+        expect(alert).toHaveTextContent('The email settings could not be saved.');
+        expect(alert).not.toHaveTextContent(/internal/i);
+        expect(err).toHaveBeenCalledWith(expect.any(String), failure);
+        expect(host()).toHaveValue('smtp.office365.com');
+        expect(barButton('Save')).toBeEnabled();
+        expect(toastMocks.showSuccess).not.toHaveBeenCalled();
         err.mockRestore();
     });
 
-    // Save Settings runs no Test Connection, and the server marked every save
-    // verified, so a mistyped server still read "Successfully Linked".
+    it("passes on the server's own sentence when it refused the save", async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
+        callableMocks.saveEmailSettings.mockRejectedValueOnce(
+            callableFailure('resource-exhausted', 'Too many save requests. Please wait a moment.'),
+        );
+        const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+
+        fireEvent.click(barButton('Save'));
+
+        expect(await within(saveBar()).findByRole('alert')).toHaveTextContent('Too many save requests. Please wait a moment.');
+        err.mockRestore();
+    });
+
+    it('never logs the password, whatever fails', async () => {
+        const logged = [
+            vi.spyOn(console, 'error').mockImplementation(() => {}),
+            vi.spyOn(console, 'warn').mockImplementation(() => {}),
+            vi.spyOn(console, 'log').mockImplementation(() => {}),
+        ];
+        callableMocks.saveEmailSettings.mockRejectedValue(callableFailure('internal', 'internal'));
+        callableMocks.testEmailConnection.mockRejectedValueOnce(callableFailure('internal', 'internal'));
+        await renderLoaded();
+        fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
+
+        fireEvent.click(barButton('Save'));
+        await within(saveBar()).findByRole('alert');
+        fireEvent.click(testButton());
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalled());
+
+        const everything = logged.flatMap((spy) => spy.mock.calls.flat()).map((value) => (
+            value instanceof Error ? `${value.message} ${JSON.stringify(value)}` : JSON.stringify(value)
+        )).join('\n');
+        expect(everything).not.toContain(FAKE_PASSWORD);
+        logged.forEach((spy) => spy.mockRestore());
+    });
+
+    // The server checks the connection on every save, and "Successfully Linked" follows its answer.
     it('shows Successfully Linked after a save only when the server connected', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true, verified: true } });
         await renderLoaded();
         expect(screen.queryByText('Successfully Linked')).not.toBeInTheDocument();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
 
-        fireEvent.click(saveButton());
+        fireEvent.click(barButton('Save'));
 
         expect(await screen.findByText('Successfully Linked')).toBeInTheDocument();
         expect(toastMocks.showSuccess).toHaveBeenCalledWith('Email settings saved securely!');
@@ -245,45 +346,158 @@ describe('EmailSettingsTab — manual save', () => {
         });
         await renderLoaded();
         expect(screen.getByText('Successfully Linked')).toBeInTheDocument();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
 
-        fireEvent.click(saveButton());
+        fireEvent.click(barButton('Save'));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Settings saved, but the server could not connect with them: Authentication failed. Please check your email and password.',
         );
+        // The settings were saved, so nothing is left to save.
+        expect(saveBar()).toBeNull();
         expect(screen.queryByText('Successfully Linked')).not.toBeInTheDocument();
         expect(toastMocks.showSuccess).not.toHaveBeenCalled();
         expect(toastMocks.showError).toHaveBeenCalledWith('Settings saved, but the connection could not be verified.');
     });
 
-    it('disables the save button with aria-busy while saving', async () => {
+    it('shows Save busy and holds Discard while saving', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         let resolveSave;
         callableMocks.saveEmailSettings.mockImplementation(() => new Promise((resolve) => {
             resolveSave = resolve;
         }));
         await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
 
-        fireEvent.click(saveButton());
+        fireEvent.click(barButton('Save'));
 
-        await waitFor(() => expect(saveButton()).toBeDisabled());
-        expect(saveButton()).toHaveAttribute('aria-busy', 'true');
-        resolveSave({ data: { success: true } });
-        await waitFor(() => expect(saveButton()).toBeEnabled());
+        await waitFor(() => expect(barButton('Save')).toHaveAttribute('aria-busy', 'true'));
+        expect(barButton('Save')).toBeDisabled();
+        expect(barButton('Discard')).toBeDisabled();
+        await act(async () => resolveSave({ data: { success: true } }));
+        await waitFor(() => expect(saveBar()).toBeNull());
+    });
+
+    it('puts every field back on Discard, the password emptied', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true, isVerified: true }));
+        companyMocks.getDoc.mockResolvedValue({ exists: () => true, data: () => ({ pevCcEmails: ['safety@acme.com'] }) });
+        await renderLoaded();
+        await waitFor(() => expect(copies()).toHaveValue('safety@acme.com'));
+
+        fireEvent.change(host(), { target: { value: 'smtp.office365.com' } });
+        fireEvent.change(port(), { target: { value: '465' } });
+        fireEvent.change(user(), { target: { value: 'ops@acme.net' } });
+        fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+        fireEvent.change(copies(), { target: { value: 'hr@acme.com' } });
+        // A changed connection is not the one the server connected with.
+        expect(screen.getByText('Not Connected / Unverified')).toBeInTheDocument();
+        expect(saveBar()).toHaveTextContent('6 changes');
+
+        fireEvent.click(barButton('Discard'));
+
+        expect(saveBar()).toBeNull();
+        expect(host()).toHaveValue('smtp.gmail.com');
+        expect(port()).toHaveValue(587);
+        expect(user()).toHaveValue('ops@acme.com');
+        expect(password()).toHaveValue('');
+        expect(signature()).toHaveValue('Best regards');
+        expect(copies()).toHaveValue('safety@acme.com');
+        expect(screen.getByText('Successfully Linked')).toBeInTheDocument();
+        expect(callableMocks.saveEmailSettings).not.toHaveBeenCalled();
+        expect(companyMocks.saveCompanySettings).not.toHaveBeenCalled();
+    });
+
+    it('asks before a move leaves unsaved settings, and lets a clean page go', async () => {
+        const { leave } = renderWithLeaveGuard(<EmailSettingsTab currentCompanyProfile={COMPANY} />);
+        await screen.findByRole('textbox', { name: /SMTP Host/i });
+
+        expect(browserWouldAsk()).toBe(false);
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        expect(leave).toHaveBeenCalledTimes(1);
+
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com' } });
+        expect(browserWouldAsk()).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+        expect(leave).toHaveBeenCalledTimes(1);
+        expect(copies()).toHaveValue('safety@acme.com');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        fireEvent.click(within(await screen.findByRole('dialog', { name: 'Leave without saving?' }))
+            .getByRole('button', { name: 'Discard changes' }));
+        expect(leave).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('EmailSettingsTab — verification copies in the one Save', () => {
+    it('saves only the copies when only they changed', async () => {
+        await renderLoaded();
+        fireEvent.change(copies(), { target: { value: 'Safety@Acme.com; hr@acme.com' } });
+
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(companyMocks.saveCompanySettings).toHaveBeenCalledWith('company-1', {
+            pevCcEmails: ['safety@acme.com', 'hr@acme.com'],
+        });
+        // The server settings were not changed, so they are not saved (or re-checked).
+        expect(callableMocks.saveEmailSettings).not.toHaveBeenCalled();
+        expect(copies()).toHaveValue('safety@acme.com, hr@acme.com');
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification copies saved.');
+    });
+
+    it('saves the server settings and the copies with the same Save', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
+        await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com' } });
+
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.saveEmailSettings).toHaveBeenCalledOnce();
+        expect(companyMocks.saveCompanySettings).toHaveBeenCalledWith('company-1', { pevCcEmails: ['safety@acme.com'] });
+    });
+
+    it('saves nothing while a CC address is not one, and says which', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
+        await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+        fireEvent.change(copies(), { target: { value: 'ops@acme.com, nope' } });
+
+        fireEvent.click(barButton('Save'));
+
+        expect(copies()).toHaveAccessibleDescription(expect.stringContaining('"nope" is not a valid email address.'));
+        expect(within(saveBar()).getByRole('alert')).toHaveTextContent('Check the CC addresses, then save again.');
+        expect(callableMocks.saveEmailSettings).not.toHaveBeenCalled();
+        expect(companyMocks.saveCompanySettings).not.toHaveBeenCalled();
+    });
+
+    it('keeps only the part that failed in the bar, with a plain message', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
+        const failure = Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
+        companyMocks.saveCompanySettings.mockRejectedValueOnce(failure);
+        const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com' } });
+
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(saveBar()).toHaveTextContent('1 change · Verification copies'));
+        const alert = within(saveBar()).getByRole('alert');
+        expect(alert).toHaveTextContent('The verification copies could not be saved.');
+        expect(alert).not.toHaveTextContent(/insufficient permissions/i);
+        expect(err).toHaveBeenCalledWith(expect.any(String), failure);
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Email settings saved securely!');
+        expect(copies()).toHaveValue('safety@acme.com');
+        err.mockRestore();
     });
 });
 
 describe('EmailSettingsTab — test connection', () => {
-    beforeEach(() => {
-        callableMocks.getEmailSettingsMeta.mockReset();
-        callableMocks.testEmailConnection.mockReset();
-        callableMocks.saveEmailSettings.mockReset();
-        toastMocks.showError.mockReset();
-        toastMocks.showSuccess.mockReset();
-        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse());
-        callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true } });
-    });
-
     it('disables Test Connection until a password is entered', async () => {
         await renderLoaded();
         expect(testButton()).toBeDisabled();
@@ -306,10 +520,11 @@ describe('EmailSettingsTab — test connection', () => {
         });
     });
 
-    it('auto-saves with the plaintext password on a successful test and marks verified', async () => {
+    it('auto-saves with the plaintext password on a successful test, marks verified and clears the bar', async () => {
         callableMocks.testEmailConnection.mockResolvedValue({ data: { success: true } });
         await renderLoaded();
         fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
+        expect(saveBar()).toHaveTextContent('1 change · SMTP Password');
         fireEvent.click(testButton());
 
         await waitFor(() => expect(callableMocks.saveEmailSettings).toHaveBeenCalledOnce());
@@ -323,12 +538,45 @@ describe('EmailSettingsTab — test connection', () => {
         });
         expect(await screen.findByRole('status')).toHaveTextContent('Connection Connected & Saved!');
         expect(toastMocks.showSuccess).toHaveBeenCalledWith('✅ Connection successful and settings saved!');
-        // Verified banner + saved-password indicator update.
+        // Verified banner + saved-password indicator update; the test's save left nothing unsaved.
         expect(screen.getByText('Successfully Linked')).toBeInTheDocument();
+        expect(password()).toHaveValue('');
         expect(password()).toHaveAttribute(
             'placeholder',
             'Password is saved but hidden. Enter new to rotate.',
         );
+        expect(saveBar()).toBeNull();
+    });
+
+    // Test Connection checks what is typed, so it works with unsaved changes;
+    // its save covers the server settings, and other edits wait for Save.
+    it('tests what is typed while other unsaved edits wait in the bar', async () => {
+        callableMocks.testEmailConnection.mockResolvedValue({ data: { success: true } });
+        await renderLoaded();
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com' } });
+        fireEvent.change(host(), { target: { value: 'smtp.office365.com' } });
+        fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
+
+        fireEvent.click(testButton());
+
+        await waitFor(() => expect(saveBar()).toHaveTextContent('1 change · Verification copies'));
+        expect(callableMocks.testEmailConnection.mock.calls[0][0].smtpHost).toBe('smtp.office365.com');
+        expect(companyMocks.saveCompanySettings).not.toHaveBeenCalled();
+    });
+
+    it('holds Test Connection while Save is writing the same settings', async () => {
+        let resolveSave;
+        callableMocks.saveEmailSettings.mockImplementation(() => new Promise((resolve) => { resolveSave = resolve; }));
+        await renderLoaded();
+        fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
+        expect(testButton()).toBeEnabled();
+
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(testButton()).toBeDisabled());
+        await act(async () => resolveSave({ data: { success: true } }));
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.testEmailConnection).not.toHaveBeenCalled();
     });
 
     it('shows a failure alert when the test reports failure and does not auto-save', async () => {
@@ -342,10 +590,13 @@ describe('EmailSettingsTab — test connection', () => {
         });
         expect(screen.getByRole('alert')).toHaveTextContent('Connection Failed');
         expect(callableMocks.saveEmailSettings).not.toHaveBeenCalled();
+        // Nothing was saved, so the typed password still waits in the bar.
+        expect(saveBar()).toHaveTextContent('1 change · SMTP Password');
     });
 
-    it('handles a thrown test-callable exception', async () => {
-        callableMocks.testEmailConnection.mockRejectedValueOnce(new Error('boom'));
+    it('handles a thrown test-callable exception with a plain message', async () => {
+        const failure = callableFailure('internal', 'internal');
+        callableMocks.testEmailConnection.mockRejectedValueOnce(failure);
         const err = vi.spyOn(console, 'error').mockImplementation(() => {});
         await renderLoaded();
         fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
@@ -355,7 +606,8 @@ describe('EmailSettingsTab — test connection', () => {
             expect(toastMocks.showError)
                 .toHaveBeenCalledWith('Connection test failed. Please check your credentials.');
         });
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('The connection could not be tested.');
+        expect(err).toHaveBeenCalledWith(expect.any(String), failure);
         err.mockRestore();
     });
 
@@ -371,25 +623,20 @@ describe('EmailSettingsTab — test connection', () => {
             expect(toastMocks.showError).toHaveBeenCalledWith('Verified but failed to save.');
         });
         expect(screen.getByRole('alert')).toHaveTextContent('Verified but failed to save to database.');
+        // Not saved: the banner does not claim a link, and the change still waits in the bar.
+        expect(screen.queryByText('Successfully Linked')).not.toBeInTheDocument();
+        expect(saveBar()).toBeInTheDocument();
         err.mockRestore();
     });
 });
 
 describe('EmailSettingsTab — presentation and accessibility', () => {
-    beforeEach(() => {
-        callableMocks.getEmailSettingsMeta.mockReset();
-        callableMocks.testEmailConnection.mockReset();
-        callableMocks.saveEmailSettings.mockReset();
-        toastMocks.showError.mockReset();
-        toastMocks.showSuccess.mockReset();
-        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse());
-        callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true } });
-    });
-
-    it('gives Test and Save distinct accessible names', async () => {
+    it("gives Test Connection and the bar's Save distinct accessible names", async () => {
         await renderLoaded();
+        fireEvent.change(password(), { target: { value: FAKE_PASSWORD } });
         expect(testButton()).toBeInTheDocument();
-        expect(saveButton()).toBeInTheDocument();
+        expect(barButton('Save')).toBeInTheDocument();
+        expect(barButton('Discard')).toBeInTheDocument();
     });
 
     it('exposes the setup guide toggle expanded state and safe external links', async () => {
@@ -422,6 +669,14 @@ describe('EmailSettingsTab — presentation and accessibility', () => {
     it('has no structural accessibility violations with the guide expanded', async () => {
         const { container } = await renderLoaded();
         fireEvent.click(screen.getByRole('button', { name: /How to Set Up SMTP/i }));
+        expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('has no accessibility violations with unsaved edits and a refused save', async () => {
+        const { container } = await renderLoaded();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+        fireEvent.click(barButton('Save'));
+        expect(within(saveBar()).getByRole('alert')).toBeInTheDocument();
         expect((await axe(container)).violations).toEqual([]);
     });
 });

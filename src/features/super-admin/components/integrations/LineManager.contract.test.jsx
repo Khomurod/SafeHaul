@@ -163,7 +163,9 @@ describe('LineManager — remove line contract (blocking confirm replaced)', () 
         renderManager();
         fireEvent.click(screen.getByRole('button', { name: 'Remove line +15550001111' }));
         fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove line' }));
-        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('nope'));
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+            'The line could not be removed. Please try again. If it keeps happening, contact support.',
+        ));
     });
 });
 

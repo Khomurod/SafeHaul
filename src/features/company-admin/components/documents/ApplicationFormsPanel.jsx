@@ -62,7 +62,7 @@ export function ApplicationFormsPanel({
 
                     {/* Announce the in-flight save; the Button also reports aria-busy. */}
                     <p role="status" className="ds-visually-hidden">
-                        {savingPostSubmitTemplates ? 'Saving post-application forms…' : ''}
+                        {savingPostSubmitTemplates ? 'Saving after-application forms…' : ''}
                     </p>
 
                     {postSubmitTemplateIds.length === 0 ? (

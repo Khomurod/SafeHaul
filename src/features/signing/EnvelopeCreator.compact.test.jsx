@@ -117,7 +117,7 @@ describe('compact editor layout', () => {
         // The badges are dropped; their content is still announced.
         expect(screen.queryByText('0 pages')).not.toBeInTheDocument();
         expect(screen.getByLabelText('Document title')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Back to Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to E-Docs' })).toBeInTheDocument();
     });
 
     it('counts placed fields and suggestions on the toolbar', async () => {

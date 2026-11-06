@@ -154,11 +154,13 @@ describe('EditUserNameForm — profile save contract', () => {
         expect(await screen.findByText('Error: permission denied')).toBeInTheDocument();
     });
 
-    it('falls back to "Unknown error" when the failure has no message', async () => {
+    it('falls back to a plain sentence when the failure has no message', async () => {
         updateUser.mockRejectedValueOnce(new Error(''));
         renderNameForm();
         fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-        expect(await screen.findByText('Error: Unknown error')).toBeInTheDocument();
+        expect(await screen.findByText(
+            'Error: The profile could not be saved. Please try again. If it keeps happening, contact support.',
+        )).toBeInTheDocument();
     });
 
     it('puts the save outcome in a live region, not colour alone', async () => {
@@ -199,11 +201,16 @@ describe('EditUserNameForm — password reset (blocking dialogs replaced)', () =
     });
 
     it('announces a reset failure with the frozen prefix', async () => {
-        sendPasswordResetEmail.mockRejectedValueOnce(new Error('user-not-found'));
+        sendPasswordResetEmail.mockRejectedValueOnce(Object.assign(
+            new Error('Firebase: Error (auth/user-not-found).'),
+            { code: 'auth/user-not-found' },
+        ));
         renderNameForm();
         fireEvent.click(screen.getByRole('button', { name: /Send Password Reset/ }));
         fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send reset email' }));
-        expect(await screen.findByText('Failed to send reset email: user-not-found')).toBeInTheDocument();
+        expect(await screen.findByText(
+            'The reset email could not be sent. Please try again. If it keeps happening, contact support.',
+        )).toBeInTheDocument();
     });
 
     it('keeps the no-address no-op', async () => {
@@ -250,7 +257,9 @@ describe('EditUserNameForm — delete user (destructive)', () => {
         fireEvent.click(screen.getByRole('button', { name: /Delete User/ }));
         fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete user' }));
 
-        expect(await screen.findByText('Failed to delete user: nope')).toBeInTheDocument();
+        expect(await screen.findByText(
+            'The user could not be deleted. Please try again. If it keeps happening, contact support.',
+        )).toBeInTheDocument();
         expect(onSave).not.toHaveBeenCalled();
     });
 });
@@ -360,8 +369,11 @@ describe('UserMembershipsManager — mutation contracts', () => {
         expect(onDataUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it('announces a role-change failure in place, preserving the two-line wording', async () => {
-        updateMembershipRole.mockRejectedValueOnce(new Error('denied'));
+    it('announces a role-change failure in place, in a plain sentence', async () => {
+        updateMembershipRole.mockRejectedValueOnce(Object.assign(
+            new Error('Missing or insufficient permissions.'),
+            { code: 'permission-denied' },
+        ));
         const alertSpy = vi.fn();
         vi.stubGlobal('alert', alertSpy);
 
@@ -371,7 +383,7 @@ describe('UserMembershipsManager — mutation contracts', () => {
         });
 
         expect(await screen.findByText(
-            /Failed to update role: denied\s+Ensure you are logged in as Super Admin\./,
+            'The role could not be changed. You do not have permission to do this. If you think you should, ask your company admin.',
         )).toBeInTheDocument();
         expect(alertSpy).not.toHaveBeenCalled();
         // Controlled select restores the previous role on failure.

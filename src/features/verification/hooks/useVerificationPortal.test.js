@@ -97,7 +97,10 @@ describe('useVerificationPortal — token-load and submission contract', () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const { result } = renderHook(() => useVerificationPortal('token-abc'));
         await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.error).toBe('offline');
+        // A plain sentence, never the error's own text.
+        expect(result.current.error).toBe(
+            'This verification request could not be loaded. Please try again. If it keeps happening, contact support.',
+        );
         consoleError.mockRestore();
     });
 

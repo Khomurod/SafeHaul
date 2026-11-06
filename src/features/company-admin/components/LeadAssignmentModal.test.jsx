@@ -96,7 +96,7 @@ function openModal(selectedLeadIds = ['lead-1', 'lead-2']) {
 /** The recruiter picker's options once the team is listed (not the placeholder). */
 async function teamOptions() {
     await screen.findByRole('option', { name: 'Ann Baker' });
-    return within(screen.getByRole('combobox', { name: 'Select Recruiter' }))
+    return within(screen.getByRole('combobox', { name: 'Assigned to' }))
         .getAllByRole('option')
         .slice(1)
         .map((option) => [option.value, option.textContent]);
@@ -217,7 +217,7 @@ describe('LeadAssignmentModal — Manual Pick and what an assignment writes', ()
         const { onSuccess, onClose } = openModal(['lead-1', 'lead-2']);
         await teamOptions();
 
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Select Recruiter' }), 'uid-cara');
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Assigned to' }), 'uid-cara');
         await user.click(screen.getByRole('button', { name: 'Confirm Assignment' }));
 
         await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
@@ -249,7 +249,7 @@ describe('LeadAssignmentModal — Manual Pick and what an assignment writes', ()
         const { onClose } = openModal(['lead-1']);
         await teamOptions();
 
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Select Recruiter' }), 'uid-dan');
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Assigned to' }), 'uid-dan');
         await user.click(screen.getByRole('button', { name: 'Confirm Assignment' }));
 
         await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));

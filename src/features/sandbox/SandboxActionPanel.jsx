@@ -6,6 +6,7 @@ import { useData } from '@/context/DataContext';
 import { Icon, Loader2, Trash2, ArrowRightCircle, ShieldAlert } from '@design-system/icons';
 import { Button, Card, FormField, Notice, Select, StatusMedallion } from '@/design-system/components';
 import { isSuperAdminClaims } from '@app/auth/roles';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Post-submit actions for sandbox applications. Delete / transfer require Super Admin (callable enforces).
@@ -47,7 +48,7 @@ export function SandboxActionPanel({
       setCompanies(data?.companies || []);
     } catch (e) {
       console.error(e);
-      setError(e?.message || 'Could not load companies.');
+      setError(plainErrorMessage(e, 'Could not load companies.'));
     } finally {
       setLoadingList(false);
     }
@@ -67,7 +68,7 @@ export function SandboxActionPanel({
       onDeletedRestart?.();
     } catch (e) {
       console.error(e);
-      setError(e?.message || 'Delete failed.');
+      setError(plainErrorMessage(e, 'The application could not be deleted.'));
     } finally {
       setBusy(false);
     }
@@ -90,7 +91,7 @@ export function SandboxActionPanel({
       });
     } catch (e) {
       console.error(e);
-      setError(e?.message || 'Transfer failed.');
+      setError(plainErrorMessage(e, 'The transfer failed.'));
     } finally {
       setBusy(false);
     }

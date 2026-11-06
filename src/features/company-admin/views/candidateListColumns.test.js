@@ -109,7 +109,7 @@ describe('the columns each list shows', () => {
         expect(column('applications', 'identity').width).toBe('lg');
     });
 
-    it('leaves State out of All leads, which also has its selection column, and Recruiter out of Assigned to me and Unassigned', () => {
+    it('leaves State out of All leads, which also has its selection column, and Assigned to out of Assigned to me and Unassigned', () => {
         expect(keys('company_leads')).not.toContain('state');
         expect(keys('company_leads')).toContain('assignee');
         for (const scope of ['my_leads', 'unassigned_leads']) {

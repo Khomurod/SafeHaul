@@ -28,6 +28,7 @@ import { COMPANY_SIGNATURE_MISSING_MESSAGE, fieldsMissingCompanySignature } from
 import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
 import { deliveryFields, createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
 import { normalizePhone } from '@shared/utils/helpers';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** How long the PDF download for "Correct" / "Edit Template" may take: 20 MB at about 1.4 Mbit/s. */
 const PDF_DOWNLOAD_TIMEOUT_MS = 120000;
@@ -436,12 +437,10 @@ export async function saveEnvelope({
             showError(err.message);
             return;
         }
-        console.error('Error saving:', err);
-        // Surface the real reason (e.g. permission-denied, storage/unauthorized,
-        // invalid-argument) instead of a generic message. An opaque "Action failed"
-        // is undebuggable; a precise code/message means this is never a mystery again.
-        const reason = err?.code || err?.message || 'unknown error';
-        showError(`Save failed (${reason}). Please try again or contact support.`);
+        // The code and the database's own words stay in the console for whoever
+        // debugs it; the person reads what failed and what to do.
+        console.error('Error saving:', err?.code, err);
+        showError(plainErrorMessage(err, 'The document could not be saved.'));
     } finally {
         setLoading(false);
     }

@@ -3,7 +3,8 @@
  *
  * Every feature in the app calls this provider, so the public API is the thing
  * most worth freezing. Frozen here: the four `show*` helpers and the severity
- * value each one sends, the default 4000 ms auto-dismiss, manual dismissal, the
+ * value each one sends, the default 4000 ms auto-dismiss of a success or an
+ * information note, the 10 seconds an error or a warning stays, manual dismissal, the
  * `role="alert"` announcement, the `Dismiss notification: {message}` control
  * name, stacking order, and the fact that the surface renders its children
  * untouched.
@@ -13,6 +14,7 @@
  */
 import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -78,6 +80,45 @@ describe('ToastProvider — public API', () => {
         expect(screen.queryByRole('alert')).toBeInTheDocument();
 
         act(() => { vi.advanceTimersByTime(1); });
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('keeps an information note for the same 4000 ms', () => {
+        renderProvider();
+        fireEvent.click(screen.getByRole('button', { name: 'fire info' }));
+
+        act(() => { vi.advanceTimersByTime(3999); });
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+
+        act(() => { vi.advanceTimersByTime(1); });
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    // An error or a warning says what failed and what to do: gone after four
+    // seconds, it was easy to miss.
+    it.each([
+        ['fire error', 'Something broke'],
+        ['fire warning', 'Careful'],
+    ])('%s stays 10 seconds, long enough to read', (trigger, message) => {
+        renderProvider();
+        fireEvent.click(screen.getByRole('button', { name: trigger }));
+
+        act(() => { vi.advanceTimersByTime(9999); });
+        expect(screen.getByRole('alert')).toHaveTextContent(message);
+
+        act(() => { vi.advanceTimersByTime(1); });
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('lets the person close an error from the keyboard before its time is up', async () => {
+        renderProvider();
+        fireEvent.click(screen.getByRole('button', { name: 'fire error' }));
+
+        const dismiss = screen.getByRole('button', { name: 'Dismiss notification: Something broke' });
+        dismiss.focus();
+        expect(dismiss).toHaveFocus();
+        await userEvent.keyboard('{Enter}');
+
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 

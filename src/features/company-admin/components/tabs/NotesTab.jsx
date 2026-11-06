@@ -7,7 +7,7 @@ import { logActivity } from '@shared/utils/activityLogger';
 import { sanitizeUserContent } from '@shared/utils/sanitizeUserContent';
 import { Avatar, Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { EmptyState, LoadingState } from '@design-system/patterns';
+import { EmptyState, ErrorState, LoadingState } from '@design-system/patterns';
 
 /**
  * Internal notes for one application or lead, plus anonymised shared history from
@@ -50,10 +50,13 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  *     marker.
  *  8. `--ds-*` tokens and the approved Lucide icons throughout, not the legacy
  *     palette or a hand-rolled inline `<svg>`.
- *  9. **The loading and empty panels are the approved `LoadingState` and
- *     `EmptyState`**, which is the pattern's own rule: the three states of one
- *     slot look alike, and the empty one is announced when the notes finish
- *     loading instead of appearing silently.
+ *  9. **The loading, empty and error panels are the approved `LoadingState`,
+ *     `EmptyState` and `ErrorState`**, which is the pattern's own rule: the
+ *     three states of one slot look alike, and the empty one is announced when
+ *     the notes finish loading instead of appearing silently.
+ * 10. **A failed read is not "No notes yet."** It says the notes could not be
+ *     loaded and offers Retry, which reads them again; a note being written
+ *     stays in its box.
  */
 /**
  * `refreshKey` changes when a call is logged in the dossier: the notes are read
@@ -67,6 +70,10 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
     const [currentUser, setCurrentUser] = useState(null);
     /** Replaces `alert("Failed to save note.")`. */
     const [sendError, setSendError] = useState('');
+    // The notes could not be read: never shown as an empty list.
+    const [loadFailed, setLoadFailed] = useState(false);
+    // Retry reads the notes again, as a new `refreshKey` does.
+    const [attempt, setAttempt] = useState(0);
 
     const noteFieldId = useId();
     /**
@@ -80,6 +87,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
         let active = true;
         async function init() {
             setLoading(true);
+            setLoadFailed(false);
             // The notes and the writer's name are read side by side. The name
             // settles on its own, so failing to read it leaves the notes on
             // screen, as when it was read after them.
@@ -125,7 +133,16 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                 });
 
                 if (active) setNotes(allNotes);
-
+            } catch (e) {
+                console.error("Error loading notes:", e);
+                // No notes shown is not the same as no notes: what was shown
+                // (perhaps another record's) goes, and the tab says so.
+                if (active) {
+                    setNotes([]);
+                    setLoadFailed(true);
+                }
+            }
+            try {
                 // 4. Get Current User Name for the input form
                 if (writerRead) {
                     const writer = await writerRead;
@@ -133,14 +150,14 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                     if (active) setCurrentUser(writer.profile ? writer.profile.name : 'Admin');
                 }
             } catch (e) {
-                console.error("Error loading notes:", e);
+                console.error("Error loading the writer's name:", e);
             } finally {
                 if (active) setLoading(false);
             }
         }
         init();
         return () => { active = false; };
-    }, [companyId, applicationId, collectionName, sharedHistory, refreshKey]);
+    }, [companyId, applicationId, collectionName, sharedHistory, refreshKey, attempt]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -183,6 +200,63 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
         }
     };
 
+    /** One note: a shared one from a previous company, or the team's own. */
+    const renderNote = (note) => (
+        <article key={note.id} className="flex gap-ds-3">
+            <div className="mt-1 shrink-0">
+                {note.isShared ? (
+                    <span
+                        aria-hidden="true"
+                        className="flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg"
+                    >
+                        <Icon icon={History} size="sm" />
+                    </span>
+                ) : (
+                    <Avatar size="sm" tone="neutral">
+                        {note.author ? note.author.charAt(0).toUpperCase() : 'A'}
+                    </Avatar>
+                )}
+            </div>
+
+            <div
+                className={`flex-1 rounded-ds-md rounded-tl-none border p-ds-3 ${
+                    note.isShared
+                        ? 'border-ds-status-accent-border bg-ds-status-accent-bg'
+                        : 'border-ds-border-subtle bg-ds-surface-subtle'
+                }`}
+            >
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-ds-2">
+                    <div className="flex flex-wrap items-center gap-ds-2">
+                        <span
+                            className={`text-ds-xs font-bold ${
+                                note.isShared ? 'text-ds-status-accent-fg' : 'text-ds-content-secondary'
+                            }`}
+                        >
+                            {note.author || 'Unknown'}
+                        </span>
+                        {note.isShared && (
+                            <Badge tone="accent">Shared History</Badge>
+                        )}
+                        {note.type === 'call_log' && (
+                            <Badge tone="info" icon={Phone}>Call</Badge>
+                        )}
+                    </div>
+                    <span className="flex items-center gap-1 text-ds-xs text-ds-content-secondary">
+                        <Icon icon={Clock} size="xs" />
+                        {note.createdAt?.seconds
+                            ? new Date(note.createdAt.seconds * 1000).toLocaleString()
+                            : new Date(note.createdAt).toLocaleString() !== 'Invalid Date'
+                                ? new Date(note.createdAt).toLocaleString()
+                                : 'Just now'}
+                    </span>
+                </div>
+                <p className="whitespace-pre-wrap break-words text-ds-sm leading-relaxed text-ds-content">
+                    {note.text}
+                </p>
+            </div>
+        </article>
+    );
+
     return (
         <Stack gap="lg">
             {/* Input Area */}
@@ -223,6 +297,22 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
             <Stack gap="md">
                 {loading ? (
                     <LoadingState surface="bare" headingLevel={3} title="Loading notes..." />
+                ) : loadFailed ? (
+                    <>
+                        <ErrorState
+                            surface="bare"
+                            headingLevel={3}
+                            title="Notes could not be loaded."
+                            description="Check your internet connection, then press Retry."
+                            actions={(
+                                <Button variant="secondary" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+                                    Retry
+                                </Button>
+                            )}
+                        />
+                        {/* A note added since is saved: it shows, so no one adds it twice. */}
+                        {notes.map(renderNote)}
+                    </>
                 ) : notes.length === 0 ? (
                     <EmptyState
                         surface="bare"
@@ -231,61 +321,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                         title="No notes yet."
                     />
                 ) : (
-                    notes.map(note => (
-                        <article key={note.id} className="flex gap-ds-3">
-                            <div className="mt-1 shrink-0">
-                                {note.isShared ? (
-                                    <span
-                                        aria-hidden="true"
-                                        className="flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg"
-                                    >
-                                        <Icon icon={History} size="sm" />
-                                    </span>
-                                ) : (
-                                    <Avatar size="sm" tone="neutral">
-                                        {note.author ? note.author.charAt(0).toUpperCase() : 'A'}
-                                    </Avatar>
-                                )}
-                            </div>
-
-                            <div
-                                className={`flex-1 rounded-ds-md rounded-tl-none border p-ds-3 ${
-                                    note.isShared
-                                        ? 'border-ds-status-accent-border bg-ds-status-accent-bg'
-                                        : 'border-ds-border-subtle bg-ds-surface-subtle'
-                                }`}
-                            >
-                                <div className="mb-1 flex flex-wrap items-center justify-between gap-ds-2">
-                                    <div className="flex flex-wrap items-center gap-ds-2">
-                                        <span
-                                            className={`text-ds-xs font-bold ${
-                                                note.isShared ? 'text-ds-status-accent-fg' : 'text-ds-content-secondary'
-                                            }`}
-                                        >
-                                            {note.author || 'Unknown'}
-                                        </span>
-                                        {note.isShared && (
-                                            <Badge tone="accent">Shared History</Badge>
-                                        )}
-                                        {note.type === 'call_log' && (
-                                            <Badge tone="info" icon={Phone}>Call</Badge>
-                                        )}
-                                    </div>
-                                    <span className="flex items-center gap-1 text-ds-xs text-ds-content-secondary">
-                                        <Icon icon={Clock} size="xs" />
-                                        {note.createdAt?.seconds
-                                            ? new Date(note.createdAt.seconds * 1000).toLocaleString()
-                                            : new Date(note.createdAt).toLocaleString() !== 'Invalid Date'
-                                                ? new Date(note.createdAt).toLocaleString()
-                                                : 'Just now'}
-                                    </span>
-                                </div>
-                                <p className="whitespace-pre-wrap break-words text-ds-sm leading-relaxed text-ds-content">
-                                    {note.text}
-                                </p>
-                            </div>
-                        </article>
-                    ))
+                    notes.map(renderNote)
                 )}
             </Stack>
         </Stack>
