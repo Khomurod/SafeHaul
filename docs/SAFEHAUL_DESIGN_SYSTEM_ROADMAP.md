@@ -233,9 +233,10 @@ The reverse directions are prohibited — including any `@shared` import inside
   shape is a case in `Modal.css` with the row here that justifies it.
 - **Confirmations are `ConfirmDialog`**, which routes Escape to `onCancel` — so
   a cancel never destroys anything; a destructive choice gets its own
-  `tone="danger"` confirmation.
-- **No blocking browser dialogs.** `confirm()` and `alert()`, with or without
-  `window.`, are rejected.
+  `tone="danger"` confirmation. A row or card delete is a ghost `IconButton`
+  (`Trash2` in `text-ds-status-danger-fg`, `size="sm"` in a row, labelled
+  `Delete ${name}`), never a solid danger `Button`; a draft item a `SaveBar`
+  saves is removed without asking. Lint rejects any `confirm()` or `alert()`.
 - **A stacking layer has a name.** The application scale is `z-ds-raised` (10) /
   `sticky` (20) / `dropdown` (30) / `drawer-backdrop` (40) / `drawer` (50) /
   `modal` (60) / `toast` (100). `z-ds-layer-1..4` only orders siblings inside
@@ -273,19 +274,17 @@ The reverse directions are prohibited — including any `@shared` import inside
   `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
   Example: the `Patterns/List page` stories; Applications and Leads → Assigned
   to me follow all six; Leads → All and Unassigned scroll on a phone for their
-  bulk checkboxes, and
-  Unfinished applications and E-Docs Sent Documents (its count in the
-  workspace heading) do not sort from headers. Short lists
-  with no toolbar or sorting take the heading, the rows and the cards: Referral
-  Links and Settings → API Keys (row actions in a last column; every settings
+  bulk checkboxes, and Unfinished applications and E-Docs Sent Documents (its
+  count in the workspace heading) do not sort from headers. Short lists with no
+  toolbar or sorting take the heading, the rows and the cards: Referral Links
+  and Settings → API Keys (row actions in a last column; every settings
   section's `PageHeader` is the page's one `<h1>`), and Super Admin's Website
   Leads, Blog Posts and Features (`PageHeader level={2}`, the masthead holding
-  the `<h1>`). AI Logs and Environment & Integrations have the toolbar, rows
-  and cards; no count, as their consoles show totals. Temporary exception:
+  the `<h1>`). AI Logs and Environment & Integrations have the toolbar, rows and
+  cards; no count, as their consoles show totals. Temporary exception:
   `ListToolbar` draws its segments as its own buttons until `SegmentedControl`
-  has an underlined, scrolling appearance with counts.
-  Tablet widths, which the visual contract does not measure, are held by
-  `e2e/list-page-tablet.spec.cjs`.
+  has an underlined, scrolling appearance with counts. Tablet widths, which the
+  visual contract does not measure, are held by `e2e/list-page-tablet.spec.cjs`.
 - **A page that saves on a button shows `SaveBar` only while it is dirty**
   (`patterns/save-bar/README.md`); `useUnsavedChanges` guards reload, and the
   company shell's one "Leave without saving?" covers its menu and top bar.
@@ -532,7 +531,7 @@ it does:
 | Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
 | Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
 | Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |
-| Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS and Application form; Company profile keeps Edit/Save by decision) |
+| Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email, Automated texts and My profile; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
