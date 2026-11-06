@@ -46,9 +46,9 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
     // Offline E2E has no verified connection → the unverified banner shows.
     await expect(region.getByText('Not Connected / Unverified')).toBeVisible();
 
-    // Distinct actions.
+    // Test Connection is always there; nothing is changed yet, so there is nothing to save.
     await expect(region.getByRole('button', { name: 'Test Connection' })).toBeVisible();
-    await expect(region.getByRole('button', { name: 'Save Settings' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Unsaved changes' })).toHaveCount(0);
 
     // Setup-guide disclosure exposes expanded state.
     const guide = region.getByRole('button', { name: /How to Set Up SMTP/i });
@@ -69,6 +69,18 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
     const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const viewportWidth = await page.evaluate(() => window.innerWidth);
     expect(documentWidth).toBeLessThanOrEqual(viewportWidth);
+
+    // One way to save: the bar appears once something changes, with the page's
+    // only Save, and Discard puts the page back.
+    const signature = region.getByRole('textbox', { name: /Default Signature/i });
+    const before = await signature.inputValue();
+    await signature.fill('Best regards, Dispatch');
+    const bar = page.getByRole('region', { name: 'Unsaved changes' });
+    await expect(bar).toContainText('1 change · Signature');
+    await expect(region.getByRole('button', { name: /save/i })).toHaveCount(1);
+    await bar.getByRole('button', { name: 'Discard' }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(signature).toHaveValue(before);
   });
 
   test('keeps tablet layout free of document or nested horizontal overflow', async ({ page }, testInfo) => {
@@ -111,17 +123,23 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openLoadedForm(page);
+    // A change brings the save bar, whose Discard and Save are measured too.
+    await page.getByRole('textbox', { name: /Default Signature/i }).fill('Best regards, Dispatch');
+    await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible();
 
     const geometry = await page.evaluate(() => {
       const section = document.querySelector('[data-testid="email-settings"]');
       const controls = [...section.querySelectorAll('.ds-form-control')];
-      const buttons = [...document.querySelectorAll('button')]
-        .filter((b) => ['Test Connection', 'Save Settings'].includes(b.textContent.trim()));
+      const bar = section.querySelector('[role="region"][aria-label="Unsaved changes"]');
+      const buttons = [...section.querySelectorAll('button')]
+        .filter((b) => ['Test Connection', 'Discard', 'Save'].includes(b.textContent.trim()));
 
       return {
         viewportWidth: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
         sectionRight: Math.round(section.getBoundingClientRect().right),
+        barRight: Math.round(bar.getBoundingClientRect().right),
+        buttonCount: buttons.length,
         minimumControlWidth: Math.min(...controls.map((c) => c.getBoundingClientRect().width)),
         minimumButtonHeight: Math.min(...buttons.map((b) => b.getBoundingClientRect().height)),
       };
@@ -129,6 +147,8 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
 
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
     expect(geometry.sectionRight).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+    expect(geometry.barRight).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+    expect(geometry.buttonCount).toBe(3);
     expect(geometry.minimumControlWidth).toBeGreaterThan(250);
     expect(geometry.minimumButtonHeight).toBeGreaterThanOrEqual(44);
   });
