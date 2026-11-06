@@ -82,7 +82,7 @@ export function CompanyAdminDashboard() {
                                 </Button>
                             )}
                         >
-                            Some dashboard numbers could not load: {statsFetchError}
+                            {statsFetchError}
                         </Notice>
                     )}
                         <ResponsiveGrid minItemWidth="210px">

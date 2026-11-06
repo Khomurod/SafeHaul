@@ -7,6 +7,7 @@ import { serverMessageOf } from '@shared/utils/callableErrors';
 import { Icon, Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from '@design-system/icons';
 import { Button, Card, Input, Notice, SegmentedControl, StatusMedallion } from '@/design-system/components';
 import { isEmployerChange, summarizeEmployerChange } from './employerChangeSummary';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 const MOCK_REVIEW = {
     applicantName: 'Test Driver',
@@ -175,7 +176,8 @@ export function ReviewChangePortal() {
                 });
                 setResolutions(init);
             } catch (e) {
-                if (!cancelled) setError(e?.message || 'This review link is invalid or has expired.');
+                console.error('Review link error:', e);
+                if (!cancelled) setError(plainErrorMessage(e, 'This review link could not be opened.'));
             } finally {
                 if (!cancelled) setLoading(false);
             }

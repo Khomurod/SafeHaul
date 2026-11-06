@@ -395,13 +395,16 @@ describe('TeamManagementTab — row actions', () => {
     });
 
     it('surfaces a remove failure and keeps other rows operable', async () => {
-        fn.deleteFn.mockRejectedValue(new Error('claims sync failed'));
+        // A callable that failed inside: its text is the server's raw error.
+        fn.deleteFn.mockRejectedValue(Object.assign(new Error('claims sync failed'), { code: 'functions/internal' }));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         await renderLoaded();
         fireEvent.click(screen.getByRole('button', { name: 'Remove Artificial One from the team' }));
         fireEvent.click(within(screen.getByRole('dialog', { name: 'Remove team member' })).getByRole('button', { name: 'Remove' }));
 
-        await waitFor(() => expect(fn.showError).toHaveBeenCalledWith('Failed to remove user: claims sync failed'));
+        await waitFor(() => expect(fn.showError).toHaveBeenCalledWith(
+            'Artificial One could not be removed from the team. Please try again. If it keeps happening, contact support.',
+        ));
         expect(screen.getByRole('button', { name: 'Remove Artificial Two from the team' })).toBeEnabled();
         consoleError.mockRestore();
     });

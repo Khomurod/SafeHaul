@@ -303,6 +303,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
     it('preserves save errors and re-enables the save action', async () => {
         serviceMocks.saveCompanySettings.mockRejectedValueOnce(new Error('offline'));
+        // Not the error's own word: a plain sentence.
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderProfile();
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
@@ -310,7 +311,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
         await waitFor(() => {
             expect(toastMocks.showError)
-                .toHaveBeenCalledWith('Failed to save settings: offline');
+                .toHaveBeenCalledWith('The company settings could not be saved. Please try again. If it keeps happening, contact support.');
         });
         expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled();
         consoleError.mockRestore();
@@ -372,7 +373,10 @@ describe('CompanyProfileTab information compatibility slice', () => {
         });
 
         it('preserves the upload failure message and keeps the previous logo', async () => {
-            serviceMocks.uploadCompanyLogo.mockRejectedValueOnce(new Error('storage/unauthorized'));
+            serviceMocks.uploadCompanyLogo.mockRejectedValueOnce(Object.assign(
+                new Error('Firebase Storage: User does not have permission to access the logo. (storage/unauthorized)'),
+                { code: 'storage/unauthorized' },
+            ));
             const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
             const { input } = enterEditAndGetInput();
 
@@ -382,7 +386,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
             await waitFor(() => {
                 expect(toastMocks.showError)
-                    .toHaveBeenCalledWith('Logo upload failed: storage/unauthorized');
+                    .toHaveBeenCalledWith('The logo could not be uploaded. You do not have permission to do this. If you think you should, ask your company admin.');
             });
             expect(serviceMocks.saveCompanySettings).not.toHaveBeenCalled();
             expect(screen.getByRole('img', { name: 'Company logo' }))

@@ -9,6 +9,7 @@ import { useApplicationDetails } from '@features/applications/hooks/useApplicati
 import { useToast } from '@shared/components/feedback';
 import { buildDqChecklist } from '../utils/dqChecklist';
 import { todayUtc } from '../utils/dqExpiry';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 export function useApplicationView(companyId, applicationId, onStatusUpdate) {
     const { showError } = useToast();
@@ -77,7 +78,7 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate) {
                 return;
             }
             console.error('Preserved application PDF unavailable:', e);
-            showError(e.message || 'Could not open the application document. Please try again.');
+            showError(plainErrorMessage(e, 'Could not open the application document.'));
         }
     };
 

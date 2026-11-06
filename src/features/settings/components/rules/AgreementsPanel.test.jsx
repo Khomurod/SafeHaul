@@ -93,8 +93,15 @@ describe('AgreementsPanel', () => {
     });
 
     it('reports a load failure instead of showing nothing', async () => {
-        callableMocks.impl.listCompanyAgreementWording = async () => { throw new Error('permission-denied'); };
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        callableMocks.impl.listCompanyAgreementWording = async () => {
+            throw Object.assign(new Error('permission-denied'), { code: 'functions/permission-denied' });
+        };
         render(<AgreementsPanel companyId="company-1" />);
-        expect(await screen.findByRole('alert')).toHaveTextContent('permission-denied');
+        // A plain sentence, never the bare code.
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'The agreements could not be loaded. You do not have permission to do this. If you think you should, ask your company admin.',
+        );
+        consoleError.mockRestore();
     });
 });

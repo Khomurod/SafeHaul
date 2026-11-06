@@ -8,6 +8,7 @@ import { ConfirmDialog, Modal } from '@design-system/patterns';
 import { Badge, Button, DataTable, IconButton, Notice } from '@/design-system/components';
 import { sendResultOf } from '../constants/campaignConstants';
 import { useCampaignLogs } from '../hooks/useCampaignLogs';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** One row per recipient; the error detail wraps rather than widening the dialog. */
 const REPORT_COLUMNS = [
@@ -104,7 +105,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
             }
         } catch (err) {
             console.error(err);
-            showError(err.message);
+            showError(plainErrorMessage(err, 'The retry could not be started.'));
         } finally {
             setRetrying(false);
         }

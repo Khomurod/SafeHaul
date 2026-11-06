@@ -4,6 +4,7 @@ import { functions } from '@lib/firebase';
 import { normalizeLockedEmployers, reconcileLockedEmployers } from '@/config/applicationLockedFields';
 import { applyExtractedFields } from './applyExtractedFields';
 import { fillEmployersFromFmcsa } from './fillEmployersFromFmcsa';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * One carrier-prepared application, from the recruiter's side.
@@ -271,7 +272,7 @@ export function describeError(error) {
         case 'functions/not-found':
             return 'That application could not be found.';
         default:
-            return error?.message || 'Something went wrong. Please try again.';
+            return plainErrorMessage(error);
     }
 }
 

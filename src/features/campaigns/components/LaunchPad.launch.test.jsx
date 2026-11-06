@@ -351,7 +351,9 @@ describe('LaunchPad — migrated launch flow', () => {
             openConfirm();
             await confirmLaunch();
 
-            expect(toast.showError).toHaveBeenCalledWith('Failed to launch campaign');
+            expect(toast.showError).toHaveBeenCalledWith(
+                'The campaign could not be launched. Please try again. If it keeps happening, contact support.',
+            );
             consoleError.mockRestore();
         });
     });

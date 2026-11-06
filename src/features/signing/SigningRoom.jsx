@@ -37,6 +37,7 @@ import { useIsMobile } from '@shared/hooks';
 import { useToast } from '@shared/components/feedback';
 import { Button, IconButton } from '@/design-system/components';
 import { Icon, CheckCircle, ChevronDown, AlertTriangle, ZoomIn, ZoomOut } from '@design-system/icons';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // Focused fields smaller than this (CSS px) trigger an automatic zoom bump on
 // touch devices — at fit-width on a phone, a 5%-height field is ~18px and
@@ -287,7 +288,7 @@ export default function SigningRoom() {
 
         } catch (e) {
             console.error("Submission Error:", e);
-            showError("Error saving document: " + e.message);
+            showError(plainErrorMessage(e, 'Your document could not be submitted.'));
         } finally {
             setSubmitting(false);
         }

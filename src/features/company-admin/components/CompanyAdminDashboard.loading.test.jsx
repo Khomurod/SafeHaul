@@ -56,7 +56,7 @@ vi.mock('firebase/firestore', () => {
         getCountFromServer: async (q) => {
             fx.reads.push(`count ${q.path}`);
             if (fx.countsGate) await fx.countsGate.promise;
-            if (fx.countsFail) throw new Error('Quota exceeded.');
+            if (fx.countsFail) throw Object.assign(new Error('Quota exceeded.'), { code: 'resource-exhausted' });
             return { data: () => ({ count: 3 }) };
         },
         addDoc: vi.fn(),
@@ -146,7 +146,11 @@ describe('the company dashboard while it loads', () => {
         vi.spyOn(console, 'error').mockImplementation(() => {});
         renderDashboard();
 
-        expect(await screen.findByText(/Some dashboard numbers could not load/)).toBeInTheDocument();
+        expect(await screen.findByText(
+            'Some dashboard numbers could not load. Too many requests right now. Wait a minute, then try again.',
+        )).toBeInTheDocument();
+        // The database's own words stay in the console.
+        expect(screen.queryByText(/Quota exceeded/)).toBeNull();
         for (const label of CARDS) {
             expect(screen.getByRole('button', { name: `${label}: —` })).not.toHaveAttribute('aria-busy');
         }

@@ -200,9 +200,11 @@ describe('useBulkImport — preserved contracts', () => {
             });
         });
 
+        // The parser's own words stay in the console; the person reads what to do.
         await waitFor(() => expect(onError).toHaveBeenCalledWith(
-            'Error reading file: artificial parse error',
+            'Error reading file: The file could not be read. Check that it is a CSV or Excel file laid out like the template, then try again.',
         ));
+        expect(onError).not.toHaveBeenCalledWith(expect.stringContaining('artificial parse error'));
         expect(alertMock).not.toHaveBeenCalled();
         expect(result.current.step).toBe('upload');
     });

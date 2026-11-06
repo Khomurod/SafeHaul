@@ -81,9 +81,11 @@ describe('buildPostApplyDocErrorMessage', () => {
         })).toMatch(/Bank Name/);
     });
 
-    it('falls back to a generic retry message', () => {
+    it('falls back to a generic retry message, never the raw error text', () => {
         expect(buildPostApplyDocErrorMessage({})).toMatch(/try again/i);
-        expect(buildPostApplyDocErrorMessage(new Error('boom'))).toBe('boom');
+        expect(buildPostApplyDocErrorMessage(new Error('boom'))).toBe(
+            'Could not open this form. Please try again. If it keeps happening, contact support.',
+        );
     });
 });
 

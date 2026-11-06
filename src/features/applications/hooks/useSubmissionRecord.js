@@ -27,6 +27,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { presentSubmission } from '@features/applications/services/submissionPresenter';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** The original submission is always sequence 1. */
 const ORIGINAL_SNAPSHOT_ID = 'v1';
@@ -80,7 +81,8 @@ export function useSubmissionRecord(companyId, applicationId) {
                 if (!active) return;
                 // A failed read must never look like a preserved record. Present
                 // the "not preserved" shape and surface the error separately.
-                setError(err?.message || 'Could not load the preserved submission record.');
+                console.error('Preserved submission record not read:', err);
+                setError(plainErrorMessage(err, 'Could not load the preserved submission record.'));
                 setRecord(presentSubmission(null));
             } finally {
                 if (active) setLoading(false);

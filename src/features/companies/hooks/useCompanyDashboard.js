@@ -33,6 +33,7 @@ import {
 } from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** Records on one page of the list. */
 const ITEMS_PER_PAGE = 20;
@@ -198,7 +199,7 @@ export function useCompanyDashboard(companyId, {
             console.error('fetchListTotalCount', e);
             setListTotalCount(0);
             setUndatedCount(0);
-            setListCountError(e?.message || 'Could not load total count.');
+            setListCountError(plainErrorMessage(e, 'The total count could not be loaded.'));
         }
     }, [companyId, activeTab, pipelineSegment, filters, debouncedSearch, hiredPeriod, buildConstraints, clientFilterContext, e2eRecordsForTab]);
 
@@ -305,12 +306,12 @@ export function useCompanyDashboard(companyId, {
             if (fetchVersion !== fetchVersionRef.current) return;
             console.error("Dashboard fetch error:", err);
 
-            if (err.message && err.message.includes('requires an index')) {
-                setError("Missing Index: Please check the browser console for the creation link.");
+            // A missing index is the developers' to fix: its creation link stays
+            // in the console, and the person reads a plain sentence.
+            if (err?.message?.includes('requires an index')) {
                 console.warn("CLICK THIS LINK TO CREATE INDEX:", err);
-            } else {
-                setError(err.message || "Failed to load data.");
             }
+            setError(plainErrorMessage(err, 'The list could not be loaded.'));
         } finally {
             if (fetchVersion === fetchVersionRef.current) {
                 setLoading(false);

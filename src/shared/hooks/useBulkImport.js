@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * How long the Google Sheet request and download may take together. A
@@ -8,6 +9,9 @@ import { useState } from 'react';
 const SHEET_TIMEOUT_MS = 60000;
 const SHEET_TIMEOUT_MESSAGE = `Google Sheets did not answer within ${SHEET_TIMEOUT_MS / 1000} seconds. `
     + 'Try again, or download the sheet and upload the file.';
+
+/** The parser's own words (a CSV or Excel library's) stay in the console. */
+const FILE_UNREADABLE_MESSAGE = 'The file could not be read. Check that it is a CSV or Excel file laid out like the template, then try again.';
 
 /**
  * Shared spreadsheet/Google-Sheet import state machine.
@@ -54,8 +58,8 @@ export function useBulkImport(options = {}) {
                         resolve();
                     } else {
                         console.error("Worker Parse Error:", error);
-                        notifyError("Error reading file: " + error);
-                        reject(new Error(error));
+                        notifyError("Error reading file: " + FILE_UNREADABLE_MESSAGE);
+                        reject(new Error(FILE_UNREADABLE_MESSAGE));
                     }
                     worker.terminate();
                 };
@@ -106,7 +110,9 @@ export function useBulkImport(options = {}) {
             await parseBuffer(arrayBuffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'GoogleSheet.xlsx');
         } catch (error) {
             console.error("Sheet Error:", error);
-            notifyError("Error importing sheet: " + (controller.signal.aborted ? SHEET_TIMEOUT_MESSAGE : error.message));
+            notifyError("Error importing sheet: " + (controller.signal.aborted
+                ? SHEET_TIMEOUT_MESSAGE
+                : plainErrorMessage(error, 'The sheet could not be downloaded.')));
         } finally {
             clearTimeout(timer);
             setProcessingSheet(false);

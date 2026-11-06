@@ -5,6 +5,7 @@ import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
 import { PageHeader, ResponsiveGrid, Stack } from '@/design-system/layouts';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Company Settings "Integrations" tab.
@@ -139,7 +140,7 @@ export function IntegrationsTab({ companyId }) {
 
         } catch (error) {
             console.error(error);
-            showError(error.message || "Failed to connect Facebook Page.");
+            showError(plainErrorMessage(error, 'The Facebook Page could not be connected.'));
         } finally {
             setConnecting(false);
         }

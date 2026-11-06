@@ -211,10 +211,14 @@ describe('ReviewChangePortal', () => {
     });
 
     it('falls back to the generic load error when no message is present', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockCallable.mockImplementationOnce(() => Promise.reject({ code: 'x' }));
         renderPortal();
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('This review link is invalid or has expired.');
+        expect(alert).toHaveTextContent(
+            'This review link could not be opened. Please try again. If it keeps happening, contact support.',
+        );
+        consoleError.mockRestore();
     });
 
     it('falls back to the generic submission error when submit fails with no message', async () => {

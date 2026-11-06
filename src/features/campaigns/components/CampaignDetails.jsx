@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, IconButton, Notice } from '@/design-system/components';
 import { deliveryCheckMessage } from '../constants/campaignConstants';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // Feature-owned domain → visual mapping (design system only knows generic tones).
 // Tones preserve the previous appearance: active=success, completed=info,
@@ -130,7 +131,7 @@ export function CampaignDetails({ campaign, onClose }) {
             }
         } catch (err) {
             console.error(err);
-            showError(err.message);
+            showError(plainErrorMessage(err, 'The retry could not be started.'));
         } finally {
             setRetrying(false);
         }
@@ -144,7 +145,8 @@ export function CampaignDetails({ campaign, onClose }) {
             showSuccess("Campaign paused.");
             onClose();
         } catch (err) {
-            showError(err.message);
+            console.error('Pause failed:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be paused.'));
         } finally {
             setPausing(false);
         }
@@ -162,7 +164,8 @@ export function CampaignDetails({ campaign, onClose }) {
             showSuccess("Campaign resumed.");
             onClose();
         } catch (err) {
-            showError(err.message || 'Failed to resume campaign.');
+            console.error('Resume failed:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be resumed.'));
         } finally {
             setResuming(false);
         }
@@ -179,7 +182,8 @@ export function CampaignDetails({ campaign, onClose }) {
             else showError(message.text);
             setResultsVersion((version) => version + 1);
         } catch (err) {
-            showError(err.message || deliveryCheckMessage().text);
+            console.error('Delivery check failed:', err);
+            showError(plainErrorMessage(err, 'Delivery could not be checked.'));
         } finally {
             setCheckingDelivery(false);
         }
@@ -194,7 +198,8 @@ export function CampaignDetails({ campaign, onClose }) {
             setPendingCancel(false);
             onClose();
         } catch (err) {
-            showError(err.message);
+            console.error('Cancel failed:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be cancelled.'));
         } finally {
             setCancelling(false);
         }

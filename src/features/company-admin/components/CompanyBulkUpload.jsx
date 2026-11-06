@@ -9,6 +9,7 @@ import {
     Button, Card, Checkbox, ChoiceGroup, Radio,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Company lead bulk import.
@@ -88,7 +89,7 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
         try {
             await uploadLeads(csvData, importMethod);
         } catch (error) {
-            reportError(error.message);
+            reportError(plainErrorMessage(error, 'The leads could not be uploaded.'));
         }
     };
 

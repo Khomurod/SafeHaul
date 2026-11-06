@@ -139,13 +139,15 @@ describe('ApplicationFormTab', () => {
     });
 
     it('keeps the edits and the bar when saving fails', async () => {
-        mocks.saveCompanySettings.mockRejectedValue(new Error('offline'));
+        mocks.saveCompanySettings.mockRejectedValue(Object.assign(new Error('Failed to get document because the client is offline.'), { code: 'unavailable' }));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderForm();
         fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
         fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
 
-        await waitFor(() => expect(mocks.showError).toHaveBeenCalledWith('Failed to save settings: offline'));
+        await waitFor(() => expect(mocks.showError).toHaveBeenCalledWith(
+            'The application questions could not be saved. Check your internet connection and try again.',
+        ));
         expect(saveBar()).toBeInTheDocument();
         expect(screen.getByText('Questions: 2')).toBeInTheDocument();
         consoleError.mockRestore();

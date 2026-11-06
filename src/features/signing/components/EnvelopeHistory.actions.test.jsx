@@ -49,19 +49,24 @@ describe('EnvelopeHistory — copy link action', () => {
 
     it('surfaces the callable error message, falling back when absent', async () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-        callables.getSigningLink.mockRejectedValueOnce(new Error('permission denied'));
+        callables.getSigningLink.mockRejectedValueOnce(Object.assign(
+            new Error('Only the sender can copy this link.'),
+            { code: 'functions/permission-denied' },
+        ));
         renderHistory();
         emit([makeDoc({ status: 'sent' })]);
 
         fireEvent.click(screen.getByRole('button', { name: 'Link for Offer Letter' }));
-        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith('permission denied'));
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith('Only the sender can copy this link.'));
 
         toast.showError.mockClear();
-        const bare = new Error();
-        bare.message = '';
+        // The bare code the web SDK reports when the server never answered.
+        const bare = Object.assign(new Error('internal'), { code: 'functions/internal' });
         callables.getSigningLink.mockRejectedValueOnce(bare);
         fireEvent.click(screen.getByRole('button', { name: 'Link for Offer Letter' }));
-        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith('Could not retrieve signing link.'));
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(
+            'Could not get the signing link. Please try again. If it keeps happening, contact support.',
+        ));
         consoleError.mockRestore();
     });
 

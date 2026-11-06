@@ -15,6 +15,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { signedCopyRecord } from '@features/signing/utils/signedCopy';
+import { serverMessageOf } from '@shared/utils/callableErrors';
 
 export function useSignedCopySend({ companyId, showSuccess }) {
     const [pending, setPending] = useState(null);
@@ -57,7 +58,10 @@ export function useSignedCopySend({ companyId, showSuccess }) {
             setPending(null);
         } catch (err) {
             console.error('Signed copy error:', err);
-            setError(err?.message || 'The signed copy could not be sent. Try again.');
+            // The server's sentences are written for the sender, its `internal`
+            // one included ("…sent, but it could not be recorded. Do not send it
+            // again."); a bare code means it never answered.
+            setError(serverMessageOf(err) ?? 'The signed copy could not be sent. Try again.');
         } finally {
             inFlightRef.current = false;
             setSending(false);

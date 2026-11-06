@@ -7,6 +7,7 @@ import { opensFromSignedLink } from '@features/applications/services/openApplica
 import { OriginalApplicationConsents } from './OriginalApplicationConsents';
 import { takesExpiration } from '../../utils/dqFileTypes';
 import { calendarDay, describeExpiry, expiryStatus } from '../../utils/dqExpiry';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * One entry of the DQ tab's list (`DQFileTab`): its type, file name and
@@ -52,7 +53,8 @@ function ExpiryEditor({ file, onSave, onClose }) {
             await onSave(file, value);
             onClose();
         } catch (err) {
-            setError(`Could not save the date: ${err.message}`);
+            console.error('Valid-until date not saved:', err);
+            setError(plainErrorMessage(err, 'The date could not be saved.'));
             setSaving(false);
         }
     };

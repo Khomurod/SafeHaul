@@ -83,11 +83,18 @@ describe('useSubmissionRecord', () => {
     });
 
     it('never claims preservation when the read fails', async () => {
-        mockGetDocImpl = () => Promise.reject(new Error('permission-denied'));
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockGetDocImpl = () => Promise.reject(Object.assign(
+            new Error('Missing or insufficient permissions.'),
+            { code: 'permission-denied' },
+        ));
         const { result } = renderHook(() => useSubmissionRecord('co1', 'app1'));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
-        expect(result.current.error).toMatch(/permission-denied/);
+        expect(result.current.error).toBe(
+            'Could not load the preserved submission record. You do not have permission to do this. If you think you should, ask your company admin.',
+        );
+        consoleError.mockRestore();
         expect(result.current.record.isPreserved).toBe(false);
         expect(result.current.record.sections).toEqual([]);
     });

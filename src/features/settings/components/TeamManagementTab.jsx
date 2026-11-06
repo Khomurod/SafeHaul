@@ -11,6 +11,7 @@ import { AddPersonDialog } from './team/AddPersonDialog';
 import { DailyGoalsDialog } from './team/DailyGoalsDialog';
 import { teamColumns } from './team/teamColumns';
 import { teamMemberName } from './team/teamMemberStatus';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Settings → Team: everyone who recruits for the company, on the page itself.
@@ -59,7 +60,7 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
             roster.reload();
         } catch (error) {
             console.error('Error deleting user:', error);
-            showError('Failed to remove user: ' + (error.message || 'Unknown error'));
+            showError(plainErrorMessage(error, `${name || 'The person'} could not be removed from the team.`));
         } finally {
             setDeletingId(null);
         }

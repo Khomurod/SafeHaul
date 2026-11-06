@@ -4,6 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { skippedSummary } from '@features/applications/services/editableFields';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Company-side hook for the change-approval workflow:
@@ -56,7 +57,7 @@ export function useApplicationChanges(companyId, applicationId, collectionName =
             return true;
         } catch (e) {
             console.error('[useApplicationChanges] propose failed:', e);
-            showError(e?.message || 'Could not save changes.');
+            showError(plainErrorMessage(e, 'Could not save changes.'));
             return false;
         } finally {
             setProposing(false);
@@ -83,7 +84,7 @@ export function useApplicationChanges(companyId, applicationId, collectionName =
             return url;
         } catch (e) {
             console.error('[useApplicationChanges] createReviewLink failed:', e);
-            showError(e?.message || 'Could not create the review link.');
+            showError(plainErrorMessage(e, 'Could not create the review link.'));
             return null;
         } finally {
             setLinking(false);
@@ -113,7 +114,7 @@ export function useApplicationChanges(companyId, applicationId, collectionName =
             // A send that failed had made a new link nobody received, replacing the emailed one.
             if (e?.details?.reason === 'email-failed') setEmailedTo(null);
             console.error('[useApplicationChanges] emailReviewLink failed:', e?.code || e?.message || e);
-            showError(e?.message || 'Could not email the review link.');
+            showError(plainErrorMessage(e, 'Could not email the review link.'));
             return null;
         } finally {
             setEmailing(false);

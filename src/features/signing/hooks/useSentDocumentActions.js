@@ -31,6 +31,7 @@ import { copySigningLink } from '@features/signing/utils/copySigningLink';
 import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
 import { useSealRetry } from '@features/signing/hooks/useSealRetry';
 import { useSignerReminder } from '@features/signing/hooks/useSignerReminder';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** Whether `document` is a post-application form's own request, which the server never sends again once voided. */
 export function isPostApplicationFormRequest(document) {
@@ -102,7 +103,7 @@ export function useSentDocumentActions({ companyId, companyName = '', onCorrect 
             else showError('The browser blocked copying the link. Try again.');
         } catch (err) {
             console.error('Copy link error:', err);
-            showError(err.message || 'Could not retrieve signing link.');
+            showError(plainErrorMessage(err, 'Could not get the signing link.'));
         } finally {
             setCopyingId(null);
         }

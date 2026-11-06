@@ -260,10 +260,16 @@ describe('DQFileTab — upload contract', () => {
         }
     });
 
-    it('announces an upload failure with the frozen prefix', async () => {
-        storageMocks.uploadBytes.mockRejectedValueOnce(new Error('quota'));
+    it('announces an upload failure in a plain sentence, without the storage error', async () => {
+        storageMocks.uploadBytes.mockRejectedValueOnce(Object.assign(
+            new Error('Firebase Storage: Quota for bucket exceeded. (storage/quota-exceeded)'),
+            { code: 'storage/quota-exceeded' },
+        ));
         await uploadFixture();
-        expect(await screen.findByText(/Upload failed: quota/)).toBeInTheDocument();
+        expect(await screen.findByText(
+            'The file could not be uploaded. Please try again. If it keeps happening, contact support.',
+        )).toBeInTheDocument();
+        expect(screen.queryByText(/quota/i)).not.toBeInTheDocument();
     });
 
     it('guards the upload when no file is chosen', async () => {

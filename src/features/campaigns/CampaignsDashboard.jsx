@@ -18,6 +18,7 @@ import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, MetricCard, Notice, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
 // icons are presentation only. The strip itself is the design system's
@@ -96,7 +97,8 @@ export function CampaignsDashboard({ companyId }) {
             });
             setSelectedCampaignId(newId);
         } catch (err) {
-            showError("Failed to create campaign: " + err.message);
+            console.error('Campaign not created:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be created.'));
         }
     };
 
@@ -134,7 +136,8 @@ export function CampaignsDashboard({ companyId }) {
             showSuccess('Campaign cancelled. No further messages will be sent.');
             setPendingCancel(null);
         } catch (err) {
-            showError('Failed to cancel campaign: ' + err.message);
+            console.error('Campaign not cancelled:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be cancelled.'));
         } finally {
             setCancelling(false);
         }
@@ -169,7 +172,8 @@ export function CampaignsDashboard({ companyId }) {
             }
             setPendingDelete(null);
         } catch (err) {
-            showError("Failed to delete campaign: " + err.message);
+            console.error('Campaign not deleted:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be deleted.'));
         } finally {
             setDeleting(false);
         }
