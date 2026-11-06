@@ -104,13 +104,18 @@ vi.mock('./components/CampaignCard', () => ({
     }
 }));
 
+// Each editor records the campaign it was mounted for: its state belongs to that campaign.
+const mockEditorMounts = [];
 vi.mock('./CampaignEditor', () => ({
-    CampaignEditor: ({ onViewReport }) => (
-        <div>
-            Editor
-            <button onClick={() => onViewReport('session-launched')}>view launched report</button>
-        </div>
-    ),
+    CampaignEditor: function MockCampaignEditor({ campaignId, onViewReport }) {
+        React.useEffect(() => { mockEditorMounts.push(campaignId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        return (
+            <div>
+                Editor
+                <button onClick={() => onViewReport('session-launched')}>view launched report</button>
+            </div>
+        );
+    },
 }));
 
 vi.mock('./components/DetailedReportModal', () => ({
@@ -467,6 +472,27 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.queryByText('Editor')).not.toBeInTheDocument();
         expect(screen.getByRole('dialog', { name: 'Delivery Report' })).toHaveTextContent('session-launched');
         expect(screen.getByRole('tablist', { name: 'Campaign views' })).toBeInTheDocument();
+    });
+
+    it('starts a fresh editor for the new draft when it is created after another draft was opened', async () => {
+        let created;
+        mockSetDoc.mockImplementation(() => new Promise((resolve) => { created = resolve; }));
+        mockEditorMounts.length = 0;
+        try {
+            await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
+            // Create Campaign is still writing its draft when a draft card is opened.
+            fireEvent.click(screen.getByRole('button', { name: /Create Campaign/i }));
+            fireEvent.click(screen.getByText('open d1'));
+            expect(mockEditorMounts).toEqual(['d1']);
+
+            await React.act(async () => { created(); });
+
+            // The new draft's editor holds none of Draft A's state, its launch included.
+            expect(mockEditorMounts).toHaveLength(2);
+            expect(mockEditorMounts[1]).toMatch(/^camp_\d+$/);
+        } finally {
+            mockSetDoc.mockReset();
+        }
     });
 
     it('shows a danger notice with Try again when the drafts cannot be loaded, not "Synchronizing…" forever', async () => {

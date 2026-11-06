@@ -178,6 +178,8 @@ export function CampaignsDashboard({ companyId }) {
     if (selectedCampaignId) {
         return (
             <CampaignEditor
+                // One editor per draft: its state (a launch included) never carries over to another.
+                key={selectedCampaignId}
                 companyId={companyId}
                 campaignId={selectedCampaignId}
                 onClose={() => setSelectedCampaignId(null)}
