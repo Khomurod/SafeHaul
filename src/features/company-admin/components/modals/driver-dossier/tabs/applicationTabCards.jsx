@@ -111,7 +111,7 @@ function DossierSummaryCard({ icon: Glyph, title, tone = 'info', children }) {
     );
 }
 
-function LicenseCard({ appData, fileUrls = {}, filesPending = false }) {
+function LicenseCard({ appData, fileUrls = {}, filesPending = false, isLead = false }) {
     const rawExp = appData.cdlExpiration || appData.cdlExpirationDate;
     const expDate = toDateOrNull(rawExp);
     const today = new Date();
@@ -151,7 +151,7 @@ function LicenseCard({ appData, fileUrls = {}, filesPending = false }) {
                 <Badge tone="neutral">{appData.cdlClass || appData.cdlType || 'A'}</Badge>
             </div>
             <div className="flex items-center justify-between gap-ds-2 border-b border-ds-border-subtle py-ds-2 last:border-0">
-                <span className="text-ds-xs font-semibold uppercase text-ds-content-secondary">Expiration</span>
+                <span className="text-ds-xs font-semibold uppercase text-ds-content-secondary">{`Expiration (from ${isLead ? 'lead' : 'application'})`}</span>
                 <div className="flex flex-wrap items-center justify-end gap-ds-2">
                     <span className="text-ds-sm font-medium text-ds-content">
                         {rawExp ? formatDate(rawExp) : '--'}

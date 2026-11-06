@@ -2,9 +2,11 @@
  * The dossier's signing documents (Documents tab): each document's title, state
  * and dates; Send to driver on a required form nobody sent, and Remind on one sent
  * by email or text, with what the server answered beside it; a signed copy
- * opened through `getSignedDocumentUrl`. The
- * data hook is replaced by rows built with the real rules; the callables are
- * fakes. All names, ids and dates are artificial.
+ * opened through `getSignedDocumentUrl`; where E-Docs is offered, Details (E-Docs'
+ * own dialog and actions) and Send a document (its own suite:
+ * `DossierSendDocument.test.jsx`). The data hook is replaced by rows built with
+ * the real rules; the callables and the void transaction are fakes, so nothing is
+ * sent. All names, ids and dates are artificial.
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,17 +15,48 @@ import { axe } from 'vitest-axe';
 import { recordDocumentRows } from '@features/company-admin/utils/recordSigningDocuments';
 import { formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
 
-const fx = vi.hoisted(() => ({ data: null, calls: [], answers: {} }));
+const fx = vi.hoisted(() => ({
+    data: null, calls: [], answers: {}, profile: null, claims: {}, toasts: [], stored: {}, updates: [], sendProps: null,
+}));
 
-vi.mock('@lib/firebase', () => ({ functions: { __functions: true }, db: {} }));
+vi.mock('@lib/firebase', () => ({
+    functions: { __functions: true },
+    db: {},
+    auth: { currentUser: { uid: 'uid-ann', displayName: 'Ann Recruiter', email: 'ann@example.test' } },
+}));
 vi.mock('firebase/functions', () => ({
+    getFunctions: () => ({ __functions: true }),
     httpsCallable: (_functions, name) => async (payload) => {
         fx.calls.push([name, payload]);
         return fx.answers[name](payload);
     },
 }));
+// Void's transaction, over the stored request.
+vi.mock('firebase/firestore', () => ({
+    doc: (_db, ...path) => ({ path: path.join('/') }),
+    serverTimestamp: () => 'server-time',
+    runTransaction: async (_db, work) => work({
+        get: async (ref) => ({ exists: () => Boolean(fx.stored[ref.path]), data: () => fx.stored[ref.path] }),
+        update: (ref, data) => fx.updates.push([ref.path, data]),
+    }),
+}));
 vi.mock('@features/company-admin/hooks/useRecordSigningRequests', () => ({
     useRecordSigningRequests: () => fx.data,
+}));
+vi.mock('@/context/DataContext', () => ({
+    useData: () => ({ currentCompanyProfile: fx.profile, currentUserClaims: fx.claims }),
+}));
+vi.mock('@shared/components/feedback', () => ({
+    useToast: () => ({
+        showSuccess: (text) => fx.toasts.push(['success', text]),
+        showError: (text) => fx.toasts.push(['error', text]),
+    }),
+}));
+vi.mock('./DossierSendDocument', () => ({
+    DossierSendDocument: (props) => {
+        fx.sendProps = props;
+        return <button type="button">Send a document</button>;
+    },
 }));
 
 import { SigningDocumentsSection } from './SigningDocumentsSection';
@@ -53,14 +86,21 @@ function withRows({ requests = REQUESTS, forms = FORMS_WITH_HANDBOOK, applicatio
     };
 }
 
-const renderSection = (collectionName = 'applications', recordId = 'app-1') => render(
-    <SigningDocumentsSection companyId="co-1" recordId={recordId} collectionName={collectionName} />,
+const DRIVER = { firstName: 'Dana', lastName: 'Driver', email: 'dana@example.test', phone: '5550100' };
+const renderSection = (collectionName = 'applications', recordId = 'app-1', record = DRIVER) => render(
+    <SigningDocumentsSection companyId="co-1" recordId={recordId} collectionName={collectionName} record={record} />,
 );
-const rowOf = (title) => screen.getByRole('heading', { name: title, level: 5 }).closest('li');
+const rowOf = (title) => screen.getByRole('heading', { name: title, level: 4 }).closest('li');
 
 beforeEach(() => {
     fx.calls = [];
     fx.answers = {};
+    fx.profile = { id: 'co-1', companyName: 'Artificial Freight Co', features: { eDocs: true } };
+    fx.claims = { roles: { 'co-1': 'recruiter' } };
+    fx.toasts = [];
+    fx.stored = {};
+    fx.updates = [];
+    fx.sendProps = null;
 });
 
 afterEach(() => {
@@ -73,9 +113,10 @@ describe('what the section lists', () => {
         withRows();
         renderSection();
 
-        expect(screen.getByRole('heading', { name: 'Signing documents', level: 4 })).toBeInTheDocument();
+        // The tab's label is its one heading: the section repeats it in none.
+        expect(screen.queryByRole('heading', { name: /Signing documents|Documents to sign/ })).toBeNull();
         const items = within(screen.getByRole('list')).getAllByRole('listitem');
-        expect(items.map((item) => within(item).getByRole('heading', { level: 5 }).textContent))
+        expect(items.map((item) => within(item).getByRole('heading', { level: 4 }).textContent))
             .toEqual(['W-9', 'Handbook', 'Offer Letter']);
 
         expect(rowOf('W-9')).toHaveTextContent('Not started');
@@ -165,11 +206,11 @@ describe('what the section lists', () => {
         expect(screen.getByRole('status')).toHaveTextContent('No signing documents for this driver yet.');
 
         fx.data = { ...fx.data, isLoading: true };
-        rerender(<SigningDocumentsSection companyId="co-1" recordId="app-1" collectionName="applications" />);
+        rerender(<SigningDocumentsSection companyId="co-1" recordId="app-1" collectionName="applications" record={DRIVER} />);
         expect(screen.getByRole('status')).toHaveTextContent('Loading signing documents…');
 
         fx.data = { ...fx.data, isLoading: false, error: 'Could not load this driver\'s signing documents.' };
-        rerender(<SigningDocumentsSection companyId="co-1" recordId="app-1" collectionName="applications" />);
+        rerender(<SigningDocumentsSection companyId="co-1" recordId="app-1" collectionName="applications" record={DRIVER} />);
         expect(screen.getByRole('alert')).toHaveTextContent('Could not load this driver\'s signing documents.');
     });
 
@@ -216,11 +257,11 @@ describe('Send to driver', () => {
                 sendEmail: true, sendSms: false, createdAt: at(0), expiresAt: at(7),
             }],
         });
-        rerender(<SigningDocumentsSection companyId="co-1" recordId="app-1" collectionName="applications" />);
+        rerender(<SigningDocumentsSection companyId="co-1" recordId="app-1" collectionName="applications" record={DRIVER} />);
 
         expect(rowOf('W-9')).toHaveTextContent('Awaiting signature');
         expect(within(rowOf('W-9')).getByRole('status')).toHaveTextContent('Sent to the driver by email.');
-        expect(within(rowOf('W-9')).queryByRole('button')).toBeNull();
+        expect(within(rowOf('W-9')).queryByRole('button', { name: /Send to driver/ })).toBeNull();
     });
 
     it('shows the server\'s reason beside the form when nothing could be sent', async () => {
@@ -323,6 +364,108 @@ describe('a signed copy', () => {
 
         expect(within(rowOf('Offer Letter')).getByRole('status')).toHaveTextContent('Your browser blocked the new tab.');
         expect(fx.calls).toEqual([]);
+    });
+});
+
+describe('Details', () => {
+    const LEASE = {
+        id: 'r-lease', templateId: 'tpl-lease', title: 'Lease', status: 'sent', sendEmail: true,
+        recipientName: 'Dana Driver', recipientEmail: 'dana@example.test', deliveryMethod: 'email',
+        createdAt: at(-2), expiresAt: at(5),
+    };
+    const SEAL_FAILED = {
+        id: 'r-seal', templateId: 'tpl-seal', title: 'Drug Policy', status: 'error_sealing',
+        recipientName: 'Dana Driver', errorLog: 'Seal failed (artificial)', createdAt: at(-3), signedAt: at(-1),
+    };
+    const detailsOf = (title) => screen.getByRole('dialog', { name: title });
+
+    it('is offered on every sent document, named after it, and not on a form nobody sent', () => {
+        withRows({ requests: [...REQUESTS, LEASE] });
+        renderSection();
+
+        expect(screen.getAllByRole('button', { name: /^Details/ }).map((b) => b.textContent))
+            .toEqual(['Details — Lease', 'Details — Handbook', 'Details — Offer Letter']);
+        expect(within(rowOf('W-9')).queryByRole('button', { name: /Details/ })).toBeNull();
+    });
+
+    it("opens E-Docs' details dialog for the document, and Remind there asks the server for that document", async () => {
+        withRows({ requests: [LEASE] });
+        fx.answers.remindSigner = () => ({ data: { success: true, requestId: 'r-lease', channels: { email: true, sms: false } } });
+        renderSection();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Details — Lease' }));
+        const dialog = detailsOf('Lease');
+        expect(dialog).toHaveTextContent('dana@example.test');
+        expect(within(dialog).getByRole('button', { name: /Void/ })).toBeInTheDocument();
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Remind' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Lease' })).toBeNull());
+        expect(fx.calls).toEqual([['remindSigner', { companyId: 'co-1', requestId: 'r-lease' }]]);
+    });
+
+    it('offers Retry seal on a document whose seal failed, and seals that document again', async () => {
+        withRows({ requests: [SEAL_FAILED] });
+        fx.answers.retrySealDocument = () => ({ data: { success: true } });
+        renderSection();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Details — Drug Policy' }));
+        expect(detailsOf('Drug Policy')).toHaveTextContent('Seal failed (artificial)');
+        fireEvent.click(within(detailsOf('Drug Policy')).getByRole('button', { name: 'Retry seal' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Drug Policy' })).toBeNull());
+        expect(fx.calls).toEqual([['retrySealDocument', { companyId: 'co-1', requestId: 'r-seal' }]]);
+        expect(fx.toasts).toEqual([['success', 'Sealing again. The status here changes when it finishes.']]);
+    });
+
+    it('voids only after asking, by the same transaction as E-Docs, recording who voided it', async () => {
+        withRows({ requests: [LEASE] });
+        fx.stored['companies/co-1/signing_requests/r-lease'] = { status: 'sent' };
+        renderSection();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Details — Lease' }));
+        fireEvent.click(within(detailsOf('Lease')).getByRole('button', { name: /Void/ }));
+        expect(fx.updates).toEqual([]);
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Void "Lease"?' })).getByRole('button', { name: 'Void document' }));
+
+        await waitFor(() => expect(fx.toasts).toEqual([['success', 'Document voided successfully.']]));
+        expect(fx.updates).toEqual([['companies/co-1/signing_requests/r-lease', {
+            status: 'voided', voidedAt: 'server-time', voidedBy: 'uid-ann', voidedByName: 'Ann Recruiter',
+        }]]);
+    });
+});
+
+describe('Send a document', () => {
+    it('is offered with E-Docs, for this driver as the wizard lists one', () => {
+        withRows({ forms: [], applicationId: null });
+        renderSection('leads', 'lead-1');
+
+        expect(screen.getByRole('button', { name: 'Send a document' })).toBeInTheDocument();
+        expect(fx.sendProps.company).toBe(fx.profile);
+        expect(fx.sendProps.record).toEqual({ ...DRIVER, id: 'lead-1', collectionName: 'leads' });
+    });
+
+    it('is not offered while the record is not loaded', () => {
+        withRows();
+        renderSection('applications', 'app-1', null);
+        expect(screen.queryByRole('button', { name: 'Send a document' })).toBeNull();
+    });
+});
+
+describe('where E-Docs is not offered', () => {
+    it.each([
+        ['E-Docs is off for the company', () => { fx.profile = { ...fx.profile, features: { eDocs: false } }; }],
+        ['the dossier is for another company than the one worked in', () => { fx.profile = { ...fx.profile, id: 'co-2' }; }],
+        ['no company is worked in', () => { fx.profile = null; }],
+    ])('offers neither Details nor Send a document when %s', (_when, arrange) => {
+        arrange();
+        withRows();
+        renderSection();
+
+        expect(screen.queryByRole('button', { name: /^Details/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Send a document' })).toBeNull();
+        // The tab's own actions stay.
+        expect(screen.getByRole('button', { name: 'Send to driver — W-9' })).toBeInTheDocument();
     });
 });
 

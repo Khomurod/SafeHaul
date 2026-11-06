@@ -1,11 +1,11 @@
 import React, { useEffect, useId, useRef, useState, useMemo } from 'react';
 import { collection, query, orderBy, getDocs, limit, startAfter } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { Icon, CircleDot, User, FileText, RefreshCcw, MessageSquare, Mail, Phone, ShieldCheck, Filter, Calendar, Zap, Settings, CheckCircle2, XCircle } from '@design-system/icons';
+import { Icon, CircleDot, User, FileText, RefreshCcw, MessageSquare, Mail, Phone, ShieldCheck, Filter, Zap, Settings, CheckCircle2, XCircle } from '@design-system/icons';
 import { Avatar, Badge, Button, Card, FormField, Select } from '@/design-system/components';
 
 /**
- * Audit trail for one application or lead.
+ * The Activity tab: what happened on one application or lead, newest first.
  *
  * Built on the design system's components and `--ds-*` tokens.
  *
@@ -18,6 +18,10 @@ import { Avatar, Badge, Button, Card, FormField, Select } from '@/design-system/
  * 'numeric' }` date format and the 2-digit time format, the domain→icon decision
  * table and its precedence order, the `'System Auto'` and `'Pending'` fallbacks,
  * the call-duration rule, and every user-facing string.
+ *
+ * The tab is named once, by its tab and the dossier header: the filter bar has
+ * no heading of its own (it said "Audit Trail"), and the timeline is the region
+ * "Activity".
  *
  * The trail is read 50 entries at a time, newest first, and "Show older
  * activity" reads the 50 before them; the filter and the grouping work on what
@@ -79,7 +83,6 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
     const [olderFailed, setOlderFailed] = useState(false);
     const [filterType, setFilterType] = useState('all');
     const filterFieldId = useId();
-    const timelineLabelId = useId();
     // Each read of a trail from its start; a page for an earlier one is dropped.
     const readsRef = useRef(0);
     const olderInFlightRef = useRef(false);
@@ -204,13 +207,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
     return (
         <Card padding="none" className="flex h-full flex-col overflow-hidden">
             {/* Filter Header */}
-            <div className="flex flex-wrap items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <div className="flex items-center gap-ds-2">
-                    <Icon icon={Calendar} size="lg" className="text-ds-content-secondary" />
-                    <h3 id={timelineLabelId} className="text-ds-sm font-bold uppercase tracking-wider text-ds-content-secondary">
-                        Audit Trail
-                    </h3>
-                </div>
+            <div className="flex flex-wrap items-center justify-end gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <div className="flex items-center gap-ds-2">
                     <Icon icon={Filter} size="sm" className="text-ds-content-secondary" />
                     <FormField id={filterFieldId} label="Filter activities">
@@ -225,7 +222,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
 
             <div
                 role="region"
-                aria-labelledby={timelineLabelId}
+                aria-label="Activity"
                 tabIndex={0}
                 className="flex-1 overflow-y-auto p-ds-6 focus-visible:outline-none focus-visible:shadow-ds-focus"
             >

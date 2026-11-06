@@ -2,7 +2,7 @@ import React, { useId, useRef, useState, useEffect } from 'react';
 import { db, auth } from '@lib/firebase';
 import { collection, query, orderBy, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getPortalUser } from '@features/auth/services/userService';
-import { Icon, Send, MessageSquare, Clock, History } from '@design-system/icons';
+import { Icon, Send, MessageSquare, Clock, History, Phone } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
 import { sanitizeUserContent } from '@shared/utils/sanitizeUserContent';
 import { Avatar, Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
@@ -26,7 +26,12 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  * `logActivity(companyId, collectionName, applicationId, "Note Added", <first 100
  * chars + ellipsis>, "note")` call; the optimistic-append shape; the
  * `getPortalUser` → `'Admin'` fallback; the empty-note no-op; and every
- * user-facing string.
+ * user-facing string but the composer's.
+ *
+ * A note the call window wrote (`useCallOutcome`, `type: 'call_log'`) is marked
+ * Call. The composer is a plain note, "New note" under the Notes tab, and no
+ * longer suggests logging a call there: a call written as a note moves no stage,
+ * sets no callback and is not counted.
  *
  * Rules this tab keeps:
  *  1. **A failed save is an announced in-place message** worded "Failed to save
@@ -50,7 +55,11 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  *     slot look alike, and the empty one is announced when the notes finish
  *     loading instead of appearing silently.
  */
-export function NotesTab({ companyId, applicationId, collectionName = 'applications', sharedHistory }) {
+/**
+ * `refreshKey` changes when a call is logged in the dossier: the notes are read
+ * again, and a note being written stays in its box.
+ */
+export function NotesTab({ companyId, applicationId, collectionName = 'applications', sharedHistory, refreshKey = 0 }) {
     const [notes, setNotes] = useState([]);
     const [newNote, setNewNote] = useState('');
     const [loading, setLoading] = useState(true);
@@ -131,7 +140,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
         }
         init();
         return () => { active = false; };
-    }, [companyId, applicationId, collectionName, sharedHistory]);
+    }, [companyId, applicationId, collectionName, sharedHistory, refreshKey]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -181,12 +190,12 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                 <form onSubmit={handleSend}>
                     <FormField
                         id={noteFieldId}
-                        label="Internal Note (Private)"
+                        label="New note"
                         description="Visible only to your team"
                     >
                         <Textarea
                             rows="3"
-                            placeholder="Log a call, interview notes, or reason for rejection..."
+                            placeholder="Interview notes, or reason for rejection..."
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
                         />
@@ -257,6 +266,9 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                                         </span>
                                         {note.isShared && (
                                             <Badge tone="accent">Shared History</Badge>
+                                        )}
+                                        {note.type === 'call_log' && (
+                                            <Badge tone="info" icon={Phone}>Call</Badge>
                                         )}
                                     </div>
                                     <span className="flex items-center gap-1 text-ds-xs text-ds-content-secondary">

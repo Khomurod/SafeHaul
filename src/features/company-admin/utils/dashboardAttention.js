@@ -73,6 +73,8 @@ const ROWS = Object.freeze([
         title: (n, w) => `${counted(n, 'hired driver has', 'hired drivers have')} DQ documents that expire within ${w.dqDays} days or have expired`,
         text: 'Open a driver to see the DQ file.',
         link: { href: ATTENTION_LINKS.applications, state: { segment: 'hired' }, label: 'Open hired drivers' },
+        // The dossier tab each driver it names opens on.
+        driverTab: 'dq',
     },
 ]);
 
@@ -111,7 +113,8 @@ const isCount = (value) => Number.isInteger(value) && value >= 0;
 
 /**
  * The rows to show, each `{ id, state: 'todo' | 'unknown', title, text, link? }`;
- * the DQ row also has `drivers` (`{ id, name, when }`) and `others`.
+ * the DQ row also has `drivers` (`{ id, name, when }`), `others` and `driverTab`,
+ * the dossier tab a driver opens on (`'dq'`).
  *
  * @param {{ rows?: object, windows?: object }} answer the callable's answer
  * @param {{ today: string }} options the reader's `'YYYY-MM-DD'`, for "expired"
@@ -135,7 +138,7 @@ export function attentionItems(answer, { today }) {
             title: definition.title(row.count, windows, row),
             text: definition.text,
             ...link,
-            ...(definition.id === 'dqExpiring' ? driversOf(row, today) : {}),
+            ...(definition.id === 'dqExpiring' ? { ...driversOf(row, today), driverTab: definition.driverTab } : {}),
         });
     }
     return items;

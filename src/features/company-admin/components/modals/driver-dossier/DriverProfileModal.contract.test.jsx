@@ -34,7 +34,11 @@ vi.mock('@/context/DataContext', () => ({
 
 // The tab bodies are irrelevant here; the shell is under test.
 vi.mock('./DossierContent', () => ({
-  DossierContent: (props) => <div data-testid="content" data-active-tab={props.activeTab} data-record={props.driverId} />,
+  DossierContent: (props) => (
+    <div data-testid="content" data-active-tab={props.activeTab} data-record={props.driverId}>
+      <button type="button" onClick={() => props.onOpenTab('pev')}>content-open-pev</button>
+    </div>
+  ),
 }));
 vi.mock('./DossierSidebar', () => ({
   DossierSidebar: ({ activeTab, setActiveTab, onOpenRecord, collectionName }) => (
@@ -47,8 +51,9 @@ vi.mock('./DossierSidebar', () => ({
   ),
 }));
 vi.mock('./DossierHeader', () => ({
-  DossierHeader: ({ onClose, onDelete, canDelete }) => (
+  DossierHeader: ({ onClose, onDelete, canDelete, collectionName }) => (
     <div>
+      <span data-testid="header-collection">{collectionName}</span>
       <button type="button" onClick={onClose}>header-close</button>
       {canDelete && <button type="button" onClick={onDelete}>header-delete</button>}
     </div>
@@ -124,6 +129,30 @@ describe('DriverProfileModal open/close contract', () => {
     renderModal();
     expect(screen.getByTestId('sidebar-active')).toHaveTextContent('application');
     expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'application');
+  });
+
+  // A bell notice or a Needs attention row opens the tab it is about.
+  it('opens on the tab its opener names, which the sidebar still moves', () => {
+    renderModal({ initialTab: 'pev' });
+    expect(screen.getByTestId('sidebar-active')).toHaveTextContent('pev');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'pev');
+
+    fireEvent.click(screen.getByText('go-documents'));
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'documents');
+  });
+
+  // The DQ file's employers open Previous Employment; the button pressed is gone.
+  it('lets a tab open another, at its top, with the focus on the panel', () => {
+    renderModal();
+    const panel = screen.getByRole('tabpanel');
+    panel.scrollTop = 120;
+
+    fireEvent.click(screen.getByText('content-open-pev'));
+
+    expect(screen.getByTestId('sidebar-active')).toHaveTextContent('pev');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'pev');
+    expect(document.activeElement).toBe(panel);
+    expect(panel.scrollTop).toBe(0);
   });
 
   it('keeps the active-tab state values the sidebar emits', () => {
@@ -245,6 +274,23 @@ describe('DriverProfileModal delete permission and payload', () => {
     expect(screen.getByText(/This permanently removes the application, its activity history, notes, and all\s+uploaded documents\. This cannot be undone\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument();
+  });
+
+  it('asks about a lead as a lead', () => {
+    claims = { roles: { 'co-1': 'company_admin' } };
+    viewState = { ...baseView(), collectionName: 'leads' };
+    renderModal();
+    fireEvent.click(screen.getByText('header-delete'));
+
+    expect(screen.getByRole('dialog', { name: 'Delete this lead?' })).toBeInTheDocument();
+    expect(screen.getByText(/This permanently removes the lead, its activity history, notes, and all\s+uploaded documents\. This cannot be undone\./)).toBeInTheDocument();
+    expect(screen.queryByText('Delete this application?')).toBeNull();
+  });
+
+  it('hands the header the collection the record was found in', () => {
+    viewState = { ...baseView(), collectionName: 'leads' };
+    renderModal();
+    expect(screen.getByTestId('header-collection')).toHaveTextContent('leads');
   });
 
   it('sends the exact delete payload and then calls onDeleted before onClose', async () => {

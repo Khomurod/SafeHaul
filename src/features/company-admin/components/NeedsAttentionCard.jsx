@@ -15,7 +15,8 @@ import { attentionItems, localDay } from '../utils/dashboardAttention';
  * Rows with nothing to show are hidden; with nothing at all it is one calm
  * line. A count that failed says "could not be checked" for its row; a read that
  * failed is one line with Try again. It never stops the rest of the dashboard.
- * The hired drivers in the DQ row open their file over the dashboard.
+ * The hired drivers in the DQ row open their file over the dashboard, on its DQ
+ * File tab (the row's `driverTab`).
  */
 
 function DriverList({ item, onOpen }) {
@@ -23,7 +24,7 @@ function DriverList({ item, onOpen }) {
         <ul className="mt-ds-2 flex flex-col gap-ds-1 text-ds-sm">
             {item.drivers.map((driver) => (
                 <li key={driver.id} className="flex flex-wrap items-baseline gap-x-ds-2">
-                    <Button variant="link" size="sm" onClick={() => onOpen(driver.id)}>{driver.name}</Button>
+                    <Button variant="link" size="sm" onClick={() => onOpen({ id: driver.id, tab: item.driverTab })}>{driver.name}</Button>
                     <span className="text-ds-content-secondary">{driver.when}</span>
                 </li>
             ))}
@@ -70,7 +71,8 @@ const LINE = 'flex flex-wrap items-center gap-x-ds-2 gap-y-ds-1 text-ds-sm text-
 export function NeedsAttentionCard({ companyId }) {
     const { isLoading, attention, failed, retry } = useDashboardAttention({ companyId });
     const follow = useInAppLink();
-    const [openDriverId, setOpenDriverId] = useState(null);
+    // `{ id, tab }`: the driver whose file is open, and the tab it opened on.
+    const [openDriver, setOpenDriver] = useState(null);
     const headingId = `needs-attention-${useId().replace(/:/g, '')}`;
 
     if (!companyId) return null;
@@ -107,21 +109,22 @@ export function NeedsAttentionCard({ companyId }) {
                     </div>
                     <ul className="divide-y divide-ds-border-subtle">
                         {items.map((item) => (
-                            <AttentionItem key={item.id} item={item} follow={follow} onOpenDriver={setOpenDriverId} />
+                            <AttentionItem key={item.id} item={item} follow={follow} onOpenDriver={setOpenDriver} />
                         ))}
                     </ul>
                 </section>
             </Card>
-            {openDriverId && (
+            {openDriver && (
                 <DriverDossier
-                    key={openDriverId}
+                    key={openDriver.id}
                     companyId={companyId}
-                    driverId={openDriverId}
+                    driverId={openDriver.id}
+                    initialTab={openDriver.tab}
                     isOpen
-                    onClose={() => setOpenDriverId(null)}
+                    onClose={() => setOpenDriver(null)}
                     onDeleted={() => {
                         // The deleted driver leaves the counts: read them anew, not the kept answer.
-                        setOpenDriverId(null);
+                        setOpenDriver(null);
                         forgetDashboardAttention();
                         retry();
                     }}

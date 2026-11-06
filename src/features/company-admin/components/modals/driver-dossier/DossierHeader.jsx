@@ -3,6 +3,7 @@ import { Icon, X, Download, Trash2 } from '@design-system/icons';
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
 import { dossierStatusLabel as statusLabel } from './dossierStatusLabel';
+import { sectionTitle } from './dossierSections';
 
 /**
  * What the status picker offers: the funnel stages and Interested, and the
@@ -31,7 +32,8 @@ function statusOptionsFor(currentStatus) {
  * Presentation uses the approved `IconButton`, `Select` and `Badge`
  * primitives with `--ds-*` tokens.
  *
- * Frozen contracts: every per-tab title string, the application tab's
+ * Frozen contracts: every per-tab title string (a lead's first tab reads
+ * "Lead"), the application tab's
  * `Confirmation Number: <number>` (the number the driver was given, shown only
  * when the record on screen has one; the document id means nothing to the
  * team) and its `Loading...` placeholder while the record loads, the status
@@ -61,7 +63,29 @@ function statusOptionsFor(currentStatus) {
  *   shrinks and wraps: a `shrink-0` group never wraps and is clipped by the
  *   dialog panel's `overflow-hidden`, and a phone has no Escape key to close
  *   the dossier with.
+ * - **A lead is not an application** (`collectionName`, the collection
+ *   `useApplicationView` opened): its first tab is titled "Lead", its delete
+ *   reads "Delete lead", and it has no application PDF to download. Anything
+ *   else, an application or a record not yet loaded, keeps the application's
+ *   wording.
+ * - **On a phone Close is not here** (`showClose={false}`): it leads the
+ *   dossier's one-line identity bar (`DossierIdentityBar`), above everything
+ *   that scrolls.
  */
+
+/** The dossier's one way out, the same control wherever it sits. */
+export function DossierCloseButton({ onClose }) {
+    return (
+        <IconButton
+            variant="ghost"
+            label="Close driver dossier"
+            onClick={onClose}
+        >
+            <Icon icon={X} size="2xl" />
+        </IconButton>
+    );
+}
+
 export function DossierHeader({
     activeTab,
     appData,
@@ -76,22 +100,17 @@ export function DossierHeader({
     canDelete = false,
     onDelete,
     onDownload,
+    collectionName,
+    showClose = true,
 }) {
     const rawId = useId().replace(/:/g, '');
     const statusId = `dossier-status-${rawId}`;
     const assignId = `dossier-assign-${rawId}`;
 
-    const getTitle = () => {
-        switch (activeTab) {
-            case 'application': return 'Application Review';
-            case 'documents': return 'Documents to sign';
-            case 'dq': return 'Driver Qualification File';
-            case 'activity': return 'Activity Timeline';
-            case 'notes': return 'Internal Notes';
-            case 'pev': return 'Previous Employment Verification';
-            default: return 'Driver Dossier';
-        }
-    };
+    const isLead = collectionName === 'leads';
+
+    // The section's one name, the tab's (У4.7).
+    const getTitle = () => sectionTitle(activeTab, { isLead });
 
     const statusOptions = useMemo(() => statusOptionsFor(currentStatus), [currentStatus]);
 
@@ -182,33 +201,33 @@ export function DossierHeader({
                     </>
                 )}
 
-                <IconButton
-                    variant="ghost"
-                    label="Download application PDF"
-                    onClick={onDownload}
-                >
-                    <Icon icon={Download} size="xl" />
-                </IconButton>
+                {/* A lead has no application document; its files are in its DQ File. */}
+                {!isLead && (
+                    <IconButton
+                        variant="ghost"
+                        label="Download application PDF"
+                        onClick={onDownload}
+                    >
+                        <Icon icon={Download} size="xl" />
+                    </IconButton>
+                )}
 
                 {canDelete && (
                     <IconButton
                         variant="ghost"
-                        label="Delete application"
+                        label={isLead ? 'Delete lead' : 'Delete application'}
                         onClick={onDelete}
                     >
                         <Icon icon={Trash2} size="xl" className="text-ds-status-danger-fg" />
                     </IconButton>
                 )}
 
-                <span aria-hidden="true" className="mx-ds-1 hidden h-6 w-px bg-ds-border-subtle sm:block" />
-
-                <IconButton
-                    variant="ghost"
-                    label="Close driver dossier"
-                    onClick={onClose}
-                >
-                    <Icon icon={X} size="2xl" />
-                </IconButton>
+                {showClose && (
+                    <>
+                        <span aria-hidden="true" className="mx-ds-1 hidden h-6 w-px bg-ds-border-subtle sm:block" />
+                        <DossierCloseButton onClose={onClose} />
+                    </>
+                )}
             </div>
         </>
     );

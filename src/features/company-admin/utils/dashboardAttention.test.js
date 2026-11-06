@@ -129,6 +129,8 @@ describe('attentionItems', () => {
                 { id: 'a3', name: 'Ann Driver', when: 'expires Nov 20, 2026' },
             ],
             others: '4 more',
+            // Each opens on the dossier's DQ File tab.
+            driverTab: 'dq',
         });
     });
 

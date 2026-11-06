@@ -26,7 +26,13 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * (`SigningDocumentsSection`) only. The driver's uploads have one place, the DQ
  * File tab, which lists and opens them; the gallery that repeated them here is
  * gone, and the tab says where they are. The DQ File tab also takes the record
- * (`appData`): its checklist reads the employers' verifications from it.
+ * (`appData`): its checklist reads the employers' verifications from it, and
+ * opens Previous Employment for them (`onOpenTab`); Documents to sign sends a
+ * document to it.
+ *
+ * `refreshKey` changes when a call is logged in the dossier: Activity, which
+ * reads its entries once, starts again; Notes reads its notes again and keeps a
+ * note being written.
  */
 export function DossierContent({
     activeTab,
@@ -36,7 +42,9 @@ export function DossierContent({
     collectionName,
     fileUrls,
     filesPending = false,
-    canEdit
+    canEdit,
+    refreshKey = 0,
+    onOpenTab,
 }) {
     // Shared Loading Fallback
     const TabLoading = () => (
@@ -65,6 +73,7 @@ export function DossierContent({
                             companyId={companyId}
                             recordId={driverId}
                             collectionName={collectionName}
+                            record={appData}
                         />
                         <p className="px-ds-1 text-ds-sm text-ds-content-secondary">
                             The driver&apos;s uploads, such as the CDL and the medical card, are in the DQ File tab.
@@ -78,6 +87,7 @@ export function DossierContent({
                     applicationId={driverId}
                     collectionName={collectionName}
                     appData={appData}
+                    onOpenTab={onOpenTab}
                 />;
 
             case 'pev':
@@ -96,6 +106,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <ActivityHistoryTab
+                            key={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}
@@ -107,6 +118,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <NotesTab
+                            refreshKey={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}

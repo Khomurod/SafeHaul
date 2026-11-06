@@ -1,11 +1,15 @@
-import React, { useId } from 'react';
+import React from 'react';
 import {
-    Icon, AlertCircle, Ban, CheckCircle, Circle, Clock, ExternalLink, FileText, Hourglass, Loader2, MailWarning, Send,
+    Icon, AlertCircle, Ban, CheckCircle, Circle, Clock, ExternalLink, FileText, Hourglass, Info, Loader2, MailWarning, Send,
 } from '@design-system/icons';
 import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { useRecordSigningRequests } from '@features/company-admin/hooks/useRecordSigningRequests';
 import { useSigningDocumentActions } from '@features/company-admin/hooks/useSigningDocumentActions';
 import { deliveryFailure, deliveryNote, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
+import { useSentDocumentActions } from '@features/signing/hooks/useSentDocumentActions';
+import { SentDocumentDialogs } from '@features/signing/components/SentDocumentDialogs';
+import { DossierSendDocument } from './DossierSendDocument';
+import { useDossierEDocs } from './useDossierEDocs';
 
 /**
  * The driver's signing documents, a section of the dossier's Documents tab: the
@@ -23,6 +27,14 @@ import { deliveryFailure, deliveryNote, formatTimestamp } from '@features/compan
  * stays beside the document in the row's own polite region (always present, so
  * it announces when it fills). A signed copy opens in a new tab through
  * `getSignedDocumentUrl`.
+ *
+ * Where E-Docs is offered (`useDossierEDocs`), each sent document has **Details**,
+ * the dialog E-Docs opens with its actions (`useSentDocumentActions`,
+ * `SentDocumentDialogs`: Retry seal, Remind, Fix recipient and resend, Void, Send
+ * signed copy, Copy Link, Download; Correct opens E-Docs' editor, so it stays
+ * there), and the tab offers **Send a document** to this driver
+ * (`DossierSendDocument`). The tab's label is its one heading: nothing here
+ * repeats it.
  */
 
 /**
@@ -55,13 +67,14 @@ function rowDates(row) {
     ].filter(Boolean);
 }
 
-function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
+function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen, onDetails }) {
     const presentation = STATE_PRESENTATION[row.state] || STATE_PRESENTATION.other;
     // Both only while the document is with its signer; a signed or voided one says just that.
     // A text skipped beside a failed email is noted too: then neither reached the signer.
     const failure = row.state === 'not_delivered' ? deliveryFailure(row.request) : null;
     const note = ['awaiting', 'link_expired', 'not_delivered'].includes(row.state) ? deliveryNote(row.request) : null;
     const canOpen = row.state === 'signed' && Boolean(row.request?.signedPdfUrl);
+    const canDetails = Boolean(onDetails) && row.kind === 'request';
 
     return (
         <li>
@@ -69,7 +82,7 @@ function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
                 <div className="flex flex-col gap-ds-3 md:flex-row md:items-center md:justify-between">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-ds-2">
-                            <h5 className="font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">{row.title}</h5>
+                            <h4 className="font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">{row.title}</h4>
                             <Badge tone={presentation.tone} icon={presentation.icon}>
                                 {presentation.label || row.request?.status || 'Unknown'}
                             </Badge>
@@ -87,7 +100,7 @@ function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
                         )}
                     </div>
 
-                    {(row.canSend || row.canRemind || canOpen) && (
+                    {(row.canSend || row.canRemind || canOpen || canDetails) && (
                         <div className="flex flex-wrap items-center gap-ds-2 md:justify-end">
                             {row.canSend && (
                                 <Button variant="primary" size="sm" loading={busy} onClick={() => onSend(row)}>
@@ -108,6 +121,12 @@ function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
                                     <span className="ds-visually-hidden"> of {row.title} (opens in a new tab)</span>
                                 </Button>
                             )}
+                            {canDetails && (
+                                <Button variant="ghost" size="sm" onClick={() => onDetails(row.request)}>
+                                    <Icon icon={Info} size="sm" />
+                                    Details<span className="ds-visually-hidden"> — {row.title}</span>
+                                </Button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -126,14 +145,20 @@ function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
     );
 }
 
-export function SigningDocumentsSection({ companyId, recordId, collectionName }) {
-    const headingId = `signing-documents-${useId().replace(/:/g, '')}`;
+export function SigningDocumentsSection({ companyId, recordId, collectionName, record = null }) {
     const isApplication = collectionName !== 'leads';
     const { rows, isLoading, error, formsError } = useRecordSigningRequests({ companyId, recordId, collectionName });
     const { busyKey, messages, sendToDriver, remind, openSigned } = useSigningDocumentActions({
         companyId,
         applicationId: isApplication ? recordId : null,
     });
+    // The company whose E-Docs this tab may use, or null: then neither Details nor Send a document.
+    const edocsCompany = useDossierEDocs(companyId);
+    const documentActions = useSentDocumentActions({
+        companyId,
+        companyName: edocsCompany?.companyName || edocsCompany?.name || '',
+    });
+    const onDetails = edocsCompany ? documentActions.openDetails : undefined;
 
     let body;
     if (isLoading) {
@@ -154,6 +179,7 @@ export function SigningDocumentsSection({ companyId, recordId, collectionName })
                         onSend={sendToDriver}
                         onRemind={remind}
                         onOpen={openSigned}
+                        onDetails={onDetails}
                     />
                 ))}
             </ul>
@@ -161,18 +187,21 @@ export function SigningDocumentsSection({ companyId, recordId, collectionName })
     }
 
     return (
-        <section aria-labelledby={headingId} className="space-y-ds-4">
-            <div className="px-ds-1">
-                <h4 id={headingId} className="text-ds-body-lg font-bold text-ds-content">Signing documents</h4>
-                <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
+        <div className="space-y-ds-4">
+            <div className="flex flex-wrap items-center justify-between gap-ds-3 px-ds-1">
+                <p className="min-w-0 flex-1 basis-64 text-ds-sm text-ds-content-secondary">
                     {isApplication
                         ? 'Documents sent to this driver to sign, and the forms the company requires after an application.'
                         : 'Documents sent to this driver to sign.'}
                 </p>
+                {edocsCompany && record && (
+                    <DossierSendDocument company={edocsCompany} record={{ ...record, id: recordId, collectionName }} />
+                )}
             </div>
             {body}
             {formsError && !isLoading && <Notice tone="warning" size="sm" announce="polite">{formsError}</Notice>}
-        </section>
+            {edocsCompany && <SentDocumentDialogs actions={documentActions} />}
+        </div>
     );
 }
 

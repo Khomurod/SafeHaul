@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { WorkspaceFrame } from '@/design-system/layouts';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
@@ -21,7 +21,10 @@ export const CompanyAppShell = () => {
     const { currentCompanyProfile } = useData();
     const deactivated = useCompanyDeactivated();
     const [isNavigationOpen, setIsNavigationOpen] = useState(false);
-    const [openRecordId, setOpenRecordId] = useState(null);
+    // The record open over the page, `{ id, tab }`: `tab` is the dossier tab a
+    // notification is about, else the dossier opens on its first.
+    const [openRecord, setOpenRecord] = useState(null);
+    const openRecordOn = useCallback((id, tab) => setOpenRecord(id ? { id, tab } : null), []);
     const [isNavigationExpanded, setIsNavigationExpanded] = useState(() => {
         const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
         return stored ? stored === 'expanded' : true;
@@ -36,7 +39,7 @@ export const CompanyAppShell = () => {
 
     useEffect(() => {
         setIsNavigationOpen(false);
-        setOpenRecordId(null);
+        setOpenRecord(null);
     }, [location.pathname]);
 
     // A page that sends the person on to a record names it in the navigation's
@@ -46,7 +49,7 @@ export const CompanyAppShell = () => {
     useEffect(() => {
         const recordId = location.state?.openRecordId;
         if (!recordId) return;
-        setOpenRecordId(recordId);
+        setOpenRecord({ id: recordId });
         const state = { ...location.state };
         delete state.openRecordId;
         navigate(
@@ -72,7 +75,7 @@ export const CompanyAppShell = () => {
                         navigationTriggerRef={navigationTriggerRef}
                         isNavigationOpen={isNavigationOpen}
                         onOpenNavigation={() => setIsNavigationOpen(true)}
-                        onOpenRecord={setOpenRecordId}
+                        onOpenRecord={openRecordOn}
                     />
                 )}
                 navigationOpen={!isMobile || isNavigationOpen}
@@ -87,16 +90,17 @@ export const CompanyAppShell = () => {
             {/*
               The record a notification or a navigation names opens here, over
               the page and outside the top bar's stacking layer, which a dialog
-              must not render inside.
+              must not render inside; a notification's on the tab it is about.
             */}
-            {openRecordId && currentCompanyProfile?.id && (
+            {openRecord && currentCompanyProfile?.id && (
                 <DriverDossier
-                    key={openRecordId}
+                    key={openRecord.id}
                     companyId={currentCompanyProfile.id}
-                    driverId={openRecordId}
+                    driverId={openRecord.id}
+                    initialTab={openRecord.tab}
                     isOpen
-                    onClose={() => setOpenRecordId(null)}
-                    onDeleted={() => setOpenRecordId(null)}
+                    onClose={() => setOpenRecord(null)}
+                    onDeleted={() => setOpenRecord(null)}
                 />
             )}
         </UnsavedChangesBoundary>

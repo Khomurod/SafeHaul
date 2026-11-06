@@ -309,11 +309,26 @@ unassigned application goes to the lead's recruiter while on the team, who is to
 once (not when it is already theirs). The dossier opens one from the other; deleting
 either removes the link, and a lead whose newest application is deleted points back
 at an earlier one it applied with.
+**The driver dossier** (one record, application or lead). Each section has one name, the
+tab's (`dossierSections.js`); a lead's first is "Lead", it is deleted as a lead and has no
+application PDF. The left column shows the phone and email as text, Applied (application) or
+Added (lead), and the last call: its result, and its time unless a campaign message moved
+`lastContactedAt`. The Summary's CDL expiry says it is from the application or lead; the DQ
+file may hold another date. Beside the phone, **Do not text** (any staff member who can edit;
+asks first) adds the number to the opt-out list, and a listed number reads "Texts off".
+**Log call** beside Call opens the list's call window (same rules) and the dossier reads the
+record, Activity and Notes again. On a phone only Close, the name and status, and the tab
+strip stay fixed; the rest scrolls. Previous Employment shows its counts on one line and
+claims no compliance status. Notes marks the call window's notes as calls; Notes and
+Activity stay separate tabs.
 **The bell.** A status change on an assigned application tells its assignee only (an
 unassigned one, or one whose assignee left, the team); assigning an application or
 lead tells the new owner; an import that creates assigned leads tells each recruiter
 once how many, and opens their Assigned to me; a hired driver's DQ deadline, its assignee or the team (§8). Nobody is
-told about their own action, and read state is per person.
+told about their own action, and read state is per person. A notice about a record opens
+it on the tab it is about, by its type, old notices too: a signed or unsealed document on
+Documents to sign, a PEV answer or no-response on Previous Employment, a DQ deadline on DQ
+File; any other on Application.
 Name search starts at two letters, in the lists and the
 template picker; email, phone, confirmation number and id search stay exact.
 **A call moves the stage only by the owner's table** (`useCallOutcome.js`): Interested →
@@ -350,7 +365,11 @@ a signed document, and the signer's images stay until a seal succeeds.
 **A driver's signing documents** are listed in the dossier's **Documents to sign** tab
 (id `documents`): the requests linked to the record, and each required post-application
 form no request carries yet as *Not started*; *Link expired* (unsigned, `expiresAt` past)
-and *Not delivered* (unsigned, a send failed; outranks it) are derived.
+and *Not delivered* (unsigned, a send failed; outranks it) are derived. Each sent
+document has **Details** (E-Docs' dialog and actions, except Correct, which stays in
+E-Docs), and **Send a document** picks a template and opens E-Docs' send wizard with the
+driver chosen and linked; both only with the company's E-Docs feature on, in the company
+being worked in.
 A post-application form is one document per application and form
 (`postapp_<application>_<template>`), made by whichever comes first: the thank-you
 page (it opens the form, never emails or texts it) or a team member's **Send to
@@ -475,7 +494,7 @@ employer and those marked no response, drivers with company changes to approve
 (applications and leads), unfinished applications removed within 5 days, and hired
 drivers whose DQ documents expire within 30 days or have expired (counted exactly on the
 applications status + `dqExpiresNext` index, the five earliest named, each opening the
-driver's file). Each row links to the page that shows those records where one exists
+driver's file on its DQ File tab). Each row links to the page that shows those records where one exists
 (PEV and changes live in each driver's file). Counts only, scoped to the company; rows
 of a feature that is off are left out. A failed count says "could not be checked";
 with nothing to show it is one calm line.
@@ -497,6 +516,8 @@ and the sidebar's DQ marker follows it. A CDL, medical card or MVR uploaded by t
 may carry a valid-until date, and a CDL, medical card, MVR or TWIC record may have it
 set or cleared (logged); expired, or expiring within 30 days, is judged by the UTC day.
 The driver's uploads have one place, the DQ File tab, which lists and opens them.
+A team upload has no default type; a missing or expired item's Upload chooses its type,
+and the employers row opens Previous Employment.
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
@@ -1119,7 +1140,8 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
 - **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists and adds a
-  number, only a Company Admin removes one, and never from the global list. Its screen is in Settings (admins).
+  number, only a Company Admin removes one, and never from the global list. Its screen is in Settings (admins);
+  the dossier's Do not text adds a number. "Texts off" reads the company list only, its newest 300.
 - **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
   team member, `assertCompanyAccessForRequest`): the application or request must be
   under that company, and Send to driver's template in its post-application list.
@@ -1217,7 +1239,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email, citing 49 CFR 391.23(c) and saying the record reached the DQ file only when it did): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
 | `autoSendPostApplicationForms` | every 15 min | For applications submitted through the public form 30 min–2 h ago (`submittedAt`, oldest first), sends each required, enabled post-application form by Send to driver's rules: a new request, or flags on for one the thank-you page opened and the driver did not sign; once per form through the transaction's `already-sent`, nothing written on the application. Skips companies with E-Docs off, deactivated or with no required form; no channel → skipped and logged. Stops after 4 min, and each run starts one company further on; ids-only logs |
 | `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request created 3–7 days ago (oldest first, its link not run out), once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
-| `notifyDqExpiry` | daily 07:00, America/Chicago | For each hired driver whose `dqExpiresNext` is today or within 30 days (UTC day; Needs attention's query and index), one bell notice "expires soon", and one "expired" once the date has passed, until 30 days after it (first seen past it, only "expired"; an older date stays on Needs attention); a new date gets its own. Once each (id `dq_<stage>_<applicationId>_<date>`, looked up before the DQ file is read). Names the driver, the documents holding the date and the date, opens the dossier; for the assignee while on the team, else the team. No email or text. Skips deactivated companies; stops after 7 min, and the next day starts one company further on; ids-only logs |
+| `notifyDqExpiry` | daily 07:00, America/Chicago | For each hired driver whose `dqExpiresNext` is today or within 30 days (UTC day; Needs attention's query and index), one bell notice "expires soon", and one "expired" once the date has passed, until 30 days after it (first seen past it, only "expired"; an older date stays on Needs attention); a new date gets its own. Once each (id `dq_<stage>_<applicationId>_<date>`, looked up before the DQ file is read). Names the driver, the documents holding the date and the date, opens the dossier's DQ File tab; for the assignee while on the team, else the team. No email or text. Skips deactivated companies; stops after 7 min, and the next day starts one company further on; ids-only logs |
 | `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
@@ -1644,7 +1666,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   marketing prices ($199 / $299 a month) are **not** enforced.
 - **A STOP reply is not captured automatically:** **nothing writes** the `inbound_messages` that `handleOptOut`
   (`blacklist.js`) watches (no inbound SMS webhook). The reply reaches the company's own provider, and the
-  team adds the number by hand in Settings → Text messages (`smsOptOuts.js`). Sends check the list (§8).
+  team adds the number by hand in Settings → Text messages or with the dossier's Do not text
+  (`smsOptOuts.js`). Sends check the list (§8).
 - **Frontend coverage thresholds are a ratchet** (`vitest.config.js`), a few
   points under measured coverage: raise them as it improves, never lower them.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different

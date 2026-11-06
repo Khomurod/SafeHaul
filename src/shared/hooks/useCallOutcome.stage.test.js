@@ -50,9 +50,9 @@ import { useCallOutcome } from './useCallOutcome';
 const LEAD = { id: 'lead-1', firstName: 'Ivan', lastName: 'Driver', phone: '5551234567', email: 'ivan@example.com' };
 const APPLICATION = { ...LEAD, id: 'app-1', submittedAt: { seconds: 1 } };
 
-async function logCall(outcome, { record = LEAD, status = 'In Process' } = {}) {
+async function logCall(outcome, { record = LEAD, status = 'In Process', collectionName } = {}) {
     fb.record = { exists: true, data: { ...record, status } };
-    const { result } = renderHook(() => useCallOutcome(record, 'co-1', vi.fn(), vi.fn()));
+    const { result } = renderHook(() => useCallOutcome(record, 'co-1', vi.fn(), vi.fn(), collectionName));
     act(() => {
         result.current.setOutcome(outcome);
         if (outcome === 'callback') {
@@ -112,6 +112,19 @@ describe('a call result and the pipeline stage', () => {
             lastContactedBy: 'recruiter-1',
         });
         expect(lastCallOf(data)).toBe(shown);
+    });
+
+    // An application with no `submittedAt` and another source (a carrier-prepared or
+    // reconstructed one) reads as a lead to the guess below; the dossier and the
+    // lists know the collection, and the call goes where they say.
+    it('writes where the opener says the record lives, whatever the record carries', async () => {
+        const unsubmitted = { ...LEAD, id: 'app-2', sourceType: 'Carrier' };
+
+        expect((await logCall('no_answer', { record: unsubmitted, collectionName: 'applications' })).path)
+            .toBe('companies/co-1/applications/app-2');
+        fb.updateDoc.mockClear();
+        expect((await logCall('no_answer', { record: APPLICATION, collectionName: 'leads' })).path)
+            .toBe('companies/co-1/leads/app-1');
     });
 
     it('writes to the application itself when the record is an application', async () => {

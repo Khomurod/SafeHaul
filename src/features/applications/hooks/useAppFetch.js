@@ -155,11 +155,31 @@ export function useAppFetch(companyId, applicationId) {
     loadApplication();
   }, [loadApplication]);
 
+  /**
+   * The record read again after a change made from the dossier (a logged call),
+   * so its stage and last call show. Quiet: no loading state, and the files stay
+   * as they were signed. A read for a record no longer shown changes nothing.
+   */
+  const refreshRecord = useCallback(async () => {
+    if (!companyId || !applicationId) return;
+    const version = loadVersionRef.current;
+    try {
+      const snap = await getDoc(doc(db, "companies", companyId, collectionName, applicationId));
+      if (version !== loadVersionRef.current || !snap.exists()) return;
+      const data = snap.data();
+      setAppData(data);
+      setCurrentStatus(data.status || 'New Application');
+    } catch (err) {
+      console.error("Error refreshing the record:", err);
+    }
+  }, [companyId, applicationId, collectionName]);
+
   return {
     loading,
     error,
     appData,
     setAppData,
+    refreshRecord,
     collectionName,
     fileUrls,
     filesPending,

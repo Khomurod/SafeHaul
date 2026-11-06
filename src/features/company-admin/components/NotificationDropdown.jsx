@@ -33,6 +33,20 @@ const timeAgo = (date) => {
     return `${Math.floor(diff / 86400)}d ago`;
 };
 
+// The dossier tab a notice about a record is about, by its type, so the notices
+// already sent open it too: a signed or unsealed document (`sealNotifications.js`)
+// its Documents to sign, a PEV answer or no-response (`employmentVerification/
+// notifications.js`) Previous Employment, a DQ deadline (`notifyDqExpiry.js`) the
+// DQ File. Any other opens the dossier on its first tab.
+const DOSSIER_TAB_BY_TYPE = Object.freeze({
+    document_signed: 'documents',
+    document_seal_failed: 'documents',
+    pev_completed: 'pev',
+    pev_no_response: 'pev',
+    dq_expiring: 'dq',
+    dq_expired: 'dq',
+});
+
 // The server's notifications name the record they are about: the dossier
 // finds an application or a lead by its id, and E-Docs lists a signing request.
 // An import's summary ("15 leads assigned to you", `leads_assigned`) names no
@@ -42,13 +56,14 @@ const openerOf = (notif, onOpenRecord, onOpenDocuments, onOpenAssignedLeads) => 
     if (notif.type === 'leads_assigned') return onOpenAssignedLeads || null;
     if (!notif.relatedId) return null;
     if (onOpenRecord && (notif.relatedType === 'application' || notif.relatedType === 'lead')) {
-        return () => onOpenRecord(notif.relatedId);
+        return () => onOpenRecord(notif.relatedId, DOSSIER_TAB_BY_TYPE[notif.type]);
     }
     return onOpenDocuments && notif.relatedType === 'signing_request' ? onOpenDocuments : null;
 };
 
 /**
- * `onOpenRecord(id)` opens a record's dossier; the shell renders it.
+ * `onOpenRecord(id, tab)` opens a record's dossier, on `tab` when the notice is
+ * about one (else undefined: the first tab); the shell renders it.
  * `onOpenDocuments()` opens E-Docs; `onOpenAssignedLeads()` the Leads list's
  * Assigned to me tab.
  */

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useId } from 'react';
-import { Icon, Briefcase, CheckCircle2, ShieldCheck, Info } from '@design-system/icons';
+import { Icon, Briefcase, Info } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -13,15 +13,19 @@ import { storage } from '@lib/firebase/storage';
 import { ref, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
-import { Card, MetricCard } from '@/design-system/components';
+import { Card } from '@/design-system/components';
 import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
 
 /**
  * Previous Employment Verification — initiation and tracking.
  *
- * Presentation uses the approved `Card`, `MetricCard`, `Badge`, `Button`
- * and `IconButton` primitives, the approved accessible `Modal`, and `--ds-*`
- * tokens.
+ * Presentation uses the approved `Card`, `Badge`, `Button` and `IconButton`
+ * primitives, the approved accessible `Modal`, and `--ds-*` tokens.
+ *
+ * The tab is named once, by its tab and the dossier header: it opens with the
+ * counts on one line (employers, completed, in progress), then the
+ * §391.23 note and the employers. No status is claimed that the data does not
+ * hold (a fixed "Compliance Status: Audit in Progress" card stood here).
  *
  * DELIBERATELY NOT MIGRATED in this campaign: `VOEPreviewModal`'s generated
  * document layout and its PDF/print rendering, and the external employer
@@ -54,7 +58,7 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  *   as the list, so a legacy employer is named rather than "Not Specified": it
  *   is the one place that tells you *whose* verification trail you are reading.
  * - **The Resend action has an accessible name**, not a `title` alone.
- * - **No interface text below the 12 px floor**, the summary cards, the status
+ * - **No interface text below the 12 px floor**, the counts, the status
  *   badges and the FMCSA notes included.
  * - **The employer list is a real list**, so assistive technology announces how
  *   many employers there are.
@@ -65,6 +69,11 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  */
 
 const RESULT_NOT_FILED = 'The result was recorded, but it could not be filed in the DQ file. It opens from the verification history.';
+
+/** "3 employers, 1 completed, 2 in progress". */
+function countsLine({ total, completed, pending }) {
+    return `${total} ${total === 1 ? 'employer' : 'employers'}, ${completed} completed, ${pending} in progress`;
+}
 
 export function PEVTab({ companyId, applicationId, appData, collectionName = 'applications' }) {
     const { showSuccess, showError } = useToast();
@@ -310,36 +319,12 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
 
     return (
         <div className="mx-auto max-w-6xl space-y-ds-6">
-            {/* Summary */}
-            <div className="grid grid-cols-1 gap-ds-4 md:grid-cols-3">
-                <MetricCard
-                    label="Total Employers"
-                    value={stats.total}
-                    tone="info"
-                    icon={<Icon icon={Briefcase} size="2xl" />}
-                />
-                <MetricCard
-                    label="Completed"
-                    value={stats.completed}
-                    tone="success"
-                    icon={<Icon icon={CheckCircle2} size="2xl" />}
-                />
-                <MetricCard
-                    label="Compliance Status"
-                    value="Audit in Progress"
-                    tone="warning"
-                    icon={<Icon icon={ShieldCheck} size="2xl" />}
-                />
-            </div>
-
-            {/* Verification Center */}
             <Card padding="lg">
-                {/* `<h4>` sits under the dossier header's `<h3>` section title. */}
-                <h4 className="mb-ds-4 border-b border-ds-border-subtle pb-ds-2 text-ds-body-lg font-bold text-ds-content">
-                    Verification Center (DOT Compliance)
-                </h4>
-
                 <div className="space-y-ds-4">
+                    {employers.length > 0 && (
+                        <p className="text-ds-sm font-medium text-ds-content">{countsLine(stats)}</p>
+                    )}
+
                     <p className="flex items-start gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3 text-ds-xs font-medium text-ds-content-secondary">
                         <Icon icon={Info} size="sm" className="mt-0.5 shrink-0 text-ds-action-primary" />
                         FMCSA 391.23(a)(2) requires investigation of employment history for the previous 3 years from the date of the application.

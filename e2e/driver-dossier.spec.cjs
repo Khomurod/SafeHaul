@@ -27,12 +27,12 @@ const DIALOG = { name: 'Driver dossier' };
 const SECTION_NAV = { name: 'Driver dossier sections' };
 
 const SECTIONS = [
-  ['Application', 'Application Review'],
+  ['Application', 'Application'],
   ['Documents to sign', 'Documents to sign'],
-  ['DQ File', 'Driver Qualification File'],
-  ['Previous Employment', 'Previous Employment Verification'],
-  ['Activity', 'Activity Timeline'],
-  ['Notes', 'Internal Notes'],
+  ['DQ File', 'DQ File'],
+  ['Previous Employment', 'Previous Employment'],
+  ['Activity', 'Activity'],
+  ['Notes', 'Notes'],
 ];
 
 /** Every action a user needs to leave, export or act on the dossier. */
@@ -187,7 +187,7 @@ test.describe('Driver Dossier shell', () => {
       expect(state.label, `ArrowDown should select ${label}`).toBe(label);
       expect(state.focused).toBe(true);
       expect(state.panelMatchesTab).toBe(true);
-      await expect(page.getByRole('heading', { name: title })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
     }
 
     await page.keyboard.press('ArrowDown');
@@ -211,7 +211,7 @@ test.describe('Driver Dossier shell', () => {
     // NOT migrated; this asserts only that the shell still reaches them.
     for (const [label, title] of SECTIONS) {
       await page.getByRole('tab', { name: new RegExp(`^${label}`) }).click();
-      await expect(page.getByRole('heading', { name: title })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
     }
   });
 
@@ -324,7 +324,8 @@ test.describe('Driver Dossier on a real mobile device lane', () => {
     await openDossier(page);
 
     // Full-screen sheet below `sm`, and the navigation becomes a horizontal
-    // strip — same DOM order, so the tab sequence never changes.
+    // strip under a one-line bar that starts with Close; the driver's details
+    // and the section's header scroll with the section in the tab panel.
     const layout = await page.evaluate(() => {
       const dlg = document.querySelector('[role="dialog"][aria-label="Driver dossier"]');
       const tablist = dlg.querySelector('[role="tablist"]');
@@ -350,7 +351,7 @@ test.describe('Driver Dossier on a real mobile device lane', () => {
     // Every section must still be reachable by touch on the scrolling strip.
     for (const [label, title] of SECTIONS) {
       await page.getByRole('tab', { name: new RegExp(`^${label}`) }).click();
-      await expect(page.getByRole('heading', { name: title })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
     }
 
     const scan = await new AxeBuilder({ page })

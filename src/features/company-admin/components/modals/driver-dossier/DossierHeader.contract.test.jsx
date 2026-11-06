@@ -51,12 +51,12 @@ const renderHeader = (overrides = {}) => {
 
 describe('DossierHeader titles', () => {
   it.each([
-    ['application', 'Application Review'],
+    ['application', 'Application'],
     ['documents', 'Documents to sign'],
-    ['dq', 'Driver Qualification File'],
-    ['activity', 'Activity Timeline'],
-    ['notes', 'Internal Notes'],
-    ['pev', 'Previous Employment Verification'],
+    ['dq', 'DQ File'],
+    ['activity', 'Activity'],
+    ['notes', 'Notes'],
+    ['pev', 'Previous Employment'],
     ['something-else', 'Driver Dossier'],
   ])('tab %s keeps the frozen title %s', (activeTab, expected) => {
     renderHeader({ activeTab });
@@ -207,6 +207,44 @@ describe('DossierHeader permission gating', () => {
     const props = renderHeader({ canDelete: true });
     fireEvent.click(screen.getByRole('button', { name: /delete application/i }));
     expect(props.onDelete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DossierHeader for a lead (a lead is not an application)', () => {
+  it("titles a lead's first tab Lead, deletes a lead, and offers no application PDF", () => {
+    const props = renderHeader({ collectionName: 'leads', canDelete: true });
+
+    expect(screen.getByRole('heading', { level: 3, name: 'Lead' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3, name: 'Application' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /delete application/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete lead' }));
+    expect(props.onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps every other tab's title", () => {
+    renderHeader({ collectionName: 'leads', activeTab: 'dq' });
+    expect(screen.getByRole('heading', { level: 3, name: 'DQ File' })).toBeInTheDocument();
+  });
+
+  it.each([['applications'], [undefined]])(
+    'keeps the application wording for collection %s, the default before a record loads',
+    (collectionName) => {
+      renderHeader({ collectionName, canDelete: true });
+      expect(screen.getByRole('heading', { level: 3, name: 'Application' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
+    },
+  );
+});
+
+describe('DossierHeader on a phone', () => {
+  it('leaves Close to the identity bar when told to, and keeps every other action', () => {
+    renderHeader({ showClose: false, canDelete: true });
+    expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /status/i })).toBeInTheDocument();
   });
 });
 

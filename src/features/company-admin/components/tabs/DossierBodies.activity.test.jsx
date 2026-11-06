@@ -100,8 +100,18 @@ describe('ActivityHistoryTab — filtering', () => {
     it('puts the timeline in a named, focusable scroll region', async () => {
         fs.getDocs.mockResolvedValue(snap(LOGS));
         renderActivity();
-        const region = await screen.findByRole('region', { name: 'Audit Trail' });
+        const region = await screen.findByRole('region', { name: 'Activity' });
         expect(region).toHaveAttribute('tabindex', '0');
+    });
+
+    // The tab and the dossier header name it; "Audit Trail" named it a third time.
+    it('gives the tab no heading of its own', async () => {
+        fs.getDocs.mockResolvedValue(snap(LOGS));
+        renderActivity();
+        await screen.findByText('Call logged');
+        expect(screen.queryByText('Audit Trail')).toBeNull();
+        expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+        expect(screen.queryByRole('heading', { name: 'Activity' })).toBeNull();
     });
 });
 

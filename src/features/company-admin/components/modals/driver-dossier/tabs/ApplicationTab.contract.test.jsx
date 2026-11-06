@@ -148,7 +148,7 @@ const renderTab = (appData = APP, props = {}) => {
       canEdit={props.canEdit ?? false}
       companyId="co-1"
       applicationId="app-1"
-      collectionName="applications"
+      collectionName={props.collectionName || 'applications'}
     />,
   );
 };
@@ -218,6 +218,14 @@ describe('ApplicationTab license summary', () => {
     d.setDate(d.getDate() + offsetDays);
     renderTab({ ...APP, cdlExpiration: d.toISOString() });
     expect(screen.getByText(expected)).toBeInTheDocument();
+  });
+
+  it("labels the expiry as the application's, or a lead's as the lead's", () => {
+    renderTab();
+    expect(screen.getByText('Expiration (from application)')).toBeInTheDocument();
+    cleanup();
+    renderTab(APP, { collectionName: 'leads' });
+    expect(screen.getByText('Expiration (from lead)')).toBeInTheDocument();
   });
 
   it('shows no expiry band at all when there is no expiry date', () => {

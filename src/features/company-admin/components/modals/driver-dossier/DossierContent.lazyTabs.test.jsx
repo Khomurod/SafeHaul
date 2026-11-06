@@ -12,19 +12,32 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
-const fx = vi.hoisted(() => ({ loaded: [], notesProps: null, signingProps: null, dqProps: null }));
+const fx = vi.hoisted(() => ({ loaded: [], notesProps: null, signingProps: null, dqProps: null, mounts: [] }));
 
 vi.mock('@features/company-admin/components/tabs/PEVTab', () => {
     fx.loaded.push('PEVTab');
     return { PEVTab: () => <p>Previous employment</p> };
 });
-vi.mock('@features/company-admin/components/tabs/ActivityHistoryTab', () => ({ ActivityHistoryTab: () => <p>Audit trail</p> }));
-vi.mock('@features/company-admin/components/tabs/NotesTab', () => ({
-    NotesTab: (props) => {
-        fx.notesProps = props;
-        return <p>Notes</p>;
-    },
-}));
+vi.mock('@features/company-admin/components/tabs/ActivityHistoryTab', async () => {
+    const { useEffect } = await import('react');
+    return {
+        ActivityHistoryTab: () => {
+            // Each mount is a fresh read of the trail.
+            useEffect(() => { fx.mounts.push('activity'); }, []);
+            return <p>Audit trail</p>;
+        },
+    };
+});
+vi.mock('@features/company-admin/components/tabs/NotesTab', async () => {
+    const { useEffect } = await import('react');
+    return {
+        NotesTab: (props) => {
+            fx.notesProps = props;
+            useEffect(() => { fx.mounts.push('notes'); }, []);
+            return <p>Notes</p>;
+        },
+    };
+});
 vi.mock('@features/company-admin/components/tabs/DQFileTab', () => ({
     DQFileTab: (props) => {
         fx.dqProps = props;
@@ -46,6 +59,7 @@ afterEach(() => {
     fx.notesProps = null;
     fx.signingProps = null;
     fx.dqProps = null;
+    fx.mounts = [];
 });
 
 describe('the dossier tabs that load later', () => {
@@ -70,6 +84,7 @@ describe('the dossier tabs that load later', () => {
             applicationId: 'app-1',
             collectionName: 'leads',
             sharedHistory,
+            refreshKey: 0,
         });
         // The same array, so an unchanged record does not re-run the tab's read.
         expect(fx.notesProps.sharedHistory).toBe(sharedHistory);
@@ -92,17 +107,45 @@ describe('the Documents tab', () => {
 
         const texts = [...document.querySelectorAll('p')].map((p) => p.textContent);
         expect(texts).toEqual(['Signing documents', "The driver's uploads, such as the CDL and the medical card, are in the DQ File tab."]);
-        expect(fx.signingProps).toEqual({ companyId: 'co-1', recordId: 'lead-1', collectionName: 'leads' });
+        // The record too: Send a document sends to this driver.
+        expect(fx.signingProps).toEqual({ companyId: 'co-1', recordId: 'lead-1', collectionName: 'leads', record: appData });
         expect(screen.queryByText('Uploaded Documents')).toBeNull();
     });
 });
 
-describe('the DQ File tab', () => {
-    it('takes the record already loaded, for its checklist\'s employers', () => {
-        const appData = { employers: [{ companyName: 'Prairie Line Freight' }] };
-        render(<DossierContent activeTab="dq" appData={appData} driverId="app-1" companyId="co-1" collectionName="applications" />);
+describe('a call logged in the dossier', () => {
+    it('hands Notes the refresh, without starting it over (a note being written stays)', async () => {
+        const props = { activeTab: 'notes', appData: {}, driverId: 'app-1', companyId: 'co-1', collectionName: 'applications' };
+        const { rerender } = render(<DossierContent {...props} refreshKey={0} />);
+        expect(await screen.findByText('Notes')).toBeInTheDocument();
 
-        expect(fx.dqProps).toEqual({ companyId: 'co-1', applicationId: 'app-1', collectionName: 'applications', appData });
+        rerender(<DossierContent {...props} refreshKey={1} />);
+        expect(fx.mounts).toEqual(['notes']);
+        expect(fx.notesProps.refreshKey).toBe(1);
+    });
+
+    it.each([
+        ['activity', 'Audit trail'],
+    ])('reopens %s, which reads its entries once, so the call shows', async (tab, text) => {
+        const props = { activeTab: tab, appData: {}, driverId: 'app-1', companyId: 'co-1', collectionName: 'applications' };
+        const { rerender } = render(<DossierContent {...props} refreshKey={0} />);
+        expect(await screen.findByText(text)).toBeInTheDocument();
+
+        rerender(<DossierContent {...props} refreshKey={0} />);
+        expect(fx.mounts).toEqual([tab]);
+
+        rerender(<DossierContent {...props} refreshKey={1} />);
+        expect(fx.mounts).toEqual([tab, tab]);
+    });
+});
+
+describe('the DQ File tab', () => {
+    it('takes the record already loaded, for its checklist\'s employers, and the way to their tab', () => {
+        const appData = { employers: [{ companyName: 'Prairie Line Freight' }] };
+        const onOpenTab = vi.fn();
+        render(<DossierContent activeTab="dq" appData={appData} driverId="app-1" companyId="co-1" collectionName="applications" onOpenTab={onOpenTab} />);
+
+        expect(fx.dqProps).toEqual({ companyId: 'co-1', applicationId: 'app-1', collectionName: 'applications', appData, onOpenTab });
         expect(fx.dqProps.appData).toBe(appData);
     });
 });

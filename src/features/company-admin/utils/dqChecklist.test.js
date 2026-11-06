@@ -15,12 +15,22 @@ const item = (checklist, id) => checklist.items.find((entry) => entry.id === id)
 const build = (files, record = {}) => buildDqChecklist({ files, record, now: NOW });
 
 describe('the DQ file types', () => {
-    it('keeps the first type as the default, adds CDL, and takes a valid-until date on CDL, medical card and MVR', () => {
+    it('keeps its order, adds CDL, and takes a valid-until date on CDL, medical card and MVR', () => {
         expect(DQ_FILE_TYPES[0]).toBe('Application for Employment');
         expect(DQ_FILE_TYPES).toHaveLength(12);
         expect(DQ_FILE_TYPES).toContain('CDL');
         expect(DQ_FILE_TYPES.at(-1)).toBe('Other');
         expect([...DATED_FILE_TYPES].sort()).toEqual(['CDL', 'MVR (Annual)', 'Medical Card']);
+    });
+
+    // Pressing an item the file lacks chooses this type; a file of it fills the item.
+    it("gives each document item the upload type that files it, and the employers none", () => {
+        const items = build([]).items;
+        for (const entry of items.filter((candidate) => !candidate.employers)) {
+            expect(DQ_FILE_TYPES).toContain(entry.uploadType);
+            expect(entry.kinds).toContain(dqKindOf({ fileType: entry.uploadType }));
+        }
+        expect(item(build([]), 'pev').uploadType).toBeUndefined();
     });
 
     it('names an entry by what the server filed it as, else by the type the team chose', () => {
