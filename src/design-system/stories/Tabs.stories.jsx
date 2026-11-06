@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Icon, Archive, FileText, LayoutTemplate, Send } from '@design-system/icons';
-import { Badge, Card, TabList, TabPanel } from '@design-system/components';
+import { Badge, Card, TabList, TabNav, TabPanel } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
 
 const TABS = [
@@ -116,6 +116,16 @@ const meta = {
           '  the driver dossier hands it to `Modal`\'s `initialFocusRef`.',
           '- `ariaLabel` is required. "tab list" is not a name.',
           '',
+          '### Views that are pages: `TabNav`',
+          '',
+          '**Status: Needs review.** When each view has its own address, the strip is',
+          'navigation, not a tab widget. `TabNav` draws the same underlined strip as a named',
+          '`<nav>` holding a list of links: each link is its own Tab stop, Enter follows it,',
+          'the browser offers "open in a new tab", and the page shown is `aria-current="page"`.',
+          'No arrow keys and no panel: a page change keeps neither promise a tablist makes.',
+          'Routing stays with the caller, which passes each item an `href` and, for an in-app',
+          'move, an `onClick`. See the Navigation story.',
+          '',
           '### Not a tab strip',
           '',
           'Use `SectionNavigation` for navigating between sections of a settings page — that',
@@ -181,4 +191,24 @@ export const Fitted = {
 export const NarrowViewport = {
   globals: { viewport: { value: 'safehaulMobile' } },
   render: () => <Example />,
+};
+
+/**
+ * `TabNav` — the same strip as links, for views that each have their own
+ * address. A named `<nav>`; the page shown is `aria-current="page"`.
+ */
+export const Navigation = {
+  render: () => (
+    <Card padding="none">
+      <TabNav
+        ariaLabel="Record lists"
+        currentId="mine"
+        items={[
+          { id: 'all', label: 'All', href: '#all' },
+          { id: 'mine', label: 'Assigned to me', href: '#mine' },
+          { id: 'open', label: 'Unassigned', href: '#open' },
+        ]}
+      />
+    </Card>
+  ),
 };

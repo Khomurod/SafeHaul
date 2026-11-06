@@ -111,6 +111,25 @@
   background: var(--ds-color-surface-selected);
 }
 
+/*
+ * `TabNav`: the same strip as a list of links. The list drops its own
+ * spacing and markers, and a link drops its underline: the tab's bottom border
+ * is what marks the page shown.
+ */
+.ds-tab-nav .ds-tab-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-tab-nav__item {
+  display: flex;
+}
+
+a.ds-tab {
+  text-decoration: none;
+}
+
 .ds-tab:focus-visible {
   outline: 2px solid var(--ds-color-focus);
   /*

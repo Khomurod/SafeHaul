@@ -90,8 +90,40 @@ migrating them changes no behaviour.
 - **A vertical strip ignores the horizontal arrows**, so it cannot hijack the
   scroll keys of a horizontally scrolling region around it.
 
+## `TabNav`: views that are pages
+
+When each view has its own address (a route), the strip is navigation, not a
+tab widget. `TabNav` draws the same underlined strip, from the same `Tabs.css`,
+as a named `<nav>` holding a list of links.
+
+```jsx
+<TabNav
+  ariaLabel="Record lists"
+  items={[{ id: 'all', label: 'All', href: '/records/all', onClick }, …]}
+  currentId="all"
+/>
+```
+
+| | `TabList` | `TabNav` |
+|---|---|---|
+| Role | `tablist` of `tab`s, one `tabpanel` | `navigation` holding a list of links |
+| Selection | `aria-selected` | `aria-current="page"` on the page shown |
+| `Tab` | One stop for the strip | Every link is a stop, in order |
+| Arrow keys | Move and select | None: a page change is not a cheap, reversible switch |
+| Activation | Selection follows focus | `Enter` or a click follows the link; the browser offers "open in a new tab" |
+
+- **`ariaLabel` is required**, and every item needs an `href`: a link with no
+  destination is a button.
+- **Routing is the caller's.** The design system knows no router: an item takes
+  an `href`, and an `onClick` (a router's link click handler) for an in-app move
+  without a reload. The leads list's All · Assigned to me · Unassigned is the
+  consumer.
+- Underline variant only, horizontal only, no icons or badges: nothing asks for
+  more yet.
+
 ## Not this component
 
 - **`SectionNavigation`** for moving between sections of a settings page. That
   is navigation, not a tab widget, and it has a different keyboard contract.
+- **`TabNav`** (above) when each view is its own page.
 - **`Disclosure`** when more than one region may be open at once.
