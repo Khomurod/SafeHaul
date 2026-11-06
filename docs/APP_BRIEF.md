@@ -114,9 +114,14 @@ keep the branded loader; before that `index.html` shows the mark (all routes).
 ### Company workspace (`/company/*`)
 
 `dashboard` · `drivers/applications` · `drivers/unfinished` ·
-`drivers/leads/company` · `drivers/leads/my` · `campaigns` · `e-docs` ·
-`import-leads` (admin) · `quick-add-lead` (admin) · `profile` · `settings`
-(admin)
+`drivers/leads` (the menu's Leads: All for a company admin, Assigned to me for
+anyone else) and its tabs `drivers/leads/company` (All) · `drivers/leads/my`
+(Assigned to me) · `drivers/leads/unassigned` (Unassigned) · `campaigns` ·
+`e-docs` · `import-leads` (admin) · `quick-add-lead` (Add lead) · `profile` ·
+`settings` (admin)
+
+The tabs, Add lead and Import leads have no menu items: the Leads page offers
+them, and their addresses work as before.
 
 `drivers/start-application` has no sidebar item and redirects to
 `drivers/unfinished` with its query string intact. Unknown `/company/*` paths
@@ -279,8 +284,15 @@ uses, none a submission marked or older than 2026-10-12; its tokens learn
 
 **Recruiter pipeline (ATS).** Applications and leads are separate collections
 under the company with the same tooling: status funnel, activity log, notes,
-documents, assignment. Leads come by quick-add, CSV / spreadsheet import, the
-Facebook Lead Ads webhook, or a referral quick form. **Driver referral links**
+documents, assignment. Leads come by Add lead, CSV / spreadsheet import, the
+Facebook Lead Ads webhook, or a referral quick form. **Leads** is one page with
+three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segments
+are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
+Process, Interested and Declined (`Declined`, `Rejected`). Assign (admins) is on
+All and Unassigned, the Assigned to filter on All and Applications, Only mine on
+Applications. **Add lead** (any staff member) assigns a recruiter's lead to them
+(Д13; an admin's stays unassigned) and opens it in the dossier on the person's
+list; **Import leads** (admins, `importLeads`) returns there. **Driver referral links**
 (Referral Links page: any staff member makes one; admins see all, others
 theirs; deactivate only; `referral_links`, team-only). `/apply/<slug>?ref=`
 offers, in the intake chooser's place, the quick form (names, phone, email,
@@ -300,7 +312,7 @@ at an earlier one it applied with.
 **The bell.** A status change on an assigned application tells its assignee only (an
 unassigned one, or one whose assignee left, the team); assigning an application or
 lead tells the new owner; an import that creates assigned leads tells each recruiter
-once how many; a hired driver's DQ deadline, its assignee or the team (§8). Nobody is
+once how many, and opens their Assigned to me; a hired driver's DQ deadline, its assignee or the team (§8). Nobody is
 told about their own action, and read state is per person.
 Name search starts at two letters, in the lists and the
 template picker; email, phone, confirmation number and id search stay exact.
@@ -1039,8 +1051,8 @@ only those, and the record's own value when it is a legacy one: one that names a
 stage takes its place under the stage's name (`New Lead` and `New Application` read
 New, `Approved` Hired, `Rejected` Declined), any other keeps its stored name.
 Legacy values stay stored and valid in the rules. Creation defaults differ: leads get `New Lead`,
-applications `New Application`. Application lists show one name per group
-(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Their **In
+applications `New Application`. The lists, leads too, show the dossier's name
+(`dossierStatusLabel`: `New Lead` reads New, `Approved` Hired); the value stays. Their **In
 process** tab, and the dashboard's count of it, is Contact Attempt 1–3, Interested,
 In Process and the older stages between them (`APPLICATION_IN_PROCESS_STATUSES`, Д14):
 not New, Hired, Terminated, Declined or the closed `Disqualified`, `Stale`,
@@ -1083,10 +1095,12 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   directly; a company admin uses `createPortalUser` (an existing account keeps
   its password; no Super Admin) and `deletePortalUser` (membership only).
   Changing or deleting another person's login is Super Admin only.
-- **Menu visibility and route access share one function**,
-  `isCompanyAdminForRoute()` in `src/app/auth/roles.js`, behind both the sidebar
-  and `CompanyAdminRoute`, so a hidden nav item is never reachable by URL. Keep
-  it that way.
+- **Who may open a company page belongs to the page**: its manifest entry's
+  `adminOnly` and `featureFlag` (`companyRouteManifest.js`), not its menu item.
+  `CompanyAdminRoute` guards an `adminOnly` route with `isCompanyAdminForRoute()`
+  (`src/app/auth/roles.js`), and the sidebar and the buttons that lead to a page
+  offer it only when `canOfferCompanyRoute` allows, so removing a menu item never
+  opens its page. Keep it that way.
 - **Server-only collections** are closed to every client, super admins included:
   `rate_limits`, `processing_status`, `integrations_index`,
   `environment_audit_log`, `ai_provider_config`, `ai_routing_config`,
@@ -1574,9 +1588,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   already worked so). A month of hires lists its 200 newest, saying so.
 - **In process with a State picked finds only its name and postal code** ("Texas", "TX"):
   twelve statuses leave room for two spellings in Firestore's 30 alternatives.
-- **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
-  asks for. Older leads with `null` (imported) or none (Quick Add, Facebook)
-  are not found there until Data cleanup's lead fields item runs (below).
+- **An unassigned lead stores `assignedTo: ''`**, which the Unassigned tab and
+  filter ask for. Older leads with `null` (imported) or none (Quick Add, Facebook)
+  are not listed there until Data cleanup's lead fields item runs (below); a
+  search on the tab finds them.
 - **Facebook lead capture is switched off; an earlier defect may have stranded
   leads** in `companies/{uid}/leads`, which no screen reads
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
