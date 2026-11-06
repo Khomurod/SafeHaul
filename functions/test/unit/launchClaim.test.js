@@ -4,8 +4,8 @@
 // `initBulkSession` claims the draft in a transaction before it gathers
 // recipients: a draft already launched, or claimed by a launch still within
 // its time, is refused, so two tabs (or two people) pressing Launch on the
-// same draft send one campaign. A launch that ends marks the draft
-// (`launchedAt`, `sessionId`); one that fails gives its claim back.
+// same draft send one campaign. The session batch marks the draft launched
+// (`launchedMark`); a launch that stops before it gives its claim back.
 //
 // Firestore is an in-memory map here; a transaction reads and writes it.
 // =====================================================================
@@ -91,7 +91,7 @@ jest.mock('../../firebaseAdmin', () => ({
 const {
     CLAIM_TTL_MS,
     claimDraftLaunch,
-    finishDraftLaunch,
+    launchedMark,
     releaseDraftLaunch,
 } = require('../../bulkActions/helpers/launchClaim');
 
@@ -162,6 +162,8 @@ describe('claimDraftLaunch', () => {
         expect(store.get(PATH).launchClaim).toBeUndefined();
     });
 
+    // The session batch drops the claim, so an old claim belongs to a launch that
+    // died before writing its session: nothing went out.
     it('takes over a claim left by a launch that died, once it is older than the callable could run', async () => {
         await claim();
 
@@ -170,26 +172,6 @@ describe('claimDraftLaunch', () => {
         expect(store.get(PATH).launchClaim).toMatchObject({ by: 'admin-2', sessionId: 'session-2' });
         // The callable stops after 540 seconds, so a live launch always holds its claim.
         expect(CLAIM_TTL_MS).toBeGreaterThan(540 * 1000);
-    });
-
-    // Any session the claim names was written by a launch that got past its
-    // checks; whether it sent cannot be known for sure (a send can land before
-    // its progress is written), so it counts as sent and is never sent again.
-    it.each([
-        ['active', { status: 'active' }],
-        ['failed after sending', { status: 'failed', progress: { processedCount: 1, currentPointer: 1 } }],
-        ['failed with no progress recorded', { status: 'failed', progress: { processedCount: 0, currentPointer: 0 } }],
-    ])('refuses a stale claim whose session exists (%s), and marks the draft launched', async (_label, session) => {
-        await claim();
-        store.set('companies/co-1/bulk_sessions/session-1', session);
-
-        await expect(claim({ uid: 'admin-2', sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 }))
-            .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringMatching(/already launched/) });
-        expect(store.get(PATH)).toEqual({
-            name: 'Spring drive',
-            launchedAt: SERVER_TIME,
-            sessionId: 'session-1',
-        });
     });
 
     it('treats a claim without a readable time as stale', async () => {
@@ -220,31 +202,13 @@ describe('claimDraftLaunch', () => {
     });
 });
 
-describe('finishDraftLaunch', () => {
-    it('marks the draft launched with its session and drops the claim', async () => {
-        const draft = await claim();
-
-        await finishDraftLaunch(draft, 'session-1');
-
-        expect(store.get(PATH)).toEqual({
-            name: 'Spring drive',
+describe('launchedMark', () => {
+    it('marks the draft launched by its session and drops the claim, for the session batch', () => {
+        expect(launchedMark('session-1')).toEqual({
             launchedAt: SERVER_TIME,
             sessionId: 'session-1',
+            launchClaim: DELETE,
         });
-    });
-
-    it('does nothing without a claimed draft', async () => {
-        await expect(finishDraftLaunch(null, 'session-1')).resolves.toBeUndefined();
-    });
-
-    it('never fails the launch that already went out: a draft deleted meanwhile is logged, not recreated', async () => {
-        const draft = await claim();
-        store.delete(PATH);
-
-        await expect(finishDraftLaunch(draft, 'session-1')).resolves.toBeUndefined();
-        expect(store.has(PATH)).toBe(false);
-        // Only the error's code is logged.
-        expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[launchClaim]'), 5);
     });
 });
 

@@ -9,13 +9,14 @@ const { admin, db } = require("../../firebaseAdmin");
  *
  * - a draft with `launchedAt` is refused (already launched);
  * - a draft whose `launchClaim` is younger than `CLAIM_TTL_MS` is refused (a
- *   launch is running). An older claim belongs to a launch that died, since
- *   the callable stops after 540 seconds. If that launch's session exists, the
- *   launch got past its checks and may have sent (a send can land before its
- *   progress is written), so only its mark was lost: the draft is marked
- *   launched with it and refused. Otherwise the claim is taken over;
- * - a launch that goes out marks the draft (`launchedAt`, `sessionId`) and
- *   drops the claim; one that fails gives its own claim back.
+ *   launch is running). An older claim belongs to a launch that died before it
+ *   wrote its session (the callable stops after 540 seconds), so nothing went
+ *   out, and it is taken over;
+ * - the draft is marked launched (`launchedMark`: `launchedAt`, `sessionId`,
+ *   the claim dropped) in the same batch that writes the session, so no session
+ *   exists without its mark. From then on the draft is launched, whatever
+ *   happens to the session;
+ * - a launch that stops before that batch gives its own claim back.
  *
  * A screen that sends no draft (Production's screens until a release ships
  * this) claims nothing and launches as before.
@@ -39,16 +40,6 @@ function isDraftId(value) {
         && !/^__.*__$/.test(value);
 }
 
-/**
- * Whether the session a stale claim names was written. A written session may
- * have sent whatever its status or progress says, so it is never sent again.
- */
-async function claimedSessionWritten(tx, companyId, claim) {
-    if (!isDraftId(claim?.sessionId)) return false;
-    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(claim.sessionId);
-    return (await tx.get(sessionRef)).exists;
-}
-
 function claimedAtMillis(claim) {
     const millis = typeof claim?.at?.toMillis === 'function' ? claim.at.toMillis() : NaN;
     return Number.isFinite(millis) ? millis : 0;
@@ -64,54 +55,35 @@ async function claimDraftLaunch({ companyId, campaignId, uid, sessionId, now = D
     if (!isDraftId(campaignId)) throw new HttpsError('invalid-argument', 'This campaign could not be found.');
 
     const draftRef = db.collection('companies').doc(companyId).collection('campaign_drafts').doc(campaignId);
-    const outcome = await db.runTransaction(async (tx) => {
+    await db.runTransaction(async (tx) => {
         const snap = await tx.get(draftRef);
         if (!snap.exists) throw new HttpsError('not-found', DRAFT_GONE);
         const draft = snap.data() || {};
         if (draft.launchedAt) throw new HttpsError('failed-precondition', ALREADY_LAUNCHED);
-        const stale = draft.launchClaim;
-        if (stale && now - claimedAtMillis(stale) < CLAIM_TTL_MS) {
+        if (draft.launchClaim && now - claimedAtMillis(draft.launchClaim) < CLAIM_TTL_MS) {
             throw new HttpsError('failed-precondition', LAUNCH_RUNNING);
-        }
-        if (stale && await claimedSessionWritten(tx, companyId, stale)) {
-            tx.update(draftRef, {
-                launchedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sessionId: stale.sessionId,
-                launchClaim: admin.firestore.FieldValue.delete(),
-            });
-            return 'launched';
         }
         tx.update(draftRef, {
             launchClaim: { by: uid, sessionId, at: admin.firestore.Timestamp.fromMillis(now) },
         });
-        return 'claimed';
     });
-    // Thrown after the transaction, so the mark it wrote is kept.
-    if (outcome === 'launched') throw new HttpsError('failed-precondition', ALREADY_LAUNCHED);
     return draftRef;
 }
 
-/**
- * The launch went out: the draft becomes its record. A failure here is logged
- * and never fails the launch, which has already started sending.
- */
-async function finishDraftLaunch(draftRef, sessionId) {
-    if (!draftRef) return;
-    try {
-        await draftRef.update({
-            launchedAt: admin.firestore.FieldValue.serverTimestamp(),
-            sessionId,
-            launchClaim: admin.firestore.FieldValue.delete(),
-        });
-    } catch (error) {
-        console.error('[launchClaim] Could not mark the draft launched:', error?.code ?? 'unknown');
-    }
+/** The draft's update in the batch that writes its session: launched, by that session. */
+function launchedMark(sessionId) {
+    return {
+        launchedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sessionId,
+        launchClaim: admin.firestore.FieldValue.delete(),
+    };
 }
 
 /**
- * The launch did not go out: its claim is given back, so the draft can be
- * launched again. Another launch's claim is left alone, and a failure is only
- * logged, so it never hides the launch's own error.
+ * The launch stopped before its session was written: its claim is given back,
+ * so the draft can be launched again. Another launch's claim is left alone (a
+ * session batch already dropped this one), and a failure is only logged, so it
+ * never hides the launch's own error.
  */
 async function releaseDraftLaunch(draftRef, sessionId) {
     if (!draftRef) return;
@@ -127,4 +99,4 @@ async function releaseDraftLaunch(draftRef, sessionId) {
     }
 }
 
-module.exports = { CLAIM_TTL_MS, claimDraftLaunch, finishDraftLaunch, releaseDraftLaunch };
+module.exports = { CLAIM_TTL_MS, DRAFT_GONE, claimDraftLaunch, launchedMark, releaseDraftLaunch };

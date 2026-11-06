@@ -7,7 +7,7 @@ const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gathe
 const { persistImportTargets } = require("./session/importTargets");
 const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
 const { readSessionTargetIds, writeNewSession } = require("../helpers/sessionTargets");
-const { claimDraftLaunch, finishDraftLaunch, releaseDraftLaunch } = require("../helpers/launchClaim");
+const { DRAFT_GONE, claimDraftLaunch, launchedMark, releaseDraftLaunch } = require("../helpers/launchClaim");
 
 /**
  * 1. Initialize Bulk Session
@@ -36,23 +36,26 @@ exports.initBulkSession = onCall({
     }
 
     // One launch per draft (`helpers/launchClaim.js`): claimed before anyone is
-    // gathered, marked launched once the worker starts, given back otherwise.
+    // gathered, marked launched in the batch that writes the session, and given
+    // back by a launch that stops before that batch.
     const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
     const sessionId = sessionRef.id;
     const draftRef = await claimDraftLaunch({ companyId, campaignId, uid: request.auth.uid, sessionId });
     let launched = false;
     try {
-        const result = await launchSession({ request, sessionRef, sessionId });
+        const result = await launchSession({ request, sessionRef, sessionId, draftRef });
         launched = result.success === true;
-        if (launched) await finishDraftLaunch(draftRef, sessionId);
         return result;
     } finally {
         if (!launched) await releaseDraftLaunch(draftRef, sessionId);
     }
 });
 
-/** Gathers the recipients, writes the session and starts its worker. */
-async function launchSession({ request, sessionRef, sessionId }) {
+/**
+ * Gathers the recipients, writes the session (and, in the same batch, the
+ * draft's launched mark) and starts its worker.
+ */
+async function launchSession({ request, sessionRef, sessionId, draftRef }) {
     const { companyId, filters, config, sessionName, targetIds } = request.data;
     const leadSourceType = filters.leadType || 'applications'; // 'global', 'leads', 'applications' (default)
 
@@ -132,7 +135,11 @@ async function launchSession({ request, sessionRef, sessionId }) {
             failedCount: 0
         },
         lastUpdateAt: admin.firestore.FieldValue.serverTimestamp()
-    }, finalTargetIds);
+    }, finalTargetIds, draftRef ? { ref: draftRef, data: launchedMark(sessionId) } : null).catch((error) => {
+        // The draft was deleted while it launched: nothing was written or sent.
+        if (draftRef && error?.code === 5) throw new HttpsError('not-found', DRAFT_GONE);
+        throw error;
+    });
 
     // C. Import Targets (Optional - if we need specific data snapshot)
     // If 'import' type, we assume targetIds came with data?
