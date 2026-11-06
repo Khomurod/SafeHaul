@@ -9,20 +9,22 @@ const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { admin } = require('./firebaseAdmin');
 const SMSAdapterFactory = require('./integrations/factory');
 const { readSigningToken, signingLinkFor } = require('./notifySigner');
-const { phoneOf } = require('./shared/signingLink');
+const { deliveryChannels, phoneOf } = require('./shared/signingLink');
 const { onOptOutList } = require('./shared/smsPermission');
 const { claimDelivery } = require('./shared/deliveryClaim');
 
-/** What a request shows (Documents, "Delivery Failed") for a link not texted to an opted-out number. */
-const OPTED_OUT_ERROR = 'Not texted: this number opted out of texts.';
+/** Why a link was not texted to an opted-out number, as the request shows it. */
+const OPTED_OUT_REASON = 'Not texted: this number opted out of texts.';
 
 /**
  * Texts a signing request's link to its signer and records on the request how
  * that went. `accessToken` may be a promise of it, and `claim` decides first
  * whether this run sends at all; a failure of either is recorded as a failed send.
- * A number on the opt-out list is not texted (`shared/smsPermission.js`), which
- * is recorded as a failed send with the reason. `reminder` words it as one
- * (`shared/signerReminder.js`).
+ * A number on the opt-out list is not texted (`shared/smsPermission.js`). When
+ * the request also goes by email (`deliveryChannels`), that is a note, not a
+ * failure: `smsStatus: 'skipped'` with the reason in `smsNote`. When the text
+ * was its only channel nothing reached the signer, so it is a failed send with
+ * the reason in `smsError`. `reminder` words it as one (`shared/signerReminder.js`).
  */
 async function textSigningLink({ companyId, requestId, ref, data, accessToken: token, claim = async () => true, reminder = false }) {
     try {
@@ -37,10 +39,12 @@ async function textSigningLink({ companyId, requestId, ref, data, accessToken: t
         }
 
         // A number on the opt-out list is not texted. The email goes on its own
-        // (`notifySigner`); the request shows the text as not delivered, and why.
+        // (`notifySigner`), so beside one the text is only skipped, with why.
         if (await onOptOutList(companyId, data.recipientPhone)) {
             console.log(`[NotifySignerSMS] Not texted: the number of request ${requestId} opted out`);
-            await ref.update({ smsStatus: 'failed', smsError: OPTED_OUT_ERROR });
+            await ref.update(deliveryChannels(data).email
+                ? { smsStatus: 'skipped', smsNote: OPTED_OUT_REASON }
+                : { smsStatus: 'failed', smsError: OPTED_OUT_REASON });
             return;
         }
 

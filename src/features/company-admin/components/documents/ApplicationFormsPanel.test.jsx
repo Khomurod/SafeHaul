@@ -1,4 +1,4 @@
-// Application Forms: enabled ids, ordering, the required default, and the
+// After-application forms: enabled ids, ordering, the required default, and the
 // explicit-save contract. All templates below are artificial.
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';

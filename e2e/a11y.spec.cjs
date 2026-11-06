@@ -230,7 +230,7 @@ test.describe('@a11y migrated design-system surfaces', () => {
         await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Sent Documents');
         await expect(page.locator(':focus')).toHaveAccessibleName('Sent Documents');
         await page.keyboard.press('End');
-        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Application Forms');
+        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('After-application forms');
         await page.keyboard.press('Home');
         await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Overview');
     });

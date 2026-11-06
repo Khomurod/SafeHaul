@@ -1,7 +1,9 @@
 import React from 'react';
 import { Icon, CheckCircle, Clock, Loader2, AlertCircle, MessageSquare, Mail, Ban, Hourglass } from '@design-system/icons';
 import { Badge } from '@/design-system/components';
-import { deliveryFailure, formatTimestamp, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
+import {
+    OPEN_STATUSES, deliveryNote, formatTimestamp, isLinkExpired, openDeliveryFailure,
+} from '@features/company-admin/utils/documentsWorkspace';
 
 /**
  * Feature-owned domain → visual mapping for a signing-request status.
@@ -25,12 +27,15 @@ const STATUS_PRESENTATION = {
 };
 
 /**
- * A sent document's status in the history table: a failed delivery first, with
- * its reason under the badge (the reason explains the status), then a link that
- * ran out, then the stored status.
+ * A sent document's status in the history table: while it is still with its
+ * signer, a failed delivery first, with its reason under the badge (the reason
+ * explains the status), then a link that ran out, then the stored status. Once
+ * it is signed, sealing or voided its own status is what the row says
+ * (`openDeliveryFailure`). A text skipped for an opted-out number is a neutral
+ * note under an open document's badge, never a failure (`deliveryNote`).
  */
 export function EnvelopeStatusBadge({ document: docItem }) {
-    const failure = deliveryFailure(docItem);
+    const failure = openDeliveryFailure(docItem);
     if (failure) {
         // Truncate error for operator debugging without exposing sensitive internals
         const errorDetail = failure.error
@@ -76,8 +81,19 @@ export function EnvelopeStatusBadge({ document: docItem }) {
         );
         // Preserve the sealing-failure tooltip; say when an expired link stopped working.
         if (s === 'error_sealing') return <span title={docItem.errorLog || 'Sealing failed'}>{badge}</span>;
-        if (expired) return <span title={`The link stopped working on ${formatTimestamp(docItem.expiresAt)}`}>{badge}</span>;
-        return badge;
+        const shown = expired
+            ? <span title={`The link stopped working on ${formatTimestamp(docItem.expiresAt)}`}>{badge}</span>
+            : badge;
+        const note = OPEN_STATUSES.includes(s) ? deliveryNote(docItem) : null;
+        if (!note) return shown;
+        return (
+            <div className="flex flex-col items-start gap-ds-1">
+                {shown}
+                <span className="line-clamp-1 max-w-[220px] text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]" title={note.note}>
+                    {note.note}
+                </span>
+            </div>
+        );
     }
     return <Badge tone="neutral">{docItem.status}</Badge>;
 }

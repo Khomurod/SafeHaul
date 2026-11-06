@@ -117,6 +117,13 @@ export const isCancellableSessionStatus = (status) =>
     CANCELLABLE_SESSION_STATUSES.includes(status);
 
 /**
+ * A draft that was launched (`useCampaignDraft.markLaunched`): kept as the
+ * campaign's record, no longer listed under Drafts or launchable. `launchedAt`
+ * is null, not absent, while the server time is pending.
+ */
+export const isLaunchedDraft = (draft) => draft?.launchedAt !== undefined;
+
+/**
  * Friendly error messages for Bulletproof Logic
  */
 export const ERROR_MESSAGES = {

@@ -253,7 +253,8 @@ exports.onNewApplicationEmailConfirmation = onDocumentCreated(
         } catch (err) {
             // Non-fatal: email failure must not prevent application creation from completing.
             // Log it so the team can investigate SMTP configuration issues.
-            console.error(`[DL-4] Failed to send confirmation email for ${event.params.appId}:`, err.message);
+            // Not the error's text: a mail server's reply can name the applicant's address.
+            console.error(`[DL-4] Failed to send confirmation email for ${event.params.appId} (${err?.code || 'error'})`);
         }
     }
 );

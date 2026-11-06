@@ -20,8 +20,11 @@
  * (`details.reason: 'no-channel'`), writing nothing.
  *
  * It answers with what each sender recorded: `channels` that went and, when a
- * claimed one did not (an SMTP error, an opted-out number), `failed`, whose
- * reason the document's details show (`emailError`, `smsError`).
+ * claimed one did not (an SMTP error, an opted-out number with no email beside
+ * it), `failed`, whose reason the document's details show (`emailError`,
+ * `smsError`). A text skipped for an opted-out number beside an email is no
+ * failure: `textSkipped: 'opted-out'`, as `'no-sms-consent'` says why a driver
+ * who did not answer Yes was not texted.
  *
  * Not a security boundary: the team may write any signing-request field (rules).
  */
@@ -52,7 +55,7 @@ exports.remindSigner = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, a
     });
 
     // Claimed: each channel once, answered as each sender recorded it.
-    const { went, failed } = await deliverReminder({ companyId, requestId, ref, claimed, logTag: 'remindSigner' });
+    const { went, skipped, failed } = await deliverReminder({ companyId, requestId, ref, claimed, logTag: 'remindSigner' });
 
     // Ids only, never tokens or contact details.
     console.log(`[remindSigner] companyId=${companyId} requestId=${requestId} email=${went.email} sms=${went.sms}`);
@@ -62,6 +65,7 @@ exports.remindSigner = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, a
         channels: went,
         ...((failed.email || failed.sms) && { failed }),
         ...(claimed.textSkipped && { textSkipped: 'no-sms-consent' }),
+        ...(skipped.sms && { textSkipped: 'opted-out' }),
     };
 });
 

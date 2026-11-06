@@ -314,8 +314,10 @@ as the last call (`lastCallOutcome`, `lastContactedAt`). Older `Contacted`/`Atte
 fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
-one, voiding the old; a number on the opt-out list gets no text (shown as failed),
-the email still goes. Signed envelopes are sealed into tamper-evident PDFs, once:
+one, voiding the old, and a channel Correct turns off loses its send status.
+Correct, Fix and Void change only a still-`sent` request (one transaction). An
+opted-out number gets no text: beside an email a note (`smsStatus: 'skipped'`), alone
+a failed send. Signed envelopes are sealed into tamper-evident PDFs, once:
 a delivery that finds the request no longer `pending_seal` changes nothing. The
 bell then tells the sender (`senderId`; one nobody sent: its application's
 recruiter, else the team) "Document signed" or "Seal failed", once per request and
@@ -334,9 +336,9 @@ sealed again from the document's details (**Retry seal**, `retrySealDocument`): 
 seals what the signer submitted, records the attempt in `sealAttempts`, never reseals
 a signed document, and the signer's images stay until a seal succeeds.
 **A driver's signing documents** are listed in the dossier's **Documents to sign** tab
-(id `documents`): the
-requests linked to the record, and each required post-application form no request
-carries yet as *Not started*; *Link expired* is derived (unsigned, `expiresAt` past).
+(id `documents`): the requests linked to the record, and each required post-application
+form no request carries yet as *Not started*; *Link expired* (unsigned, `expiresAt` past)
+and *Not delivered* (unsigned, a send failed; outranks it) are derived.
 A post-application form is one document per application and form
 (`postapp_<application>_<template>`), made by whichever comes first: the thank-you
 page (it opens the form, never emails or texts it) or a team member's **Send to
@@ -348,13 +350,12 @@ and sends nothing. A link the server builds goes only to one of the app's own si
 a new request is sent by the creation triggers, one never sent gets its flags turned
 on and the correction trigger sends it with seven more days. A link already sent is
 not sent again (Remind does), a signed form is reported, a voided one refused.
-*Link expired* is derived in the browser (`sent`, `expiresAt` past; `isLinkExpired`
-in `documentsWorkspace.js`), never stored, so the Documents numbers count it as
-awaiting. **Remind** (`remindSigner`, from a document's details and the dossier)
+*Link expired* (`isLinkExpired`) is never stored, so the numbers count it as awaiting.
+**Remind** (`remindSigner`, from a document's details and the dossier)
 sends an unsigned document's link again on each channel it was sent by, with seven
 more days: one per ten minutes, claimed in a transaction and recorded in `reminders`;
 an application's driver is texted only after "Yes"; the answer names any channel that
-failed. A document shared only by copied link cannot be reminded (Correct adds a
+failed, a skipped text as a note. A document shared only by copied link cannot be reminded (Correct adds a
 channel). Once a day (11:00 Central) **one automatic reminder** goes to a document
 still `sent` and created 3 to 7 days ago (`createdAt`, which Send to driver does not
 move; oldest first) whose link has not run out (`remindUnsignedSigners`), by Remind's rules
@@ -380,9 +381,17 @@ one, a team member reviews and approves **Send signed copy**
 (`sendSignedDocumentCopy`, claimed once in `signedCopy`; only to the address the
 approval showed, refused if a correction changed it; checksum-checked; company
 SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
-the newest 100 signing requests live and loads older ones on request. When there
-are more, its numbers are server counts and a second live list holds every
-document that needs attention (indexes in `firestore.indexes.json`).
+the newest 100 requests live, older on request; past that, its numbers are server
+counts and a live list holds those needing attention (`firestore.indexes.json`): an
+unsigned document (`sent`, or the older `opened`) whose send failed, or a failed seal; a
+signed or voided one leaves by itself, and its details keep the old error. Each
+Overview number opens its list; a Needs attention card opens the document: its cause in
+plain words (`deliveryFailureCause.js`) and, while `sent`, **Fix recipient and resend**
+(inline: Correct's write for the recipient alone, on the current fields and title;
+refused if it would resend nothing while a send stays failed), **Resend** (Remind) and
+**Void** (records `voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…`
+form is never resent; never Delete). Only admins see a template's Delete; the forms tab
+is *After-application forms* (`?view=forms`).
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -471,10 +480,10 @@ The driver's uploads have one place, the DQ File tab, which lists and opens them
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
-two-way threads or drips. The Campaigns page lists the newest 50 drafts and
-campaigns (more on request) plus every live one (active, queued, scheduled,
-paused); when the list is incomplete, Total Outreach is a server sum refreshed
-shortly after a change.
+two-way threads or drips. Campaigns lists the newest 50 drafts and campaigns
+(more on request) and every live one (Total Outreach: a server sum once
+incomplete). A launch marks its draft (`launchedAt`, `sessionId`): kept, off
+Drafts; opened, it links its report, not Launch.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,
@@ -1111,8 +1120,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | Integration | Purpose | Where credentials live |
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting, Performance) | Everything | Project config |
-| **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email; no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password encrypted (`enc:v1:`), shown only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
+| **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS; logs omit the number texted | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
+| **Per-company SMTP** (Nodemailer) | All outbound email (logs omit the recipient); no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password encrypted (`enc:v1:`), shown only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog, an applicant's own PSP/MVR read into *suggestions* where enabled (`extractApplicationReport`), and a recruiter's attached paperwork (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | Operator alerts (`watchAiAndBlog`) and release offers (`offerProductionRelease`) in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |

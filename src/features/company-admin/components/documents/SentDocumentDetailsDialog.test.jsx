@@ -368,3 +368,227 @@ describe('SentDocumentDetailsDialog — Retry seal', () => {
         expect((await axe(unfinished.container)).violations).toEqual([]);
     });
 });
+
+describe('SentDocumentDetailsDialog — an open document whose send failed', () => {
+    const NOT_SET_UP = 'Failed to send email: Missing email configuration for company co-artificial. Please configure SMTP settings in Company Settings > Email tab.';
+    const failedOpen = (overrides = {}) => makeDoc({
+        sendEmail: true,
+        emailStatus: 'failed',
+        emailError: NOT_SET_UP,
+        ...overrides,
+    });
+    const fixProps = () => ({ onRemind: vi.fn(), onFixRecipient: vi.fn() });
+    const rerenderWith = (rerender, document, props) => rerender(
+        <SentDocumentDetailsDialog
+            document={document}
+            onClose={vi.fn()}
+            onCopyLink={vi.fn()}
+            onCorrect={vi.fn()}
+            onVoid={vi.fn()}
+            onDownload={vi.fn()}
+            {...props}
+        />,
+    );
+    const footerActions = (dialog) => within(dialog).getAllByRole('button')
+        .map((button) => button.textContent.trim())
+        .filter((name) => ['Fix recipient and resend', 'Resend', 'Void', 'Correct', 'Remind'].includes(name));
+
+    it('says why in plain words, above the server text, and what to do about it', () => {
+        renderDialog(failedOpen(), fixProps());
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveTextContent("The company's email is not set up.");
+        expect(alert).toHaveTextContent('A company admin can set it up in Settings → Email, then press Resend.');
+        expect(alert).toHaveTextContent(NOT_SET_UP);
+        const text = alert.textContent;
+        expect(text.indexOf("The company's email is not set up.")).toBeLessThan(text.indexOf(NOT_SET_UP));
+    });
+
+    it('offers Fix recipient and resend, Resend and Void, in that order, and not Correct or Remind', () => {
+        renderDialog(failedOpen(), fixProps());
+        expect(footerActions(screen.getByRole('dialog'))).toEqual(['Fix recipient and resend', 'Resend', 'Void']);
+    });
+
+    it('keeps Resend the Remind it is: the same handler, busy the same way', () => {
+        const props = fixProps();
+        const document = failedOpen();
+        const { rerender } = renderDialog(document, props);
+        fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
+        expect(props.onRemind).toHaveBeenCalledWith(document);
+
+        rerenderWith(rerender, document, { ...props, reminding: true });
+        expect(screen.getByRole('button', { name: /Resend/ })).toBeDisabled();
+    });
+
+    it('treats a failed text the same way', () => {
+        renderDialog(makeDoc({ sendSms: true, deliveryMethod: 'sms', smsStatus: 'failed', smsError: 'SMS integration is disabled for this company.' }), fixProps());
+        expect(screen.getByRole('alert')).toHaveTextContent("The company's text messaging is not set up.");
+        expect(footerActions(screen.getByRole('dialog'))).toEqual(['Fix recipient and resend', 'Resend', 'Void']);
+    });
+
+    it.each([
+        ['signed', { status: 'signed', signedPdfUrl: 'companies/co-1/signed/artificial.pdf' }],
+        ['voided', { status: 'voided' }],
+        ['being sealed', { status: 'pending_seal' }],
+        ['whose seal failed', { status: 'error_sealing' }],
+    ])('offers none of the three, and no Void, on a document %s', (_label, overrides) => {
+        renderDialog(failedOpen(overrides), fixProps());
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).queryByRole('button', { name: /Fix recipient|Resend|^Void$/ })).not.toBeInTheDocument();
+        // The reason is still told, without telling the user to do what is not offered.
+        expect(within(dialog).getByRole('alert')).toHaveTextContent("The company's email is not set up.");
+        expect(within(dialog).getByRole('alert')).not.toHaveTextContent('then press Resend');
+    });
+
+    it('keeps Retry seal for a seal that failed', () => {
+        renderDialog(makeDoc({ status: 'error_sealing', errorLog: 'Failed (artificial)' }), { ...fixProps(), onRetrySeal: vi.fn() });
+        expect(screen.getByRole('button', { name: 'Retry seal' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Void' })).not.toBeInTheDocument();
+    });
+
+    it('keeps Correct and Remind for an open document whose send did not fail', () => {
+        renderDialog(makeDoc({ sendEmail: true }), fixProps());
+        expect(footerActions(screen.getByRole('dialog'))).toEqual(['Correct', 'Void', 'Remind']);
+    });
+
+    it('keeps Correct where fixing in place is not offered', () => {
+        renderDialog(failedOpen(), { onRemind: vi.fn() });
+        expect(footerActions(screen.getByRole('dialog'))).toEqual(['Correct', 'Resend', 'Void']);
+    });
+
+    describe('Fix recipient and resend', () => {
+        const openForm = (document = failedOpen(), props = fixProps()) => {
+            const view = renderDialog(document, props);
+            fireEvent.click(screen.getByRole('button', { name: 'Fix recipient and resend' }));
+            return { props, ...view };
+        };
+
+        it('opens a short form in the dialog, filled in from the document, with focus on the name', () => {
+            openForm(failedOpen({ deliveryMethod: 'both', sendSms: true }));
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByLabelText(/^Name/)).toHaveValue('Pat Example');
+            expect(within(dialog).getByLabelText(/^Name/)).toHaveFocus();
+            expect(within(dialog).getByLabelText(/^Email/)).toHaveValue('pat@example.test');
+            expect(within(dialog).getByLabelText(/^Phone/)).toHaveValue('555-0142');
+            expect(within(dialog).getByRole('button', { name: 'Email + SMS' })).toHaveAttribute('aria-pressed', 'true');
+            // The other actions wait until the form is saved or cancelled.
+            expect(within(dialog).queryByRole('button', { name: /^(Resend|Void|Copy Link)$/ })).not.toBeInTheDocument();
+        });
+
+        it('starts at the channels the request is sent by, whatever its delivery method says', () => {
+            // The server sends by `sendEmail` and `sendSms`: an email switched off stays off.
+            openForm(makeDoc({
+                deliveryMethod: 'both', sendEmail: false, sendSms: true, smsStatus: 'failed', smsError: 'SMS integration is disabled for this company.',
+            }));
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByRole('button', { name: 'SMS' })).toHaveAttribute('aria-pressed', 'true');
+            expect(within(dialog).getByRole('button', { name: 'Email + SMS' })).toHaveAttribute('aria-pressed', 'false');
+        });
+
+        it('reads the delivery method only for a request that records no channel', () => {
+            openForm(failedOpen({ sendEmail: undefined, deliveryMethod: 'both' }));
+            expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Email + SMS' })).toHaveAttribute('aria-pressed', 'true');
+        });
+
+        it('asks for a usable email address before saving when the link goes by email', () => {
+            const { props } = openForm();
+            const dialog = screen.getByRole('dialog');
+            fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: 'not-an-email' } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+
+            expect(props.onFixRecipient).not.toHaveBeenCalled();
+            expect(within(dialog).getByText('Enter a full email address, such as name@example.com, or send by SMS.')).toBeInTheDocument();
+            expect(within(dialog).getByLabelText(/^Email/)).toHaveValue('not-an-email');
+        });
+
+        it('does not check the email of a correction that sends by SMS only', () => {
+            const { props } = openForm();
+            const dialog = screen.getByRole('dialog');
+            fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: '' } });
+            fireEvent.change(within(dialog).getByLabelText(/^Phone/), { target: { value: '555-0199' } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'SMS' }));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+
+            expect(props.onFixRecipient).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ recipientEmail: '', deliveryMethod: 'sms' }));
+        });
+
+        it('saves the edited recipient and channels for this document', () => {
+            const document = failedOpen();
+            const { props } = openForm(document);
+            const dialog = screen.getByRole('dialog');
+
+            fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: ' pat.new@example.test ' } });
+            fireEvent.change(within(dialog).getByLabelText(/^Phone/), { target: { value: '555-0199' } });
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Email + SMS' }));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+
+            expect(props.onFixRecipient).toHaveBeenCalledTimes(1);
+            expect(props.onFixRecipient).toHaveBeenCalledWith(document, {
+                recipientName: 'Pat Example',
+                recipientEmail: 'pat.new@example.test',
+                recipientPhone: '555-0199',
+                deliveryMethod: 'both',
+            });
+        });
+
+        it('says to use Resend when nothing changed, and saves nothing', () => {
+            const { props } = openForm();
+            fireEvent.click(screen.getByRole('button', { name: 'Save and resend' }));
+            expect(props.onFixRecipient).not.toHaveBeenCalled();
+            expect(within(screen.getByRole('dialog')).getByText('Nothing changed. To send the link again to the same details, use Resend.')).toBeInTheDocument();
+        });
+
+        it('goes back to the actions on Cancel, with focus on the button that opened it', () => {
+            const { props } = openForm();
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(props.onFixRecipient).not.toHaveBeenCalled();
+            expect(screen.queryByLabelText(/^Name/)).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Fix recipient and resend' })).toHaveFocus();
+        });
+
+        it('is busy, and cannot be saved again or cancelled, while the correction is saved', () => {
+            const document = failedOpen();
+            const { props, rerender } = openForm(document);
+            rerenderWith(rerender, document, { ...props, fixingRecipient: true });
+            expect(screen.getByRole('button', { name: /Save and resend/ })).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+        });
+
+        it('has no accessibility violations with the reason, the actions and the form', async () => {
+            const view = renderDialog(failedOpen(), fixProps());
+            expect((await axe(view.container)).violations).toEqual([]);
+            fireEvent.click(screen.getByRole('button', { name: 'Fix recipient and resend' }));
+            expect((await axe(view.container)).violations).toEqual([]);
+        });
+    });
+});
+
+describe('SentDocumentDetailsDialog — who voided it', () => {
+    it('says when a voided document was voided, and by whom', () => {
+        renderDialog(makeDoc({ status: 'voided', voidedAt: { seconds: 1700500000 }, voidedBy: 'user-1', voidedByName: 'Dana Admin' }));
+        const row = within(screen.getByRole('dialog')).getByText('Voided').closest('div');
+        expect(row).toHaveTextContent(`${new Date(1700500000 * 1000).toLocaleDateString()} by Dana Admin`);
+    });
+
+    it('keeps the delivery error a voided document recorded', () => {
+        renderDialog(makeDoc({ status: 'voided', emailStatus: 'failed', emailError: 'Mailbox unavailable' }));
+        expect(screen.getByRole('alert')).toHaveTextContent('Mailbox unavailable');
+    });
+});
+
+describe('SentDocumentDetailsDialog — a text not sent to an opted-out number', () => {
+    it('says so as a note, not as a failure, when the email went', () => {
+        renderDialog(makeDoc({
+            sendEmail: true,
+            sendSms: true,
+            deliveryMethod: 'both',
+            emailStatus: 'sent',
+            smsStatus: 'skipped',
+            // Where the sender records why (`functions/notifySignerSMS.js`).
+            smsNote: 'Not texted: this number opted out of texts.',
+        }));
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+        const row = within(dialog).getByText('Text message').closest('div');
+        expect(row).toHaveTextContent('Not sent: this number opted out of text messages.');
+    });
+});

@@ -6,12 +6,14 @@
  * as "Not started".
  *
  * "Link expired" is derived and never stored: an unsigned request whose
- * `expiresAt` has passed (`isLinkExpired`, the Documents workspace's rule). Who
+ * `expiresAt` has passed (`isLinkExpired`, the Documents workspace's rule).
+ * "Not delivered" is an unsigned request whose send failed
+ * (`hasDeliveryFailure`, the same rule as the workspace's Needs attention). Who
  * may be sent which form, and on which channel, is the server's to decide
  * (`sendPostApplicationDocument`, `remindSigner`); this only says where each
  * button is offered and words what the server answered.
  */
-import { isLinkExpired } from './documentsWorkspace';
+import { hasDeliveryFailure, isLinkExpired } from './documentsWorkspace';
 import { canRemindSigner } from '@features/signing/utils/signerReminder';
 
 export { isLinkExpired };
@@ -60,8 +62,13 @@ const STATES = {
     voided: 'voided',
 };
 
-/** What the dossier calls a request's state; a key of the section's presentation. */
+/**
+ * What the dossier calls a request's state; a key of the section's
+ * presentation. A failed send outranks a link that ran out: the signer may
+ * never have had it.
+ */
 export function signingDocumentState(request, now = Date.now()) {
+    if (hasDeliveryFailure(request)) return 'not_delivered';
     if (isLinkExpired(request, now)) return 'link_expired';
     return STATES[statusOf(request)] || 'other';
 }

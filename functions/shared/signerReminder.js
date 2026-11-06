@@ -23,7 +23,8 @@
  * Texts follow the signing-text rules: a request for an application
  * (`sourceApplicationId`) is texted only after the driver's explicit "Yes" to
  * texts (`sms-consent`, `smsPermission.js`); a number on the opt-out list is
- * never texted (`textSigningLink` records why). With no channel left the
+ * never texted (`textSigningLink` records why: skipped beside an email, else
+ * failed). With no channel left the
  * reminder is refused with the reason (`details.reason: 'no-channel'`),
  * writing nothing.
  *
@@ -133,8 +134,9 @@ async function releaseReminder(ref, before, requestId, logTag) {
 /**
  * Sends a reminder `claimReminder` claimed: each channel once, its sender
  * recording on the request how it went. Answers that, not the claim: the
- * channels that `went` and those claimed that `failed`. One that reached no one
- * is not one: `reminders` goes back as it was.
+ * channels that `went`, the text `skipped` for an opted-out number beside an
+ * email, and those claimed that `failed`. One that reached no one is not one:
+ * `reminders` goes back as it was.
  */
 async function deliverReminder({ companyId, requestId, ref, claimed, logTag }) {
     const { data, accessToken } = claimed;
@@ -147,10 +149,11 @@ async function deliverReminder({ companyId, requestId, ref, claimed, logTag }) {
 
     const after = (await ref.get()).data() || {};
     const went = { email: claimed.email && after.emailStatus === 'sent', sms: claimed.sms && after.smsStatus === 'sent' };
-    const failed = { email: claimed.email && !went.email, sms: claimed.sms && !went.sms };
+    const skipped = { sms: claimed.sms && after.smsStatus === 'skipped' };
+    const failed = { email: claimed.email && !went.email, sms: claimed.sms && !went.sms && !skipped.sms };
 
     if (!went.email && !went.sms) await releaseReminder(ref, data, requestId, logTag);
-    return { went, failed };
+    return { went, skipped, failed };
 }
 
 module.exports = { REMINDER_COOLDOWN_MS, claimReminder, deliverReminder, isRefusal, millisOf };

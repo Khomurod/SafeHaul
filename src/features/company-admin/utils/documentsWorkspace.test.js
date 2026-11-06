@@ -7,6 +7,7 @@ import {
     filterDocuments,
     formatTimestamp,
     deliveryFailure,
+    deliveryNote,
     hasDeliveryFailure,
     hasSealingFailure,
     isAwaitingSignature,
@@ -15,7 +16,7 @@ import {
     isLinkExpired,
     isTemplateDuplicable,
     needsAttention,
-    recentDocuments,
+    openDeliveryFailure,
     searchTemplates,
     sentHeaderCount,
     sortTemplates,
@@ -67,6 +68,72 @@ describe('status predicates', () => {
         expect(deliveryFailure(doc({ emailStatus: 'failed', emailError: 'SMTP 550', smsStatus: 'failed' })))
             .toEqual({ channel: 'Email', error: 'SMTP 550' });
         expect(deliveryFailure(doc({ status: 'sent', emailStatus: 'sent', smsStatus: 'sent' }))).toBeNull();
+    });
+});
+
+describe('a failed send counts only while the document is still with its signer', () => {
+    it.each(['sent', 'opened'])('a %s document whose send failed needs attention', (status) => {
+        const failed = doc({ status, emailStatus: 'failed', emailError: 'SMTP 550' });
+        expect(needsAttention(failed)).toBe(true);
+        expect(hasDeliveryFailure(failed)).toBe(true);
+        expect(openDeliveryFailure(failed)).toEqual({ channel: 'Email', error: 'SMTP 550' });
+    });
+
+    it.each(['voided', 'signed', 'sealed', 'completed', 'pending_seal', 'processing'])(
+        'a %s document whose send failed does not, and still says what happened',
+        (status) => {
+            const failed = doc({ status, emailStatus: 'failed', emailError: 'SMTP 550', smsStatus: 'failed' });
+            expect(needsAttention(failed)).toBe(false);
+            expect(hasDeliveryFailure(failed)).toBe(false);
+            expect(openDeliveryFailure(failed)).toBeNull();
+            expect(deliveryFailure(failed)).toEqual({ channel: 'Email', error: 'SMTP 550' });
+        },
+    );
+
+    it('a failed seal needs attention as a seal, whatever its delivery', () => {
+        const sealFailed = doc({ status: 'error_sealing', emailStatus: 'failed' });
+        expect(needsAttention(sealFailed)).toBe(true);
+        expect(hasDeliveryFailure(sealFailed)).toBe(false);
+    });
+
+    it('counts a document still sealing as awaiting, whatever its delivery, and an opened one as awaiting', () => {
+        expect(isAwaitingSignature(doc({ status: 'pending_seal', smsStatus: 'failed' }))).toBe(true);
+        expect(isAwaitingSignature(doc({ status: 'opened' }))).toBe(true);
+        expect(isAwaitingSignature(doc({ status: 'opened', smsStatus: 'failed' }))).toBe(false);
+    });
+
+    it('leaves a voided or signed document whose send failed out of the counts of failures', () => {
+        const summary = summarizeDocuments([
+            doc({ id: 'open', status: 'sent', emailStatus: 'failed' }),
+            doc({ id: 'void', status: 'voided', emailStatus: 'failed' }),
+            doc({ id: 'signed', status: 'signed', smsStatus: 'failed' }),
+        ]);
+        expect(summary).toMatchObject({ deliveryFailures: 1, needsAttention: 1, voided: 1, completed: 1 });
+        expect(attentionDocuments([
+            doc({ id: 'void', status: 'voided', emailStatus: 'failed' }),
+            doc({ id: 'open', status: 'sent', emailStatus: 'failed' }),
+        ]).map((d) => d.id)).toEqual(['open']);
+    });
+});
+
+describe('a text skipped for an opted-out number', () => {
+    const skipped = doc({
+        status: 'sent', deliveryMethod: 'both', emailStatus: 'sent',
+        smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.',
+    });
+
+    it('is no failure, and no reason for attention', () => {
+        expect(deliveryFailure(skipped)).toBeNull();
+        expect(hasDeliveryFailure(skipped)).toBe(false);
+        expect(needsAttention(skipped)).toBe(false);
+        expect(isAwaitingSignature(skipped)).toBe(true);
+    });
+
+    it('is a note that says why', () => {
+        expect(deliveryNote(skipped)).toEqual({ channel: 'SMS', note: 'Not texted: this number opted out of texts.' });
+        expect(deliveryNote(doc({ smsStatus: 'skipped' }))).toEqual({ channel: 'SMS', note: 'SMS not sent.' });
+        expect(deliveryNote(doc({ smsStatus: 'failed', smsError: 'line unavailable' }))).toBeNull();
+        expect(deliveryNote(doc({ smsStatus: 'sent' }))).toBeNull();
     });
 });
 
@@ -126,12 +193,7 @@ describe('summarizeDocuments', () => {
     });
 });
 
-describe('recent and attention lists', () => {
-    it('keeps the query order and caps the list', () => {
-        const documents = Array.from({ length: 9 }, (_, index) => doc({ id: `r-${index}` }));
-        expect(recentDocuments(documents).map((d) => d.id)).toEqual(['r-0', 'r-1', 'r-2', 'r-3', 'r-4']);
-    });
-
+describe('attention list', () => {
     it('lists only documents that actually failed', () => {
         const documents = [doc({ id: 'ok' }), doc({ id: 'bad', emailStatus: 'failed' })];
         expect(attentionDocuments(documents).map((d) => d.id)).toEqual(['bad']);

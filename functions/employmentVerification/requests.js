@@ -292,7 +292,10 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             } catch (sendError) {
                 // Nothing was attempted, so nothing may be reminded or marked "no
                 // response" later: `send_failed` is outside the live statuses.
-                logger.error('[PEV] The request email did not go out; the request is marked not sent.', sendError);
+                // The code only: a mail server's reply can name the employer's address. The reason is recorded below.
+                logger.error('[PEV] The request email did not go out; the request is marked not sent.', {
+                    code: sendError?.code || sendError?.responseCode || 'error',
+                });
                 const failed = attemptEntry('send_failed', { ok: false, by: request.auth.uid, error: sendError });
                 await verificationRef.update(withAttempt({
                     status: 'send_failed',

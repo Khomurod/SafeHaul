@@ -70,7 +70,8 @@ class EightByEightAdapter extends BaseAdapter {
                 source = source.substring(0, 16);
             }
 
-            console.log(`[8x8] Sending SMS to ${to} from source "${source}" via subaccount "${subAccountId}"`);
+            // The company's line, never the number texted: everyone who can read the project's logs reads this.
+            console.log(`[8x8] Sending SMS from source "${source}" via subaccount "${subAccountId}"`);
 
             const response = await axios.post(
                 `${this.smsBaseUrl}/subaccounts/${subAccountId}/messages`,
@@ -107,7 +108,8 @@ class EightByEightAdapter extends BaseAdapter {
             if (isAxiosTimeout(error) || (status >= 200 && status < 300)) {
                 throw BaseAdapter.sendUnconfirmedError('8x8', EIGHT_BY_EIGHT_TIMEOUT_MS / 1000);
             }
-            console.error("8x8 Send Error:", error.response?.data || error.message);
+            // Status and code only: 8x8's answer can repeat the number texted. The thrown reason keeps its words.
+            console.error(`8x8 Send Error: status ${status || 'none'} (${error.response?.data?.code || error?.code || 'error'})`);
             throw new Error(`8x8 Error: ${error.response?.data?.message || error.message}`);
         }
     }

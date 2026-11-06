@@ -303,14 +303,27 @@ describe('texts follow the signing-text rules', () => {
         expectNothingWritten(before);
     });
 
-    it('does not text a number on the opt-out list, records why, and says the text did not go', async () => {
+    it('does not text a number on the opt-out list, records it as skipped with why, and says so without calling it a failure', async () => {
         seed({ ...EMAILED, sendSms: true, deliveryMethod: 'both' });
         mockDocs.set(`${COMPANY}/blacklist/+15555550100`, { reason: 'STOP' });
 
-        await expect(remind()).resolves.toMatchObject({ channels: { email: true, sms: false }, failed: { email: false, sms: true } });
+        await expect(remind()).resolves.toEqual({
+            success: true,
+            requestId: REQUEST_ID,
+            channels: { email: true, sms: false },
+            textSkipped: 'opted-out',
+        });
         expect(mockSendSms).not.toHaveBeenCalled();
-        expect(current()).toMatchObject({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+        expect(current()).toMatchObject({ smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.' });
         expect(emailedTo()).toEqual(['dana@example.test']);
+    });
+
+    it('calls a text to an opted-out number a failure when it was the only channel', async () => {
+        seed({ ...EMAILED, sendEmail: false, sendSms: true, deliveryMethod: 'sms', linkSentTo: { phone: '+15555550100' } });
+        mockDocs.set(`${COMPANY}/blacklist/+15555550100`, { reason: 'STOP' });
+
+        await expect(remind()).resolves.toMatchObject({ channels: { email: false, sms: false }, failed: { email: false, sms: true } });
+        expect(current()).toMatchObject({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
     });
 });
 

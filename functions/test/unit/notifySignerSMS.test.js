@@ -135,6 +135,30 @@ it("texts nothing to a number that opted out, on the company's list or the globa
     expect(mockSendSms).not.toHaveBeenCalled();
 });
 
+describe('a number that opted out, on a request that also goes by email', () => {
+    const EMAILED_TOO = { ...REQUEST, recipientEmail: 'dana@example.test', sendEmail: true, deliveryMethod: 'both' };
+
+    beforeEach(() => mockOptOuts.add('companies/co-1/blacklist/+15555550100'));
+
+    it('is not texted, and the text is recorded as skipped with why, not as failed', async () => {
+        await created(EMAILED_TOO);
+
+        expect(mockSendSms).not.toHaveBeenCalled();
+        expect(mockRequest.fields).toMatchObject({ smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.' });
+        expect(mockRequest.fields.smsError).toBeUndefined();
+        expect(mockRequest.fields.smsSentAt).toBeUndefined();
+    });
+
+    it('is a failed send when the email is switched off or has no address: nothing reached the signer', async () => {
+        for (const data of [{ ...EMAILED_TOO, sendEmail: false }, { ...EMAILED_TOO, recipientEmail: '  ' }]) {
+            mockRequest.fields = {};
+            await created(data);
+
+            expect(mockRequest.fields).toMatchObject({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+        }
+    });
+});
+
 describe('the logs', () => {
     const logged = () => [console.log, console.warn, console.error]
         .flatMap((spy) => spy.mock.calls.flat())

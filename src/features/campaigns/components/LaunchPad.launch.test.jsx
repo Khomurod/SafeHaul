@@ -234,7 +234,7 @@ describe('LaunchPad — migrated launch flow', () => {
     });
 
     describe('result branches', () => {
-        it('reports success with the session id and calls onLaunchSuccess', async () => {
+        it('reports success and hands the session id to onLaunchSuccess, which marks the draft', async () => {
             const { onLaunchSuccess } = renderPad();
             openConfirm();
             await confirmLaunch();
@@ -243,6 +243,7 @@ describe('LaunchPad — migrated launch flow', () => {
                 'Campaign launched! Targeting 40 drivers. Session: session-...',
             );
             expect(onLaunchSuccess).toHaveBeenCalledTimes(1);
+            expect(onLaunchSuccess).toHaveBeenCalledWith({ sessionId: 'session-abcdef123' });
         });
 
         it('appends the excluded count when the backend filtered recipients', async () => {

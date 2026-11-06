@@ -196,7 +196,8 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
         return result;
 
     } catch (error) {
-        console.error("Automated Email Error:", error);
+        // Not the error's text: a mail server's reply can name the recipient.
+        console.error(`[sendAutomatedEmail] company ${companyId}: the email was not sent`);
         // We log but don't necessarily throw a blocking error to the UI 
         // if it's a non-critical background automation.
         return { success: false, error: error.message };

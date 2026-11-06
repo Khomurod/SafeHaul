@@ -1,5 +1,5 @@
-// The Documents workspace shell, part 1 of 3: the page header and its two
-// actions, and the New Document choices.
+// The Documents workspace shell, part 1 of 3: the page header and its one
+// action, and the New Document choices.
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `DocumentsManager.support.jsx`; the registrations below delegate to it.
 import React from 'react';
@@ -51,10 +51,11 @@ describe('DocumentsManager header', () => {
         ).toBeInTheDocument();
     });
 
-    it('offers New Document as the primary action and Manage Templates as the secondary', () => {
+    it('offers New Document as its one action: the Templates tab is the way to the templates', () => {
         renderManager();
         expect(screen.getByRole('button', { name: 'New Document' })).toHaveAttribute('data-variant', 'primary');
-        expect(screen.getByRole('button', { name: 'Manage Templates' })).toHaveClass('ds-button');
+        expect(screen.queryByRole('button', { name: 'Manage Templates' })).not.toBeInTheDocument();
+        expect(tabs().templates).toBeInTheDocument();
     });
 
     it('navigates back to the company dashboard', () => {
@@ -72,16 +73,9 @@ describe('DocumentsManager header', () => {
         expect(screen.getByRole('button', { name: 'Back to Dashboard' })).toHaveClass('-ml-ds-3', 'self-start');
     });
 
-    it('sends Manage Templates to the Templates view without opening the creator', () => {
-        renderManager();
-        fireEvent.click(screen.getByRole('button', { name: 'Manage Templates' }));
-        expect(tabs().templates).toHaveAttribute('aria-selected', 'true');
-        expect(screen.queryByTestId('envelope-creator')).not.toBeInTheDocument();
-    });
-
     it('uses approved Button primitives for every header action', () => {
         renderManager();
-        for (const name of ['Back to Dashboard', 'Manage Templates', 'New Document']) {
+        for (const name of ['Back to Dashboard', 'New Document']) {
             expect(screen.getByRole('button', { name })).toHaveClass('ds-button');
         }
     });
@@ -93,13 +87,6 @@ describe('DocumentsManager header', () => {
         expect(container.querySelector('.ds-page-container')).toBeTruthy();
         expect(container.innerHTML).not.toContain('bg-gray-50');
         expect(header.innerHTML).not.toMatch(/text-blue-600|text-purple-600|bg-blue-600/);
-    });
-
-    // `PageHeader` itself moves its actions under the heading when they do not
-    // fit beside it; the three buttons wrap among themselves.
-    it('lets the header actions wrap instead of overflowing', () => {
-        const { container } = renderManager();
-        expect(container.querySelector('.ds-page-header__actions .ds-inline')).toHaveAttribute('data-wrap', 'true');
     });
 
     it('has no accessibility violations in the header region', async () => {

@@ -63,6 +63,18 @@ describe('DocumentsManager views', () => {
         expect(screen.getByTestId(testId)).toBeInTheDocument();
     });
 
+    it('calls the forms sent after an application After-application forms, at the same address', () => {
+        useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
+        render(
+            <MemoryRouter initialEntries={['/company/e-docs?view=forms']}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        );
+        expect(tabs().forms).toHaveAccessibleName('After-application forms');
+        expect(tabs().forms).toHaveAttribute('aria-selected', 'true');
+        expect(screen.queryByRole('tab', { name: 'Application Forms' })).not.toBeInTheDocument();
+    });
+
     it('opens on Overview when the address names a view it does not have', () => {
         useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
         render(

@@ -199,7 +199,9 @@ async function runSendLoop({
                     }
 
                 } catch (err) {
-                    console.error(`Error processing lead ${leadId}:`, err);
+                    // The code only: a provider's or mail server's error can name the recipient.
+                    // The reason itself is kept on the recipient's log below.
+                    console.error(`[BatchWorker] Lead ${leadId} was not sent (${err?.code || err?.name || 'error'})`);
                     errorMsg = err.message || "Unknown error";
                     success = false;
                     sendUnconfirmed = err?.code === BaseAdapter.SEND_UNCONFIRMED;
@@ -296,7 +298,8 @@ async function runSendLoop({
                                 sessionId: sessionId
                             }, { merge: true })
                             .catch(e => {
-                                console.error(`[BatchWorker] Failed to update sms_sent_phones for ${normPhone}:`, e.message);
+                                // The code only: a Firestore error can name the document, whose id is the number.
+                                console.error(`[BatchWorker] Failed to update sms_sent_phones for lead ${leadId} (${e?.code || 'error'})`);
                             });
                     }
                 } else if (success && config.method === 'email') {
@@ -313,7 +316,7 @@ async function runSendLoop({
                                 sessionId: sessionId
                             }, { merge: true })
                             .catch(e => {
-                                console.error(`[BatchWorker] Failed to update email_sent_addresses for ${normEmail}:`, e.message);
+                                console.error(`[BatchWorker] Failed to update email_sent_addresses for lead ${leadId} (${e?.code || 'error'})`);
                             });
                     }
                 }

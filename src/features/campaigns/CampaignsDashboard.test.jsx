@@ -26,9 +26,12 @@ const mockSetDoc = vi.fn();
 const mockCollection = vi.fn((...a) => ({ __collection: a }));
 const mockUnsubscribes = [];
 const serverTotals = {};
-const resetServerTotals = () => Object.assign(serverTotals, { count: 0, outreach: 0, outreachError: null });
+const resetServerTotals = () => Object.assign(serverTotals, { count: 0, launched: 0, outreach: 0, outreachError: null });
 resetServerTotals();
-const mockGetCountFromServer = vi.fn(async () => ({ data: () => ({ count: serverTotals.count }) }));
+// The count of launched drafts is the one filtered on `launchedAt`.
+const mockGetCountFromServer = vi.fn(async (q) => ({
+    data: () => ({ count: JSON.stringify(q).includes('launchedAt') ? serverTotals.launched : serverTotals.count }),
+}));
 const mockGetAggregateFromServer = vi.fn(async () => {
     if (serverTotals.outreachError) throw serverTotals.outreachError;
     return { data: () => ({ outreach: serverTotals.outreach }) };
@@ -101,8 +104,22 @@ vi.mock('./components/CampaignCard', () => ({
     }
 }));
 
+// Each editor records the campaign it was mounted for: its state belongs to that campaign.
+const mockEditorMounts = [];
 vi.mock('./CampaignEditor', () => ({
-    CampaignEditor: () => <div>Editor</div>
+    CampaignEditor: function MockCampaignEditor({ campaignId, onViewReport }) {
+        React.useEffect(() => { mockEditorMounts.push(campaignId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        return (
+            <div>
+                Editor
+                <button onClick={() => onViewReport('session-launched')}>view launched report</button>
+            </div>
+        );
+    },
+}));
+
+vi.mock('./components/DetailedReportModal', () => ({
+    default: ({ sessionId, isOpen }) => (isOpen ? <div role="dialog" aria-label="Delivery Report">{sessionId}</div> : null),
 }));
 
 vi.mock('./components/CampaignDetails', () => ({
@@ -419,6 +436,63 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.getAllByTestId('campaign-card')).toHaveLength(60);
         expect(screen.getByText('All 60 drafts are shown.')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Load more drafts' })).not.toBeInTheDocument();
+    });
+
+    it('does not list a launched draft under Drafts', async () => {
+        await renderReady({
+            drafts: [
+                { id: 'd-open', name: 'Open draft', status: 'draft' },
+                { id: 'd-sent', name: 'Launched draft', status: 'draft', launchedAt: { seconds: 1 }, sessionId: 'session-1' },
+            ],
+        });
+
+        expect(screen.getAllByTestId('campaign-card')).toHaveLength(1);
+        expect(screen.getByText(/Open draft/)).toBeInTheDocument();
+        expect(screen.queryByText(/Launched draft/)).not.toBeInTheDocument();
+    });
+
+    it('offers Load more, not "No Drafts Found", when the newest 50 drafts were all launched', async () => {
+        serverTotals.count = 53;
+        serverTotals.launched = 50;
+        await renderReady({
+            drafts: draftItems(50).map((item) => ({ ...item, launchedAt: { seconds: 1 }, sessionId: `session-${item.id}` })),
+        });
+
+        expect(await screen.findByText('Showing the newest 0 of 3 drafts.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Load more drafts' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'No Drafts Found' })).not.toBeInTheDocument();
+    });
+
+    it("opens a launched campaign's report from its editor, back on the list", async () => {
+        await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
+        fireEvent.click(screen.getByText('open d1'));
+
+        fireEvent.click(screen.getByRole('button', { name: 'view launched report' }));
+
+        expect(screen.queryByText('Editor')).not.toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Delivery Report' })).toHaveTextContent('session-launched');
+        expect(screen.getByRole('tablist', { name: 'Campaign views' })).toBeInTheDocument();
+    });
+
+    it('starts a fresh editor for the new draft when it is created after another draft was opened', async () => {
+        let created;
+        mockSetDoc.mockImplementation(() => new Promise((resolve) => { created = resolve; }));
+        mockEditorMounts.length = 0;
+        try {
+            await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
+            // Create Campaign is still writing its draft when a draft card is opened.
+            fireEvent.click(screen.getByRole('button', { name: /Create Campaign/i }));
+            fireEvent.click(screen.getByText('open d1'));
+            expect(mockEditorMounts).toEqual(['d1']);
+
+            await React.act(async () => { created(); });
+
+            // The new draft's editor holds none of Draft A's state, its launch included.
+            expect(mockEditorMounts).toHaveLength(2);
+            expect(mockEditorMounts[1]).toMatch(/^camp_\d+$/);
+        } finally {
+            mockSetDoc.mockReset();
+        }
     });
 
     it('shows a danger notice with Try again when the drafts cannot be loaded, not "Synchronizing…" forever', async () => {

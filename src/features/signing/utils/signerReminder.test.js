@@ -55,6 +55,10 @@ describe('what a press of Remind says', () => {
             { channels: { email: true, sms: false }, textSkipped: 'no-sms-consent' },
             'Reminder sent by email. The link works for seven more days. Not texted: the driver did not answer Yes to text messages.',
         ],
+        [
+            { channels: { email: true, sms: false }, textSkipped: 'opted-out' },
+            'Reminder sent by email. The link works for seven more days. Not texted: this number opted out of texts.',
+        ],
     ])('%o', (data, text) => {
         expect(reminderResultMessage(data)).toEqual({ tone: 'success', text });
     });

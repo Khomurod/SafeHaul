@@ -109,7 +109,7 @@ function formItems(forms, read) {
             title: 'No post-application forms',
             text: 'Drivers are offered no forms to sign after they apply.',
             href: READINESS_LINKS.forms,
-            linkLabel: 'Open application forms',
+            linkLabel: 'Open after-application forms',
         }];
     }
     if (!ok(read)) return [unknown('signatures', 'Post-application forms', READINESS_LINKS.templates, 'Open templates')];
@@ -129,7 +129,7 @@ function formItems(forms, read) {
             title: 'A form’s template was deleted',
             text: `Not offered to drivers until it is removed or replaced: ${missing.join(', ')}.`,
             href: READINESS_LINKS.forms,
-            linkLabel: 'Open application forms',
+            linkLabel: 'Open after-application forms',
         },
     ].filter(Boolean);
 }

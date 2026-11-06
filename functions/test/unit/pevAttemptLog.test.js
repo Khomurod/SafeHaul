@@ -151,6 +151,25 @@ describe('the request going out', () => {
       { action: 'Request email could not be sent', timestamp: expect.any(String), attempt: 'send_failed', ok: false },
     ]);
   });
+
+  it("logs a first email that failed by its code, never the address a mail server's reply names", async () => {
+    const { logger } = require('firebase-functions');
+    seedApplication({ status: 'Not Started', history: [] });
+    mockSendDynamicEmail.mockRejectedValue(Object.assign(
+      new Error('Failed to send email: 550 5.1.1 <hr@oldcarrier.test>: Recipient address rejected'),
+      { code: 'EENVELOPE' },
+    ));
+
+    await sendTo();
+
+    const logged = logger.error.mock.calls.flat()
+      .map((value) => (value instanceof Error ? `${value.message} ${value.stack}` : JSON.stringify(value)))
+      .join('\n');
+    expect(logged).toContain('EENVELOPE');
+    expect(logged).not.toContain('hr@oldcarrier.test');
+    // The request keeps the reason, for the team.
+    expect(attempts(SENT_TOKEN)[0].error).toContain('Recipient address rejected');
+  });
 });
 
 describe('reminders', () => {

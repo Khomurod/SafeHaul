@@ -31,7 +31,13 @@ vi.mock('firebase/firestore', () => ({
     addDoc: (...args) => mocks.addDoc(...args),
     getDoc: (...args) => mocks.getDoc(...args),
     updateDoc: (...args) => mocks.updateDoc(...args),
+    // A correction reads and writes the request in one transaction: the same two doubles.
+    runTransaction: async (_db, run) => run({
+        get: async (ref) => ({ exists: () => true, ...(await mocks.getDoc(ref)) }),
+        update: (...args) => mocks.updateDoc(...args),
+    }),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
+    deleteField: () => 'DELETE_FIELD',
     Timestamp: { fromMillis: (ms) => ({ ms }) },
     writeBatch: () => ({ set: mocks.batchSet, commit: mocks.batchCommit }),
 }));

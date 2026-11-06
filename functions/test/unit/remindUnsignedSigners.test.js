@@ -359,7 +359,7 @@ describe('texts follow the signing-text rules', () => {
 
         expect(mockSendSms).not.toHaveBeenCalled();
         expect(emailedTo()).toEqual(['dana@example.test']);
-        expect(current()).toMatchObject({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+        expect(current()).toMatchObject({ smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.', autoReminder: { outcome: 'sent' } });
     });
 });
 

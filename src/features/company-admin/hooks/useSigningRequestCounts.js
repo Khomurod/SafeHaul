@@ -13,8 +13,8 @@ const countOf = async (countQuery) => (await getCountFromServer(countQuery)).dat
 /**
  * The Overview numbers as server counts, for a company with more signing
  * requests than the workspace loads. Five counts, the rules of
- * `summarizeDocuments`: total, awaiting (minus those whose send failed),
- * completed and needs attention.
+ * `summarizeDocuments`: total, awaiting (minus the open ones whose send
+ * failed), completed and needs attention.
  *
  * No `orderBy`: equality-only filters are served by the automatic single-field
  * indexes, so the numbers never wait for a composite index. A document with no

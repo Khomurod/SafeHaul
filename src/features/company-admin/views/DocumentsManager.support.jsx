@@ -46,6 +46,8 @@ export const functionsMocks = { getFunctions: vi.fn(() => ({})), httpsCallable: 
 export const signingRequestsMock = {
     current: { documents: [], isLoading: false, loadError: null, retry: vi.fn() },
 };
+// One set for every render, so a suite can read what the screen told the user.
+export const toastMocks = { showSuccess: vi.fn(), showError: vi.fn(), showWarning: vi.fn() };
 
 // --- vi.mock factory bodies, verbatim from the original registrations ------
 
@@ -110,20 +112,24 @@ export const sendTemplateWizardMock = () => ({
 });
 export const feedbackMock = () => ({
     GlobalLoadingState: () => <div>Loading…</div>,
-    useToast: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
+    useToast: () => toastMocks,
 });
 
 // --- fixtures and helpers, verbatim ----------------------------------------
 
 export const company = { id: 'company-1', companyName: 'Artificial Freight Co', features: { eDocs: true } };
 
+/** The signed-in member's claims: a company admin unless a suite says otherwise. */
+export const adminClaims = { roles: { 'company-1': 'company_admin' } };
+export const recruiterClaims = { roles: { 'company-1': 'recruiter' } };
+
 /**
  * The original `renderManager`, verbatim, except the view and `MemoryRouter`
  * arrive as arguments: each suite imports both after its own hoisted mocks.
  */
 export function makeRenderManager(DocumentsManager, MemoryRouter) {
-    return function renderManager({ currentCompanyProfile = company, loading = false } = {}) {
-        useDataMock.mockReturnValue({ currentCompanyProfile, loading });
+    return function renderManager({ currentCompanyProfile = company, loading = false, currentUserClaims = adminClaims } = {}) {
+        useDataMock.mockReturnValue({ currentCompanyProfile, loading, currentUserClaims });
         return render(
             <MemoryRouter initialEntries={['/company/e-docs']}>
                 <DocumentsManager />
@@ -148,7 +154,7 @@ export function tabs() {
         overview: screen.getByRole('tab', { name: /^Overview/ }),
         sent: screen.getByRole('tab', { name: /^Sent Documents/ }),
         templates: screen.getByRole('tab', { name: /^Templates/ }),
-        forms: screen.getByRole('tab', { name: /^Application Forms/ }),
+        forms: screen.getByRole('tab', { name: /^After-application forms/ }),
     };
 }
 

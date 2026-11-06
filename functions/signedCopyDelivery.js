@@ -210,7 +210,8 @@ exports.sendSignedDocumentCopy = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_
         });
     } catch (err) {
         const reason = err?.message || String(err);
-        console.error(`[sendSignedDocumentCopy] Send failed for ${requestId}:`, reason);
+        // The code only: a mail server's reply can name the signer's address. The reason is recorded below.
+        console.error(`[sendSignedDocumentCopy] Send failed for ${requestId} (${err?.code || err?.responseCode || 'error'})`);
         try {
             await ref.update({ 'signedCopy.state': 'failed', 'signedCopy.error': reason });
         } catch (recordErr) {
