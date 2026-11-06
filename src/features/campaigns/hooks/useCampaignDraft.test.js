@@ -25,7 +25,7 @@ describe('useCampaignDraft — saveDraft', () => {
     it('merges the data into the draft document', async () => {
         const { result } = renderHook(() => useCampaignDraft('co-1'));
 
-        await result.current.saveDraft('camp-1', { name: 'Spring drive' });
+        await expect(result.current.saveDraft('camp-1', { name: 'Spring drive' })).resolves.toBe(true);
 
         expect(fs.setDoc).toHaveBeenCalledWith(
             { path: 'companies/co-1/campaign_drafts/camp-1' },
@@ -51,12 +51,13 @@ describe('useCampaignDraft — saveDraft', () => {
         expect(fs.setDoc).not.toHaveBeenCalled();
     });
 
-    it('logs a failed save instead of throwing', async () => {
+    // Autosave goes on after a failed save; the save before Launch stops on it.
+    it('logs a failed save and says so (false) instead of throwing', async () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         fs.setDoc.mockImplementation(async () => { throw new Error('permission-denied'); });
         const { result } = renderHook(() => useCampaignDraft('co-1'));
 
-        await expect(result.current.saveDraft('camp-1', { name: 'x' })).resolves.toBeUndefined();
+        await expect(result.current.saveDraft('camp-1', { name: 'x' })).resolves.toBe(false);
         expect(consoleError).toHaveBeenCalled();
         consoleError.mockRestore();
     });

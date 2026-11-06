@@ -482,11 +482,12 @@ The driver's uploads have one place, the DQ File tab, which lists and opens them
 worker (§8); the carrier connects and pays its own messaging provider. No
 two-way threads or drips. Campaigns lists the newest 50 drafts and campaigns
 (more on request) and every live one (Total Outreach: a server sum once
-incomplete). A draft launches once: the editor saves it, then
-`initBulkSession` claims it (`launchClaim`) and refuses a second launch from
-another tab or person, marks it (`launchedAt`, `sessionId`) once the worker
-starts, and gives the claim back if the launch fails. A claim over 10 minutes old
-is taken over, unless its session went out: then the draft is marked launched.
+incomplete). A draft launches once: the editor saves it (a failed
+save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
+refuses a second launch from another tab or person, marks it (`launchedAt`,
+`sessionId`) once the worker starts, and gives the claim back if the launch fails.
+A claim over 10 minutes old is taken over, unless its session sent or may have
+(not failed, or failed after sending): then the draft is marked launched.
 Kept, off Drafts; opened, it links its report, not Launch. Screens that name no
 draft (Production's, until a release) launch unclaimed.
 

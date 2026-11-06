@@ -255,6 +255,23 @@ describe('LaunchPad — migrated launch flow', () => {
             await waitFor(() => expect(order).toEqual(['save', 'saved', 'launch']));
         });
 
+        it('does not launch when onBeforeLaunch fails, and says why', async () => {
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const onBeforeLaunch = vi.fn(async () => {
+                throw new Error('We could not save the campaign. Check your connection and try again.');
+            });
+            const { onLaunchSuccess } = renderPad({ onBeforeLaunch });
+            openConfirm();
+            await confirmLaunch();
+
+            await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(
+                'We could not save the campaign. Check your connection and try again.',
+            ));
+            expect(callable).not.toHaveBeenCalled();
+            expect(onLaunchSuccess).not.toHaveBeenCalled();
+            consoleError.mockRestore();
+        });
+
         it('tolerates absent filters', async () => {
             renderPad({ campaign: { ...validCampaign, filters: undefined } });
             openConfirm();

@@ -56,6 +56,7 @@ beforeEach(() => {
     e2e.param = '';
     captured.audience = captured.content = captured.launch = null;
     draft.isSaving = false;
+    draft.saveDraft.mockImplementation(() => undefined);
     unsubSpy = vi.fn();
     snapCb = undefined;
     fs.onSnapshot.mockImplementation((ref, cb) => { snapCb = cb; return unsubSpy; });
@@ -270,6 +271,17 @@ describe('CampaignEditor — a launched campaign', () => {
         expect(saved).toMatchObject({ name: 'Doc Name', matchCount: 7, filters: { mode: 'all' } });
         expect(saved).not.toHaveProperty('launchClaim');
         expect(saved.filters).not.toHaveProperty('rawData');
+    });
+
+    it('stops the launch when the save before it fails, so nothing goes out unsaved', async () => {
+        draft.saveDraft.mockImplementation(async () => false);
+        await openLaunch();
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+        fireEvent.click(screen.getByRole('button', { name: /Audience/ }));
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+
+        await expect(captured.launch.onBeforeLaunch()).rejects.toThrow(/could not save the campaign/i);
     });
 
     it('saves nothing before Launch when nothing was edited', async () => {

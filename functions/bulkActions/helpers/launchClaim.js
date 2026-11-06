@@ -11,8 +11,9 @@ const { admin, db } = require("../../firebaseAdmin");
  * - a draft whose `launchClaim` is younger than `CLAIM_TTL_MS` is refused (a
  *   launch is running). An older claim belongs to a launch that died, since
  *   the callable stops after 540 seconds. If that launch's session exists and
- *   did not fail, the campaign went out and only its mark was lost: the draft
- *   is marked launched with it and refused. Otherwise the claim is taken over;
+ *   sent, or may have (it did not fail, or it failed after a message went out),
+ *   only its mark was lost: the draft is marked launched with it and refused.
+ *   Otherwise the claim is taken over;
  * - a launch that goes out marks the draft (`launchedAt`, `sessionId`) and
  *   drops the claim; one that fails gives its own claim back.
  *
@@ -38,12 +39,19 @@ function isDraftId(value) {
         && !/^__.*__$/.test(value);
 }
 
-/** Whether the session a stale claim names was written and did not fail. */
+/**
+ * Whether the session a stale claim names may have sent: it exists and did not
+ * fail, or it failed after a message went out (a later batch could not be
+ * queued). Only a session that failed before sending anything did not.
+ */
 async function claimedSessionWentOut(tx, companyId, claim) {
     if (!isDraftId(claim?.sessionId)) return false;
     const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(claim.sessionId);
     const session = await tx.get(sessionRef);
-    return session.exists && session.data()?.status !== 'failed';
+    if (!session.exists) return false;
+    const { status, progress } = session.data() || {};
+    if (status !== 'failed') return true;
+    return (progress?.processedCount || 0) > 0 || (progress?.currentPointer || 0) > 0;
 }
 
 function claimedAtMillis(claim) {

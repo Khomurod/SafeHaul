@@ -102,9 +102,12 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
     // Launch sends what the editor shows, so an edit autosave has not written
     // yet is saved first: the draft the server claims, and keeps as the
     // record, holds the same, and the claim's update brings back nothing older.
+    // A failed save stops the launch, so nothing goes out that the draft lacks.
     const saveBeforeLaunch = useCallback(async () => {
         if (!campaignId || !isDirty || !isInitializedRef.current || isLaunched) return;
-        await saveDraft(campaignId, draftToSave(campaignData));
+        if (await saveDraft(campaignId, draftToSave(campaignData)) === false) {
+            throw new Error('We could not save the campaign. Check your connection and try again.');
+        }
     }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
 
     // The server marked the draft launched (`launchedAt`, `sessionId`) before it
