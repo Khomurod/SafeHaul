@@ -143,8 +143,6 @@ const withAction = (resolutions, fieldKey, action) => ({
     [fieldKey]: { ...resolutions[fieldKey], action },
 });
 
-const plural = (n, one, many) => (n === 1 ? one : many);
-
 export function ReviewChangePortal() {
     const { token } = useParams();
     const isMock = isE2ETestMode && getE2EQueryParam('e2eReview', '') === 'mock';
@@ -164,8 +162,9 @@ export function ReviewChangePortal() {
     // Submit pressed with a change still undecided; each press moves focus to the list.
     const [undecidedAttempts, setUndecidedAttempts] = useState(0);
     const undecidedRef = useRef(null);
-    // The responses were recorded: `{ remaining }`, the changes still waiting
+    // The responses were recorded: `{ more }`, whether changes are still waiting
     // (ones proposed after this page loaded, which the driver has not seen).
+    // The server says only whether any remain, not how many.
     const [done, setDone] = useState(null);
 
     useEffect(() => {
@@ -240,13 +239,13 @@ export function ReviewChangePortal() {
         setSendingAll(all);
         setSubmitError('');
         try {
-            let remaining = 0;
+            let more = false;
             if (!isMock) {
                 const fn = httpsCallable(functions, 'submitChangeResolution');
                 const r = await fn({ token, resolutions: payload });
-                remaining = Number(r?.data?.remaining) || 0;
+                more = Number(r?.data?.remaining) > 0;
             }
-            setDone({ remaining });
+            setDone({ more });
         } catch (e) {
             const failure = submitFailure(e);
             if (failure.endsLink) setLinkProblem(linkProblemFromError(e));
@@ -323,18 +322,17 @@ export function ReviewChangePortal() {
                             <h2 className="mb-1 text-ds-heading-lg font-bold text-ds-content">Thank you!</h2>
                             <p className="text-ds-sm text-ds-content-secondary">Your responses have been recorded.</p>
                             {/* Inside the status, so it is heard with the thanks. */}
-                            {done.remaining > 0 && (
+                            {done.more && (
                                 <Notice
                                     tone="info"
                                     className="mt-ds-6"
                                     actions={(
                                         <Button size="sm" variant="secondary" onClick={reload}>
-                                            {plural(done.remaining, 'Review it', 'Review them')}
+                                            Review them
                                         </Button>
                                     )}
                                 >
-                                    {`${done.remaining} more ${plural(done.remaining, 'change was', 'changes were')} proposed `
-                                        + `after you opened this page and ${plural(done.remaining, 'still needs', 'still need')} your decision.`}
+                                    More changes were proposed after you opened this page and still need your decision.
                                 </Notice>
                             )}
                         </div>

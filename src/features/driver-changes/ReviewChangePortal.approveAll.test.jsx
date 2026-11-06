@@ -185,7 +185,7 @@ describe('Approve all', () => {
         expect(second).toEqual(first);
     });
 
-    it('says plainly which changes are still waiting when more arrived while the page was open', async () => {
+    it('says changes are still waiting when more arrived while the page was open, without a count', async () => {
         let loads = 0;
         mockCallable.mockImplementation((name) => {
             if (name === 'getChangeReview') {
@@ -195,16 +195,20 @@ describe('Approve all', () => {
                     ? review([FIRST_NAME, CITY])
                     : review([{ ...FIRST_NAME, status: 'approved' }, { ...CITY, status: 'approved' }, PHONE]));
             }
+            // The server checks only whether any remain (`limit(1)`), so 1 means
+            // "at least one", never a count the page may repeat.
             return Promise.resolve({ data: { success: true, remaining: 1, completed: false } });
         });
         await renderLoaded();
         fireEvent.click(approveAll());
 
         const thanks = await screen.findByText('Thank you!');
-        expect(thanks.closest('[role="status"]')).toHaveTextContent(
-            '1 more change was proposed after you opened this page and still needs your decision.',
+        const status = thanks.closest('[role="status"]');
+        expect(status).toHaveTextContent(
+            'More changes were proposed after you opened this page and still need your decision.',
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Review it' }));
+        expect(status.textContent).not.toMatch(/\d/);
+        fireEvent.click(screen.getByRole('button', { name: 'Review them' }));
 
         const phone = await screen.findByRole('group', { name: /Decision for Phone/i });
         expect(within(phone).queryByRole('button', { pressed: true })).not.toBeInTheDocument();

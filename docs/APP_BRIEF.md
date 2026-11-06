@@ -1083,7 +1083,8 @@ admin's edits become per-field `pending_changes`; the main document stays the
 The driver approves, rejects or corrects each, none preselected, or approves them
 all with **Approve all** (two or more changes, offered while none is marked Reject
 or Edit; the same single `submitChangeResolution` call as Submit, recorded all or
-nothing; changes proposed while the page was open are then named, with Review it),
+nothing; if changes were proposed while the page was open, it then says so, with
+Review them — the server says only whether any remain, not how many),
 through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
 emails it to the application's own `email`);
