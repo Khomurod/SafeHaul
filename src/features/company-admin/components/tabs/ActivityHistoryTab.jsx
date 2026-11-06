@@ -3,6 +3,7 @@ import { collection, query, orderBy, getDocs, limit, startAfter } from 'firebase
 import { db } from '@lib/firebase';
 import { Icon, CircleDot, User, FileText, RefreshCcw, MessageSquare, Mail, Phone, ShieldCheck, Filter, Zap, Settings, CheckCircle2, XCircle } from '@design-system/icons';
 import { Avatar, Badge, Button, Card, FormField, Select } from '@/design-system/components';
+import { ErrorState } from '@design-system/patterns';
 
 /**
  * The Activity tab: what happened on one application or lead, newest first.
@@ -26,6 +27,9 @@ import { Avatar, Badge, Button, Card, FormField, Select } from '@/design-system/
  * The trail is read 50 entries at a time, newest first, and "Show older
  * activity" reads the 50 before them; the filter and the grouping work on what
  * has been read.
+ *
+ * A trail that could not be read is not "No activity recorded": the tab says
+ * it could not be loaded and offers Retry, which reads it again.
  *
  * Defects fixed:
  *  1. **Sub-12px functional text in five places** — `text-[10px]` on the date
@@ -81,6 +85,8 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
     const [olderFrom, setOlderFrom] = useState(null);
     const [loadingOlder, setLoadingOlder] = useState(false);
     const [olderFailed, setOlderFailed] = useState(false);
+    // The newest entries could not be read: never shown as an empty trail.
+    const [loadFailed, setLoadFailed] = useState(false);
     const [filterType, setFilterType] = useState('all');
     const filterFieldId = useId();
     // Each read of a trail from its start; a page for an earlier one is dropped.
@@ -106,6 +112,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
         setLoading(true);
         setOlderFrom(null);
         setOlderFailed(false);
+        setLoadFailed(false);
         try {
             const page = await readPage();
             if (read !== readsRef.current) return;
@@ -113,6 +120,10 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
             setOlderFrom(page.next);
         } catch (error) {
             console.error("Error loading history:", error);
+            if (read !== readsRef.current) return;
+            // What was shown (perhaps another record's trail) goes with it.
+            setLogs([]);
+            setLoadFailed(true);
         } finally {
             if (read === readsRef.current) setLoading(false);
         }
@@ -201,6 +212,21 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
             <p role="status" className="p-ds-10 text-center text-ds-sm text-ds-content-secondary">
                 Loading activity history...
             </p>
+        );
+    }
+
+    if (loadFailed) {
+        return (
+            <ErrorState
+                headingLevel={3}
+                title="Activity could not be loaded."
+                description="Check your internet connection, then press Retry."
+                actions={(
+                    <Button variant="secondary" size="sm" onClick={fetchLogs}>
+                        Retry
+                    </Button>
+                )}
+            />
         );
     }
 

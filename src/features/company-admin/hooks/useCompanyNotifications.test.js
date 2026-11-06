@@ -187,6 +187,27 @@ describe('the bell', () => {
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.error).toBe('Failed to load notifications');
     });
+
+    // A listener that failed has stopped: Retry has to subscribe again.
+    it('subscribes to both reads again on retry, and clears the error once the team read answers', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        fb.teamError = new Error('Failed to get documents because the client is offline.');
+        fb.team = [reminder('team', undefined, 2)];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+        await waitFor(() => expect(result.current.error).toBe('Failed to load notifications'));
+        expect(fb.listeners).toHaveLength(2);
+
+        fb.teamError = null;
+        act(() => { result.current.retry(); });
+
+        await waitFor(() => expect(result.current.error).toBeNull());
+        expect(result.current.loading).toBe(false);
+        expect(result.current.notifications.map((n) => n.id)).toEqual(['team']);
+        expect(fb.listeners).toHaveLength(4);
+        // The first pair is let go before the second is opened.
+        expect(fb.listeners[0].unsubscribe).toHaveBeenCalledTimes(1);
+        expect(fb.listeners[1].unsubscribe).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('who sees a notification', () => {

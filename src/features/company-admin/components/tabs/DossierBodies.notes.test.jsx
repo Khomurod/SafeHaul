@@ -316,3 +316,63 @@ describe('NotesTab — a call logged meanwhile', () => {
         expect(await screen.findByLabelText('New note')).toHaveValue('Prefers night runs');
     });
 });
+
+// A read that failed is not an empty list: the tab says the notes could not be
+// loaded and Retry reads them again, keeping a note being written.
+describe('NotesTab — a failed read', () => {
+    const NOTE = ['n1', { text: 'Called back about the start date', author: 'Test Recruiter', createdAt: { seconds: 1_800_000_000 } }];
+    const offline = () => Object.assign(
+        new Error('Failed to get documents because the client is offline.'),
+        { code: 'unavailable' },
+    );
+    /** Each read answers the next of `answers`; a rejected one is handled here. */
+    const readsAnswer = (...answers) => {
+        answers.forEach((answer) => answer.catch(() => {}));
+        fs.getDocs.mockImplementation(() => answers.shift());
+    };
+
+    it('says the notes could not be loaded, not "No notes yet."', async () => {
+        readsAnswer(Promise.reject(offline()));
+        renderNotes();
+
+        const heading = await screen.findByRole('heading', { name: 'Notes could not be loaded.', level: 3 });
+        // The approved error state, announced.
+        expect(heading.closest('.ds-page-state')).toHaveAttribute('role', 'alert');
+        expect(screen.queryByText('No notes yet.')).not.toBeInTheDocument();
+        expect(screen.queryByText(/client is offline/)).not.toBeInTheDocument();
+        expect(console.error).toHaveBeenCalledWith('Error loading notes:', expect.any(Error));
+    });
+
+    it('reads again on Retry and shows the notes', async () => {
+        readsAnswer(Promise.reject(offline()), Promise.resolve(snap([NOTE])));
+        renderNotes();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Notes could not be loaded.' })).not.toBeInTheDocument();
+        expect(fs.getDocs).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a note being written across a Retry', async () => {
+        readsAnswer(Promise.reject(offline()), Promise.resolve(snap([])));
+        renderNotes();
+        fireEvent.change(await screen.findByLabelText('New note'), { target: { value: 'Prefers night runs' } });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('No notes yet.')).toBeInTheDocument();
+        expect(screen.getByLabelText('New note')).toHaveValue('Prefers night runs');
+    });
+
+    it("does not leave an earlier read's notes on screen once a later read fails", async () => {
+        readsAnswer(Promise.resolve(snap([NOTE])), Promise.reject(offline()));
+        const { rerender } = renderNotes({ refreshKey: 0 });
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+
+        rerender(<NotesTab companyId="co-1" applicationId="app-1" refreshKey={1} />);
+
+        expect(await screen.findByRole('heading', { name: 'Notes could not be loaded.' })).toBeInTheDocument();
+        expect(screen.queryByText('Called back about the start date')).not.toBeInTheDocument();
+    });
+});

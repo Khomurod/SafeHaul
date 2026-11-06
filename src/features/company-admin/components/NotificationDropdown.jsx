@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon, Bell, Check, Clock, User, Briefcase, FileText, FileCheck, AlertTriangle } from '@design-system/icons';
 import { Badge, Button, IconButton } from '@/design-system/components';
+import { ErrorState } from '@design-system/patterns';
 import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
 
 // Icon mapping for notification types
@@ -76,6 +77,8 @@ export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments,
         notifications,
         unreadCount,
         loading,
+        error,
+        retry,
         markAsRead,
         markAllAsRead
     } = useCompanyNotifications(companyId);
@@ -147,12 +150,28 @@ export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments,
 
                     {/* Notification List */}
                     <div className="max-h-96 overflow-y-auto">
+                        {/* A failed read is not "All caught up!": it says so and
+                            reads again on Retry. The reader's own reminders, if
+                            their read answered, still show below it. */}
+                        {!loading && error && (
+                            <ErrorState
+                                surface="bare"
+                                headingLevel={4}
+                                title="Notifications could not be loaded."
+                                description="Check your internet connection, then press Retry."
+                                actions={(
+                                    <Button variant="secondary" size="sm" onClick={retry}>
+                                        Retry
+                                    </Button>
+                                )}
+                            />
+                        )}
                         {loading ? (
                             <div className="p-8 text-center">
                                 <div className="animate-spin w-6 h-6 border-2 border-ds-action-primary border-t-transparent rounded-ds-full mx-auto"></div>
                                 <p className="text-ds-body text-ds-content-muted mt-2">Loading...</p>
                             </div>
-                        ) : notifications.length === 0 ? (
+                        ) : notifications.length === 0 && !error ? (
                             <div className="p-8 text-center">
                                 <div className="w-12 h-12 bg-ds-surface-subtle rounded-ds-full flex items-center justify-center mx-auto mb-3">
                                     <Icon icon={Bell} size="2xl" className="text-ds-content-muted" />

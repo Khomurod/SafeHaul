@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { arrayUnion, collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '@lib/firebase';
 
@@ -53,7 +53,9 @@ const isReadBy = (item, uid) => item.read === true
  * in a busy team they would push a recruiter's own "Call back …" out of the
  * bell. The bell shows the newest 20 of both, read or not. If the own read
  * fails (say, its index is still building) that is only logged, and the bell
- * shows the first read alone.
+ * shows the first read alone. If the team read fails, `error` says so and the
+ * bell must not read as "all caught up"; a failed listener stops listening, so
+ * `retry()` subscribes to both reads again.
  * @param {string} companyId - The ID of the company
  * @returns {Object} Notifications data and management functions
  */
@@ -61,6 +63,9 @@ export function useCompanyNotifications(companyId) {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // Each Retry subscribes again.
+    const [attempt, setAttempt] = useState(0);
+    const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
     useEffect(() => {
         if (!companyId) {
@@ -69,6 +74,7 @@ export function useCompanyNotifications(companyId) {
         }
 
         setLoading(true);
+        setError(null);
         const notificationsRef = collection(db, 'companies', companyId, 'notifications');
         const uid = auth.currentUser?.uid;
         const rows = { team: [], own: [] };
@@ -115,7 +121,7 @@ export function useCompanyNotifications(companyId) {
             unsubscribeTeam();
             unsubscribeOwn?.();
         };
-    }, [companyId]);
+    }, [companyId, attempt]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -157,6 +163,7 @@ export function useCompanyNotifications(companyId) {
         unreadCount,
         loading,
         error,
+        retry,
         markAsRead,
         markAllAsRead
     };
