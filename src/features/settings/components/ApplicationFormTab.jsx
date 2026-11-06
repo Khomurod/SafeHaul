@@ -14,11 +14,12 @@ import { withoutBlankOptions } from '@/config/customQuestionOptions';
 import { isCompanyAdminForRoute, isSuperAdminClaims } from '@app/auth/roles';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
+/** The tab ids stay as they were; "Report uploads" keeps the id `integrations`. */
 const TABS = [
     { id: 'questions', label: 'Questions', icon: ListChecks },
     { id: 'rules', label: 'Rules', icon: SlidersHorizontal },
     { id: 'agreements', label: 'Agreements', icon: FileSignature },
-    { id: 'integrations', label: 'Integrations', icon: Blocks },
+    { id: 'integrations', label: 'Report uploads', icon: Blocks },
 ];
 
 /** What each part of the form is called in the save bar, keyed by the field it saves. */
@@ -26,7 +27,7 @@ const PARTS = [
     ['applicationConfig', 'Questions'],
     ['customQuestions', 'Questions'],
     ['applicationRules', 'Rules'],
-    ['applicationIntegrations', 'Integrations'],
+    ['applicationIntegrations', 'Report uploads'],
 ];
 
 /**
@@ -48,8 +49,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Settings → Application questions: what drivers are asked, what happens to their
- * answers, the agreements they sign, and optional imports. Questions, Rules and
- * Integrations are edited together and saved with one `SaveBar` through
+ * answers, the agreements they sign, and optional report uploads (PSP, MVR).
+ * Questions, Rules and Report uploads are edited together and saved with one `SaveBar` through
  * `saveCompanySettings`, which writes only the parts changed here. Agreements save
  * themselves (their own callables; publishing is Super Admin only).
  */

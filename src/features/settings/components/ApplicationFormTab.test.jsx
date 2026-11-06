@@ -75,7 +75,8 @@ describe('ApplicationFormTab', () => {
     it('is its own page with four tabs, Questions first, and nothing to save yet', () => {
         renderForm();
         expect(screen.getByRole('heading', { level: 1, name: 'Application questions' })).toBeInTheDocument();
-        expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Questions', 'Rules', 'Agreements', 'Integrations']);
+        // The PSP and MVR switches are Report uploads: Integrations read as Facebook.
+        expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Questions', 'Rules', 'Agreements', 'Report uploads']);
         expect(screen.getByRole('tab', { name: 'Questions' })).toHaveAttribute('aria-selected', 'true');
         expect(saveBar()).toBeNull();
     });
@@ -91,8 +92,9 @@ describe('ApplicationFormTab', () => {
     it('saves only the parts changed here, dropping blank answer options', async () => {
         renderForm();
         fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
-        openTab('Integrations');
+        openTab('Report uploads');
         fireEvent.click(screen.getByRole('button', { name: 'Turn on PSP' }));
+        expect(saveBar()).toHaveTextContent('Questions, Report uploads changed');
         fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
 
         await waitFor(() => expect(saveBar()).toBeNull());
