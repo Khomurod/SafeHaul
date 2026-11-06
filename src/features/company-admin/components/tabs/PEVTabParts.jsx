@@ -74,7 +74,8 @@ export function PEVEmployerCard({
                             </span>
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-ds-2">
-                                    <h5 className="font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">{employerName}</h5>
+                                    {/* `<h4>` under the dossier header's `<h3>` section title. */}
+                                    <h4 className="font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">{employerName}</h4>
                                     <Badge tone={statusTone(vStatus.status)} icon={statusIcon(vStatus.status)}>
                                         {vStatus.status}
                                     </Badge>

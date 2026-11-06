@@ -80,9 +80,24 @@ describe('PEVTab employer presentation', () => {
       ],
     });
 
-    // Total 4, Completed 1, and 'Sent' + 'Requested' both count as pending.
-    expect(screen.getByText('Total Employers').closest('*')).toBeTruthy();
-    expect(screen.getByText('4')).toBeInTheDocument();
+    // Total 4, Completed 1, and 'Sent' + 'Requested' both count as pending: one line.
+    expect(screen.getByText('4 employers, 1 completed, 2 waiting for an answer')).toBeInTheDocument();
+  });
+
+  it('says one employer in the singular, and no counts when there are none', () => {
+    const { unmount } = renderTab({ employers: [{ companyName: 'A' }] });
+    expect(screen.getByText('1 employer, 0 completed, 0 waiting for an answer')).toBeInTheDocument();
+    unmount();
+
+    renderTab({ employers: [] });
+    expect(screen.queryByText(/waiting for an answer/)).toBeNull();
+  });
+
+  // It was a fixed card, not data, beside a "(DOT Compliance)" heading that
+  // named the tab a third time.
+  it('claims no compliance status and names the tab no further', () => {
+    renderTab();
+    expect(screen.queryByText(/Audit in Progress|Compliance Status|DOT Compliance|Verification Center/)).toBeNull();
   });
 
   it('shows the no-employer empty copy', () => {
