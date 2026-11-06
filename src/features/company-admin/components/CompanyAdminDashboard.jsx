@@ -13,7 +13,6 @@ import {
 } from '@/design-system/layouts';
 import { useDashboardCounts } from '@features/companies';
 
-import { InlineLeaderboard } from './InlineLeaderboard';
 import { CompanyReadinessCard } from './CompanyReadinessCard';
 import { NeedsAttentionCard } from './NeedsAttentionCard';
 
@@ -129,10 +128,6 @@ export function CompanyAdminDashboard() {
 
                     {/* Admins only: what the company has not set up, read once (one calm line when ready). */}
                     <CompanyReadinessCard companyId={companyId} />
-
-                    <Section aria-label="Team performance">
-                        <InlineLeaderboard companyId={companyId} />
-                    </Section>
                 </Stack>
             </PageContainer>
         </div>

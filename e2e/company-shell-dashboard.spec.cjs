@@ -6,13 +6,13 @@ const DASHBOARD_URL = '/company/dashboard?e2eAuth=company_admin';
 async function openDashboard(page) {
   await page.goto(DASHBOARD_URL);
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Team leaderboard' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hired: 2' })).toBeVisible();
 }
 
 test.describe('Company workspace shell and dashboard', () => {
   test.describe.configure({ timeout: 90_000 });
 
-  test('preserves dashboard actions, routes, table alignment, and desktop collapse', async ({ page }, testInfo) => {
+  test('preserves dashboard actions, routes and desktop collapse, with no team leaderboard', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop and laptop shell behavior.');
     await openDashboard(page);
 
@@ -23,20 +23,10 @@ test.describe('Company workspace shell and dashboard', () => {
 
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await expect(page).toHaveURL(/\/company\/dashboard/);
-
-    const dialsHeader = page.getByRole('columnheader', { name: 'Dials' });
-    const jordanRow = page.getByRole('rowheader', { name: /Jordan Recruiter/i });
-    const dialsCell = jordanRow.locator('xpath=ancestor::tr').getByRole('cell', { name: '18' });
-    await expect(dialsHeader).toHaveAttribute('data-align', 'end');
-    await expect(dialsCell).toHaveAttribute('data-align', 'end');
-
-    const [headerBox, cellBox] = await Promise.all([
-      dialsHeader.boundingBox(),
-      dialsCell.boundingBox(),
-    ]);
-    expect(Math.abs(
-      (headerBox.x + headerBox.width) - (cellBox.x + cellBox.width),
-    )).toBeLessThan(1);
+    await expect(page.getByRole('button', { name: 'Hired: 2' })).toBeVisible();
+    // The team leaderboard is gone; the call statistics stay for Super Admin → Analytics.
+    await expect(page.getByRole('table')).toHaveCount(0);
+    await expect(page.getByText(/leaderboard/i)).toHaveCount(0);
 
     const navigation = page.getByLabel('Company navigation');
     const expandedWidth = await navigation.evaluate((element) => element.getBoundingClientRect().width);

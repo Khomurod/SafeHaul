@@ -20,10 +20,6 @@ vi.mock('@features/companies', () => ({
     useDashboardCounts: () => dashboardState,
 }));
 
-vi.mock('@features/company-admin/components/InlineLeaderboard', () => ({
-    InlineLeaderboard: () => <section aria-label="Team leaderboard">Leaderboard</section>,
-}));
-
 // Mock Firebase with complete auth state management
 vi.mock('firebase/auth', () => ({
     getAuth: vi.fn(() => ({
@@ -159,7 +155,9 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
             .toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Hired: 2' }))
             .toBeInTheDocument();
-        expect(screen.getByLabelText('Team leaderboard')).toBeInTheDocument();
+        // The team leaderboard is gone; the daily call statistics stay for Super Admin → Analytics.
+        expect(screen.queryByRole('heading', { name: /leaderboard/i })).toBeNull();
+        expect(screen.queryByRole('table', { name: /leaderboard/i })).toBeNull();
     });
 
     it('keeps metric navigation keyboard-accessible', () => {

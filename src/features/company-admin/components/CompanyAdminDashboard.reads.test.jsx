@@ -74,8 +74,6 @@ vi.mock('@lib/firebase', () => {
 });
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
-// The leaderboard reads its own day of stats, with a suite of its own.
-vi.mock('./InlineLeaderboard', () => ({ InlineLeaderboard: () => null }));
 
 import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';

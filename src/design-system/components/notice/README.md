@@ -352,7 +352,7 @@ Of the 22 candidates that are not notices, **seventeen are a small tinted square
 or circle holding exactly one glyph** — a section-header mark, a modal-header
 mark, a row marker, a locked-feature badge. `applicationTabCards:310` ·
 `NewDocumentDialog:81` · `TemplateLibraryPanel:107` · `NotesTab:229` ·
-`LaunchPad:96` · `InlineLeaderboard:164` and `:202` · `PEVRequestModal:221` ·
+`LaunchPad:96` · `InlineLeaderboard:164` and `:202` (since removed) · `PEVRequestModal:221` ·
 `QuickLeadModal:154` · `VOEPreviewModal:121` and `:276` ·
 `DriverProfileModal:250` · `PEVTabParts:63` · `NotificationItem:81` ·
 `PaywallMessage:23` · `CompanyChooserModal:139` · `FeatureLockedModal:52`.
