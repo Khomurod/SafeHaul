@@ -74,6 +74,8 @@ export function DossierSidebar({
     idBase = 'dossier',
     collectionName,
     onOpenRecord,
+    // Beside Call: the dossier's Log call (`DossierLogCall`), or nothing.
+    logCall = null,
 }) {
     const isCompact = useCompactViewport();
     const linked = onOpenRecord ? linkedRecordOf(appData, collectionName) : null;
@@ -137,7 +139,8 @@ export function DossierSidebar({
                   links. The two-line tile shape comes from the caller; the
                   border, radius, focus ring and hover are the primitive's.
                 */}
-                <div className="mt-ds-4 grid grid-cols-2 gap-ds-2">
+                {/* One equal column per tile, so Log call sits between Call and Email when offered. */}
+                <div className="mt-ds-4 grid auto-cols-fr grid-flow-col gap-ds-2">
                     {phone ? (
                         <ButtonLink
                             href={`tel:${phone}`}
@@ -155,6 +158,8 @@ export function DossierSidebar({
                             <span>No phone</span>
                         </p>
                     )}
+
+                    {logCall}
 
                     {email ? (
                         <ButtonLink

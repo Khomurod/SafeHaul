@@ -8,6 +8,7 @@ import { Button, TabPanel } from '@/design-system/components';
 import { DossierSidebar } from './DossierSidebar';
 import { DossierHeader } from './DossierHeader';
 import { DossierContent } from './DossierContent';
+import { DossierLogCall } from './DossierLogCall';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
@@ -45,6 +46,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A lead and the application it became open each other here (the sidebar's
  *   "Open application" / "Open lead"): the dossier shows that record, on its
  *   first tab, until the page opens another.
+ * - A call logged here (`DossierLogCall`) reads the record again, so the stage
+ *   it moved and the last call show, and reopens Activity and Notes on their
+ *   newest entries; the tab the recruiter is on stays.
  */
 export function DriverProfileModal({
     companyId,
@@ -62,6 +66,8 @@ export function DriverProfileModal({
         setActiveTab('application');
     };
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    // Counts the calls logged here: Activity and Notes read again on each.
+    const [callsLogged, setCallsLogged] = useState(0);
     const cancelDeleteRef = useRef(null);
     const tabPanelRef = useRef(null);
     /*
@@ -92,7 +98,13 @@ export function DriverProfileModal({
         collectionName,
         teamMembers,
         assignedTo,
+        refreshRecord,
     } = useApplicationView(companyId, recordId);
+
+    const handleCallLogged = () => {
+        refreshRecord?.();
+        setCallsLogged((count) => count + 1);
+    };
 
     const handleConfirmDelete = async () => {
         const ok = await deleteApplication({ companyId, applicationId: recordId, collectionName });
@@ -150,6 +162,15 @@ export function DriverProfileModal({
                             idBase={tabsIdBase}
                             collectionName={collectionName}
                             onOpenRecord={openLinkedRecord}
+                            logCall={(
+                                <DossierLogCall
+                                    companyId={companyId}
+                                    recordId={recordId}
+                                    record={appData}
+                                    canLog={canEdit && !loading && !error}
+                                    onLogged={handleCallLogged}
+                                />
+                            )}
                         />
                     </div>
 
@@ -228,6 +249,7 @@ export function DriverProfileModal({
                                     fileUrls={fileUrls}
                                     filesPending={filesPending}
                                     canEdit={canEdit}
+                                    refreshKey={callsLogged}
                                 />
                             )}
                         </TabPanel>

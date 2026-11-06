@@ -27,6 +27,9 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * File tab, which lists and opens them; the gallery that repeated them here is
  * gone, and the tab says where they are. The DQ File tab also takes the record
  * (`appData`): its checklist reads the employers' verifications from it.
+ *
+ * `refreshKey` changes when a call is logged in the dossier: Activity and Notes,
+ * which read their entries once, start again and show it.
  */
 export function DossierContent({
     activeTab,
@@ -36,7 +39,8 @@ export function DossierContent({
     collectionName,
     fileUrls,
     filesPending = false,
-    canEdit
+    canEdit,
+    refreshKey = 0,
 }) {
     // Shared Loading Fallback
     const TabLoading = () => (
@@ -96,6 +100,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <ActivityHistoryTab
+                            key={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}
@@ -107,6 +112,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <NotesTab
+                            key={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}

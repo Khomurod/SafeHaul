@@ -28,6 +28,7 @@ export function useApplicationDetails(companyId, applicationId, onStatusUpdate) 
     loading: fetch.loading,
     error: fetch.error,
     appData: fetch.appData,
+    refreshRecord: fetch.refreshRecord,
     collectionName: fetch.collectionName,
     fileUrls: fetch.fileUrls,
     filesPending: fetch.filesPending,
