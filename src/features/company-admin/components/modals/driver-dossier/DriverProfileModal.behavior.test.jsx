@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
 
 const deleteApplicationSpy = vi.fn();
 let claims = {};
@@ -154,6 +154,17 @@ describe('DriverProfileModal nested delete confirmation', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
   });
 
+  it('is the standard confirmation, described by what the delete removes', () => {
+    renderFromTrigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete application' }));
+
+    const confirm = screen.getByRole('dialog', { name: 'Delete this application?' });
+    expect(confirm).toHaveAccessibleDescription(
+      'This permanently removes the application, its activity history, notes, and all uploaded documents. This cannot be undone.',
+    );
+    expect(within(confirm).getByRole('button', { name: 'Delete permanently' })).toHaveAttribute('data-variant', 'danger');
+  });
+
   it('Escape in the confirmation dismisses only the confirmation', () => {
     const { onClose } = renderFromTrigger();
     fireEvent.click(screen.getByRole('button', { name: 'Delete application' }));
@@ -244,10 +255,11 @@ describe('DriverProfileModal header', () => {
 });
 
 describe('DriverProfileModal page states', () => {
-  it('announces the loading state', () => {
+  it('announces the loading state, the standard one', () => {
     viewState = { ...baseView(), loading: true };
     renderFromTrigger();
     expect(screen.getByRole('status')).toHaveTextContent(/Loading driver dossier/);
+    expect(screen.getByRole('heading', { level: 4, name: 'Loading driver dossier…' })).toBeInTheDocument();
   });
 
   it('announces the error state as an alert', () => {

@@ -38,6 +38,8 @@ describe('the driver dossier', () => {
 
         const dialog = screen.getByRole('dialog', { name: 'Driver dossier' });
         expect(within(dialog).getByRole('status')).toHaveTextContent('Loading driver dossier…');
+        // The standard loading state, not a spinner of its own.
+        expect(within(dialog).getByRole('heading', { name: 'Loading driver dossier…' })).toBeInTheDocument();
         await userEvent.keyboard('{Escape}');
         expect(onClose).toHaveBeenCalledTimes(1);
 

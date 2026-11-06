@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Icon, Loader2 } from '@design-system/icons';
+import { LoadingState } from '@design-system/patterns';
 import { ApplicationTab } from './tabs/ApplicationTab';
 import { SigningDocumentsSection } from './tabs/SigningDocumentsSection';
 import { DQFileTab } from '@features/company-admin/components/tabs/DQFileTab';
@@ -18,9 +18,9 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * | 'pev' | 'activity' | 'notes'` routing values. Notes also receives the
  * record's `sharedHistory` from `appData`, so it does not read the record again.
  *
- * The lazy-tab loading fallback is a `role="status"` region, so switching to
- * Previous Employment, Activity or Notes is announced while the chunk
- * downloads.
+ * The lazy-tab loading fallback is the design system's `LoadingState`, a
+ * `role="status"` region, so switching to Previous Employment, Activity or
+ * Notes is announced while the chunk downloads.
  *
  * Documents (shown as "Documents to sign") holds the driver's signing documents
  * (`SigningDocumentsSection`) only. The driver's uploads have one place, the DQ
@@ -46,12 +46,8 @@ export function DossierContent({
     refreshKey = 0,
     onOpenTab,
 }) {
-    // Shared Loading Fallback
-    const TabLoading = () => (
-        <div role="status" className="flex items-center justify-center py-ds-12 text-ds-content-secondary">
-            <Icon icon={Loader2} size="2xl" className="mr-ds-2 animate-spin" /> Loading Tab...
-        </div>
-    );
+    // Shared loading fallback: `h4`, under the header's `h3` section title.
+    const TabLoading = () => <LoadingState surface="bare" headingLevel={4} title="Loading this tab…" />;
 
     const renderContent = () => {
         switch (activeTab) {
