@@ -172,6 +172,31 @@ describe('claimDraftLaunch', () => {
         expect(CLAIM_TTL_MS).toBeGreaterThan(540 * 1000);
     });
 
+    // A launch whose worker started but whose mark failed leaves a stale claim:
+    // its session is the proof the campaign went out, so it is not sent again.
+    it('refuses a stale claim whose session went out, and marks the draft launched with it', async () => {
+        await claim();
+        store.set('companies/co-1/bulk_sessions/session-1', { status: 'active' });
+
+        await expect(claim({ uid: 'admin-2', sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 }))
+            .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringMatching(/already launched/) });
+        expect(store.get(PATH)).toEqual({
+            name: 'Spring drive',
+            launchedAt: SERVER_TIME,
+            sessionId: 'session-1',
+        });
+    });
+
+    it('takes over a stale claim whose session failed to start', async () => {
+        await claim();
+        store.set('companies/co-1/bulk_sessions/session-1', { status: 'failed' });
+
+        await claim({ uid: 'admin-2', sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 });
+
+        expect(store.get(PATH).launchClaim.sessionId).toBe('session-2');
+        expect(store.get(PATH).launchedAt).toBeUndefined();
+    });
+
     it('treats a claim without a readable time as stale', async () => {
         store.set(PATH, { launchClaim: { by: 'x', sessionId: 'y', at: 'garbled' } });
 

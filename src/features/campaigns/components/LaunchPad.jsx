@@ -12,8 +12,10 @@ import { MAX_RECIPIENTS_PER_LAUNCH } from '../constants/campaignConstants';
  * The campaign's last step. `campaignId` names its draft: the server launches a
  * draft once and refuses a second launch from another tab, in words shown as
  * they come (`initBulkSession`, `functions/bulkActions/helpers/launchClaim.js`).
+ * `onBeforeLaunch` (the editor's save) is awaited first, so the draft the
+ * server claims holds what is launched.
  */
-export function LaunchPad({ companyId, campaignId = null, campaign, onLaunchSuccess }) {
+export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaunch, onLaunchSuccess }) {
     const { showSuccess, showError } = useToast();
     const [isLaunching, setIsLaunching] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -37,6 +39,7 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onLaunchSucc
                 return;
             }
 
+            if (onBeforeLaunch) await onBeforeLaunch();
             const initBulkSession = httpsCallable(functions, 'initBulkSession');
 
             // Extract rawData if present in filters (passed from AudienceBuilder)

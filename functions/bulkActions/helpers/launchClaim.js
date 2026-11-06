@@ -10,7 +10,9 @@ const { admin, db } = require("../../firebaseAdmin");
  * - a draft with `launchedAt` is refused (already launched);
  * - a draft whose `launchClaim` is younger than `CLAIM_TTL_MS` is refused (a
  *   launch is running). An older claim belongs to a launch that died, since
- *   the callable stops after 540 seconds, and is taken over;
+ *   the callable stops after 540 seconds. If that launch's session exists and
+ *   did not fail, the campaign went out and only its mark was lost: the draft
+ *   is marked launched with it and refused. Otherwise the claim is taken over;
  * - a launch that goes out marks the draft (`launchedAt`, `sessionId`) and
  *   drops the claim; one that fails gives its own claim back.
  *
@@ -36,6 +38,14 @@ function isDraftId(value) {
         && !/^__.*__$/.test(value);
 }
 
+/** Whether the session a stale claim names was written and did not fail. */
+async function claimedSessionWentOut(tx, companyId, claim) {
+    if (!isDraftId(claim?.sessionId)) return false;
+    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(claim.sessionId);
+    const session = await tx.get(sessionRef);
+    return session.exists && session.data()?.status !== 'failed';
+}
+
 function claimedAtMillis(claim) {
     const millis = typeof claim?.at?.toMillis === 'function' ? claim.at.toMillis() : NaN;
     return Number.isFinite(millis) ? millis : 0;
@@ -51,18 +61,30 @@ async function claimDraftLaunch({ companyId, campaignId, uid, sessionId, now = D
     if (!isDraftId(campaignId)) throw new HttpsError('invalid-argument', 'This campaign could not be found.');
 
     const draftRef = db.collection('companies').doc(companyId).collection('campaign_drafts').doc(campaignId);
-    await db.runTransaction(async (tx) => {
+    const outcome = await db.runTransaction(async (tx) => {
         const snap = await tx.get(draftRef);
         if (!snap.exists) throw new HttpsError('not-found', DRAFT_GONE);
         const draft = snap.data() || {};
         if (draft.launchedAt) throw new HttpsError('failed-precondition', ALREADY_LAUNCHED);
-        if (draft.launchClaim && now - claimedAtMillis(draft.launchClaim) < CLAIM_TTL_MS) {
+        const stale = draft.launchClaim;
+        if (stale && now - claimedAtMillis(stale) < CLAIM_TTL_MS) {
             throw new HttpsError('failed-precondition', LAUNCH_RUNNING);
+        }
+        if (stale && await claimedSessionWentOut(tx, companyId, stale)) {
+            tx.update(draftRef, {
+                launchedAt: admin.firestore.FieldValue.serverTimestamp(),
+                sessionId: stale.sessionId,
+                launchClaim: admin.firestore.FieldValue.delete(),
+            });
+            return 'launched';
         }
         tx.update(draftRef, {
             launchClaim: { by: uid, sessionId, at: admin.firestore.Timestamp.fromMillis(now) },
         });
+        return 'claimed';
     });
+    // Thrown after the transaction, so the mark it wrote is kept.
+    if (outcome === 'launched') throw new HttpsError('failed-precondition', ALREADY_LAUNCHED);
     return draftRef;
 }
 

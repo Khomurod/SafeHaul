@@ -252,6 +252,35 @@ describe('CampaignEditor — a launched campaign', () => {
         expect(draft.saveDraft).not.toHaveBeenCalled();
     });
 
+    // Launch sends what the editor shows: an edit the 2-second autosave has not
+    // written yet is saved first, so the draft the server claims (and keeps as
+    // the record) holds the same, and the claim's update brings nothing older.
+    it('saves what it shows before Launch asks the server, without the launch claim', async () => {
+        await openLaunch();
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {}, launchClaim: { sessionId: 'x' } })); });
+        fireEvent.click(screen.getByRole('button', { name: /Audience/ }));
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+
+        await act(async () => { await captured.launch.onBeforeLaunch(); });
+
+        expect(draft.saveDraft).toHaveBeenCalledTimes(1);
+        const [id, saved] = draft.saveDraft.mock.calls[0];
+        expect(id).toBe('camp1');
+        expect(saved).toMatchObject({ name: 'Doc Name', matchCount: 7, filters: { mode: 'all' } });
+        expect(saved).not.toHaveProperty('launchClaim');
+        expect(saved.filters).not.toHaveProperty('rawData');
+    });
+
+    it('saves nothing before Launch when nothing was edited', async () => {
+        await openLaunch();
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+
+        await act(async () => { await captured.launch.onBeforeLaunch(); });
+
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+    });
+
     it('never writes the server’s launch claim back when it autosaves', async () => {
         vi.useFakeTimers();
         await act(async () => {

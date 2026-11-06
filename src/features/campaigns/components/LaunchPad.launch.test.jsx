@@ -4,7 +4,7 @@
 // The shared harness lives in `LaunchPad.support.jsx`; the registrations
 // below delegate to it. All campaign fixtures are artificial.
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { httpsCallable } from 'firebase/functions';
 import { BrowserRouter } from 'react-router-dom';
@@ -232,6 +232,27 @@ describe('LaunchPad — migrated launch flow', () => {
             await confirmLaunch();
 
             expect(callable.mock.calls[0][0].campaignId).toBeNull();
+        });
+
+        // The editor saves what it shows before the server claims the draft.
+        it('waits for onBeforeLaunch before it asks the server to launch', async () => {
+            // Without the wait, the launch would come before 'saved'.
+            const order = [];
+            const onBeforeLaunch = vi.fn(async () => {
+                order.push('save');
+                await Promise.resolve();
+                await Promise.resolve();
+                order.push('saved');
+            });
+            callable.mockImplementation(async () => {
+                order.push('launch');
+                return { data: { success: true, targetCount: 1, sessionId: 'session-1' } };
+            });
+            renderPad({ onBeforeLaunch });
+            openConfirm();
+            await confirmLaunch();
+
+            await waitFor(() => expect(order).toEqual(['save', 'saved', 'launch']));
         });
 
         it('tolerates absent filters', async () => {
