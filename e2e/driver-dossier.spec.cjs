@@ -271,9 +271,10 @@ test.describe('Driver Dossier shell', () => {
     await page.getByRole('button', { name: 'Delete application' }).click();
     await expect(page.getByRole('dialog', { name: 'Delete this application?' })).toBeVisible();
 
-    // The confirmation is the standard `ConfirmDialog`: the dialog that is not the dossier.
+    // The confirmation is the standard `ConfirmDialog`, named by its heading
+    // (`aria-labelledby`); the dossier is named by `aria-label`.
     const confirmScan = await new AxeBuilder({ page })
-      .include('[role="dialog"]:not([aria-label="Driver dossier"])')
+      .include('[role="dialog"][aria-labelledby]')
       .analyze();
     expect(confirmScan.violations.map((v) => v.id)).toEqual([]);
   });
