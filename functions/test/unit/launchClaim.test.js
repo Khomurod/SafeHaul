@@ -203,6 +203,20 @@ describe('claimDraftLaunch', () => {
 });
 
 describe('launchedMark', () => {
+    // The mark rides in the session batch, so whatever later happens to the
+    // session (deleted from Campaigns, failed, progress never written), the
+    // draft stays launched and a later launch, even past the claim's time, is
+    // refused.
+    it('keeps a launched draft refused after its session is gone and the claim time has passed', async () => {
+        await claim();
+        apply(PATH, launchedMark('session-1'));
+        store.delete('companies/co-1/bulk_sessions/session-1');
+
+        await expect(claim({ uid: 'admin-2', sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 }))
+            .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringMatching(/already launched/) });
+        expect(store.get(PATH)).toEqual({ name: 'Spring drive', launchedAt: SERVER_TIME, sessionId: 'session-1' });
+    });
+
     it('marks the draft launched by its session and drops the claim, for the session batch', () => {
         expect(launchedMark('session-1')).toEqual({
             launchedAt: SERVER_TIME,
