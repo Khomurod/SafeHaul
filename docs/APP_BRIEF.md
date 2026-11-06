@@ -153,7 +153,7 @@ returns to Review; the submission pre-flight and the server still check it all.
 **The company shapes what the wizard asks, without code.** Company Settings →
 Application questions has four tabs: *Questions* (show / hide / require the DOT
 questions, plus custom ones), *Rules* (§5), *Agreements* (versioned legal
-wording, saved on their own) and *Integrations* (optional PSP-report and MVR
+wording, saved on their own) and *Report uploads* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
 (pre-employment, past two years), kept apart from the broader one it replaced;
 a draft lacking its answer goes back there.
@@ -521,7 +521,11 @@ and the employers row opens Previous Employment.
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
-two-way threads or drips. Campaigns lists the newest 50 drafts and campaigns
+two-way threads or drips. Tabs: Drafts and **Sent & live**. *Create campaign* opens
+an unsaved campaign; its draft is created by the first save (or the save before
+Launch), so leaving without saving writes nothing. A sent or live campaign has
+one report (its card's Details): the recipient log with each failure's reason and
+one *Retry failed*. Campaigns lists the newest 50 drafts and campaigns
 (more on request) and every live one (Total Outreach: a server sum once
 incomplete). A draft launches once: the editor saves it (a failed
 save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
@@ -543,13 +547,21 @@ again. A success or note
 toast stays 4 s, an error or warning 10 s. The bell, Notes and Activity say "could not
 be loaded" with Retry instead of a false empty state. An empty list says "No … yet"
 with where they come from, apart from "No … match" with Clear search and filters.
-A row or card delete is a small bin icon that asks first. Settings → Email, Automated
-texts and My profile save through the save bar, which warns before leaving with
+A row or card delete is a small bin icon that asks first. Settings → Email and Automated
+texts save through the save bar, which warns before leaving with
 unsaved changes (Company profile keeps Edit/Save). Automated texts writes only the
 changed templates; when they cannot be read it says so above the fields, with Retry. Email has one Save for what
 changed; Test Connection checks what is typed and, if it connects, saves the
 connection; the password field empties after a save. Team's Add person needs a
 password of at least 6 characters.
+
+**Profile.** One page for every staff member (menu, or the name and avatar in the
+top bar): name, photo, sign-in email and password, and their **personal link**
+(`/apply/<slug>?r=<code>`, `recruiterCodeFor`; drivers who apply through it are
+assigned to them), with Copy (Д16). Its name save writes `users/{uid}.name`. There
+is no Settings → My profile (an old `?section=personal` address opens Profile) and
+no Username field (a stored `username` is left, unread). Company profile shows the
+plan (`planType`) as one line; there is no Plan section.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,
@@ -1181,7 +1193,9 @@ only**.
 **Per-tenant feature flags** live on `companies/{companyId}` as `features` and
 `featureSchedules`. Keys: `pev`, `campaignsEnabled`, `eDocs`, `importLeads`,
 `callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
-an explicit `false` disables. `features` is stripped from the public profile
+an explicit `false` disables — except `callTracking` (labelled **Facebook leads**;
+the stored key keeps its old name), which is **opt-in**: Settings → Facebook leads
+shows only where a super admin set it `true`, since Facebook capture is off. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
 [`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
 `planType`, `appSlug`, `isActive` or `status`.
