@@ -104,14 +104,16 @@ vi.mock('./components/CampaignCard', () => ({
     }
 }));
 
-// Each editor records the campaign it was mounted for: its state belongs to that campaign.
+// Each editor records the campaign it was mounted for, and whether that
+// campaign is new (no draft yet): its state belongs to that campaign.
 const mockEditorMounts = [];
 vi.mock('./CampaignEditor', () => ({
-    CampaignEditor: function MockCampaignEditor({ campaignId, onViewReport }) {
-        React.useEffect(() => { mockEditorMounts.push(campaignId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    CampaignEditor: function MockCampaignEditor({ campaignId, isNew, onClose, onViewReport }) {
+        React.useEffect(() => { mockEditorMounts.push({ campaignId, isNew }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
         return (
             <div>
                 Editor
+                <button onClick={onClose}>close editor</button>
                 <button onClick={() => onViewReport('session-launched')}>view launched report</button>
             </div>
         );
@@ -474,25 +476,19 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.getByRole('tablist', { name: 'Campaign views' })).toBeInTheDocument();
     });
 
-    it('starts a fresh editor for the new draft when it is created after another draft was opened', async () => {
-        let created;
-        mockSetDoc.mockImplementation(() => new Promise((resolve) => { created = resolve; }));
+    it('starts a fresh editor for each campaign: a new one, then a stored draft', async () => {
         mockEditorMounts.length = 0;
-        try {
-            await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
-            // Create Campaign is still writing its draft when a draft card is opened.
-            fireEvent.click(screen.getByRole('button', { name: /Create Campaign/i }));
-            fireEvent.click(screen.getByText('open d1'));
-            expect(mockEditorMounts).toEqual(['d1']);
+        await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
 
-            await React.act(async () => { created(); });
+        fireEvent.click(screen.getByRole('button', { name: /Create Campaign/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'close editor' }));
+        fireEvent.click(screen.getByText('open d1'));
 
-            // The new draft's editor holds none of Draft A's state, its launch included.
-            expect(mockEditorMounts).toHaveLength(2);
-            expect(mockEditorMounts[1]).toMatch(/^camp_\d+$/);
-        } finally {
-            mockSetDoc.mockReset();
-        }
+        // The draft's editor holds none of the new campaign's state, and is no new campaign.
+        expect(mockEditorMounts).toHaveLength(2);
+        expect(mockEditorMounts[0]).toEqual({ campaignId: expect.stringMatching(/^camp_\d+$/), isNew: true });
+        expect(mockEditorMounts[1]).toEqual({ campaignId: 'd1', isNew: false });
+        expect(mockSetDoc).not.toHaveBeenCalled();
     });
 
     it('shows a danger notice with Try again when the drafts cannot be loaded, not "Synchronizing…" forever', async () => {
@@ -596,25 +592,21 @@ describe('CampaignsDashboard shell', () => {
         expect(draftsTab).toHaveFocus();
     });
 
-    it('writes the exact new-campaign draft document and opens the editor', async () => {
+    // The editor's first save creates the draft; leaving before then leaves none.
+    it('opens the editor on a new, unsaved campaign and writes no draft', async () => {
+        mockEditorMounts.length = 0;
         render(<CampaignsDashboard companyId="co-123" />);
 
         await React.act(async () => {
             fireEvent.click(screen.getByRole('button', { name: /Create Campaign/i }));
         });
 
-        await waitFor(() => expect(mockSetDoc).toHaveBeenCalledTimes(1));
-        const [ref, payload] = mockSetDoc.mock.calls[0];
-        expect(ref.path).toMatch(/^companies\/co-123\/campaign_drafts\/camp_\d+$/);
-        expect(payload).toEqual({
-            name: 'Untitled Campaign',
-            status: 'draft',
-            createdAt: '__serverTimestamp__',
-            updatedAt: '__serverTimestamp__',
-            filters: {},
-            messageConfig: { method: 'sms', message: '' },
-        });
         expect(screen.getByText('Editor')).toBeInTheDocument();
+        expect(mockEditorMounts).toEqual([{ campaignId: expect.stringMatching(/^camp_\d+$/), isNew: true }]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'close editor' }));
+        expect(screen.getByRole('tablist', { name: 'Campaign views' })).toBeInTheDocument();
+        expect(mockSetDoc).not.toHaveBeenCalled();
     });
 
     it('announces a loading status before the first snapshot resolves', () => {

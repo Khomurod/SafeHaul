@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Icon, Plus, Rocket, History, LayoutGrid, Users, Zap, Loader2 } from '@design-system/icons';
-import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { isCancellableSessionStatus } from './constants/campaignConstants';
@@ -42,7 +42,8 @@ export function CampaignsDashboard({ companyId }) {
     const { currentCompanyProfile } = useData();
     const isCampaignsEnabled = currentCompanyProfile?.features?.campaignsEnabled !== false;
     const [activeTab, setActiveTab] = useState('drafts'); // 'drafts' | 'history'
-    const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+    // The campaign open in the editor: `{ id, isNew }`, `isNew` until its first save creates the draft.
+    const [openCampaign, setOpenCampaign] = useState(null);
     const [viewingSessionId, setViewingSessionId] = useState(null);
     const [selectedReportSessionId, setSelectedReportSessionId] = useState(null);
     // Replace the two blocking `window.confirm` guards. Each holds the target
@@ -78,28 +79,15 @@ export function CampaignsDashboard({ companyId }) {
     const visibleCampaigns = activeList.items;
     const loading = activeList.isLoading && !activeList.error;
 
-    // 2. Create New Campaign Draft
-    const handleNewCampaign = async () => {
+    // A new campaign opens unsaved: the editor's first save creates its draft
+    // under this id, so leaving it before then leaves no empty draft behind.
+    const handleNewCampaign = () => {
         if (!companyId) return;
         if (isE2ECampaignMock) {
-            setSelectedCampaignId('camp_e2e_mock');
+            setOpenCampaign({ id: 'camp_e2e_mock', isNew: false });
             return;
         }
-        const newId = `camp_${Date.now()}`;
-        try {
-            await setDoc(doc(db, 'companies', companyId, 'campaign_drafts', newId), {
-                name: 'Untitled Campaign',
-                status: 'draft',
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                filters: {},
-                messageConfig: { method: 'sms', message: '' }
-            });
-            setSelectedCampaignId(newId);
-        } catch (err) {
-            console.error('Campaign not created:', err);
-            showError(plainErrorMessage(err, 'The campaign could not be created.'));
-        }
+        setOpenCampaign({ id: `camp_${Date.now()}`, isNew: true });
     };
 
     /**
@@ -179,17 +167,18 @@ export function CampaignsDashboard({ companyId }) {
         }
     };
 
-    if (selectedCampaignId) {
+    if (openCampaign) {
         return (
             <CampaignEditor
                 // One editor per draft: its state (a launch included) never carries over to another.
-                key={selectedCampaignId}
+                key={openCampaign.id}
                 companyId={companyId}
-                campaignId={selectedCampaignId}
-                onClose={() => setSelectedCampaignId(null)}
+                campaignId={openCampaign.id}
+                isNew={openCampaign.isNew}
+                onClose={() => setOpenCampaign(null)}
                 // A launched draft's report: the same one View Report opens on Past Sequences.
                 onViewReport={(sessionId) => {
-                    setSelectedCampaignId(null);
+                    setOpenCampaign(null);
                     setSelectedReportSessionId(sessionId);
                 }}
             />
@@ -296,7 +285,7 @@ export function CampaignsDashboard({ companyId }) {
                                             <CampaignCard
                                                 key={campaign.id}
                                                 campaign={campaign}
-                                                onClick={() => activeTab === 'drafts' ? setSelectedCampaignId(campaign.id) : setViewingSessionId(campaign.id)}
+                                                onClick={() => activeTab === 'drafts' ? setOpenCampaign({ id: campaign.id, isNew: false }) : setViewingSessionId(campaign.id)}
                                                 onDelete={requestDeleteCampaign}
                                                 onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
                                                 onViewReport={() => setSelectedReportSessionId(campaign.id)}

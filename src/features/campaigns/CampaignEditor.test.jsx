@@ -9,7 +9,8 @@ const fs = vi.hoisted(() => ({
 }));
 const draft = vi.hoisted(() => ({ saveDraft: vi.fn(), isSaving: false }));
 const e2e = vi.hoisted(() => ({ enabled: false, param: '' }));
-const captured = vi.hoisted(() => ({ audience: null, content: null, launch: null }));
+// `countOnOpen`: the count the audience step reports when it opens.
+const captured = vi.hoisted(() => ({ audience: null, content: null, launch: null, countOnOpen: 0 }));
 
 vi.mock('firebase/firestore', () => fs);
 vi.mock('@lib/firebase', () => ({ db: {} }));
@@ -18,9 +19,12 @@ vi.mock('@lib/runtime/e2eMode', () => ({
     get isE2ETestMode() { return e2e.enabled; },
     getE2EQueryParam: () => e2e.param,
 }));
+// Like the real step, the double reports its audience as soon as it opens; a
+// click on emit-audience is the recruiter changing it.
 vi.mock('./components/AudienceBuilder', () => ({
     AudienceBuilder: (props) => {
         captured.audience = props;
+        React.useEffect(() => { props.onChange(props.filters, captured.countOnOpen); }, []); // eslint-disable-line react-hooks/exhaustive-deps
         return (
             <div data-testid="audience" data-scope={props.campaignScopeKey} data-company={props.companyId} data-filters={JSON.stringify(props.filters)}>
                 <button type="button" onClick={() => props.onChange({ mode: 'all', rawData: [1, 2, 3] }, 7)}>emit-audience</button>
@@ -55,6 +59,7 @@ beforeEach(() => {
     e2e.enabled = false;
     e2e.param = '';
     captured.audience = captured.content = captured.launch = null;
+    captured.countOnOpen = 0;
     draft.isSaving = false;
     draft.saveDraft.mockImplementation(() => undefined);
     unsubSpy = vi.fn();
@@ -150,11 +155,31 @@ describe('CampaignEditor — autosave', () => {
         // At 2s: saved once, with rawData stripped from filters.
         act(() => { vi.advanceTimersByTime(500); });
         expect(draft.saveDraft).toHaveBeenCalledTimes(1);
-        const [savedId, payload] = draft.saveDraft.mock.calls[0];
+        const [savedId, payload, options] = draft.saveDraft.mock.calls[0];
         expect(savedId).toBe('camp1');
         expect(payload.filters).toEqual({ mode: 'all' });
         expect(payload.filters.rawData).toBeUndefined();
         expect(payload.matchCount).toBe(7);
+        // An opened draft is stored already: the save updates it.
+        expect(options).toEqual({ create: false });
+    });
+
+    // The audience step reports when it opens and whenever the server counts
+    // again; neither is the recruiter's edit, so neither saves.
+    it('does not save when the audience step only recounts the same audience', async () => {
+        vi.useFakeTimers();
+        await act(async () => {
+            render(<CampaignEditor companyId="c1" campaignId="camp1" onClose={vi.fn()} />);
+        });
+        await act(async () => { await Promise.resolve(); });
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+
+        act(() => { captured.audience.onChange({}, 9, { method: 'sms', alreadyMessaged: 2 }); });
+        act(() => { captured.audience.onChange({ leadType: undefined }, 11, { method: 'sms', alreadyMessaged: 2 }); });
+        act(() => { vi.advanceTimersByTime(2500); });
+
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: /Audience/ })).toHaveTextContent('(completed)');
     });
 });
 
@@ -208,6 +233,7 @@ describe('CampaignEditor — E2E mock, shell & a11y', () => {
     it('uses the E2E mock data and skips the Firestore listener', async () => {
         e2e.enabled = true;
         e2e.param = 'mock';
+        captured.countOnOpen = 12;
         await renderEditor();
         expect(fs.onSnapshot).not.toHaveBeenCalled();
         expect(screen.getByRole('textbox', { name: 'Campaign Name' })).toHaveValue('E2E Mock Campaign');
