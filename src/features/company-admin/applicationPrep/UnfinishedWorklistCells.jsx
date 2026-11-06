@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon, AlertTriangle, Copy, Link2, Mail, Pencil, Trash2 } from '@design-system/icons';
-import { Badge, Button, FieldMessage, Link, ProgressBar } from '@/design-system/components';
+import { Badge, Button, FieldMessage, IconButton, Link, ProgressBar } from '@/design-system/components';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { canEmailLinkTo } from '@shared/utils/linkEmail';
 import { describeApplicant } from './unfinishedRowActions';
@@ -194,17 +194,16 @@ export function RowActions({ entry, row, link, onOpen, onEdit, onDelete }) {
                     </Button>
                 )}
                 {row.canDelete && (
-                    // Quiet, and last: the dialog it opens is where a deletion's
-                    // weight belongs.
-                    <Button
+                    // The one look of a row delete, and last: quiet, because the
+                    // dialog it opens is where a deletion's weight belongs.
+                    <IconButton
                         variant="ghost"
-                        tone="danger"
                         size="sm"
-                        aria-label={`Delete everything for ${actionName}`}
+                        label={`Delete everything for ${actionName}`}
                         onClick={() => onDelete(entry)}
                     >
-                        <Icon icon={Trash2} size="sm" /> Delete everything…
-                    </Button>
+                        <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                    </IconButton>
                 )}
             </div>
             {minted && (

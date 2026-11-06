@@ -1,7 +1,7 @@
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
-import { Button, Card, DataTable, FormField, Input, Notice } from '@/design-system/components';
+import { Button, Card, DataTable, FormField, IconButton, Input, Notice } from '@/design-system/components';
 import { ConfirmDialog, useUnsavedChanges } from '@/design-system/patterns';
-import { Icon, Plus } from '@design-system/icons';
+import { Icon, Plus, Trash2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { optOutErrorMessage } from './smsOptOutService';
@@ -132,16 +132,16 @@ export function SmsOptOutSection({ companyId, canRemove = false }) {
             // No label on a card: its button is the card's last line.
             mobileLabel: '',
             width: 'sm',
+            // The one look of a row delete; the question that follows says what it does.
             render: (entry) => (
-                <Button
-                    variant="secondary"
-                    tone="danger"
+                <IconButton
+                    variant="ghost"
                     size="sm"
-                    aria-label={`Remove ${formatPhoneNumber(entry.phone)}`}
+                    label={`Remove ${formatPhoneNumber(entry.phone)}`}
                     onClick={() => askRemove(entry)}
                 >
-                    Remove
-                </Button>
+                    <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                </IconButton>
             ),
         }] : []),
     ], [canRemove, askRemove]);

@@ -110,7 +110,7 @@ describe('removed articles', () => {
         await renderView();
 
         // Two published posts, so exactly two Delete controls.
-        expect(screen.getAllByRole('button', { name: /^Delete$/ })).toHaveLength(2);
+        expect(screen.getAllByRole('button', { name: /^Delete / })).toHaveLength(2);
         expect(screen.getAllByRole('button', { name: /^View$/ })).toHaveLength(2);
     });
 });

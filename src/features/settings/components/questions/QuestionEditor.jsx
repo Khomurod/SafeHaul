@@ -120,13 +120,15 @@ export function QuestionEditor({
                 </div>
 
                 <div className="pt-ds-1">
+                    {/* The one look of a row delete. Nothing is lost until the
+                        page's Save, so no confirmation: Discard brings it back. */}
                     <IconButton
                         label={`Delete question ${number}`}
                         size="sm"
                         variant="ghost"
                         onClick={() => onDelete(index)}
                     >
-                        <Icon icon={Trash2} size="lg" />
+                        <Icon icon={Trash2} className="text-ds-status-danger-fg" />
                     </IconButton>
                 </div>
             </div>
