@@ -11,7 +11,16 @@
  * a new one.
  */
 
-const text = (value) => (typeof value === 'string' ? value.trim() : '');
+/** The server's `normalizeName`: case, accents and anything but a-z removed. */
+function normalizeName(value) {
+  return String(value || '').normalize('NFKD').toLowerCase().replace(/[^a-z]/g, '');
+}
+
+/** The server's `normalizeDob`: `YYYY-MM-DD`, or empty when it is not a date. */
+function normalizeDob(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim());
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : '';
+}
 
 /** Ten national digits, a leading US 1 aside, as the server compares phones. */
 function nationalDigits(value) {
@@ -22,17 +31,21 @@ function nationalDigits(value) {
 /**
  * The facts another device is matched on, as one comparable value, or null when
  * they are not all there. Reads `lastName`, `dob`, `ssn`, `email` and `phone`,
- * which the answers and the save payload both carry under those names.
+ * which the answers and the save payload both carry under those names. The name
+ * and the date are normalized as the server's `buildIdentityKey` does
+ * (functions/shared/applicationDraft.js): a last name with no letter a-z, such
+ * as one written only in another script, gives the server no identity key, so it
+ * gives none here either.
  *
  * @param {object} answers
  * @returns {string|null}
  */
 export function resumeIdentityOf(answers) {
   const facts = answers || {};
-  const lastName = text(facts.lastName).toLowerCase();
-  const dob = text(facts.dob);
+  const lastName = normalizeName(facts.lastName);
+  const dob = normalizeDob(facts.dob);
   const ssn = String(facts.ssn || '').replace(/\D/g, '');
-  const email = text(facts.email).toLowerCase();
+  const email = String(facts.email || '').trim().toLowerCase();
   const phone = nationalDigits(facts.phone);
   const matchablePhone = phone.length >= 10 ? phone : '';
   if (!lastName || !dob || ssn.length !== 9 || (!email && !matchablePhone)) return null;
@@ -47,21 +60,27 @@ export function resumeIdentityOf(answers) {
 export const canBeFoundElsewhere = (answers) => resumeIdentityOf(answers) !== null;
 
 /**
- * Remembers the identity of the last save the server confirmed, in memory only.
+ * Remembers the identity of the last save the server confirmed, in memory only,
+ * with the application it was saved for (`epoch`, the tab's discard mark, which a
+ * Start Over or a discard elsewhere changes). A confirmation for an application
+ * that has since ended counts for nothing, even one that arrives after the end.
  *
- * @returns {{ record: (payload: object, result: object) => void, holds: (answers: object) => boolean }}
+ * @returns {{
+ *   record: (payload: object, result: object, epoch: unknown) => void,
+ *   holds: (answers: object, epoch: unknown) => boolean,
+ * }}
  */
 export function heldIdentityTracker() {
   let held = null;
   return {
-    /** After every server save: only a confirmed one (`saved`) moves it. */
-    record(payload, result) {
-      if (result?.saved) held = resumeIdentityOf(payload);
+    /** After every server save, with the epoch it was sent in: only a confirmed one (`saved`) moves it. */
+    record(payload, result, epoch) {
+      if (result?.saved) held = { identity: resumeIdentityOf(payload), epoch };
     },
-    /** Whether the server confirmed a save carrying exactly these facts. */
-    holds(answers) {
+    /** Whether the server confirmed a save carrying exactly these facts, for this application. */
+    holds(answers, epoch) {
       const identity = resumeIdentityOf(answers);
-      return identity !== null && identity === held;
+      return identity !== null && held !== null && identity === held.identity && epoch === held.epoch;
     },
   };
 }

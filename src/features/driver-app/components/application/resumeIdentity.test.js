@@ -28,6 +28,16 @@ describe('resumeIdentityOf', () => {
             .toBe(resumeIdentityOf(IDENTIFIED));
     });
 
+    it('normalizes the last name and the date as the server does', () => {
+        const base = resumeIdentityOf({ ...IDENTIFIED, lastName: "O'Brien-Muñoz" });
+        expect(resumeIdentityOf({ ...IDENTIFIED, lastName: 'obrienmunoz' })).toBe(base);
+        expect(resumeIdentityOf({ ...IDENTIFIED, dob: '1984-03-14T00:00:00Z' })).toBe(resumeIdentityOf(IDENTIFIED));
+        // No letter a-z: the server builds no identity key, so another device cannot find it.
+        expect(resumeIdentityOf({ ...IDENTIFIED, lastName: '王' })).toBeNull();
+        expect(canBeFoundElsewhere({ ...IDENTIFIED, lastName: '王' })).toBe(false);
+        expect(resumeIdentityOf({ ...IDENTIFIED, dob: '03/14/1984' })).toBeNull();
+    });
+
     it('changes with any fact another device is matched on', () => {
         const base = resumeIdentityOf(IDENTIFIED);
         for (const change of [{ lastName: 'Rider' }, { dob: '1984-03-15' }, { ssn: '123-45-6780' }, { email: 'pat@example.com' }]) {
@@ -57,6 +67,24 @@ describe('heldIdentityTracker', () => {
         server.record(IDENTIFIED, undefined);
 
         expect(server.holds(IDENTIFIED)).toBe(false);
+    });
+
+    it('counts a confirmation only for the application it was saved for', () => {
+        const server = heldIdentityTracker();
+        server.record(IDENTIFIED, { saved: true }, 'mark-1');
+        expect(server.holds(IDENTIFIED, 'mark-1')).toBe(true);
+
+        // Start Over, or a discard in another tab, moved the mark on.
+        expect(server.holds(IDENTIFIED, 'mark-2')).toBe(false);
+    });
+
+    it('ignores a confirmation that arrives after the application ended', () => {
+        const server = heldIdentityTracker();
+        // Sent under the old mark, answered after the reset: recorded with the mark
+        // it was sent in, so it says nothing about the new application.
+        server.record(IDENTIFIED, { saved: true }, 'mark-1');
+
+        expect(server.holds(IDENTIFIED, 'mark-2')).toBe(false);
     });
 
     it('keeps the last confirmed identity when a later save fails', () => {

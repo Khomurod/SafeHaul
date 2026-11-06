@@ -155,16 +155,22 @@ export function useDiscardAwareResume({
   /**
    * The identity (last name, date of birth, SSN, contact) of the last save the
    * server confirmed, in memory only: "Finish later" names another device only for
-   * answers it holds (`serverHoldsIdentity`).
+   * answers it holds (`serverHoldsIdentity`). Each confirmation belongs to the
+   * application it was sent for — the discard mark at the time — so a Start Over
+   * or a discard elsewhere ends it, late answers included.
    */
   const heldIdentityRef = useRef(null);
   if (!heldIdentityRef.current) heldIdentityRef.current = heldIdentityTracker();
-  const serverHoldsIdentity = useCallback((answers) => heldIdentityRef.current.holds(answers), []);
+  const serverHoldsIdentity = useCallback(
+    (answers) => heldIdentityRef.current.holds(answers, discardMarkRef.current),
+    [],
+  );
 
   /** Every save goes through here, so a refusal for unseen edits fetches them. */
   const saveProgress = useCallback(async (payload) => {
+    const epoch = discardMarkRef.current;
     const result = await saveApplicationProgress(payload);
-    heldIdentityRef.current.record(payload, result);
+    heldIdentityRef.current.record(payload, result, epoch);
     if (result?.companyUpdated) await refreshCompanyEdits(payload.formData);
     if (result?.removed) noticeRemoved(payload?.resumeToken);
     return result;
