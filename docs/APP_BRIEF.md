@@ -314,9 +314,8 @@ as the last call (`lastCallOutcome`, `lastContactedAt`). Older `Contacted`/`Atte
 fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
-one, voiding the old, and a channel Correct turns off loses its send status. A
-correction or Void changes a request only while it is `sent` (checked in the
-write's transaction), so one signed meanwhile keeps what was signed. An
+one, voiding the old, and a channel Correct turns off loses its send status.
+Correct, Fix and Void change only a still-`sent` request (one transaction). An
 opted-out number gets no text: beside an email a note (`smsStatus: 'skipped'`), alone
 a failed send. Signed envelopes are sealed into tamper-evident PDFs, once:
 a delivery that finds the request no longer `pending_seal` changes nothing. The
@@ -388,12 +387,11 @@ unsigned document (`sent`, or the older `opened`) whose send failed, or a failed
 signed or voided one leaves by itself, and its details keep the old error. Each
 Overview number opens its list; a Needs attention card opens the document: its cause in
 plain words (`deliveryFailureCause.js`) and, while `sent`, **Fix recipient and resend**
-(inline: Correct's checks and write for the recipient alone, on the request's current
-fields and title; refused when it would send nothing while a failed send stays on, which
-Resend sends again), **Resend** (Remind) and **Void** (records
-`voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…` form is never
-resent; never Delete). Only admins see a template's Delete; the forms tab is
-*After-application forms* (`?view=forms`).
+(inline: Correct's write for the recipient alone, on the current fields and title;
+refused if it would resend nothing while a send stays failed), **Resend** (Remind) and
+**Void** (records `voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…`
+form is never resent; never Delete). Only admins see a template's Delete; the forms tab
+is *After-application forms* (`?view=forms`).
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
