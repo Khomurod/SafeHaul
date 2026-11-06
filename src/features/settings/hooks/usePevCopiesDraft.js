@@ -5,6 +5,12 @@ import { formatPevCopies, parsePevCopies } from '@features/company-admin/utils/p
 import { usePevDefaultCopies } from '@features/company-admin/hooks/usePevDefaultCopies';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
+/** Whether `text` saves as the list `saved` shows: spaces, commas, letter case and repeats are no change. */
+function savesAs(text, saved) {
+    const { emails, error } = parsePevCopies(text);
+    return !error && formatPevCopies(emails) === saved;
+}
+
 /**
  * Settings → Email's verification copies: the people every previous employment
  * verification request copies (CC) by default, `companies/{id}.pevCcEmails`,
@@ -31,7 +37,7 @@ export function usePevCopiesDraft(currentCompanyProfile) {
         if (!savedHere) {
             const next = formatPevCopies(copies);
             setSaved(next);
-            if (text === saved) setText(next);
+            if (savesAs(text, saved)) setText(next);
         }
     }
 
@@ -72,5 +78,5 @@ export function usePevCopiesDraft(currentCompanyProfile) {
         setError('');
     };
 
-    return { text, onChange, error, dirty: text !== saved, validate, save, discard };
+    return { text, onChange, error, dirty: !savesAs(text, saved), validate, save, discard };
 }

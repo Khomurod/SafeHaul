@@ -2,7 +2,7 @@ import React from 'react';
 import { Icon, CheckCircle, Clock, Loader2, AlertCircle, MessageSquare, Mail, Ban, Hourglass } from '@design-system/icons';
 import { Badge } from '@/design-system/components';
 import {
-    OPEN_STATUSES, deliveryNote, formatTimestamp, isLinkExpired, openDeliveryFailure,
+    OPEN_STATUSES, STATUS_NAMES, deliveryNote, formatTimestamp, isLinkExpired, openDeliveryFailure,
 } from '@features/company-admin/utils/documentsWorkspace';
 
 /**
@@ -17,13 +17,14 @@ import {
  * never communicated by colour alone.
  */
 const STATUS_PRESENTATION = {
-    signed: { tone: 'success', label: 'Signed', icon: CheckCircle },
-    // The name the overview, the filter and the dossier use; the stored value stays `sent`.
-    sent: { tone: 'info', label: 'Awaiting signature', icon: Clock },
-    voided: { tone: 'danger', label: 'Voided', icon: Ban },
-    pending_seal: { tone: 'warning', label: 'Sealing...', icon: Loader2, spin: true },
-    error_sealing: { tone: 'danger', label: 'Seal Failed', icon: AlertCircle },
-    processing: { tone: 'warning', label: 'Processing', icon: Loader2, spin: true },
+    // The names are the filter's and the details dialog's (`STATUS_NAMES`).
+    signed: { tone: 'success', label: STATUS_NAMES.signed, icon: CheckCircle },
+    sent: { tone: 'info', label: STATUS_NAMES.sent, icon: Clock },
+    opened: { tone: 'info', label: STATUS_NAMES.opened, icon: Clock },
+    voided: { tone: 'danger', label: STATUS_NAMES.voided, icon: Ban },
+    pending_seal: { tone: 'warning', label: STATUS_NAMES.pending_seal, icon: Loader2, spin: true },
+    error_sealing: { tone: 'danger', label: STATUS_NAMES.error_sealing, icon: AlertCircle },
+    processing: { tone: 'warning', label: STATUS_NAMES.processing, icon: Loader2, spin: true },
     link_expired: { tone: 'warning', label: 'Link expired', icon: Hourglass },
 };
 

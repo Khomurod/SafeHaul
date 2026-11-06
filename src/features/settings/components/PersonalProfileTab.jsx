@@ -1,5 +1,5 @@
 // src/features/settings/components/PersonalProfileTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from '@lib/firebase';
 import { forgetPortalUser } from '@features/auth/services/userService';
@@ -37,6 +37,9 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
 
     const dirty = name !== savedName;
     useUnsavedChanges(dirty);
+    // What the field and the saved name are now, for a read that finishes later.
+    const nameState = useRef({ name, savedName });
+    nameState.current = { name, savedName };
     // A failure is about a change that is no longer there once the page is clean.
     if (!dirty && saveError) setSaveError(null);
 
@@ -44,6 +47,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     const appBaseUrl = import.meta.env.VITE_DRIVER_APP_URL || window.location.origin;
 
     const companyId = currentCompanyProfile?.id;
+    const uid = currentUser?.uid;
 
     useEffect(() => {
         // A company switch while the page is open asks again: a code made for
@@ -52,20 +56,22 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         setRecruitingCode(null);
         setLinkLoading(true);
         const fetchUserAndCode = async () => {
-            if (!currentUser?.uid) {
+            if (!uid) {
                 setLinkLoading(false);
                 return;
             }
             try {
-                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                const userDoc = await getDoc(doc(db, "users", uid));
                 if (!current || !userDoc.exists()) return;
                 const data = userDoc.data();
+                // A name being typed stays, still unsaved, when the read is a repeat.
+                const typed = nameState.current;
                 setSavedName(data.name || '');
-                setName(data.name || '');
+                if (typed.name === typed.savedName) setName(data.name || '');
 
                 const savedCode = data.recruitingCode;
-                const code = companyId ? await recruiterCodeFor(currentUser.uid, companyId, savedCode) : null;
-                if (code && code !== savedCode) forgetPortalUser(currentUser.uid);
+                const code = companyId ? await recruiterCodeFor(uid, companyId, savedCode) : null;
+                if (code && code !== savedCode) forgetPortalUser(uid);
                 if (current) setRecruitingCode(code);
             } catch (err) {
                 console.error("Error generating link:", err);
@@ -76,7 +82,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         };
         fetchUserAndCode();
         return () => { current = false; };
-    }, [currentUser, companyId, showError]);
+    }, [uid, companyId, showError]);
 
     const handleSavePersonal = async () => {
         const sent = name;

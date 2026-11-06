@@ -79,7 +79,13 @@ describe('statusLabel', () => {
         expect(statusLabel('error_sealing')).toBe('Seal failed');
     });
 
-    it('keeps a value no filter names as stored', () => {
+    it('names the statuses the filter does not offer too, as the history badge does', () => {
+        expect(statusLabel('opened')).toBe('Awaiting signature');
+        expect(statusLabel('processing')).toBe('Processing');
+        expect(statusLabel('pending_seal')).toBe('Sealing');
+    });
+
+    it('keeps a value nothing names as stored', () => {
         expect(statusLabel('archived_by_admin')).toBe('archived_by_admin');
         expect(statusLabel('all')).toBe('all');
         expect(statusLabel('expired')).toBe('expired');

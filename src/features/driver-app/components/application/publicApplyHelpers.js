@@ -87,7 +87,7 @@ export const buildPostApplyDocErrorMessage = (error) => {
   if (code.includes('unavailable') || code.includes('deadline-exceeded') || code.includes('internal')) {
     return 'We hit a network problem while opening the document. Please try again.';
   }
-  return plainErrorMessage(error, 'Could not open this form.');
+  return plainErrorMessage(error, 'Could not open this form.', { viaLink: true });
 };
 
 /**

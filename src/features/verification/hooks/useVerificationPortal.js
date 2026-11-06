@@ -165,7 +165,7 @@ export function useVerificationPortal(token) {
                 } else if (err.code === 'functions/not-found') {
                     setError(INVALID_LINK);
                 } else {
-                    setError(plainErrorMessage(err, 'This verification request could not be loaded.'));
+                    setError(plainErrorMessage(err, 'This verification request could not be loaded.', { viaLink: true }));
                 }
             } finally {
                 setLoading(false);

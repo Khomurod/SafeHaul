@@ -22,20 +22,27 @@ import { serverMessageOf } from './callableErrors';
  * @param {unknown} error what was thrown or rejected
  * @param {string} [failed] one sentence naming what failed, without advice:
  *   "The note could not be saved."
+ * @param {object} [options]
+ * @param {boolean} [options.viaLink] the person came by a link they were sent
+ *   (a signer, a past employer, a driver reviewing a change, an applicant), so
+ *   they have no company admin to ask and no account to sign in to again
+ * @param {boolean} [options.trustInternal] this callable writes its `internal`
+ *   sentences for the person too, so they are shown as sent
  * @returns {string}
  */
-export function plainErrorMessage(error, failed = 'Something went wrong.') {
+export function plainErrorMessage(error, failed = 'Something went wrong.', { viaLink = false, trustInternal = false } = {}) {
     const code = String(error?.code ?? '');
     const callable = code.startsWith('functions/');
     const canonical = callable ? code.slice('functions/'.length) : code;
 
-    if (callable && !PASSED_ON.has(canonical)) {
+    if (callable && (trustInternal || !PASSED_ON.has(canonical))) {
         const sentence = serverMessageOf(error);
         if (sentence) return sentence;
     }
     if (isOwnSentence(error)) return error.message.trim();
 
     const kind = KIND_BY_CODE[canonical] ?? (isNetworkFailure(error) ? 'connection' : null);
+    if (viaLink && (kind === 'permission' || kind === 'session')) return `${failed} ${LINK_ADVICE}`;
     return `${failed} ${kind ? ADVICE[kind] : UNKNOWN_ADVICE}`;
 }
 
@@ -51,6 +58,9 @@ const ADVICE = Object.freeze({
 });
 
 const UNKNOWN_ADVICE = 'Please try again. If it keeps happening, contact support.';
+
+/** Permission or session advice for someone who came by a link: there is no admin or sign-in for them. */
+const LINK_ADVICE = 'The link may have expired or been replaced. Open the newest message you were sent, or ask the sender for a new link.';
 
 /** Firestore, Storage, Auth and callable codes (callables without `functions/`). */
 const KIND_BY_CODE = Object.freeze({

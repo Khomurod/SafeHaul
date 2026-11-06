@@ -133,7 +133,7 @@ describe('AutomatedSmsTab compatibility slice', () => {
         expect(three).toHaveValue('Edited three');
     });
 
-    it('preserves the load-error message', async () => {
+    it('says the templates could not be loaded, offers no blank fields to save over them, and retries', async () => {
         firestoreMocks.getDoc.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -143,8 +143,12 @@ describe('AutomatedSmsTab compatibility slice', () => {
             expect(toastMocks.showError)
                 .toHaveBeenCalledWith('Could not load automated SMS templates.');
         });
-        // Load failure still resolves the loading state so the form is usable.
-        expect(await findTextarea('Contact Attempt 1')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'The templates could not be loaded.' })).toBeInTheDocument();
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(await findTextarea('Contact Attempt 1')).toHaveValue('First touch {driver name}');
+        expect(firestoreMocks.getDoc).toHaveBeenCalledTimes(2);
         consoleError.mockRestore();
     });
 
@@ -238,10 +242,9 @@ describe('AutomatedSmsTab save bar', () => {
         expect(firestoreMocks.setDoc).toHaveBeenCalledOnce();
         const [reference, payload, options] = firestoreMocks.setDoc.mock.calls[0];
         expect(reference).toBe(DOC_PATH);
+        // Only the changed template is written; the others stay as stored.
         expect(payload).toEqual({
             templateContactAttempt1: 'Updated first message',
-            templateContactAttempt2: 'Second nudge',
-            templateContactAttempt3: 'Final attempt from {user name}',
             updatedAt: SERVER_TIMESTAMP,
         });
         expect(firestoreMocks.serverTimestamp).toHaveBeenCalled();
@@ -320,7 +323,7 @@ describe('AutomatedSmsTab save bar', () => {
         await act(async () => resolveSave());
 
         await waitFor(() => expect(saveBar()).toHaveTextContent('1 change · Contact Attempt 2'));
-        expect(firestoreMocks.setDoc.mock.calls[0][1].templateContactAttempt2).toBe('Second nudge');
+        expect(firestoreMocks.setDoc.mock.calls[0][1]).not.toHaveProperty('templateContactAttempt2');
     });
 
     it('asks before a move leaves unsaved templates, and lets a clean page go', async () => {
@@ -351,5 +354,19 @@ describe('AutomatedSmsTab save bar', () => {
         const { container } = render(<AutomatedSmsTab companyId="company-1" />);
         fireEvent.change(await findTextarea('Contact Attempt 1'), { target: { value: 'Unsaved' } });
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('AutomatedSmsTab — a company switch', () => {
+    it("never offers one company's templates as another's", async () => {
+        const { rerender } = render(<AutomatedSmsTab companyId="company-1" />);
+        expect(await findTextarea('Contact Attempt 1')).toHaveValue('First touch {driver name}');
+
+        firestoreMocks.getDoc.mockResolvedValue(missingDoc());
+        rerender(<AutomatedSmsTab companyId="company-2" />);
+
+        await waitFor(async () => expect(await findTextarea('Contact Attempt 1')).toHaveValue(''));
+        expect(await findTextarea('Contact Attempt 2')).toHaveValue('');
+        expect(saveBar()).toBeNull();
     });
 });

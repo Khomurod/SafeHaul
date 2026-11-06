@@ -4,13 +4,14 @@ import { db } from '@lib/firebase';
 import { Icon, Loader2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import {
+    Button,
     FieldMessage,
     FormField,
     FormSection,
     Textarea,
 } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
-import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
+import { ErrorState, SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { saveBarSummary } from '../utils/saveBarSummary';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
@@ -26,8 +27,10 @@ const NONE = { templateContactAttempt1: '', templateContactAttempt2: '', templat
 /**
  * Settings → Automated texts: the message sent when a lead or application moves
  * into each contact-attempt stage. Edits stay on the page until the save bar's
- * Save, which writes all three to `companies/{id}/settings/automated_sms`
+ * Save, which writes the changed ones to `companies/{id}/settings/automated_sms`
  * (merged, with `updatedAt`); the company shell's leave guard watches them.
+ * Templates that could not be read are not offered for editing: a blank field
+ * would read as "no text", and saving it would erase the real one.
  */
 export function AutomatedSmsTab({ companyId }) {
     const { showSuccess, showError } = useToast();
@@ -36,6 +39,9 @@ export function AutomatedSmsTab({ companyId }) {
     const [saved, setSaved] = useState(NONE);
     const [form, setForm] = useState(NONE);
     const [saveError, setSaveError] = useState(null);
+    const [loadFailed, setLoadFailed] = useState(false);
+    // Retry reads the templates again.
+    const [attempt, setAttempt] = useState(0);
 
     const changed = TEMPLATES.filter(({ field }) => form[field] !== saved[field]);
     const dirty = changed.length > 0;
@@ -48,6 +54,10 @@ export function AutomatedSmsTab({ companyId }) {
         let cancelled = false;
         (async () => {
             setLoading(true);
+            setLoadFailed(false);
+            // Another company's templates are not this one's, saved or typed.
+            setSaved(NONE);
+            setForm(NONE);
             try {
                 const ref = doc(db, 'companies', companyId, 'settings', 'automated_sms');
                 const snap = await getDoc(ref);
@@ -63,33 +73,33 @@ export function AutomatedSmsTab({ companyId }) {
                 }
             } catch (e) {
                 console.error(e);
-                if (!cancelled) showError('Could not load automated SMS templates.');
+                if (!cancelled) {
+                    setLoadFailed(true);
+                    showError('Could not load automated SMS templates.');
+                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
         })();
         return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- toast stable; avoid reload loops
-    }, [companyId]);
+    }, [companyId, attempt]);
 
     const handleSave = async () => {
         if (!companyId) return;
         const sent = form;
+        // Only what the bar names is written; the others stay as stored.
+        const fields = Object.fromEntries(changed.map(({ field }) => [field, sent[field]]));
         setSaving(true);
         setSaveError(null);
         try {
             await setDoc(
                 doc(db, 'companies', companyId, 'settings', 'automated_sms'),
-                {
-                    templateContactAttempt1: sent.templateContactAttempt1,
-                    templateContactAttempt2: sent.templateContactAttempt2,
-                    templateContactAttempt3: sent.templateContactAttempt3,
-                    updatedAt: serverTimestamp(),
-                },
+                { ...fields, updatedAt: serverTimestamp() },
                 { merge: true }
             );
             // An edit made while the save was on its way stays, still unsaved.
-            setSaved(sent);
+            setSaved((previous) => ({ ...previous, ...fields }));
             showSuccess('Automated SMS templates saved.');
         } catch (e) {
             console.error('[AutomatedSmsTab] Could not save the templates:', e);
@@ -117,6 +127,24 @@ export function AutomatedSmsTab({ companyId }) {
                     <Icon icon={Loader2} size="xl" className="animate-spin" />
                     Loading…
                 </p>
+            </div>
+        );
+    }
+
+    if (loadFailed) {
+        return (
+            <div className="space-y-ds-6" data-testid="automated-sms-settings">
+                <PageHeader title="Automated texts" description="Messages sent when a lead or application moves into each contact-attempt stage." />
+                <ErrorState
+                    headingLevel={2}
+                    title="The templates could not be loaded."
+                    description="Check your internet connection, then press Retry."
+                    actions={(
+                        <Button variant="secondary" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+                            Retry
+                        </Button>
+                    )}
+                />
             </div>
         );
     }

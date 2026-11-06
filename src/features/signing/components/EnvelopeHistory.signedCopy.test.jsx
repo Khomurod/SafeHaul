@@ -248,6 +248,26 @@ describe('EnvelopeHistory — approving the send', () => {
         consoleError.mockRestore();
     });
 
+    it.each([
+        ['the server\'s "internal" sentence, written for the sender',
+            Object.assign(new Error('The copy was sent, but it could not be recorded. Do not send it again.'), { code: 'functions/internal' }),
+            'The copy was sent, but it could not be recorded. Do not send it again.'],
+        ['a plain sentence, not a browser error\'s text',
+            new TypeError("Cannot read properties of undefined (reading 'data')"),
+            'The signed copy could not be sent. Please try again. If it keeps happening, contact support.'],
+    ])('shows %s when the send fails', async (_label, failure, shown) => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        callables.sendSignedDocumentCopy.mockImplementation(async () => { throw failure; });
+        renderHistory();
+        emit([signed()]);
+        fireEvent.click(sendAction());
+        const dialog = await approvalDialog();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and send' }));
+
+        await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent(shown));
+        consoleError.mockRestore();
+    });
+
     it('starts again from a failed copy', async () => {
         renderHistory();
         emit([signed({ signedCopy: { state: 'failed', sentTo: 'pat@example.test' } })]);

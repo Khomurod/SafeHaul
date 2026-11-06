@@ -20,8 +20,9 @@ const fieldsOf = (settings) => ({
     signature: settings.signature,
 });
 
-// An emptied port field shows 587, so it is no change from 587.
+// An emptied port field shows 587, so it is no change from 587, and 587 is what is sent.
 const same = (field, a, b) => (field === 'smtpPort' ? (a || 587) === (b || 587) : a === b);
+const portOf = (settings) => settings.smtpPort || 587;
 
 /**
  * Settings → Email's server connection: the SMTP fields as saved, the edit of
@@ -136,7 +137,7 @@ export function useSmtpSettingsDraft(companyId) {
         const payload = {
             companyId,
             smtpHost: sent.smtpHost,
-            smtpPort: sent.smtpPort,
+            smtpPort: portOf(sent),
             smtpUser: sent.smtpUser,
             signature: sent.signature,
         };
@@ -179,7 +180,7 @@ export function useSmtpSettingsDraft(companyId) {
             const testEmailConnectionFn = httpsCallable(functions, 'testEmailConnection');
             const result = await testEmailConnectionFn({
                 smtpHost: sent.smtpHost,
-                smtpPort: sent.smtpPort,
+                smtpPort: portOf(sent),
                 smtpUser: sent.smtpUser,
                 smtpPass: sentPassword, // Always plaintext from user input
             });
@@ -191,7 +192,7 @@ export function useSmtpSettingsDraft(companyId) {
                     const savedResult = await saveSettingsFn({
                         companyId,
                         smtpHost: sent.smtpHost,
-                        smtpPort: sent.smtpPort,
+                        smtpPort: portOf(sent),
                         smtpUser: sent.smtpUser,
                         smtpPass: sentPassword, // Always plaintext from user input
                         signature: sent.signature,

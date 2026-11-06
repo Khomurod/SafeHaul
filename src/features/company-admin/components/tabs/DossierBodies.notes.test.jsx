@@ -365,6 +365,20 @@ describe('NotesTab — a failed read', () => {
         expect(screen.getByLabelText('New note')).toHaveValue('Prefers night runs');
     });
 
+    it('shows a note added after a failed read, so no one adds it twice', async () => {
+        readsAnswer(Promise.reject(offline()));
+        renderNotes();
+        await screen.findByRole('heading', { name: 'Notes could not be loaded.' });
+
+        fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'Prefers night runs' } });
+        fireEvent.click(screen.getByRole('button', { name: /Add Note/ }));
+
+        expect(await screen.findByText('Prefers night runs')).toBeInTheDocument();
+        expect(screen.getByLabelText('New note')).toHaveValue('');
+        expect(screen.getByRole('heading', { name: 'Notes could not be loaded.' })).toBeInTheDocument();
+        expect(fs.addDoc).toHaveBeenCalledTimes(1);
+    });
+
     it("does not leave an earlier read's notes on screen once a later read fails", async () => {
         readsAnswer(Promise.resolve(snap([NOTE])), Promise.reject(offline()));
         const { rerender } = renderNotes({ refreshKey: 0 });

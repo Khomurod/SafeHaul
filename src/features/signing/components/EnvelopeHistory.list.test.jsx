@@ -84,9 +84,10 @@ describe('EnvelopeHistory — status presentation', () => {
     it.each([
         ['signed', 'Signed', 'success'],
         ['sent', 'Awaiting signature', 'info'],
+        ['opened', 'Awaiting signature', 'info'],
         ['voided', 'Voided', 'danger'],
-        ['pending_seal', 'Sealing...', 'warning'],
-        ['error_sealing', 'Seal Failed', 'danger'],
+        ['pending_seal', 'Sealing', 'warning'],
+        ['error_sealing', 'Seal failed', 'danger'],
         ['processing', 'Processing', 'warning'],
     ])('maps %s to "%s" with tone %s and text (never colour-only)', (status, label, tone) => {
         renderHistory();

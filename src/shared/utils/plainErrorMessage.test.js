@@ -139,3 +139,41 @@ describe('plainErrorMessage — sentences already written for people', () => {
         );
     });
 });
+
+describe('plainErrorMessage — options', () => {
+    const LINK = `${FAILED} The link may have expired or been replaced. Open the newest message you were sent, or ask the sender for a new link.`;
+
+    it.each([
+        ['permission-denied', 'Missing or insufficient permissions.'],
+        ['storage/unauthorized', 'User does not have permission to access this object.'],
+        ['unauthenticated', 'The caller does not have valid authentication credentials.'],
+    ])('tells someone who came by a link about the link, not an admin or a sign-in (%s)', (code, message) => {
+        expect(plainErrorMessage(new FirebaseError(code, message), FAILED, { viaLink: true })).toBe(LINK);
+    });
+
+    it('gives someone who came by a link the same advice as anyone for other failures', () => {
+        const error = new FirebaseError('unavailable', 'Failed to get document because the client is offline.');
+        expect(plainErrorMessage(error, FAILED, { viaLink: true }))
+            .toBe(`${FAILED} Check your internet connection and try again.`);
+    });
+
+    it('still shows a server sentence to someone who came by a link', () => {
+        const error = new FirebaseError('functions/permission-denied', 'This link has been replaced by a newer one.');
+        expect(plainErrorMessage(error, FAILED, { viaLink: true })).toBe('This link has been replaced by a newer one.');
+    });
+
+    it('shows a callable "internal" sentence when the caller trusts it', () => {
+        const error = new FirebaseError('functions/internal', 'The copy was sent, but it could not be recorded. Do not send it again.');
+        expect(plainErrorMessage(error, FAILED, { trustInternal: true })).toBe(error.message);
+    });
+
+    it('still maps a bare "internal" code when the caller trusts the sentences', () => {
+        expect(plainErrorMessage(new FirebaseError('functions/internal', 'internal'), FAILED, { trustInternal: true }))
+            .toBe(UNKNOWN);
+    });
+
+    it('does not trust a raw SDK error that is not a callable answer', () => {
+        const error = new FirebaseError('permission-denied', 'Missing or insufficient permissions.');
+        expect(plainErrorMessage(error, FAILED, { trustInternal: true })).not.toMatch(/insufficient permissions/i);
+    });
+});

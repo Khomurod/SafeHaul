@@ -35,8 +35,8 @@ describe('EnvelopeStatusBadge', () => {
 
     it.each([
         ['voided', 'Voided'],
-        ['error_sealing', 'Seal Failed'],
-        ['pending_seal', 'Sealing...'],
+        ['error_sealing', 'Seal failed'],
+        ['pending_seal', 'Sealing'],
     ])('says what a %s document whose email failed is', (status, label) => {
         badgeOf({ status, emailStatus: 'failed', emailError: 'SMTP 550 rejected (artificial)' });
 

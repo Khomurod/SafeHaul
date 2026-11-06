@@ -177,7 +177,7 @@ export function ReviewChangePortal() {
                 setResolutions(init);
             } catch (e) {
                 console.error('Review link error:', e);
-                if (!cancelled) setError(plainErrorMessage(e, 'This review link could not be opened.'));
+                if (!cancelled) setError(plainErrorMessage(e, 'This review link could not be opened.', { viaLink: true }));
             } finally {
                 if (!cancelled) setLoading(false);
             }

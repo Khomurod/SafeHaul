@@ -536,13 +536,17 @@ draft (Production's, until a release) launch unclaimed.
 **How screens report.** A failure reads as one plain sentence — what failed and what
 to do — never a Firebase code, a database's own text or a stack
 (`plainErrorMessage`; the detail goes to the console). A callable's own sentence is
-shown as the server wrote it, except an `internal` or `unknown` one. A success or note
+shown as the server wrote it, except an `internal` or `unknown` one (the signed-copy
+send trusts its own). Someone who came by a link (signer, past employer, applicant,
+driver reviewing a change) is told about the link, never to ask an admin or sign in
+again. A success or note
 toast stays 4 s, an error or warning 10 s. The bell, Notes and Activity say "could not
 be loaded" with Retry instead of a false empty state. An empty list says "No … yet"
 with where they come from, apart from "No … match" with Clear search and filters.
 A row or card delete is a small bin icon that asks first. Settings → Email, Automated
 texts and My profile save through the save bar, which warns before leaving with
-unsaved changes (Company profile keeps Edit/Save). Email has one Save for what
+unsaved changes (Company profile keeps Edit/Save). Automated texts writes only the
+changed templates and, when they cannot be read, offers Retry rather than blank fields. Email has one Save for what
 changed; Test Connection checks what is typed and, if it connects, saves the
 connection; the password field empties after a save. Team's Add person needs a
 password of at least 6 characters.

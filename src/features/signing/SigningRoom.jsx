@@ -288,7 +288,7 @@ export default function SigningRoom() {
 
         } catch (e) {
             console.error("Submission Error:", e);
-            showError(plainErrorMessage(e, 'Your document could not be submitted.'));
+            showError(plainErrorMessage(e, 'Your document could not be submitted.', { viaLink: true }));
         } finally {
             setSubmitting(false);
         }

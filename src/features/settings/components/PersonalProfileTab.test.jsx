@@ -296,6 +296,23 @@ describe('PersonalProfileTab save bar', () => {
         expect(saveBar()).toBeNull();
     });
 
+    it('keeps a name being typed, and the bar, when the page reads the profile again', async () => {
+        const { rerender } = renderTab();
+        const name = await screen.findByRole('textbox', { name: 'Full Name' });
+        fireEvent.change(name, { target: { value: 'Updated Admin' } });
+
+        // A new user object for the same person, and a company switch: both read again.
+        rerender(<PersonalProfileTab currentUser={{ ...currentUser }} currentCompanyProfile={currentCompanyProfile} />);
+        rerender(
+            <PersonalProfileTab currentUser={{ ...currentUser }} currentCompanyProfile={{ id: 'company-2', appSlug: 'blue-line' }} />,
+        );
+        expect(await screen.findByText(/\/apply\/blue-line\?recruiter=user-1$/)).toBeInTheDocument();
+
+        expect(name).toHaveValue('Updated Admin');
+        expect(saveBar()).toHaveTextContent('1 change · Full Name');
+        expect(firestoreMocks.getDoc).toHaveBeenCalledTimes(2);
+    });
+
     it('puts the saved name back on Discard', async () => {
         renderTab();
         const name = await screen.findByRole('textbox', { name: 'Full Name' });

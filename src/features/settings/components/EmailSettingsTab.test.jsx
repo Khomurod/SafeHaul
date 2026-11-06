@@ -169,11 +169,27 @@ describe('EmailSettingsTab — one save bar', () => {
         expect(saveBar()).toHaveTextContent('2 changes · SMTP Password, Verification copies');
     });
 
-    it('treats an emptied port as the 587 it shows', async () => {
+    it('treats an emptied port as the 587 it shows, and saves 587', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         await renderLoaded();
         fireEvent.change(port(), { target: { value: '' } });
         expect(port()).toHaveValue(587);
         expect(saveBar()).toBeNull();
+
+        fireEvent.change(signature(), { target: { value: 'Thanks, Ops' } });
+        fireEvent.click(barButton('Save'));
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.saveEmailSettings.mock.calls[0][0].smtpPort).toBe(587);
+    });
+
+    it('does not count spaces, letter case or a repeat in the CC addresses as a change', async () => {
+        companyMocks.getDoc.mockResolvedValue({ exists: () => true, data: () => ({ pevCcEmails: ['safety@acme.com'] }) });
+        await renderLoaded();
+        await waitFor(() => expect(copies()).toHaveValue('safety@acme.com'));
+        fireEvent.change(copies(), { target: { value: ' Safety@Acme.com, safety@acme.com ' } });
+        expect(saveBar()).toBeNull();
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com, hr@acme.com' } });
+        expect(saveBar()).toHaveTextContent('1 change · Verification copies');
     });
 
     it('refuses to save without SMTP Host and Username, and says so', async () => {
