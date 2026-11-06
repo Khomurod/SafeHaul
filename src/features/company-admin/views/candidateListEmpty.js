@@ -6,7 +6,9 @@ import { Inbox, Search } from '@design-system/icons';
  *
  * - **Nothing narrows the list**: nothing is in it yet. It says so, and how the
  *   first record arrives: applications through the recruiter's personal link,
- *   leads through the header's Add lead and, where offered, Import leads.
+ *   leads through the header's Add lead and, where offered, Import leads. A
+ *   recruiter's Add lead assigns the lead to them; an admin's stays unassigned
+ *   (Д13), so Assigned to me tells each where theirs come from.
  * - **A search, a filter, a segment, Assigned to me or a period narrows it**:
  *   nothing matches. It says so and offers to clear them all
  *   (`CLEARED_NARROWING`).
@@ -50,9 +52,11 @@ const NOTHING_YET = {
             ? 'Use Add lead or Import leads above to bring in your first leads.'
             : 'Use Add lead above to add your first lead.',
     }),
-    my_leads: () => ({
+    my_leads: ({ isCompanyAdmin }) => ({
         title: 'No leads assigned to you yet',
-        description: 'Leads you add with Add lead, and leads assigned to you, show up here.',
+        description: isCompanyAdmin
+            ? 'Leads assigned to you show up here.'
+            : 'Leads you add with Add lead, and leads assigned to you, show up here.',
     }),
     unassigned_leads: () => ({
         title: 'No unassigned leads',
@@ -64,7 +68,7 @@ const NOTHING_YET = {
  * The list's empty state, in `DataTable`'s `empty` shape. `onClear` clears the
  * search and every filter; it is offered only while something narrows the list.
  */
-export function candidateListEmpty({ scope, narrowed, canImportLeads = false, onClear }) {
+export function candidateListEmpty({ scope, narrowed, canImportLeads = false, isCompanyAdmin = false, onClear }) {
     const noun = scope === 'applications' ? 'applications' : 'leads';
     if (narrowed) {
         return {
@@ -75,5 +79,5 @@ export function candidateListEmpty({ scope, narrowed, canImportLeads = false, on
         };
     }
     const nothingYet = NOTHING_YET[scope] || NOTHING_YET.company_leads;
-    return { icon: Inbox, ...nothingYet({ canImportLeads }) };
+    return { icon: Inbox, ...nothingYet({ canImportLeads, isCompanyAdmin }) };
 }

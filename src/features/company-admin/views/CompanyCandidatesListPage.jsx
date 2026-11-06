@@ -219,8 +219,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         features: currentCompanyProfile?.features,
     });
     const emptyState = useMemo(
-        () => candidateListEmpty({ scope, narrowed, canImportLeads, onClear: handleClearNarrowing }),
-        [scope, narrowed, canImportLeads, handleClearNarrowing],
+        () => candidateListEmpty({ scope, narrowed, canImportLeads, isCompanyAdmin, onClear: handleClearNarrowing }),
+        [scope, narrowed, canImportLeads, isCompanyAdmin, handleClearNarrowing],
     );
 
     const pagination = useMemo(() => ({

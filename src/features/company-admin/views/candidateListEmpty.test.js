@@ -71,6 +71,11 @@ describe('candidateListEmpty', () => {
 
     it('names what each leads tab holds when it is empty', () => {
         expect(candidateListEmpty({ scope: 'my_leads', narrowed: false }).title).toBe('No leads assigned to you yet');
+        // A recruiter's Add lead assigns the lead to them; an admin's stays unassigned (Д13).
+        expect(candidateListEmpty({ scope: 'my_leads', narrowed: false }).description)
+            .toBe('Leads you add with Add lead, and leads assigned to you, show up here.');
+        expect(candidateListEmpty({ scope: 'my_leads', narrowed: false, isCompanyAdmin: true }).description)
+            .toBe('Leads assigned to you show up here.');
         expect(candidateListEmpty({ scope: 'unassigned_leads', narrowed: false }).title).toBe('No unassigned leads');
     });
 });
