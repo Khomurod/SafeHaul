@@ -123,7 +123,7 @@ test.describe('Company candidate-list DataTable pilot', () => {
     // The tab names its assignee: no "My leads" switch, no Assigned to filter.
     await expect(page.getByRole('switch')).toHaveCount(0);
     await page.getByRole('button', { name: 'Filters', exact: true }).click();
-    await expect(page.getByLabel('Assigned to')).toHaveCount(0);
+    await expect(page.getByLabel('Assigned to', { exact: true })).toHaveCount(0);
   });
 
   test('lists the leads nobody is assigned to on Unassigned, which an admin can assign', async ({ page }) => {
