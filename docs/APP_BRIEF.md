@@ -111,6 +111,16 @@ keep the branded loader; before that `index.html` shows the mark (all routes).
 `/sign/:companyId/:requestId` · `/verify/:token` · `/review-change/:token` ·
 `/sandbox/apply` · `/sandbox/transfer-success` · `/developers/api`
 
+**A public link that does not work** (`/sign`, `/verify`, `/review-change`, an
+application's continuation link) shows one screen, `LinkProblemScreen`
+(`src/shared/components/public-link`): the server's reason (expired, replaced by a
+newer link, already used, not valid, could not be opened, could not be checked), the
+company by name when the page knows it, what to do, and Try again only when retrying
+can help. On `/sign` an already-signed document says so instead of asking for the
+e-signature consent again, Decline explains how to sign on paper (nothing is recorded),
+and the page says "You can close this tab" (no button that cannot close it). There is
+no "request a new link" button: the public profile carries no contact details.
+
 ### Company workspace (`/company/*`)
 
 `dashboard` · `drivers/applications` · `drivers/unfinished` ·
@@ -166,7 +176,12 @@ optional **Hours of Service statement** (last seven days, last relieved).
 **Progress survives from the first page.** Every forward step writes a local
 copy synchronously and a server draft in the background, so a closed tab, a
 dropped connection, a failed CDL scan or a page error costs nothing typed.
-Drafts live in their own server-only collection (§5).
+Drafts live in their own server-only collection (§5). **Finish later** (seven
+steps; formerly *Save as Draft*) makes the same save without moving on and says
+under the buttons how to return: open the link again on this device and browser;
+it names another device (same last name, date of birth, SSN and email or phone,
+within 30 days) only once the server has confirmed the copy and those facts are on
+the page (`FinishLaterNotice`).
 
 **Returning applicants are offered their unfinished application.** A device
 holding its resume token restores silently. On another device the first Next
@@ -296,7 +311,10 @@ list; **Import leads** (admins, `importLeads`) returns there. **Driver referral 
 (Referral Links page: any staff member makes one; admins see all, others
 theirs; deactivate only; `referral_links`, team-only). `/apply/<slug>?ref=`
 offers, in the intake chooser's place, the quick form (names, phone, email,
-required contact consent) or the full application. A quick-form lead
+required contact consent) or the full application. After the quick form, *Fill out
+the full application* fills page one's empty names, phone and email from what was
+sent (browser state, no server read); its contact consent is no answer in the
+application, and a stored draft's answers win. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
 team, who is notified; a carrier-prepared application goes to its preparer (§5).
@@ -468,7 +486,11 @@ request, at most 50). Each employer card lists its newest three history entries;
 History holds them all. At day 30 the log is printed as a one-page record of attempts
 (the parties, dates, each attempt's outcome and who made it; no legal claims), stored
 beside the request PDF, linked from the no-response entry and filed once in the DQ file.
-No PEV PDF prints the portal token; the result names the request by its reference.
+Neither a PEV PDF nor the portal shows the portal token: the result names the
+request by its reference, and the portal and its thank-you screen show its first 8
+characters as "Request number" (`getVerificationRequest` returns `requestNumber`). The
+portal names the regulation ("Requested under FMCSA 49 CFR Part 391.23"), no
+"Compliance" brand.
 
 **DQ file: the original's consents.** The DQ row of the preserved original
 application lists, on request, each agreement the applicant answered (accepted and
@@ -840,6 +862,10 @@ text: the page retries; a submission takes the failed-snapshot path.
 
 ### What the application asks and enforces
 
+**Page one refuses at the field** a required date of birth that is missing or
+unreadable and any date under 21 (required or optional): `TypedDateField`'s own
+error, announced and described by each box, as is a missing State; no toast.
+
 **Application gates have one resolver.** `src/config/applicationGates.js` (is a
 standard DOT question required, optional or hidden?) mirrors
 `functions/shared/applicationDefinition.js` exactly
@@ -1012,7 +1038,8 @@ one bucket on purpose** (wrong, expired, submitted, superseded, discarded: the
 server answers alike; a deleted draft's own link hears `removed`); other causes
 split only where the driver can act, **retry first for transient ones** (a
 silent fall-through would skip the claim and its locks).
-`ApplyLinkProblemScreen` sits below the success screen and above the intake
+`ApplyLinkProblemScreen` (the shared `LinkProblemScreen`, "could not be opened",
+with the page's own message) sits below the success screen and above the intake
 chooser; `resolveApplyStatusScreen` (`PublicApplyScreens.jsx`) owns that order.
 
 ### Locked employers
@@ -1053,7 +1080,11 @@ carrier's link).
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
 **canonical original** until each field resolves, so exports show originals.
-The driver approves, rejects or corrects each, none preselected, through a
+The driver approves, rejects or corrects each, none preselected, or approves them
+all with **Approve all** (two or more changes, offered while none is marked Reject
+or Edit; the same single `submitChangeResolution` call as Submit, recorded all or
+nothing; changes proposed while the page was open are then named, with Review it),
+through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
 emails it to the application's own `email`);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
@@ -1628,6 +1659,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 **Current limitations:**
 
 - **Browser errors are not collected anywhere**; users must report them.
+- **/review-change names no company** (`getChangeReview` returns none), and a new
+  proposal while a review link is open replaces the pending value the driver will
+  approve (the link is not revoked).
 - **A callable that wraps any failure as `internal` now reads generic** ("… could
   not be … Please try again"), because its text is often a raw error passed on
   (`createPortalUser`, `testEmailConnection`, line inventory, provider config, SMS,
@@ -1662,7 +1696,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   re-attached; files are not fetched back (that needs bucket CORS, not set).
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
-  `true`, so opt-out), the driver pressed *Save as Draft* on page one before
+  `true`, so opt-out), the driver pressed *Finish later* on page one before
   typing it, or, on a draft last saved before 2026-09-10, an autosave defect
   erased the key. A driver-started one is checked on its stored last name and
   date of birth, any nine digits passing for the SSN (§5) — facts a Company
