@@ -8,7 +8,12 @@ import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { MAX_RECIPIENTS_PER_LAUNCH } from '../constants/campaignConstants';
 
-export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
+/**
+ * The campaign's last step. `campaignId` names its draft: the server launches a
+ * draft once and refuses a second launch from another tab, in words shown as
+ * they come (`initBulkSession`, `functions/bulkActions/helpers/launchClaim.js`).
+ */
+export function LaunchPad({ companyId, campaignId = null, campaign, onLaunchSuccess }) {
     const { showSuccess, showError } = useToast();
     const [isLaunching, setIsLaunching] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -39,6 +44,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
 
             const payload = {
                 companyId,
+                campaignId: campaignId || null,
                 sessionName: campaign.name,
                 filters: cleanFilters,
                 rawData: rawData || null,

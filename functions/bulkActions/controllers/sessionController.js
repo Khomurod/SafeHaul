@@ -7,6 +7,7 @@ const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gathe
 const { persistImportTargets } = require("./session/importTargets");
 const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
 const { readSessionTargetIds, writeNewSession } = require("../helpers/sessionTargets");
+const { claimDraftLaunch, finishDraftLaunch, releaseDraftLaunch } = require("../helpers/launchClaim");
 
 /**
  * 1. Initialize Bulk Session
@@ -18,7 +19,7 @@ exports.initBulkSession = onCall({
 }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated');
 
-    const { companyId, filters, config, sessionName, targetIds } = request.data;
+    const { companyId, campaignId, config } = request.data;
     if (!companyId || !config || !config.message) {
         throw new HttpsError('invalid-argument', 'Missing required fields.');
     }
@@ -34,6 +35,25 @@ exports.initBulkSession = onCall({
         throw new HttpsError('resource-exhausted', 'Too many bulk sessions created recently. Please wait before starting another.');
     }
 
+    // One launch per draft (`helpers/launchClaim.js`): claimed before anyone is
+    // gathered, marked launched once the worker starts, given back otherwise.
+    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
+    const sessionId = sessionRef.id;
+    const draftRef = await claimDraftLaunch({ companyId, campaignId, uid: request.auth.uid, sessionId });
+    let launched = false;
+    try {
+        const result = await launchSession({ request, sessionRef, sessionId });
+        launched = result.success === true;
+        if (launched) await finishDraftLaunch(draftRef, sessionId);
+        return result;
+    } finally {
+        if (!launched) await releaseDraftLaunch(draftRef, sessionId);
+    }
+});
+
+/** Gathers the recipients, writes the session and starts its worker. */
+async function launchSession({ request, sessionRef, sessionId }) {
+    const { companyId, filters, config, sessionName, targetIds } = request.data;
     const leadSourceType = filters.leadType || 'applications'; // 'global', 'leads', 'applications' (default)
 
     // A. ID Gathering Phase
@@ -64,10 +84,7 @@ exports.initBulkSession = onCall({
         return { success: false, message: "No leads found matching criteria." };
     }
 
-    // B. Create Session Doc
-    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
-    const sessionId = sessionRef.id;
-
+    // B. Create Session Doc (its reference was made before the draft was claimed)
     // Handle Import Persistence NOW if applicable
     let importFilteredCount = 0;
     if (leadSourceType === 'import' && request.data.rawData) {
@@ -134,7 +151,7 @@ exports.initBulkSession = onCall({
     }
 
     return { success: true, sessionId: sessionId, targetCount: finalTargetIds.length, filteredCount: importFilteredCount };
-});
+}
 
 
 /**

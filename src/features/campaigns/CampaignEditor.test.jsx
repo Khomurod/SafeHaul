@@ -7,7 +7,7 @@ const fs = vi.hoisted(() => ({
     doc: vi.fn((_db, ...segments) => segments.join('/')),
     onSnapshot: vi.fn(),
 }));
-const draft = vi.hoisted(() => ({ saveDraft: vi.fn(), markLaunched: vi.fn(), isSaving: false }));
+const draft = vi.hoisted(() => ({ saveDraft: vi.fn(), isSaving: false }));
 const e2e = vi.hoisted(() => ({ enabled: false, param: '' }));
 const captured = vi.hoisted(() => ({ audience: null, content: null, launch: null }));
 
@@ -240,24 +240,34 @@ describe('CampaignEditor — a launched campaign', () => {
         return utils;
     }
 
-    it('marks the draft launched with the returned session, then closes', async () => {
+    // The server claims the draft and marks it launched (`initBulkSession`), so
+    // Launch names the draft and the editor writes no mark of its own.
+    it('names its draft to Launch, and closes after a launch without writing the draft', async () => {
         const { onClose } = await openLaunch();
 
+        expect(captured.launch.campaignId).toBe('camp1');
         act(() => { captured.launch.onLaunchSuccess({ sessionId: 'session-1' }); });
 
-        expect(draft.markLaunched).toHaveBeenCalledWith('camp1', 'session-1');
         expect(onClose).toHaveBeenCalledTimes(1);
+        expect(draft.saveDraft).not.toHaveBeenCalled();
     });
 
-    it('marks nothing in the E2E mock, and still closes', async () => {
-        e2e.enabled = true;
-        e2e.param = 'mock';
-        const { onClose } = await openLaunch();
+    it('never writes the server’s launch claim back when it autosaves', async () => {
+        vi.useFakeTimers();
+        await act(async () => {
+            render(<CampaignEditor companyId="c1" campaignId="camp1" onClose={vi.fn()} />);
+        });
+        await act(async () => { await Promise.resolve(); });
+        const claim = { by: 'admin-2', sessionId: 'session-2', at: { seconds: 1 } };
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {}, launchClaim: claim })); });
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
 
-        act(() => { captured.launch.onLaunchSuccess(); });
+        act(() => { vi.advanceTimersByTime(2500); });
 
-        expect(draft.markLaunched).not.toHaveBeenCalled();
-        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(draft.saveDraft).toHaveBeenCalledTimes(1);
+        expect(draft.saveDraft.mock.calls[0][0]).toBe('camp1');
+        expect(draft.saveDraft.mock.calls[0][1]).not.toHaveProperty('launchClaim');
+        expect(draft.saveDraft.mock.calls[0][1].name).toBe('Doc Name');
     });
 
     it('says it was launched, links its report and offers no Launch, even with Launch open in a stale tab', async () => {

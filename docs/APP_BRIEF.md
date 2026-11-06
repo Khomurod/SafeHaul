@@ -482,8 +482,12 @@ The driver's uploads have one place, the DQ File tab, which lists and opens them
 worker (§8); the carrier connects and pays its own messaging provider. No
 two-way threads or drips. Campaigns lists the newest 50 drafts and campaigns
 (more on request) and every live one (Total Outreach: a server sum once
-incomplete). A launch marks its draft (`launchedAt`, `sessionId`): kept, off
-Drafts; opened, it links its report, not Launch.
+incomplete). A draft launches once: `initBulkSession` claims it
+(`launchClaim`, void after 10 minutes) and refuses a second launch from another
+tab or person, marks it (`launchedAt`, `sessionId`) once the worker starts, and
+gives the claim back if the launch fails. Kept, off Drafts; opened, it links its
+report, not Launch. Screens that name no draft (Production's, until a release)
+launch unclaimed.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,

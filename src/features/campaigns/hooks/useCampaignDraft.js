@@ -3,7 +3,8 @@ import { db } from '@lib/firebase';
 
 /**
  * useCampaignDraft — persists campaign draft data to Firestore.
- * Imported by CampaignEditor.jsx.
+ * Imported by CampaignEditor.jsx. A launch is marked on the draft by the server
+ * (`initBulkSession`), not here.
  */
 export function useCampaignDraft(companyId) {
     const saveDraft = useCallback(async (campaignId, data) => {
@@ -16,12 +17,5 @@ export function useCampaignDraft(companyId) {
         }
     }, [companyId]);
 
-    // After a launch: the draft is kept as the record and points at its session.
-    const markLaunched = useCallback(async (campaignId, sessionId) => {
-        if (!companyId || !campaignId) return;
-        const { serverTimestamp } = await import('firebase/firestore');
-        await saveDraft(campaignId, { launchedAt: serverTimestamp(), sessionId: sessionId || null });
-    }, [companyId, saveDraft]);
-
-    return { saveDraft, markLaunched, isSaving: false };
+    return { saveDraft, isSaving: false };
 }

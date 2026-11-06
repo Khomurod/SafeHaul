@@ -206,6 +206,7 @@ describe('LaunchPad — migrated launch flow', () => {
             expect(vi.mocked(httpsCallable)).toHaveBeenCalledWith({}, 'initBulkSession');
             expect(callable).toHaveBeenCalledWith({
                 companyId: 'co-1',
+                campaignId: 'camp-1',
                 sessionName: 'Artificial Campaign',
                 filters: { status: ['new'], recruiterId: 'all' },
                 rawData: [{ firstName: 'Artificial' }],
@@ -223,6 +224,16 @@ describe('LaunchPad — migrated launch flow', () => {
             expect(callable.mock.calls[0][0].filters).toEqual({ status: ['new'] });
         });
 
+        // The server launches a draft once (`initBulkSession` claims it), so the
+        // draft is named; a pad opened without one sends null and is not claimed.
+        it('names the draft it launches, or null without one', async () => {
+            renderPad({ campaignId: null });
+            openConfirm();
+            await confirmLaunch();
+
+            expect(callable.mock.calls[0][0].campaignId).toBeNull();
+        });
+
         it('tolerates absent filters', async () => {
             renderPad({ campaign: { ...validCampaign, filters: undefined } });
             openConfirm();
@@ -234,7 +245,7 @@ describe('LaunchPad — migrated launch flow', () => {
     });
 
     describe('result branches', () => {
-        it('reports success and hands the session id to onLaunchSuccess, which marks the draft', async () => {
+        it('reports success and hands the session id to onLaunchSuccess', async () => {
             const { onLaunchSuccess } = renderPad();
             openConfirm();
             await confirmLaunch();
@@ -280,6 +291,10 @@ describe('LaunchPad — migrated launch flow', () => {
             ['bulk-actions-queue not found', 'Campaign infrastructure not ready. Please contact support.'],
             ['PROCESS_BULK_BATCH_URL missing', 'Campaign worker URL is not configured on the server. Please contact support.'],
             ['some other backend failure', 'some other backend failure'],
+            [
+                'This campaign is being launched in another tab or by a teammate. Wait a minute, then check Campaigns.',
+                'This campaign is being launched in another tab or by a teammate. Wait a minute, then check Campaigns.',
+            ],
         ])('maps the %s error to a friendly message', async (thrown, expected) => {
             const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
             callable.mockRejectedValue(new Error(thrown));

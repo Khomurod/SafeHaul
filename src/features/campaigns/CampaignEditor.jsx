@@ -35,7 +35,7 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
     });
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
 
-    const { saveDraft, markLaunched, isSaving } = useCampaignDraft(companyId);
+    const { saveDraft, isSaving } = useCampaignDraft(companyId);
     const isLaunched = isLaunchedDraft(campaignData);
 
     // #9 FIX: Track whether user has made actual changes — prevents auto-save on mount with defaults
@@ -83,8 +83,10 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
         if (!isDirty || !isInitializedRef.current || isLaunched) return;
         const timer = setTimeout(() => {
             if (campaignId) {
-                // Strip rawData before saving — it's a large array that only lives in React state
+                // Strip rawData before saving — it's a large array that only lives in React state.
                 const { filters, ...rest } = campaignData;
+                // The launch claim is the server's (`initBulkSession`): a tab never writes it back.
+                delete rest.launchClaim;
                 const { rawData, ...cleanFilters } = filters || {};
                 saveDraft(campaignId, { ...rest, filters: cleanFilters });
             }
@@ -92,9 +94,9 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
         return () => clearTimeout(timer);
     }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
 
-    // A launch marks the draft, so it leaves Drafts and cannot be launched again.
-    const handleLaunchSuccess = (launch) => {
-        if (!isE2ECampaignMock) markLaunched(campaignId, launch?.sessionId);
+    // The server marked the draft launched (`launchedAt`, `sessionId`) before it
+    // answered, so it leaves Drafts and cannot be launched again.
+    const handleLaunchSuccess = () => {
         onClose();
     };
 
@@ -231,6 +233,7 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
                     {activeSection === 'launch' && (
                         <LaunchPad
                             companyId={companyId}
+                            campaignId={campaignId}
                             campaign={campaignData}
                             onLaunchSuccess={handleLaunchSuccess}
                         />
