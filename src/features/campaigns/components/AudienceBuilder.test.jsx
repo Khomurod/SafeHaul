@@ -316,7 +316,7 @@ describe('AudienceBuilder', () => {
             expect.objectContaining({ method: 'sms' }),
         );
 
-        // Alice is an applicant, not one of "My Leads": the server's count of 10
+        // Alice is an applicant, not one of the Leads: the server's count of 10
         // already leaves her out, and taking her off again would undercount. Her
         // un-tick still goes to the server, in case the filters match her again.
         mockCrmLeads = [{ id: 'lead3', firstName: 'Cara', lastName: 'Hauler' }];
@@ -491,6 +491,9 @@ describe('AudienceBuilder — migrated presentation', () => {
 
         const source = screen.getByLabelText('Source');
         expect([...source.options].map(o => o.value)).toEqual(['applications', 'leads']);
+        // `leads` is every company lead, so it reads Leads; the owner picker's
+        // Current User Only is the reader's own.
+        expect([...source.options].map(o => o.textContent)).toEqual(['Applicants', 'Leads']);
 
         const owner = screen.getByLabelText('Owner');
         expect([...owner.options].map(o => o.value)).toEqual(['all', 'my_leads', 'recruiter1', 'recruiter2']);

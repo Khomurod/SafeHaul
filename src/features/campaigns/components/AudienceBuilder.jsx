@@ -267,7 +267,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                                 onChange={(e) => handleFilterChange('leadType', e.target.value)}
                                             >
                                                 <option value="applications">Applicants</option>
-                                                <option value="leads">My Leads</option>
+                                                <option value="leads">Leads</option>
                                             </Select>
                                         </FormField>
 
