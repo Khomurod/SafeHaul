@@ -1,24 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { Icon, Loader2, Save } from '@design-system/icons';
+import { Icon, Loader2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import {
-    Button,
     FieldMessage,
     FormField,
     FormSection,
     Textarea,
 } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
+import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
+import { saveBarSummary } from '../utils/saveBarSummary';
 
+/** The three messages, each saved under its own field of `settings/automated_sms`. */
+const TEMPLATES = [
+    { field: 'templateContactAttempt1', id: 'automated-sms-contact-attempt-1', label: 'Contact Attempt 1' },
+    { field: 'templateContactAttempt2', id: 'automated-sms-contact-attempt-2', label: 'Contact Attempt 2' },
+    { field: 'templateContactAttempt3', id: 'automated-sms-contact-attempt-3', label: 'Contact Attempt 3' },
+];
+
+const NONE = { templateContactAttempt1: '', templateContactAttempt2: '', templateContactAttempt3: '' };
+
+/**
+ * Settings → Automated texts: the message sent when a lead or application moves
+ * into each contact-attempt stage. Edits stay on the page until the save bar's
+ * Save, which writes all three to `companies/{id}/settings/automated_sms`
+ * (merged, with `updatedAt`); the company shell's leave guard watches them.
+ */
 export function AutomatedSmsTab({ companyId }) {
     const { showSuccess, showError } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [templateContactAttempt1, setTemplateContactAttempt1] = useState('');
-    const [templateContactAttempt2, setTemplateContactAttempt2] = useState('');
-    const [templateContactAttempt3, setTemplateContactAttempt3] = useState('');
+    const [saved, setSaved] = useState(NONE);
+    const [form, setForm] = useState(NONE);
+    const [saveError, setSaveError] = useState(null);
+
+    const changed = TEMPLATES.filter(({ field }) => form[field] !== saved[field]);
+    const dirty = changed.length > 0;
+    useUnsavedChanges(dirty);
+    // A failure is about changes that are no longer there once the page is clean.
+    if (!dirty && saveError) setSaveError(null);
 
     useEffect(() => {
         if (!companyId) return;
@@ -30,9 +52,13 @@ export function AutomatedSmsTab({ companyId }) {
                 const snap = await getDoc(ref);
                 if (!cancelled && snap.exists()) {
                     const d = snap.data();
-                    setTemplateContactAttempt1(d.templateContactAttempt1 || '');
-                    setTemplateContactAttempt2(d.templateContactAttempt2 || '');
-                    setTemplateContactAttempt3(d.templateContactAttempt3 || '');
+                    const loaded = {
+                        templateContactAttempt1: d.templateContactAttempt1 || '',
+                        templateContactAttempt2: d.templateContactAttempt2 || '',
+                        templateContactAttempt3: d.templateContactAttempt3 || '',
+                    };
+                    setSaved(loaded);
+                    setForm(loaded);
                 }
             } catch (e) {
                 console.error(e);
@@ -47,25 +73,34 @@ export function AutomatedSmsTab({ companyId }) {
 
     const handleSave = async () => {
         if (!companyId) return;
+        const sent = form;
         setSaving(true);
+        setSaveError(null);
         try {
             await setDoc(
                 doc(db, 'companies', companyId, 'settings', 'automated_sms'),
                 {
-                    templateContactAttempt1,
-                    templateContactAttempt2,
-                    templateContactAttempt3,
+                    templateContactAttempt1: sent.templateContactAttempt1,
+                    templateContactAttempt2: sent.templateContactAttempt2,
+                    templateContactAttempt3: sent.templateContactAttempt3,
                     updatedAt: serverTimestamp(),
                 },
                 { merge: true }
             );
+            // An edit made while the save was on its way stays, still unsaved.
+            setSaved(sent);
             showSuccess('Automated SMS templates saved.');
         } catch (e) {
-            console.error(e);
-            showError('Failed to save templates.');
+            console.error('[AutomatedSmsTab] Could not save the templates:', e);
+            setSaveError('Could not save the templates. Try again.');
         } finally {
             setSaving(false);
         }
+    };
+
+    const discard = () => {
+        setForm(saved);
+        setSaveError(null);
     };
 
     if (loading) {
@@ -84,27 +119,6 @@ export function AutomatedSmsTab({ companyId }) {
             </div>
         );
     }
-
-    const templates = [
-        {
-            id: 'automated-sms-contact-attempt-1',
-            label: 'Contact Attempt 1',
-            value: templateContactAttempt1,
-            onChange: setTemplateContactAttempt1,
-        },
-        {
-            id: 'automated-sms-contact-attempt-2',
-            label: 'Contact Attempt 2',
-            value: templateContactAttempt2,
-            onChange: setTemplateContactAttempt2,
-        },
-        {
-            id: 'automated-sms-contact-attempt-3',
-            label: 'Contact Attempt 3',
-            value: templateContactAttempt3,
-            onChange: setTemplateContactAttempt3,
-        },
-    ];
 
     return (
         <div className="space-y-ds-6" data-testid="automated-sms-settings">
@@ -134,28 +148,28 @@ export function AutomatedSmsTab({ companyId }) {
                     Duplicate sends are prevented when the status does not change.
                 </FieldMessage>
 
-                {templates.map((field) => (
-                    <FormField key={field.id} id={field.id} label={field.label}>
+                {TEMPLATES.map(({ field, id, label }) => (
+                    <FormField key={id} id={id} label={label}>
                         <Textarea
-                            value={field.value}
-                            onChange={(event) => field.onChange(event.target.value)}
+                            value={form[field]}
+                            onChange={(event) => {
+                                const { value } = event.target;
+                                setForm((prev) => ({ ...prev, [field]: value }));
+                            }}
                             placeholder={`Hi {driver name}, this is {user name} from SafeHaul…`}
                         />
                     </FormField>
                 ))}
-
-                <div>
-                    <Button
-                        type="button"
-                        variant="primary"
-                        loading={saving}
-                        onClick={handleSave}
-                    >
-                        {!saving && <Icon icon={Save} size="lg" />}
-                        Save templates
-                    </Button>
-                </div>
             </FormSection>
+            {dirty && (
+                <SaveBar
+                    summary={saveBarSummary(changed.map(({ label }) => label))}
+                    saving={saving}
+                    error={saveError}
+                    onSave={handleSave}
+                    onDiscard={discard}
+                />
+            )}
         </div>
     );
 }

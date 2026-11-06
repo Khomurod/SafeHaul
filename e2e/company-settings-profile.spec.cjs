@@ -19,7 +19,6 @@ test.describe('Company Settings Personal Profile compatibility slice', () => {
 
     const name = page.getByRole('textbox', { name: 'Full Name' });
     const email = page.getByRole('textbox', { name: 'Email' });
-    const update = page.getByRole('button', { name: 'Update Profile' });
 
     await expect(email).toHaveValue('company_admin@safehaul.local');
     await expect(email).toHaveAttribute('readonly', '');
@@ -44,8 +43,17 @@ test.describe('Company Settings Personal Profile compatibility slice', () => {
 
     await page.keyboard.press('Tab');
     await expect(email).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(update).toBeFocused();
+
+    // Nothing to save until the name changes; then the save bar, and Discard puts it back.
+    const bar = page.getByRole('region', { name: 'Unsaved changes' });
+    await expect(bar).toHaveCount(0);
+    const before = await name.inputValue();
+    await name.fill('E2E Admin Renamed');
+    await expect(bar).toContainText('1 change · Full Name');
+    await expect(bar.getByRole('button', { name: 'Save' })).toBeVisible();
+    await bar.getByRole('button', { name: 'Discard' }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(name).toHaveValue(before);
 
     const [labelBox, controlBox] = await Promise.all([
       page.getByText('Full Name', { exact: true }).boundingBox(),
@@ -90,13 +98,16 @@ test.describe('Company Settings Personal Profile compatibility slice', () => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openPersonalProfile(page);
+    // A changed name brings the save bar, whose Save is measured too.
+    await page.getByRole('textbox', { name: 'Full Name' }).fill('E2E Admin Renamed');
+    await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible();
 
     const geometry = await page.evaluate(() => {
       const main = document.querySelector('main');
       const name = document.querySelector('#personal-profile-name');
       const email = document.querySelector('#personal-profile-email');
-      const update = [...document.querySelectorAll('button')]
-        .find((element) => element.textContent.includes('Update Profile'));
+      const update = [...document.querySelectorAll('[role="region"][aria-label="Unsaved changes"] button')]
+        .find((element) => element.textContent.trim() === 'Save');
       return {
         viewport: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
