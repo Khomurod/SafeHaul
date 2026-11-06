@@ -9,6 +9,7 @@ vi.mock('../../services/applicationDraftService', () => ({ closeDraftAfterSubmis
 
 import { canBeFoundElsewhere, useDraftLifecycle } from './useDraftLifecycle';
 import { draftSyncState, markDraftSynced } from './applicationDraftStorage';
+import { heldIdentityTracker } from './resumeIdentity';
 
 const SLUG = 'acme';
 const IDENTIFIED = {
@@ -20,9 +21,13 @@ const IDENTIFIED = {
     phone: '5125550142',
 };
 
+/** What the server confirmed holding, as `useDiscardAwareResume` tracks it. */
+let server;
+
 /** A server that acknowledges the save it receives, as `sendSave` does. */
-const acknowledgingServer = () => vi.fn(async ({ localSeq, draftId }) => {
+const acknowledgingServer = () => vi.fn(async ({ formData, localSeq, draftId }) => {
     markDraftSynced(SLUG, localSeq, { draftId });
+    server.record(formData, { saved: true });
 });
 
 function lifecycle({ formData = IDENTIFIED, saveDraftToServer = acknowledgingServer(), ...overrides } = {}) {
@@ -40,6 +45,7 @@ function lifecycle({ formData = IDENTIFIED, saveDraftToServer = acknowledgingSer
         startOver: vi.fn(),
         forgetDraftOwnership: vi.fn(),
         saveDraftToServer,
+        serverHoldsIdentity: (answers) => server.holds(answers),
         setFormData: vi.fn(),
         setCurrentStep: vi.fn(),
         setIntakeMode: vi.fn(),
@@ -58,6 +64,7 @@ function lifecycle({ formData = IDENTIFIED, saveDraftToServer = acknowledgingSer
 beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
+    server = heldIdentityTracker();
 });
 
 afterEach(() => {
@@ -89,6 +96,20 @@ describe('Finish later', () => {
     it('does not mention another device when the server save fails', async () => {
         const { outcome } = lifecycle({ saveDraftToServer: vi.fn(async () => { throw new Error('offline'); }) });
 
+        await expect(outcome.anotherDevice).resolves.toBe(false);
+    });
+
+    it('does not mention another device for an SSN the server never received', async () => {
+        // Saved and confirmed without an SSN: the local copy is clean.
+        const first = lifecycle({ formData: { ...IDENTIFIED, ssn: '' } });
+        await expect(first.outcome.anotherDevice).resolves.toBe(false);
+        expect(draftSyncState(SLUG).dirty).toBe(false);
+
+        // The SSN typed since is stripped from the local copy, so the copy stays
+        // clean, and the save carrying it does not land (it fails quietly).
+        const { outcome } = lifecycle({ saveDraftToServer: vi.fn(async () => undefined) });
+
+        expect(draftSyncState(SLUG).dirty).toBe(false);
         await expect(outcome.anotherDevice).resolves.toBe(false);
     });
 

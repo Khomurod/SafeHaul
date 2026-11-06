@@ -184,7 +184,9 @@ steps; formerly *Save as Draft*) makes the same save without moving on and says
 under the buttons how to return: open the link again on this device and browser;
 it names another device (same last name, date of birth, SSN and email or phone,
 within 30 days; a phone only with ten digits, as the server matches) only once the
-server has confirmed the copy and those facts are on the page (`FinishLaterNotice`).
+server has confirmed the copy and a save carrying those very facts, which are on the
+page (`FinishLaterNotice`, `resumeIdentity.js`): the local copy strips the SSN, so
+its sync state alone cannot vouch for one typed since.
 The notice goes as soon as an answer changes: nothing saves the change until the
 next Continue or Finish later.
 
