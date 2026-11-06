@@ -171,7 +171,7 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
     const maria = page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
     // Each value sits under its column's label (drawn from `data-label`).
-    await expect(maria.locator('[data-label="Assigned to"]')).toHaveText('E2E Admin');
+    await expect(maria.locator('[data-label="Assignee"]')).toHaveText('E2E Admin');
     await expect(maria.locator('[data-label="Applied"]')).toHaveText('Jul 10, 2026');
     // The number starts where the other values do, not centred in its column.
     const call = maria.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true });

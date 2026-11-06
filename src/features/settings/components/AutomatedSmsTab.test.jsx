@@ -133,7 +133,7 @@ describe('AutomatedSmsTab compatibility slice', () => {
         expect(three).toHaveValue('Edited three');
     });
 
-    it('says the templates could not be loaded, offers no blank fields to save over them, and retries', async () => {
+    it('says the templates could not be loaded, and retries', async () => {
         firestoreMocks.getDoc.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -143,12 +143,29 @@ describe('AutomatedSmsTab compatibility slice', () => {
             expect(toastMocks.showError)
                 .toHaveBeenCalledWith('Could not load automated SMS templates.');
         });
-        expect(screen.getByRole('heading', { name: 'The templates could not be loaded.' })).toBeInTheDocument();
-        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('The saved templates could not be loaded.');
+        expect(await findTextarea('Contact Attempt 1')).toHaveValue('');
 
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(await findTextarea('Contact Attempt 1')).toHaveValue('First touch {driver name}');
+        expect(screen.queryByText('The saved templates could not be loaded.')).not.toBeInTheDocument();
         expect(firestoreMocks.getDoc).toHaveBeenCalledTimes(2);
+        consoleError.mockRestore();
+    });
+
+    it('after a failed read, saves only the template typed in, so none it could not show is erased', async () => {
+        firestoreMocks.getDoc.mockRejectedValueOnce(new Error('offline'));
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        render(<AutomatedSmsTab companyId="company-1" />);
+
+        fireEvent.change(await findTextarea('Contact Attempt 1'), { target: { value: 'Typed after the failure' } });
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(firestoreMocks.setDoc.mock.calls[0][1]).toEqual({
+            templateContactAttempt1: 'Typed after the failure',
+            updatedAt: SERVER_TIMESTAMP,
+        });
         consoleError.mockRestore();
     });
 

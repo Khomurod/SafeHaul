@@ -8,10 +8,11 @@ import {
     FieldMessage,
     FormField,
     FormSection,
+    Notice,
     Textarea,
 } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
-import { ErrorState, SaveBar, useUnsavedChanges } from '@/design-system/patterns';
+import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { saveBarSummary } from '../utils/saveBarSummary';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
@@ -29,8 +30,9 @@ const NONE = { templateContactAttempt1: '', templateContactAttempt2: '', templat
  * into each contact-attempt stage. Edits stay on the page until the save bar's
  * Save, which writes the changed ones to `companies/{id}/settings/automated_sms`
  * (merged, with `updatedAt`); the company shell's leave guard watches them.
- * Templates that could not be read are not offered for editing: a blank field
- * would read as "no text", and saving it would erase the real one.
+ * When the templates could not be read, the page says so above the fields and
+ * offers Retry: a blank field would otherwise read as "no text". A save then
+ * writes only the templates typed in, so none it could not show is erased.
  */
 export function AutomatedSmsTab({ companyId }) {
     const { showSuccess, showError } = useToast();
@@ -131,27 +133,24 @@ export function AutomatedSmsTab({ companyId }) {
         );
     }
 
-    if (loadFailed) {
-        return (
-            <div className="space-y-ds-6" data-testid="automated-sms-settings">
-                <PageHeader title="Automated texts" description="Messages sent when a lead or application moves into each contact-attempt stage." />
-                <ErrorState
-                    headingLevel={2}
-                    title="The templates could not be loaded."
-                    description="Check your internet connection, then press Retry."
+    return (
+        <div className="space-y-ds-6" data-testid="automated-sms-settings">
+            <PageHeader title="Automated texts" description="Messages sent when a lead or application moves into each contact-attempt stage." />
+            {loadFailed && (
+                <Notice
+                    tone="danger"
+                    announce="assertive"
+                    title="The saved templates could not be loaded."
                     actions={(
                         <Button variant="secondary" size="sm" onClick={() => setAttempt((n) => n + 1)}>
                             Retry
                         </Button>
                     )}
-                />
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-ds-6" data-testid="automated-sms-settings">
-            <PageHeader title="Automated texts" description="Messages sent when a lead or application moves into each contact-attempt stage." />
+                >
+                    The fields below may not show what drivers are sent. Check your internet connection,
+                    then press Retry. Saving now replaces only the templates you type in.
+                </Notice>
+            )}
             <FormSection
                 title="Contact-attempt messages"
                 description={(
