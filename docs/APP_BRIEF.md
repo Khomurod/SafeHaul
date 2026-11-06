@@ -290,7 +290,7 @@ three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segment
 are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
 Process, Interested and Declined (`Declined`, `Rejected`). Assign (admins) is on
 All and Unassigned, the Assigned to filter on All and Applications, the Assigned
-to me switch on Applications. **Add lead** (any staff member) assigns a recruiter's lead to them
+to me switch on Applications; the lists' column reads Assignee (no wider column fits at 1440px). **Add lead** (any staff member) assigns a recruiter's lead to them
 (Д13; an admin's stays unassigned) and opens it in the dossier on the person's
 list; **Import leads** (admins, `importLeads`) returns there. **Driver referral links**
 (Referral Links page: any staff member makes one; admins see all, others
