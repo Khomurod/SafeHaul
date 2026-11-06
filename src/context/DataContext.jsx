@@ -110,6 +110,9 @@ export function DataProvider({ children, renderLoading }) {
         applicationConfig: {},
         // The team cache the server keeps on a company document.
         teamMembers: [{ userId: 'e2e-company_admin', name: 'E2E Admin', email: 'company_admin@safehaul.local', role: 'company_admin' }],
+        // `?e2eFacebookLeads=on`: Facebook leads switched on, as a super admin
+        // does per company; off otherwise, as for a company that never set it.
+        ...(getE2EQueryParam('e2eFacebookLeads', '') === 'on' ? { features: { callTracking: true } } : {}),
       };
 
       if (e2eAuthMode === 'none') {

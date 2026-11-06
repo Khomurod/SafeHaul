@@ -94,6 +94,23 @@ describe('CompanyProfileTab information compatibility slice', () => {
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     });
 
+    it('shows the plan as one read-only line, which Edit Profile does not open', () => {
+        renderProfile();
+        // No plan set: Free, as the Plan section showed it.
+        expect(screen.getByText('Plan')).toBeInTheDocument();
+        expect(screen.getByText('Free Plan — to change it, contact support.')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        expect(screen.queryByText(/Free Plan/)).toBeNull();
+        expect(screen.queryByRole('textbox', { name: 'Plan' })).toBeNull();
+    });
+
+    it('shows Pro for a company a super admin put on the paid plan', () => {
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } }, applyCompanyChanges });
+        render(<CompanyProfileTab currentCompanyProfile={{ ...company, planType: 'paid' }} />);
+        expect(screen.getByText('Pro Plan — to change it, contact support.')).toBeInTheDocument();
+    });
+
     it('exposes accessible editable fields with the original field keys', () => {
         renderProfile();
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));

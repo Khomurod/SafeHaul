@@ -32,9 +32,6 @@ vi.mock('./CompanyProfileTab', async () => {
 vi.mock('./ApplicationFormTab', () => ({
     ApplicationFormTab: () => <h1>Application Form Content</h1>,
 }));
-vi.mock('./TeamManagementTab', () => ({
-    TeamManagementTab: () => <h1>Team Content</h1>,
-}));
 vi.mock('./EmailSettingsTab', () => ({
     EmailSettingsTab: () => <h1>Email Content</h1>,
 }));
@@ -56,15 +53,15 @@ vi.mock('@shared/hooks/useIsMobile', () => ({
 }));
 
 /** A section that holds an unsaved edit while its box is ticked. */
-vi.mock('./BillingTab', async () => {
+vi.mock('./TeamManagementTab', async () => {
     const ReactModule = await import('react');
     const { useUnsavedChanges } = await import('@/design-system/patterns');
-    function BillingTab() {
+    function TeamManagementTab() {
         const [dirty, setDirty] = ReactModule.useState(false);
         useUnsavedChanges(dirty);
         return (
             <>
-                <h1>Plan Content</h1>
+                <h1>Team Content</h1>
                 <label>
                     <input type="checkbox" checked={dirty} onChange={(event) => setDirty(event.target.checked)} />
                     Unsaved edit
@@ -72,7 +69,7 @@ vi.mock('./BillingTab', async () => {
             </>
         );
     }
-    return { BillingTab };
+    return { TeamManagementTab };
 });
 
 import { CompanySettings } from './CompanySettings';
@@ -179,18 +176,23 @@ describe('CompanySettings shell', () => {
 
     it('leaves the page heading to each section: one level-1 heading wherever you are', () => {
         renderSettings();
-        const labels = ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan'];
+        const labels = ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads'];
         for (const label of labels) {
             fireEvent.click(screen.getByRole('button', { name: label }));
             expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
         }
     });
 
-    it('groups the sections under Company, Messaging, Connections and Account', () => {
+    it('groups the sections under Company, Messaging and Connections', () => {
         renderSettings();
         const nav = screen.getByRole('navigation', { name: 'Company settings sections' });
         expect(within(nav).getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
-            .toEqual(['Company', 'Messaging', 'Connections', 'Account']);
+            .toEqual(['Company', 'Messaging', 'Connections']);
+    });
+
+    it('has no Plan section: the plan is a line in Company profile', () => {
+        renderSettings();
+        expect(screen.queryByRole('button', { name: /Plan/ })).toBeNull();
     });
 
     it('supports directional focus navigation across visible settings sections', () => {
@@ -198,24 +200,32 @@ describe('CompanySettings shell', () => {
 
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
         const application = screen.getByRole('button', { name: 'Application questions' });
-        const plan = screen.getByRole('button', { name: 'Plan' });
+        const facebookLeads = screen.getByRole('button', { name: 'Facebook leads' });
 
         companyProfile.focus();
         fireEvent.keyDown(companyProfile, { key: 'ArrowDown' });
         expect(application).toHaveFocus();
 
         fireEvent.keyDown(application, { key: 'End' });
-        expect(plan).toHaveFocus();
+        expect(facebookLeads).toHaveFocus();
     });
 
-    it('hides Facebook leads with call tracking, and keeps API keys', () => {
+    it.each([
+        ['never switched on', {}],
+        ['switched off', { callTracking: false }],
+    ])('hides Facebook leads for a company it was %s for, and keeps API keys', (_case, features) => {
         renderSettings({
-            currentCompanyProfile: { ...company, features: { callTracking: false } },
+            currentCompanyProfile: { ...company, features },
         });
 
         expect(screen.queryByRole('button', { name: 'Facebook leads' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'API keys' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /^Facebook leads / })).not.toBeInTheDocument();
+    });
+
+    it('shows Facebook leads only where a super admin switched it on', () => {
+        renderSettings();
+        expect(screen.getByRole('button', { name: 'Facebook leads' })).toBeInTheDocument();
     });
 
     it('preserves the company-admin permission redirect', () => {
@@ -231,7 +241,7 @@ describe('CompanySettings shell', () => {
         const { container } = renderSettings();
         expect((await axe(container)).violations).toEqual([]);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
         expect((await axe(container)).violations).toEqual([]);
     });
 });
@@ -243,13 +253,13 @@ describe('leaving a section with unsaved changes', () => {
         isMobileMock.mockImplementation(() => false);
     });
 
-    function openDirtyPlan() {
-        renderSettings({ path: '/company/settings?section=billing' });
+    function openDirtyTeam() {
+        renderSettings({ path: '/company/settings?section=team' });
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
     }
 
     it('moves at once when nothing is changed', () => {
-        renderSettings({ path: '/company/settings?section=billing' });
+        renderSettings({ path: '/company/settings?section=team' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Email' }));
 
@@ -258,27 +268,27 @@ describe('leaving a section with unsaved changes', () => {
     });
 
     it('asks first, and stays when the person keeps editing', () => {
-        openDirtyPlan();
+        openDirtyTeam();
 
         fireEvent.click(screen.getByRole('button', { name: 'Email' }));
         const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
 
-        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
     });
 
     it('does not ask when the section already shown is chosen again', () => {
-        openDirtyPlan();
+        openDirtyTeam();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
 
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
     });
 
     it('moves when the person discards the changes', () => {
-        openDirtyPlan();
+        openDirtyTeam();
 
         fireEvent.click(screen.getByRole('button', { name: 'Email' }));
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
@@ -287,24 +297,24 @@ describe('leaving a section with unsaved changes', () => {
         expect(screen.getByTestId('address')).toHaveTextContent('section=email');
     });
 
-    /** Company profile first, then Plan with an edit, so the browser's Back leads to Company profile. */
-    function openDirtyPlanFromCompanyProfile() {
+    /** Company profile first, then Team with an edit, so the browser's Back leads to Company profile. */
+    function openDirtyTeamFromCompanyProfile() {
         renderSettings();
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
     }
 
     it('asks before the browser Back button leaves the edit, and keeps it on Keep editing', () => {
-        openDirtyPlanFromCompanyProfile();
+        openDirtyTeamFromCompanyProfile();
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
         const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
 
-        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
-        expect(screen.getByTestId('address')).toHaveTextContent('section=billing');
+        expect(screen.getByTestId('address')).toHaveTextContent('section=team');
 
         // The page the person came from is still one Back away.
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
@@ -314,7 +324,7 @@ describe('leaving a section with unsaved changes', () => {
     });
 
     it('follows the browser Back button once the person discards the changes', () => {
-        openDirtyPlanFromCompanyProfile();
+        openDirtyTeamFromCompanyProfile();
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
@@ -325,7 +335,7 @@ describe('leaving a section with unsaved changes', () => {
 
     it('follows the browser Back button at once when nothing is changed', () => {
         renderSettings();
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
 
@@ -347,7 +357,7 @@ describe('Settings on a phone', () => {
         expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
-        for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan']) {
+        for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
         expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
@@ -364,8 +374,8 @@ describe('Settings on a phone', () => {
     it('opens a section from its row, and the Settings link returns to the menu keeping the other parameters', () => {
         renderSettings({ path: '/company/settings?e2eAuth=company_admin' });
 
-        fireEvent.click(screen.getByRole('button', { name: /^Plan / }));
-        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Team / }));
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
         const back = screen.getByRole('link', { name: 'Settings' });
         expect(back).toHaveAttribute('href', '/company/settings?e2eAuth=company_admin');
 
@@ -375,7 +385,7 @@ describe('Settings on a phone', () => {
     });
 
     it('asks before the Settings link leaves unsaved changes', () => {
-        renderSettings({ path: '/company/settings?section=billing' });
+        renderSettings({ path: '/company/settings?section=team' });
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
 
         fireEvent.click(screen.getByRole('link', { name: 'Settings' }));
@@ -387,7 +397,7 @@ describe('Settings on a phone', () => {
         const { container } = renderSettings();
         expect((await axe(container)).violations).toEqual([]);
 
-        fireEvent.click(screen.getByRole('button', { name: /^Plan / }));
+        fireEvent.click(screen.getByRole('button', { name: /^Team / }));
         expect((await axe(container)).violations).toEqual([]);
     });
 });
@@ -419,7 +429,7 @@ describe('the settings section in the address', () => {
     it('goes back to the previous section with the browser', () => {
         renderSettings();
         fireEvent.click(screen.getByRole('button', { name: 'Text messages (SMS)' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
 
@@ -433,6 +443,14 @@ describe('the settings section in the address', () => {
 
         expect(screen.getByRole('heading', { level: 1, name: 'Profile page' })).toBeInTheDocument();
         expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/profile\?e2eAuth=company_admin$/);
+    });
+
+    it.each([false, true])('opens Company profile, where the plan now is, for an old Plan address (phone: %s)', (phone) => {
+        isMobileMock.mockImplementation(() => phone);
+        renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=billing' });
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?e2eAuth=company_admin&section=company$/);
     });
 
     it('opens Company profile for a section this company does not show', () => {

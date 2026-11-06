@@ -279,7 +279,7 @@ const SCREENS = [
     {
         name: 'super-admin-company-features',
         url: '/super-admin/companies/e2e-co-1?e2eAuth=super_admin&e2eCompanies=mock',
-        ready: (page) => page.getByRole('rowheader', { name: 'Call Tracking' }),
+        ready: (page) => page.getByRole('rowheader', { name: 'Facebook leads' }),
     },
     /*
      * A company's applications dialog, opened from the companies table on made-up

@@ -71,7 +71,7 @@ describe('FeaturesView — frozen write contract', () => {
     it('lists the five features in the frozen order', () => {
         renderView();
         const features = screen.getAllByRole('rowheader').map((h) => h.textContent);
-        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Call Tracking']);
+        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Facebook leads']);
     });
 
     it('reports a failed toggle through the frozen toast, and lets the operator try again', async () => {
@@ -127,6 +127,20 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
         await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(
             { path: 'companies/co-2' },
             { 'features.campaignsEnabled': false, 'featureSchedules.campaignsEnabled': null },
+        ));
+    });
+
+    it('shows Facebook leads off until it is switched on, and switching it on writes true', async () => {
+        renderView({ company: UNSET });
+        const facebook = screen.getByRole('switch', { name: 'Facebook leads for Second Artificial Carrier' });
+        expect(facebook).not.toBeChecked();
+        // Off, so there is no switch-off to schedule.
+        expect(screen.queryByRole('button', { name: 'Schedule deactivation of Facebook leads for Second Artificial Carrier' })).toBeNull();
+
+        fireEvent.click(facebook);
+        await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(
+            { path: 'companies/co-2' },
+            { 'features.callTracking': true, 'featureSchedules.callTracking': null },
         ));
     });
 

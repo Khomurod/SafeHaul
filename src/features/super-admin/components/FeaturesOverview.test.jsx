@@ -35,9 +35,11 @@ describe('the features overview', () => {
         expect(screen.getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual([
             expect.stringContaining('Acme Freight'), expect.stringContaining('Blue Line'),
         ]);
-        // A feature is on unless the company switched it off.
-        expect(within(blue).getAllByText('Off')).toHaveLength(1);
-        expect(within(blue).getAllByText('On')).toHaveLength(4);
+        // A feature is on unless the company switched it off; Facebook leads is
+        // off unless it was switched on.
+        expect(within(blue).getAllByText('Off')).toHaveLength(2);
+        expect(within(blue).getAllByText('On')).toHaveLength(3);
+        expect(screen.getByRole('columnheader', { name: 'Facebook leads' })).toBeInTheDocument();
         expect(within(acme).getByText(/Off from/)).toBeInTheDocument();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
         // The heading counts the companies, as every list's heading counts its records.

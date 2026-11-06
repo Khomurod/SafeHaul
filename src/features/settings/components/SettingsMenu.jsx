@@ -6,14 +6,13 @@ import { Icon, ChevronRight } from '@design-system/icons';
 /** One line under each section's name: what it holds. */
 const SECTION_SUMMARIES = {
     company: 'Name, logo, contact details and address',
-    application: 'Questions, rules, agreements and imports',
+    application: 'Questions, rules, agreements and report uploads',
     team: 'Who recruits for you',
     email: 'Sending from your own mailbox',
     sms: 'Phone lines and who texts from them',
     automated_sms: 'Messages sent at each contact attempt',
     api_keys: 'Let another service read your applications',
     integrations: 'Leads from Facebook Lead Ads',
-    billing: 'Your subscription',
 };
 
 /**

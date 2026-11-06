@@ -94,7 +94,8 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     expect(geometry.workspaceScrollWidth).toBeLessThanOrEqual(geometry.workspaceClientWidth);
     expect(geometry.contentTop).toBeGreaterThan(geometry.navBottom);
     expect(geometry.contentLeft).toBeLessThan(geometry.navRight);
-    expect(geometry.groupColumns).toBe(4);
+    // Company, Messaging and Connections.
+    expect(geometry.groupColumns).toBe(3);
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
     expect(geometry.headingFontSize).toBeGreaterThanOrEqual(12);
     expect(geometry.itemHeight).toBeGreaterThanOrEqual(44);
@@ -106,12 +107,17 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await openSettings(page);
 
     await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
+    // Facebook leads shows only where a super admin switched it on, which the
+    // fixture company has not; Plan and My profile are no longer sections.
     const sections = [
       'Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
-      'API keys', 'Facebook leads', 'Plan',
+      'API keys',
     ];
     for (const label of sections) {
       await expect(page.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeAttached();
+    }
+    for (const gone of ['Facebook leads', 'Plan', 'My profile']) {
+      await expect(page.getByRole('button', { name: new RegExp(`^${gone} `) })).toHaveCount(0);
     }
 
     const geometry = await page.evaluate(() => {
@@ -136,11 +142,11 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     expect(geometry.rowRightEdge).toBeLessThanOrEqual(geometry.viewportWidth);
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
 
-    const plan = page.getByRole('button', { name: /^Plan / });
-    await plan.scrollIntoViewIfNeeded();
-    await plan.click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Plan' })).toBeVisible();
-    await expect(page).toHaveURL(/section=billing/);
+    const apiKeys = page.getByRole('button', { name: /^API keys / });
+    await apiKeys.scrollIntoViewIfNeeded();
+    await apiKeys.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
+    await expect(page).toHaveURL(/section=api_keys/);
 
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();

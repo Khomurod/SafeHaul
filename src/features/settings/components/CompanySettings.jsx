@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
-    Icon, Building, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
+    Icon, Building, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
 } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
@@ -12,13 +12,13 @@ import { ApplicationFormTab } from './ApplicationFormTab';
 import { TeamManagementTab } from './TeamManagementTab';
 import { EmailSettingsTab } from './EmailSettingsTab';
 import { IntegrationsTab } from './IntegrationsTab';
-import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { SettingsMenu } from './SettingsMenu';
 import { ButtonLink, SectionNavigation } from '@/design-system/components';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { isFeatureOn } from '@features/super-admin/config/features';
 
 /**
  * The sections, grouped. Every id is also its `?section=` value, so a link to a
@@ -48,30 +48,25 @@ function settingsGroups(profile) {
             id: 'connections',
             label: 'Connections',
             items: [
-                // Every company may make keys; Facebook leads is hidden with call tracking.
+                // Every company may make keys. Facebook leads shows only where a
+                // super admin switched it on (stored as `features.callTracking`).
                 { id: 'api_keys', label: 'API keys', icon: KeyRound },
-                ...(profile?.features?.callTracking !== false
+                ...(isFeatureOn(profile, 'callTracking')
                     ? [{ id: 'integrations', label: 'Facebook leads', icon: Blocks }]
                     : []),
-            ],
-        },
-        {
-            id: 'account',
-            label: 'Account',
-            items: [
-                { id: 'billing', label: 'Plan', icon: CreditCard },
             ],
         },
     ];
 }
 
 /**
- * Sections that moved out of Settings, and where an old link to one lands now,
- * with the address's other parameters (`e2eAuth`) kept. My profile is the
- * Profile page, open to every staff member.
+ * Sections that moved, and where an old link to one lands now, with the
+ * address's other parameters (`e2eAuth`) kept. My profile is the Profile page,
+ * open to every staff member; Plan is a line in Company profile.
  */
 const MOVED_SECTIONS = {
     personal: { pathname: '/company/profile' },
+    billing: { pathname: '/company/settings', section: 'company' },
 };
 
 function movedSectionTarget(searchParams) {
@@ -198,8 +193,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                 return <IntegrationsTab companyId={currentCompanyProfile.id} />;
             case 'api_keys':
                 return <ApiKeysTab companyId={currentCompanyProfile.id} />;
-            case 'billing':
-                return <BillingTab currentCompanyProfile={currentCompanyProfile} />;
             default:
                 return null;
         }

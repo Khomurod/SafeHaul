@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Icon, Megaphone, CheckCircle, Loader2, Blocks } from '@design-system/icons';
+import { Icon, Megaphone, CheckCircle, Loader2 } from '@design-system/icons';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
-import { PageHeader, ResponsiveGrid, Stack } from '@/design-system/layouts';
+import { PageHeader, Stack } from '@/design-system/layouts';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
- * Company Settings "Integrations" tab.
+ * Settings → Connections → Facebook leads (section id `integrations`). Shown
+ * only for a company a super admin switched Facebook leads on for
+ * (`features.callTracking === true`, `CompanySettings`).
  *
  * Presentation only: every SDK-load, login, Graph API and callable contract is
  * frozen, and this component touches no Cloud Function, rule or data shape.
@@ -153,79 +155,55 @@ export function IntegrationsTab({ companyId }) {
                 description="Bring in leads from your Facebook Lead Ads forms."
             />
 
-            <ResponsiveGrid minItemWidth="320px">
-                <Card padding="md">
-                    <div className="flex flex-col items-start justify-between gap-ds-4 sm:flex-row">
-                        <div className="flex min-w-0 items-start gap-ds-4">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-[#1877F2]/10 text-[#1877F2]">
-                                <Icon icon={Megaphone} size="2xl" />
-                            </div>
-                            <div className="min-w-0">
-                                <h2 className="flex flex-wrap items-center gap-ds-2 font-bold text-ds-content">
-                                    Facebook Lead Ads
-                                    {connectedPage && <Badge tone="success">Connected</Badge>}
-                                </h2>
-                                <p className="mt-ds-1 max-w-md text-ds-sm text-ds-content-muted">
-                                    Automatically import leads from your Facebook Lead Gen forms.
-                                    We&apos;ll sync new leads directly to your dashboard in real-time.
+            <Card padding="md">
+                <div className="flex flex-col items-start justify-between gap-ds-4 sm:flex-row">
+                    <div className="flex min-w-0 items-start gap-ds-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-[#1877F2]/10 text-[#1877F2]">
+                            <Icon icon={Megaphone} size="2xl" />
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="flex flex-wrap items-center gap-ds-2 font-bold text-ds-content">
+                                Facebook Lead Ads
+                                {connectedPage && <Badge tone="success">Connected</Badge>}
+                            </h2>
+                            <p className="mt-ds-1 max-w-md text-ds-sm text-ds-content-muted">
+                                Automatically import leads from your Facebook Lead Gen forms.
+                                We&apos;ll sync new leads directly to your dashboard in real-time.
+                            </p>
+                            {connectedPage && (
+                                <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-muted">
+                                    <Icon icon={CheckCircle} size="xs" className="text-ds-status-success-fg" />
+                                    Active Page: <span className="truncate font-medium text-ds-content">{connectedPage}</span>
                                 </p>
-                                {connectedPage && (
-                                    <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-muted">
-                                        <Icon icon={CheckCircle} size="xs" className="text-ds-status-success-fg" />
-                                        Active Page: <span className="truncate font-medium text-ds-content">{connectedPage}</span>
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="w-full shrink-0 sm:w-auto">
-                            {connectedPage ? (
-                                <Button variant="secondary" disabled fullWidth>
-                                    Connected
-                                </Button>
-                            ) : (
-                                <Button
-                                    variant="primary"
-                                    fullWidth
-                                    onClick={handleConnectFacebook}
-                                    disabled={connecting || !isSdkLoaded}
-                                    loading={connecting}
-                                >
-                                    {!connecting && <Icon icon={Megaphone} />}
-                                    {connecting ? 'Connecting...' : 'Connect Facebook'}
-                                </Button>
-                            )}
-                            {!isSdkLoaded && !connecting && (
-                                <FieldMessage tone="help" role="status" className="mt-ds-1 text-center">
-                                    <Icon icon={Loader2} size="xs" className="animate-spin" /> SDK Loading...
-                                </FieldMessage>
                             )}
                         </div>
                     </div>
-                </Card>
 
-                {/*
-                  No `opacity-*` dimming here: applying it to the whole card
-                  (as the pre-migration markup did) scales every descendant
-                  color toward the background, including the approved
-                  `--ds-color-content-muted` token — dropping its contrast
-                  below WCAG AA even though the token itself passes on its own
-                  (enforced by `design-system/tests/tokens.test.js`). A real
-                  Chromium axe scan caught this. The placeholder look is
-                  carried by the dashed border and muted icon/text tokens
-                  instead, at full opacity.
-
-                  However much headroom the token has, `opacity` on an
-                  ancestor composites every descendant toward the background.
-                */}
-                <Card padding="md" className="flex flex-col items-center justify-center border-dashed text-center">
-                    <div className="mb-ds-3 flex h-10 w-10 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted">
-                        <Icon icon={Blocks} size="xl" />
+                    <div className="w-full shrink-0 sm:w-auto">
+                        {connectedPage ? (
+                            <Button variant="secondary" disabled fullWidth>
+                                Connected
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="primary"
+                                fullWidth
+                                onClick={handleConnectFacebook}
+                                disabled={connecting || !isSdkLoaded}
+                                loading={connecting}
+                            >
+                                {!connecting && <Icon icon={Megaphone} />}
+                                {connecting ? 'Connecting...' : 'Connect Facebook'}
+                            </Button>
+                        )}
+                        {!isSdkLoaded && !connecting && (
+                            <FieldMessage tone="help" role="status" className="mt-ds-1 text-center">
+                                <Icon icon={Loader2} size="xs" className="animate-spin" /> SDK Loading...
+                            </FieldMessage>
+                        )}
                     </div>
-                    <h2 className="font-semibold text-ds-content-muted">More Integrations Coming Soon</h2>
-                    <p className="mt-ds-1 text-ds-xs text-ds-content-muted">Tenstreet, Driver Pulse, and more.</p>
-                </Card>
-            </ResponsiveGrid>
+                </div>
+            </Card>
         </Stack>
     );
 }
