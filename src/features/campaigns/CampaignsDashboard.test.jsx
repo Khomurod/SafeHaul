@@ -171,7 +171,7 @@ describe('CampaignsDashboard', () => {
         });
 
         // Switch to History/Live tab
-        const historyTab = screen.getByText(/Past Sequences/i); // Or whatever the text is "Past Sequences"
+        const historyTab = screen.getByText(/Sent & live/i); 
         fireEvent.click(historyTab);
 
         // Check if Sessions are shown
@@ -207,7 +207,7 @@ describe('CampaignsDashboard cancel vs delete', () => {
             });
             callbacks.live({ docs: [] });
         });
-        fireEvent.click(screen.getByText(/Past Sequences/i));
+        fireEvent.click(screen.getByText(/Sent & live/i));
     }
 
     it.each(['queued', 'active'])(
@@ -366,7 +366,7 @@ describe('CampaignsDashboard shell', () => {
             sessions: completedSessions(50),
             live: [{ id: 'old-live', name: 'Old Live', status: 'paused', createdAt: { toDate: () => new Date(2025, 0, 1) } }],
         });
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
 
         const cards = screen.getAllByTestId('campaign-card');
         expect(cards).toHaveLength(51);
@@ -403,7 +403,7 @@ describe('CampaignsDashboard shell', () => {
     it('says how many campaigns exist and loads older ones with a window of 100', async () => {
         serverTotals.count = 120;
         await renderReady({ sessions: completedSessions(50) });
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
 
         expect(
             await screen.findByText('Showing 50 of 120 campaigns, newest first. Live campaigns are always listed.'),
@@ -449,7 +449,7 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.queryByText(/Launched draft/)).not.toBeInTheDocument();
     });
 
-    it('offers Load more, not "No Drafts Found", when the newest 50 drafts were all launched', async () => {
+    it('offers Load more, not "No drafts yet", when the newest 50 drafts were all launched', async () => {
         serverTotals.count = 53;
         serverTotals.launched = 50;
         await renderReady({
@@ -458,7 +458,7 @@ describe('CampaignsDashboard shell', () => {
 
         expect(await screen.findByText('Showing the newest 0 of 3 drafts.')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Load more drafts' })).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { name: 'No Drafts Found' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'No drafts yet' })).not.toBeInTheDocument();
     });
 
     // One report screen: the editor's link opens the same details a sent campaign's card opens.
@@ -477,7 +477,7 @@ describe('CampaignsDashboard shell', () => {
 
         // Back from the details, the list shows the sent campaigns it belongs to.
         fireEvent.click(screen.getByRole('button', { name: 'close details' }));
-        expect(screen.getByRole('tab', { name: /Past Sequences/i })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('tab', { name: /Sent & live/i })).toHaveAttribute('aria-selected', 'true');
     });
 
     it("lands on the sent campaigns while a launched campaign's session is not listed yet", async () => {
@@ -487,7 +487,7 @@ describe('CampaignsDashboard shell', () => {
         fireEvent.click(screen.getByRole('button', { name: 'view launched report' }));
 
         expect(screen.queryByTestId('campaign-details')).not.toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Past Sequences/i })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('tab', { name: /Sent & live/i })).toHaveAttribute('aria-selected', 'true');
 
         // The session arrives: its details open.
         await React.act(async () => {
@@ -526,11 +526,11 @@ describe('CampaignsDashboard shell', () => {
         consoleError.mockRestore();
     });
 
-    it('shows the notice on Past Sequences when the live campaigns cannot be loaded, and retries both reads', async () => {
+    it('shows the notice on Sent & live when the live campaigns cannot be loaded, and retries both reads', async () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         await renderReady({ sessions: completedSessions(2) });
         await React.act(async () => { failures.live?.(new Error('unavailable')); });
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
 
         expect(screen.getByText('Campaigns could not be loaded.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -576,7 +576,7 @@ describe('CampaignsDashboard shell', () => {
         });
 
         const draftsTab = screen.getByRole('tab', { name: /Drafts/i });
-        const historyTab = screen.getByRole('tab', { name: /Past Sequences/i });
+        const historyTab = screen.getByRole('tab', { name: /Sent & live/i });
 
         expect(draftsTab).toHaveAttribute('aria-selected', 'true');
         expect(historyTab).toHaveAttribute('aria-selected', 'false');
@@ -595,7 +595,7 @@ describe('CampaignsDashboard shell', () => {
         await renderReady();
 
         const draftsTab = screen.getByRole('tab', { name: /Drafts/i });
-        const historyTab = screen.getByRole('tab', { name: /Past Sequences/i });
+        const historyTab = screen.getByRole('tab', { name: /Sent & live/i });
 
         draftsTab.focus();
         fireEvent.keyDown(draftsTab, { key: 'ArrowRight' });
@@ -636,7 +636,7 @@ describe('CampaignsDashboard shell', () => {
         expect(status).toHaveTextContent(/Synchronizing/i);
     });
 
-    it('keeps Past Sequences synchronizing until its own listeners answer', async () => {
+    it('keeps Sent & live synchronizing until its own listeners answer', async () => {
         const callbacks = {};
         mockOnSnapshot.mockImplementation((q, cb) => {
             callbacks[listenerKind(q)] = cb;
@@ -644,19 +644,19 @@ describe('CampaignsDashboard shell', () => {
         render(<CampaignsDashboard companyId="co-1" />);
 
         await act(async () => { callbacks.drafts({ docs: [] }); });
-        expect(screen.getByRole('heading', { name: 'No Drafts Found' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'No drafts yet' })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
         expect(screen.getByRole('status')).toHaveTextContent(/Synchronizing/i);
-        expect(screen.queryByRole('heading', { name: 'No Campaigns Found' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Nothing sent yet' })).not.toBeInTheDocument();
 
         await act(async () => { callbacks.history({ docs: [] }); });
         expect(screen.getByRole('status')).toHaveTextContent(/Synchronizing/i);
         await act(async () => { callbacks.live({ docs: [] }); });
-        expect(screen.getByRole('heading', { name: 'No Campaigns Found' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Nothing sent yet' })).toBeInTheDocument();
     });
 
-    it('shows a failed Past Sequences listener at once, even while the other is pending', async () => {
+    it('shows a failed Sent & live listener at once, even while the other is pending', async () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const callbacks = {};
         const failures = {};
@@ -666,7 +666,7 @@ describe('CampaignsDashboard shell', () => {
         });
         render(<CampaignsDashboard companyId="co-1" />);
         await act(async () => { callbacks.drafts({ docs: [] }); });
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
 
         await act(async () => { failures.history(new Error('unavailable')); });
         expect(screen.queryByText(/Synchronizing/i)).not.toBeInTheDocument();
@@ -678,11 +678,11 @@ describe('CampaignsDashboard shell', () => {
     it('renders empty-state headings and a create action per tab', async () => {
         await renderReady({ drafts: [], sessions: [] });
 
-        expect(screen.getByRole('heading', { name: 'No Drafts Found' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Define Initial Campaign' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'No drafts yet' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Create your first campaign' })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
-        expect(screen.getByRole('heading', { name: 'No Campaigns Found' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
+        expect(screen.getByRole('heading', { name: 'Nothing sent yet' })).toBeInTheDocument();
     });
 
     it('passes the frozen props to CampaignCard for drafts and sessions', async () => {
@@ -698,7 +698,7 @@ describe('CampaignsDashboard shell', () => {
         // A sent campaign's report is its details, which onClick opens: no second link.
         expect(draftProps).not.toHaveProperty('onViewReport');
 
-        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /Sent & live/i }));
 
         const sessionProps = mockCardProps.find((p) => p.campaign.id === 's1');
         expect(typeof sessionProps.onCancel).toBe('function'); // sessions offer Cancel
@@ -750,7 +750,7 @@ describe('CampaignsDashboard campaign details', () => {
             callbacks.live({ docs: [] });
         });
         await emit([session(10)]);
-        fireEvent.click(screen.getByText(/Past Sequences/i));
+        fireEvent.click(screen.getByText(/Sent & live/i));
         fireEvent.click(screen.getByText('open s1'));
     };
 

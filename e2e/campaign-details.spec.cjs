@@ -11,7 +11,7 @@ const URL = '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock';
 async function openDetails(page) {
   await page.goto(URL);
   await expect(page.getByRole('heading', { name: 'Campaigns' })).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('tab', { name: /Past Sequences/i }).click();
+  await page.getByRole('tab', { name: /Sent & live/i }).click();
   await expect(page.getByText('E2E Completed Session')).toBeVisible();
   await page.getByRole('button', { name: /Details/ }).click();
   await expect(page.getByRole('heading', { name: 'E2E Completed Session' })).toBeVisible();

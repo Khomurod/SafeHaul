@@ -215,7 +215,7 @@ const SCREENS = [
 
 /** Opens the seeded finished campaign's details, its report, as a person would. */
 async function openFinishedCampaign(page) {
-    await page.getByRole('tab', { name: /Past Sequences/i }).click();
+    await page.getByRole('tab', { name: /Sent & live/i }).click();
     await page.getByRole('button', { name: /^Details$/i }).first().click();
 }
 

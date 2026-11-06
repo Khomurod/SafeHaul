@@ -25,7 +25,7 @@ import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 // every other page-level view switcher.
 const CAMPAIGN_TABS = [
     { id: 'drafts', label: 'Drafts', icon: LayoutGrid },
-    { id: 'history', label: 'Past Sequences', icon: History },
+    { id: 'history', label: 'Sent & live', icon: History },
 ];
 
 // One `useLoadMoreFocus` per tab, so a tab switch keeps each list's focus state.
@@ -71,7 +71,7 @@ export function CampaignsDashboard({ companyId }) {
     }
 
     // The active tab decides which frozen list feeds the card grid, and the
-    // spinner follows that list: Past Sequences waits for its history and live
+    // spinner follows that list: Sent & live waits for its history and live
     // listeners rather than showing "No Campaigns Found" first. A failure shows
     // at once, even while the other listener is still pending.
     const activeList = activeTab === 'drafts' ? drafts : sessions;
@@ -175,7 +175,7 @@ export function CampaignsDashboard({ companyId }) {
                 campaignId={openCampaign.id}
                 isNew={openCampaign.isNew}
                 onClose={() => setOpenCampaign(null)}
-                // A launched draft's report: the same screen its card opens on Past Sequences.
+                // A launched draft's report: the same screen its card opens on Sent & live.
                 onViewReport={(sessionId) => {
                     setOpenCampaign(null);
                     setActiveTab('history');
@@ -204,11 +204,11 @@ export function CampaignsDashboard({ companyId }) {
                 <Stack gap="lg">
                     <PageHeader
                         title="Campaigns"
-                        description="Design and deploy bulk engagement sequences to reactivate your driver database."
+                        description="Text or email a group of your leads at once."
                         actions={
                             <Button variant="primary" onClick={handleNewCampaign}>
                                 <Icon icon={Plus} size="lg" />
-                                Create Campaign
+                                Create campaign
                             </Button>
                         }
                     />
@@ -269,13 +269,13 @@ export function CampaignsDashboard({ companyId }) {
                                         <Icon icon={Rocket} size="3xl" />
                                     </span>
                                     <h2 className="text-ds-heading-md font-bold text-ds-content">
-                                        No {activeTab === 'drafts' ? 'Drafts' : 'Campaigns'} Found
+                                        {activeTab === 'drafts' ? 'No drafts yet' : 'Nothing sent yet'}
                                     </h2>
                                     <p className="max-w-sm text-ds-sm text-ds-content-muted">
-                                        Ready to reactivate your driver database? Create your first automated messaging sequence.
+                                        Create a campaign to text or email a group of your leads.
                                     </p>
                                     <Button variant="primary" onClick={handleNewCampaign}>
-                                        Define Initial Campaign
+                                        Create your first campaign
                                     </Button>
                                 </div>
                             ) : (

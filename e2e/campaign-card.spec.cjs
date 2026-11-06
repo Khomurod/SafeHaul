@@ -53,9 +53,9 @@ test.describe('CampaignCard compatibility slice', () => {
     expect(focus.boxShadow !== 'none' || focus.outline !== 'none').toBe(true);
   });
 
-  test('opens a completed session in Past Sequences from Details, its one report', async ({ page }) => {
+  test('opens a completed session in Sent & live from Details, its one report', async ({ page }) => {
     await openCampaigns(page);
-    await page.getByRole('tab', { name: /Past Sequences/i }).click();
+    await page.getByRole('tab', { name: /Sent & live/i }).click();
     await expect(page.getByText('E2E Completed Session')).toBeVisible();
     await expect(page.getByText('Completed', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /View Report/i })).toHaveCount(0);

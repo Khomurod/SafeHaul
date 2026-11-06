@@ -308,7 +308,7 @@ const SCREENS = [
         name: 'company-campaign-results',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
         open: async (page) => {
-            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('tab', { name: /Sent & live/i }).click();
             await page.getByRole('button', { name: /^Details$/i }).first().click();
             await page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }).waitFor();
             // Only the panel that scrolls moves: `scrollIntoView` would also shift the
