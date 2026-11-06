@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon, Plus, Rocket, History, LayoutGrid, Users, Zap, Loader2 } from '@design-system/icons';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { isCancellableSessionStatus } from './constants/campaignConstants';
@@ -9,9 +9,10 @@ import { CampaignListMore } from './components/CampaignListMore';
 import { CampaignEditor } from './CampaignEditor';
 import { CampaignDetails } from './components/CampaignDetails';
 import { useCampaignLists } from './hooks/useCampaignLists';
+import { useCampaignSessionById } from './hooks/useCampaignSessionById';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
-import { ConfirmDialog } from '@design-system/patterns';
+import { ConfirmDialog, LoadingState } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -56,6 +57,21 @@ export function CampaignsDashboard({ companyId }) {
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
     // The newest 50 of each list (more on request) and every live campaign; the two numbers stay exact.
     const { drafts, sessions, liveCount, totalOutreach } = useCampaignLists({ companyId, enabled: isCampaignsEnabled });
+    // The report open, from the loaded list or, for a session it has not loaded, by id.
+    const listedSession = viewingSessionId ? sessions.items.find((session) => session.id === viewingSessionId) : null;
+    const lookup = useCampaignSessionById(isE2ECampaignMock ? null : companyId, listedSession ? null : viewingSessionId);
+    const viewingSession = listedSession ?? lookup.session;
+    // A report that is gone, or cannot be read, says so and leaves nothing pending.
+    useEffect(() => {
+        if (lookup.status !== 'missing' && lookup.status !== 'failed') return;
+        if (lookup.status === 'failed') console.error('Campaign report not read:', lookup.error);
+        setViewingSessionId(null);
+        showError(lookup.status === 'missing'
+            ? 'This campaign report no longer exists.'
+            : plainErrorMessage(lookup.error, 'The campaign report could not be opened.'));
+        // `showError` is the toast's stable callback; only a new outcome reports.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lookup.status, lookup.key]);
     const draftsFocus = useLoadMoreFocus(focusOptions(drafts, companyId));
     const sessionsFocus = useLoadMoreFocus(focusOptions(sessions, companyId));
 
@@ -86,7 +102,8 @@ export function CampaignsDashboard({ companyId }) {
             setOpenCampaign({ id: 'camp_e2e_mock', isNew: false });
             return;
         }
-        setOpenCampaign({ id: `camp_${Date.now()}`, isNew: true });
+        // A Firestore auto-id: two tabs opening a campaign at once get two drafts.
+        setOpenCampaign({ id: doc(collection(db, 'companies', companyId, 'campaign_drafts')).id, isNew: true });
     };
 
     /**
@@ -186,9 +203,17 @@ export function CampaignsDashboard({ companyId }) {
     }
 
     // The details follow the live session, not the copy the card was clicked
-    // with, so progress and status update while they are open; a deleted
-    // session takes them back to the list.
-    const viewingSession = viewingSessionId ? sessions.items.find((session) => session.id === viewingSessionId) : null;
+    // with, so progress and status update while they are open. A session the
+    // list has not loaded (an older one, opened from its draft) is read by id.
+    if (viewingSessionId && !viewingSession && lookup.status === 'loading') {
+        return (
+            <div className="min-h-full bg-ds-canvas">
+                <PageContainer>
+                    <LoadingState title="Opening the report…" />
+                </PageContainer>
+            </div>
+        );
+    }
     if (viewingSession) {
         return (
             <CampaignDetails

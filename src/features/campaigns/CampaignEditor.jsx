@@ -75,6 +75,10 @@ export function CampaignEditor({ companyId, campaignId, isNew = false, onClose, 
     const isInitializedRef = React.useRef(isNew);
     // Whether the draft is stored: the ref decides what a save writes, the state shows it.
     const storedRef = React.useRef(!isNew);
+    // Saves run one after another, so a save made while the first is on its
+    // way (an autosave and the save before Launch) updates the draft the first
+    // created rather than creating it again with later times.
+    const saveChainRef = React.useRef(Promise.resolve());
     const [isStored, setIsStored] = useState(!isNew);
     const reportedAudienceRef = React.useRef(null);
 
@@ -113,13 +117,18 @@ export function CampaignEditor({ companyId, campaignId, isNew = false, onClose, 
 
     // The first save creates the draft, every later one updates it. The id is
     // fixed when the editor opens, so saves that overlap still make one draft.
-    const persist = useCallback(async (data) => {
-        const saved = await saveDraft(campaignId, draftToSave(data), { create: !storedRef.current });
-        if (saved) {
-            storedRef.current = true;
-            setIsStored(true);
-        }
-        return saved;
+    const persist = useCallback((data) => {
+        const run = saveChainRef.current.then(async () => {
+            const saved = await saveDraft(campaignId, draftToSave(data), { create: !storedRef.current });
+            if (saved) {
+                storedRef.current = true;
+                setIsStored(true);
+            }
+            return saved;
+        });
+        // A failed save does not stop the next one from running.
+        saveChainRef.current = run.catch(() => {});
+        return run;
     }, [campaignId, saveDraft]);
 
     // 2. Auto-Save Logic (Write)

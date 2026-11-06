@@ -195,6 +195,10 @@ describe('CampaignEditor — a new campaign', () => {
 
         expect(fs.setDoc).toHaveBeenCalledTimes(2);
         expect(fs.setDoc.mock.calls.map(([ref]) => ref.path)).toEqual([DRAFT_PATH, DRAFT_PATH]);
+        // The save before Launch waited for the first and only updated what it created.
+        expect(fs.setDoc.mock.calls[0][1]).toMatchObject({ createdAt: '__now__' });
+        expect(fs.setDoc.mock.calls[1][1]).not.toHaveProperty('createdAt');
+        expect(fs.setDoc.mock.calls[1][1]).not.toHaveProperty('updatedAt');
         expect(launch.initBulkSession.mock.calls[0][0].campaignId).toBe('camp_new');
     });
 });

@@ -264,3 +264,23 @@ describe('UserProfilePage — profile save', () => {
     });
 });
 
+
+describe('UserProfilePage unsaved name', () => {
+    it('asks before leaving with a changed name, and stops asking once it is saved', async () => {
+        const { renderWithLeaveGuard, browserWouldAsk } = await import('@features/settings/components/leaveGuard.support');
+        const { leave } = renderWithLeaveGuard(<UserProfilePage />);
+        await hydrated();
+        expect(browserWouldAsk()).toBe(false);
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Display Name' }), { target: { value: 'Typed Name' } });
+        expect(browserWouldAsk()).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Leave this page' }));
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(leave).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: /keep editing/i }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Profile updated successfully!'));
+        expect(browserWouldAsk()).toBe(false);
+    });
+});

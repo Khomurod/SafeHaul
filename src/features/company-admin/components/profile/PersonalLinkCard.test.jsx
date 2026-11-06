@@ -124,7 +124,9 @@ describe('PersonalLinkCard compatibility slice', () => {
             />,
         );
 
-        await waitFor(() => expect(firestoreMocks.setDoc).toHaveBeenCalledOnce());
+        // The rendered link, not the write, is what the page waits for.
+        await waitFor(() => expect(screen.getByText(/\/apply\/safehaul-logistics\?r=[A-HJ-NP-Z2-9]{8}$/)).toBeInTheDocument());
+        expect(firestoreMocks.setDoc).toHaveBeenCalledOnce();
         const [linkReference, linkPayload] = firestoreMocks.setDoc.mock.calls[0];
         const generatedCode = linkReference.replace('recruiter_links/', '');
 
@@ -202,6 +204,16 @@ describe('PersonalLinkCard compatibility slice', () => {
         ));
         expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
         expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
+    });
+
+    it("offers no stand-in link when the company's apply page has no address", async () => {
+        render(
+            <PersonalLinkCard currentUser={currentUser} currentCompanyProfile={{ id: 'company-1', appSlug: '' }} />,
+        );
+
+        expect(await screen.findByText(/application page has no address yet/)).toBeInTheDocument();
+        expect(screen.queryByText(/\/apply\//)).toBeNull();
+        expect(screen.queryByRole('button', { name: /copy/i })).toBeNull();
     });
 
     it('offers no link to copy, and no spinner, when no one is signed in', async () => {

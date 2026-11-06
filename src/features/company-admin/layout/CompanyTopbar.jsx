@@ -5,7 +5,7 @@ import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
 import { Avatar, ButtonLink, IconButton } from '@/design-system/components';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { NotificationDropdown } from '../components/NotificationDropdown';
-import { getPortalUser } from '@features/auth';
+import { getPortalUser, onPortalUserForgotten } from '@features/auth';
 import { isSuperAdminClaims } from '@app/auth/roles';
 
 const PROFILE_PATH = '/company/profile';
@@ -36,11 +36,13 @@ export const CompanyTopbar = ({
     const [displayName, setDisplayName] = useState(currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User');
 
     useEffect(() => {
+        let current = true;
         const fetchUserName = async () => {
             if (!currentUser?.uid) return;
             try {
                 // Try to get name from Firestore profile which is more reliable
                 const userDoc = await getPortalUser(currentUser.uid);
+                if (!current) return;
                 if (userDoc?.name) {
                     setDisplayName(userDoc.name);
                 } else if (currentUser.displayName) {
@@ -51,6 +53,14 @@ export const CompanyTopbar = ({
             }
         };
         fetchUserName();
+        // A name saved on Profile forgets the kept copy: read it again.
+        const unsubscribe = onPortalUserForgotten((userId) => {
+            if (!userId || userId === currentUser?.uid) fetchUserName();
+        });
+        return () => {
+            current = false;
+            unsubscribe();
+        };
     }, [currentUser]);
 
     // `false` when the person is still signed in, so the unsaved-changes

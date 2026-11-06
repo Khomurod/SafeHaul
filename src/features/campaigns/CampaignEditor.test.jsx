@@ -152,8 +152,9 @@ describe('CampaignEditor — autosave', () => {
         act(() => { vi.advanceTimersByTime(1500); });
         expect(draft.saveDraft).not.toHaveBeenCalled();
 
-        // At 2s: saved once, with rawData stripped from filters.
+        // At 2s: saved once (after the save before it, if any), with rawData stripped from filters.
         act(() => { vi.advanceTimersByTime(500); });
+        await act(async () => { await Promise.resolve(); });
         expect(draft.saveDraft).toHaveBeenCalledTimes(1);
         const [savedId, payload, options] = draft.saveDraft.mock.calls[0];
         expect(savedId).toBe('camp1');
@@ -330,6 +331,7 @@ describe('CampaignEditor — a launched campaign', () => {
         act(() => { fireEvent.click(screen.getByText('emit-audience')); });
 
         act(() => { vi.advanceTimersByTime(2500); });
+        await act(async () => { await Promise.resolve(); });
 
         expect(draft.saveDraft).toHaveBeenCalledTimes(1);
         expect(draft.saveDraft.mock.calls[0][0]).toBe('camp1');

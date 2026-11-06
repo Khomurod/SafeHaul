@@ -6,8 +6,10 @@ import React from 'react';
 import { useData } from '@/context/DataContext';
 
 // Mocks
+// One toast for the whole render, so a test can read what it said.
+const toastMocks = { showSuccess: vi.fn(), showError: vi.fn() };
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-    useToast: vi.fn(() => ({ showSuccess: vi.fn(), showError: vi.fn() }))
+    useToast: vi.fn(() => toastMocks)
 }));
 
 vi.mock('@/context/DataContext', () => ({
@@ -24,6 +26,7 @@ const mockOnSnapshot = vi.fn();
 const mockDeleteDoc = vi.fn();
 const mockSetDoc = vi.fn();
 const mockCollection = vi.fn((...a) => ({ __collection: a }));
+let mockAutoIds = 0;
 const mockUnsubscribes = [];
 const serverTotals = {};
 const resetServerTotals = () => Object.assign(serverTotals, { count: 0, launched: 0, outreach: 0, outreachError: null });
@@ -51,7 +54,8 @@ vi.mock('firebase/firestore', () => ({
         mockUnsubscribes.push(unsub);
         return unsub;
     },
-    doc: (_db, ...segs) => ({ path: segs.join('/') }),
+    // `doc(collectionRef)` makes a new auto-id, as Firestore does.
+    doc: (_db, ...segs) => (segs.length ? { path: segs.join('/') } : { id: `auto_${++mockAutoIds}` }),
     setDoc: (...a) => mockSetDoc(...a),
     deleteDoc: (...args) => mockDeleteDoc(...args),
     serverTimestamp: () => '__serverTimestamp__'
@@ -60,6 +64,8 @@ vi.mock('firebase/firestore', () => ({
 // Which of the dashboard's listeners a query belongs to: the drafts, the live
 // sessions (the only one filtered by status) or the session history.
 const listenerKind = (q) => {
+    // One session read by its id (a report the list has not loaded).
+    if (q?.path) return 'session';
     const text = JSON.stringify(q);
     if (text.includes('campaign_drafts')) return 'drafts';
     return text.includes('__where') ? 'live' : 'history';
@@ -480,20 +486,43 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.getByRole('tab', { name: /Sent & live/i })).toHaveAttribute('aria-selected', 'true');
     });
 
-    it("lands on the sent campaigns while a launched campaign's session is not listed yet", async () => {
+    it("reads a launched campaign's session by id when the list has not loaded it", async () => {
         await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
         fireEvent.click(screen.getByText('open d1'));
 
         fireEvent.click(screen.getByRole('button', { name: 'view launched report' }));
 
+        // Nothing hidden is pending: the page says it is opening the report.
         expect(screen.queryByTestId('campaign-details')).not.toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Sent & live/i })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('heading', { name: 'Opening the report…' })).toBeInTheDocument();
+        expect(queriesOf('session').map((q) => q.path)).toEqual(['companies/co-1/bulk_sessions/session-launched']);
 
-        // The session arrives: its details open.
+        await React.act(async () => {
+            callbacks.session({ id: 'session-launched', exists: () => true, data: () => ({ name: 'Spring drive', status: 'active' }) });
+        });
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: active, 0 sent');
+
+        // Back from the details, the list shows the sent campaigns it belongs to.
+        fireEvent.click(screen.getByRole('button', { name: 'close details' }));
+        expect(screen.getByRole('tab', { name: /Sent & live/i })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('says so, and opens nothing later, when the report no longer exists', async () => {
+        await renderReady({ drafts: [{ id: 'd1', name: 'Draft A', status: 'draft' }] });
+        fireEvent.click(screen.getByText('open d1'));
+        fireEvent.click(screen.getByRole('button', { name: 'view launched report' }));
+
+        await React.act(async () => {
+            callbacks.session({ id: 'session-launched', exists: () => false, data: () => undefined });
+        });
+
+        expect(toastMocks.showError).toHaveBeenCalledWith('This campaign report no longer exists.');
+        expect(screen.queryByRole('heading', { name: 'Opening the report…' })).not.toBeInTheDocument();
+        // The session turning up in the list later does not open it unasked.
         await React.act(async () => {
             callbacks.history(snapshot([{ id: 'session-launched', name: 'Spring drive', status: 'active' }]));
         });
-        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: active, 0 sent');
+        expect(screen.queryByTestId('campaign-details')).not.toBeInTheDocument();
     });
 
     it('starts a fresh editor for each campaign: a new one, then a stored draft', async () => {
@@ -506,7 +535,7 @@ describe('CampaignsDashboard shell', () => {
 
         // The draft's editor holds none of the new campaign's state, and is no new campaign.
         expect(mockEditorMounts).toHaveLength(2);
-        expect(mockEditorMounts[0]).toEqual({ campaignId: expect.stringMatching(/^camp_\d+$/), isNew: true });
+        expect(mockEditorMounts[0]).toEqual({ campaignId: expect.stringMatching(/^auto_\d+$/), isNew: true });
         expect(mockEditorMounts[1]).toEqual({ campaignId: 'd1', isNew: false });
         expect(mockSetDoc).not.toHaveBeenCalled();
     });
@@ -622,7 +651,7 @@ describe('CampaignsDashboard shell', () => {
         });
 
         expect(screen.getByText('Editor')).toBeInTheDocument();
-        expect(mockEditorMounts).toEqual([{ campaignId: expect.stringMatching(/^camp_\d+$/), isNew: true }]);
+        expect(mockEditorMounts).toEqual([{ campaignId: expect.stringMatching(/^auto_\d+$/), isNew: true }]);
 
         fireEvent.click(screen.getByRole('button', { name: 'close editor' }));
         expect(screen.getByRole('tablist', { name: 'Campaign views' })).toBeInTheDocument();
@@ -765,12 +794,29 @@ describe('CampaignsDashboard campaign details', () => {
         expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: completed, 100 sent');
     });
 
-    it('goes back to the list when the open session is deleted', async () => {
+    it('goes back to the list, and says why, when the open session is deleted', async () => {
         await openDetails();
 
+        // It leaves the list, so it is read by id: and it is gone.
         await emit([]);
+        await React.act(async () => {
+            callbacks.session({ id: 'gone', exists: () => false, data: () => undefined });
+        });
 
         expect(screen.queryByTestId('campaign-details')).not.toBeInTheDocument();
         expect(screen.getByRole('tablist')).toBeInTheDocument();
+        expect(toastMocks.showError).toHaveBeenCalledWith('This campaign report no longer exists.');
+    });
+
+    it('keeps the details open when the session only leaves the loaded list', async () => {
+        await openDetails();
+
+        await emit([]);
+        expect(queriesOf('session').map((q) => q.path)).toEqual(['companies/co1/bulk_sessions/s1']);
+        await React.act(async () => {
+            callbacks.session({ id: 's1', exists: () => true, data: () => ({ name: 'Older drive', status: 'completed' }) });
+        });
+
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Older drive: completed');
     });
 });

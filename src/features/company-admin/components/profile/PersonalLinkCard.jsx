@@ -59,13 +59,15 @@ export function PersonalLinkCard({ currentUser, currentCompanyProfile }) {
         return () => { current = false; };
     }, [uid, companyId, showError]);
 
-    const companySlug = currentCompanyProfile?.appSlug || 'general';
+    // The link is the company's own apply page: without its address there is
+    // none to share (no stand-in address, which could open another page).
+    const companySlug = String(currentCompanyProfile?.appSlug || '').trim();
     const cleanBaseUrl = appBaseUrl.replace(/\/$/, "");
 
     // Without a signed-in user there is no one to assign, so there is no link.
     let uniqueLink = null;
-    if (recruitingCode) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`;
-    else if (uid) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?recruiter=${uid}`;
+    if (companySlug && recruitingCode) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`;
+    else if (companySlug && uid) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?recruiter=${uid}`;
 
     const handleCopyLink = async () => {
         if (!uniqueLink) return;
@@ -114,7 +116,9 @@ export function PersonalLinkCard({ currentUser, currentCompanyProfile }) {
                         </div>
                     ) : !uniqueLink ? (
                         <p className="text-ds-sm text-ds-content-secondary">
-                            Sign in again to see your link.
+                            {uid && !companySlug
+                                ? "Your company's application page has no address yet, so there is no link to share. SafeHaul support can set one."
+                                : 'Sign in again to see your link.'}
                         </p>
                     ) : (
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-ds-surface p-2 rounded-ds-md border border-ds-status-info-border">

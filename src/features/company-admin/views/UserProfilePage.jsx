@@ -16,6 +16,7 @@ import {
     Input,
 } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
+import { useUnsavedChanges } from '@/design-system/patterns';
 import { ProfileAvatarField } from '@features/company-admin/components/profile/ProfileAvatarField';
 import { PersonalLinkCard } from '@features/company-admin/components/profile/PersonalLinkCard';
 
@@ -47,6 +48,9 @@ export const UserProfilePage = () => {
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+    // The name as read or last saved: an unsaved change to it asks before the page is left.
+    const [savedName, setSavedName] = useState('');
+    useUnsavedChanges(profileData.displayName.trim() !== savedName.trim());
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -73,6 +77,7 @@ export const UserProfilePage = () => {
                 }
 
                 setProfileData(data);
+                setSavedName(data.displayName);
                 setNewEmail(currentUser.email || ''); // Init email edit field
             }
         };
@@ -147,6 +152,7 @@ export const UserProfilePage = () => {
             await updateDoc(doc(db, "users", currentUser.uid), {
                 name: profileData.displayName.trim(),
             });
+            setSavedName(profileData.displayName.trim());
             // The next screen to show the name reads it again.
             forgetPortalUser(currentUser.uid);
 

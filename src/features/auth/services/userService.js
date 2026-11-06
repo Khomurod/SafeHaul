@@ -47,9 +47,22 @@ export function getPortalUser(userId, { fresh = false } = {}) {
   return entry.promise;
 }
 
-/** After a write to a profile, so its next reader reads it again; with no id, forgets whatever is kept. */
+const forgetListeners = new Set();
+
+/**
+ * After a write to a profile, so its next reader reads it again; with no id,
+ * forgets whatever is kept. A shown copy (the top bar's name) hears of it
+ * through `onPortalUserForgotten` and reads again.
+ */
 export function forgetPortalUser(userId) {
   if (!userId || cached?.userId === userId) cached = null;
+  forgetListeners.forEach((listener) => listener(userId));
+}
+
+/** Calls `listener(userId)` whenever a profile is forgotten; returns the unsubscribe. */
+export function onPortalUserForgotten(listener) {
+  forgetListeners.add(listener);
+  return () => forgetListeners.delete(listener);
 }
 
 export async function updateUser(userId, data, companyId = null) {

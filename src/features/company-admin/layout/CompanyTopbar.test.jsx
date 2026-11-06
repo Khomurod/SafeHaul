@@ -11,7 +11,21 @@ import { DataContext } from '@/context/DataContext';
 import { useUnsavedChanges } from '@/design-system/patterns';
 import { UnsavedChangesBoundary } from './UnsavedChangesBoundary';
 
-vi.mock('@features/auth', () => ({ getPortalUser: vi.fn(async () => null) }));
+const auth = vi.hoisted(() => {
+    const listeners = new Set();
+    return {
+        profile: null,
+        listeners,
+        forget: (userId) => listeners.forEach((listener) => listener(userId)),
+    };
+});
+vi.mock('@features/auth', () => ({
+    getPortalUser: vi.fn(async () => auth.profile),
+    onPortalUserForgotten: (listener) => {
+        auth.listeners.add(listener);
+        return () => auth.listeners.delete(listener);
+    },
+}));
 // The bell, reduced to the moves it makes off the page.
 vi.mock('../components/NotificationDropdown', () => ({
     NotificationDropdown: ({ onOpenDocuments, onOpenAssignedLeads }) => (
@@ -61,6 +75,7 @@ function renderTopbar({ unsaved = false } = {}) {
 }
 
 beforeEach(() => {
+    auth.profile = null;
     logoutWorks = true;
     handleLogout.mockClear();
     returnToCompanyChooser.mockClear();
@@ -152,6 +167,18 @@ describe('CompanyTopbar: the name and avatar open Profile', () => {
         // The name arrives from the profile read, the role from the claims.
         await waitFor(() => expect(profileLink()).toHaveAccessibleName('Your profile: admin Company Admin'));
         expect(profileLink()).toHaveAttribute('href', '/company/profile');
+    });
+
+    it('shows a name saved on Profile without a reload', async () => {
+        auth.profile = { name: 'Old Name' };
+        renderTopbar();
+        await waitFor(() => expect(profileLink()).toHaveAccessibleName('Your profile: Old Name Company Admin'));
+
+        // Profile saves the name, then forgets the kept profile.
+        auth.profile = { name: 'New Name' };
+        auth.forget('user-1');
+
+        await waitFor(() => expect(profileLink()).toHaveAccessibleName('Your profile: New Name Company Admin'));
     });
 
     it('opens Profile in place on a plain press', () => {
