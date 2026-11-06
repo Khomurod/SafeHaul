@@ -4,7 +4,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { auth, db } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { updateProfile, updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Icon, User, Mail, Lock, Save } from '@design-system/icons';
 import { forgetPortalUser, getPortalUser } from '@features/auth/services/userService';
@@ -17,7 +17,13 @@ import {
 } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { ProfileAvatarField } from '@features/company-admin/components/profile/ProfileAvatarField';
+import { PersonalLinkCard } from '@features/company-admin/components/profile/PersonalLinkCard';
 
+/**
+ * Profile: every staff member's own page — their personal application link,
+ * name, photo, sign-in email and password. Settings no longer has a profile
+ * section; its old address opens this page.
+ */
 export const UserProfilePage = () => {
     const { currentUser, currentCompanyProfile } = useData();
     const { showSuccess, showError } = useToast();
@@ -26,7 +32,6 @@ export const UserProfilePage = () => {
         displayName: '',
         email: '',
         photoURL: '',
-        username: ''
     });
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
@@ -51,7 +56,6 @@ export const UserProfilePage = () => {
                     displayName: currentUser.displayName || '',
                     email: currentUser.email || '',
                     photoURL: currentUser.photoURL || '',
-                    username: ''
                 };
 
                 // Fetch extended data from Firestore, fresh: this form saves it
@@ -61,7 +65,6 @@ export const UserProfilePage = () => {
                     if (userDoc) {
                         // Prefer Firestore name over Auth displayName
                         data.displayName = userDoc.name || userDoc.displayName || data.displayName;
-                        data.username = userDoc.username || '';
                         // Prefer Firestore photo if available, else Auth
                         if (userDoc.photoURL) data.photoURL = userDoc.photoURL;
                     }
@@ -124,7 +127,7 @@ export const UserProfilePage = () => {
         }
     };
 
-    // --- Profile Save (Name & Username) ---
+    // --- Profile Save (Name) ---
     const handleSaveProfile = async () => {
         if (!profileData.displayName.trim()) {
             showError('Display name cannot be empty.');
@@ -132,31 +135,6 @@ export const UserProfilePage = () => {
         }
         setIsSavingProfile(true);
         try {
-            // Username uniqueness check (best-effort, non-blocking).
-            // SEC-002: the global `users` collection is no longer listable across
-            // tenants by company staff, so this cross-company query is only allowed
-            // for super admins. For everyone else it will be permission-denied — we
-            // must skip the courtesy check rather than block the whole profile save
-            // (uniqueness was never server-enforced anyway).
-            const trimmedUsername = profileData.username.trim();
-            if (trimmedUsername) {
-                try {
-                    const usersRef = collection(db, 'users');
-                    const q = query(usersRef, where('username', '==', trimmedUsername));
-                    const snapshot = await getDocs(q);
-                    const otherUsers = snapshot.docs.filter(doc => doc.id !== currentUser.uid);
-                    if (otherUsers.length > 0) {
-                        showError('This username is already taken. Please choose a different one.');
-                        setIsSavingProfile(false);
-                        return;
-                    }
-                } catch (usernameCheckErr) {
-                    // Permission-denied (non-super-admin) or transient error: skip the
-                    // client-side uniqueness hint and let the save proceed.
-                    console.warn('[UserProfilePage] Username uniqueness check skipped:', usernameCheckErr?.message || usernameCheckErr);
-                }
-            }
-
             // 1. Update Auth
             if (currentUser.displayName !== profileData.displayName) {
                 await updateProfile(auth.currentUser, {
@@ -164,11 +142,12 @@ export const UserProfilePage = () => {
                 });
             }
 
-            // 2. Update Firestore
+            // 2. Update Firestore: only the name. A `username` stored by an
+            // earlier version of this page stays as it is; nothing reads it.
             await updateDoc(doc(db, "users", currentUser.uid), {
                 name: profileData.displayName.trim(),
-                username: trimmedUsername
             });
+            // The next screen to show the name reads it again.
             forgetPortalUser(currentUser.uid);
 
             showSuccess('Profile updated successfully!');
@@ -297,10 +276,18 @@ export const UserProfilePage = () => {
                 <div className="mx-auto w-full max-w-2xl">
                     <Stack gap="lg">
 
+                        {/* A link names the company it applies to: with none chosen there is none. */}
+                        {currentCompanyProfile?.id && (
+                            <PersonalLinkCard
+                                currentUser={currentUser}
+                                currentCompanyProfile={currentCompanyProfile}
+                            />
+                        )}
+
                         {/* Profile Section */}
                         <FormSection
                             title="Profile Information"
-                            description="Your name, photo, username, and sign-in email."
+                            description="Your name, photo, and sign-in email."
                         >
                             {/* Avatar */}
                             <ProfileAvatarField
@@ -314,28 +301,16 @@ export const UserProfilePage = () => {
                                 {currentCompanyProfile?.companyName || 'No Company'}
                             </FieldDisplay>
 
-                            {/* Name & Username */}
-                            <div className="grid grid-cols-1 gap-ds-5 md:grid-cols-2">
-                                <FormField id="profile-display-name" label="Display Name">
-                                    <Input
-                                        type="text"
-                                        name="displayName"
-                                        value={profileData.displayName}
-                                        onChange={handleProfileChange}
-                                        autoComplete="name"
-                                    />
-                                </FormField>
-                                <FormField id="profile-username" label="Username">
-                                    <Input
-                                        type="text"
-                                        name="username"
-                                        value={profileData.username}
-                                        onChange={handleProfileChange}
-                                        placeholder="@username"
-                                        autoComplete="username"
-                                    />
-                                </FormField>
-                            </div>
+                            {/* Name */}
+                            <FormField id="profile-display-name" label="Display Name">
+                                <Input
+                                    type="text"
+                                    name="displayName"
+                                    value={profileData.displayName}
+                                    onChange={handleProfileChange}
+                                    autoComplete="name"
+                                />
+                            </FormField>
 
                             {/* Email */}
                             {!isEditingEmail ? (

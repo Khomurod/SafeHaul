@@ -66,7 +66,7 @@ describe('an empty list nothing narrows', () => {
         page('applications');
 
         expect(emptyState()).toHaveTextContent('No applications yet');
-        expect(emptyState()).toHaveTextContent('Share your personal link (Settings → My profile) with drivers.');
+        expect(emptyState()).toHaveTextContent('Share your personal link (on your Profile page) with drivers.');
         expect(screen.queryByText(/Try adjusting/)).toBeNull();
         expect(screen.queryByRole('button', { name: 'Clear search and filters' })).toBeNull();
     });

@@ -44,9 +44,6 @@ vi.mock('./SmsSettingsTab', () => ({
 vi.mock('./AutomatedSmsTab', () => ({
     AutomatedSmsTab: () => <h1>Automated SMS Content</h1>,
 }));
-vi.mock('./PersonalProfileTab', () => ({
-    PersonalProfileTab: () => <h1>Personal Profile Content</h1>,
-}));
 vi.mock('./IntegrationsTab', () => ({
     IntegrationsTab: () => <h1>Integrations Content</h1>,
 }));
@@ -119,6 +116,7 @@ function renderSettings({
                 <Routes>
                     <Route path="/company/settings" element={<CompanySettings />} />
                     <Route path="/company/dashboard" element={<p>Company dashboard</p>} />
+                    <Route path="/company/profile" element={<h1>Profile page</h1>} />
                 </Routes>
             </UnsavedChangesBoundary>
             <AddressProbe />
@@ -159,24 +157,29 @@ describe('CompanySettings shell', () => {
     it('identifies the current section and keeps focus on the rail', () => {
         renderSettings();
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
-        const myProfile = screen.getByRole('button', { name: 'My profile' });
+        const team = screen.getByRole('button', { name: 'Team' });
         expect(companyProfile).toHaveAttribute('aria-controls', 'company-settings-content');
 
         fireEvent.click(companyProfile);
         expect(companyProfile).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('heading', { name: 'Company Profile Content' })).toBeInTheDocument();
 
-        myProfile.focus();
-        fireEvent.click(myProfile);
-        expect(myProfile).toHaveFocus();
-        expect(myProfile).toHaveAttribute('aria-current', 'page');
+        team.focus();
+        fireEvent.click(team);
+        expect(team).toHaveFocus();
+        expect(team).toHaveAttribute('aria-current', 'page');
         expect(companyProfile).not.toHaveAttribute('aria-current');
-        expect(screen.getByRole('heading', { name: 'Personal Profile Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
+    });
+
+    it('has no My profile: a person changes their own name and link on Profile', () => {
+        renderSettings();
+        expect(screen.queryByRole('button', { name: /My profile/ })).toBeNull();
     });
 
     it('leaves the page heading to each section: one level-1 heading wherever you are', () => {
         renderSettings();
-        const labels = ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile'];
+        const labels = ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan'];
         for (const label of labels) {
             fireEvent.click(screen.getByRole('button', { name: label }));
             expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
@@ -195,14 +198,14 @@ describe('CompanySettings shell', () => {
 
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
         const application = screen.getByRole('button', { name: 'Application questions' });
-        const myProfile = screen.getByRole('button', { name: 'My profile' });
+        const plan = screen.getByRole('button', { name: 'Plan' });
 
         companyProfile.focus();
         fireEvent.keyDown(companyProfile, { key: 'ArrowDown' });
         expect(application).toHaveFocus();
 
         fireEvent.keyDown(application, { key: 'End' });
-        expect(myProfile).toHaveFocus();
+        expect(plan).toHaveFocus();
     });
 
     it('hides Facebook leads with call tracking, and keeps API keys', () => {
@@ -344,7 +347,7 @@ describe('Settings on a phone', () => {
         expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
-        for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
+        for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
         expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
@@ -422,6 +425,14 @@ describe('the settings section in the address', () => {
 
         expect(screen.getByRole('heading', { name: 'SMS Content' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Text messages (SMS)' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it.each([false, true])('opens the Profile page for an old My profile address, keeping the other parameters (phone: %s)', (phone) => {
+        isMobileMock.mockImplementation(() => phone);
+        renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=personal' });
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Profile page' })).toBeInTheDocument();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/profile\?e2eAuth=company_admin$/);
     });
 
     it('opens Company profile for a section this company does not show', () => {

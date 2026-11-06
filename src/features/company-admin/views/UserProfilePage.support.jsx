@@ -33,7 +33,7 @@ export const authFns = {
     reauthenticateWithCredential: vi.fn(),
     credential: vi.fn((email, password) => ({ email, password })),
 };
-export const fsMocks = { updateDoc: vi.fn(), getDocs: vi.fn() };
+export const fsMocks = { updateDoc: vi.fn() };
 export const storageMocks = { uploadBytes: vi.fn(), getDownloadURL: vi.fn() };
 export const firebaseMock = {
     auth: { currentUser: { uid: 'user-1' } },
@@ -60,10 +60,6 @@ export const firebaseAuthMock = () => ({
 export const firebaseFirestoreMock = () => ({
     doc: vi.fn((_db, ...segments) => segments.join('/')),
     updateDoc: fsMocks.updateDoc,
-    collection: vi.fn((_db, name) => ({ collection: name })),
-    query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
-    where: vi.fn((field, op, value) => ({ field, op, value })),
-    getDocs: fsMocks.getDocs,
 });
 export const firebaseStorageMock = () => ({
     ref: vi.fn((_storage, path) => path),
@@ -79,11 +75,6 @@ export const currentUser = {
     displayName: 'Old Name',
     photoURL: AUTH_PHOTO,
 };
-
-export function snapshot(ids = ['user-1']) {
-    return { docs: ids.map((id) => ({ id })) };
-}
-
 
 /**
  * The original `renderPage`, verbatim, except the page arrives as an
@@ -103,7 +94,7 @@ export async function hydrated() {
     const name = await screen.findByRole('textbox', { name: 'Display Name' });
     await waitFor(() => {
         expect(name).toHaveValue('Firestore Name');
-        expect(screen.getByRole('textbox', { name: 'Username' })).toHaveValue('fsuser');
+        expect(screen.getByRole('img', { name: 'Profile photo' })).toHaveAttribute('src', FS_PHOTO);
     });
     return name;
 }
@@ -132,7 +123,6 @@ export function resetHarness() {
     });
     userServiceMocks.forgetPortalUser.mockReset();
     fsMocks.updateDoc.mockReset().mockResolvedValue();
-    fsMocks.getDocs.mockReset().mockResolvedValue(snapshot(['user-1']));
     storageMocks.uploadBytes.mockReset().mockResolvedValue();
     storageMocks.getDownloadURL.mockReset().mockResolvedValue(DOWNLOAD_URL);
     authFns.updateProfile.mockReset().mockResolvedValue();

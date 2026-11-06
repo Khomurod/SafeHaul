@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
-    Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
+    Icon, Building, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
 } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
@@ -11,7 +11,6 @@ import { CompanyProfileTab } from './CompanyProfileTab';
 import { ApplicationFormTab } from './ApplicationFormTab';
 import { TeamManagementTab } from './TeamManagementTab';
 import { EmailSettingsTab } from './EmailSettingsTab';
-import { PersonalProfileTab } from './PersonalProfileTab';
 import { IntegrationsTab } from './IntegrationsTab';
 import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
@@ -61,10 +60,28 @@ function settingsGroups(profile) {
             label: 'Account',
             items: [
                 { id: 'billing', label: 'Plan', icon: CreditCard },
-                { id: 'personal', label: 'My profile', icon: User },
             ],
         },
     ];
+}
+
+/**
+ * Sections that moved out of Settings, and where an old link to one lands now,
+ * with the address's other parameters (`e2eAuth`) kept. My profile is the
+ * Profile page, open to every staff member.
+ */
+const MOVED_SECTIONS = {
+    personal: { pathname: '/company/profile' },
+};
+
+function movedSectionTarget(searchParams) {
+    const moved = MOVED_SECTIONS[searchParams.get('section')];
+    if (!moved) return null;
+    const params = new URLSearchParams(searchParams);
+    if (moved.section) params.set('section', moved.section);
+    else params.delete('section');
+    const search = params.toString();
+    return { pathname: moved.pathname, search: search ? `?${search}` : '' };
 }
 
 /** The phone's menu of sections: shown when the address names no section. */
@@ -72,8 +89,11 @@ const MENU = 'menu';
 
 export function CompanySettings() {
     const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
+    const [searchParams] = useSearchParams();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
 
+    const moved = movedSectionTarget(searchParams);
+    if (moved) return <Navigate to={moved} replace />;
     if (!isCompanyAdmin && currentCompanyProfile) {
         return <Navigate to="/company/dashboard" replace />;
     }
@@ -168,8 +188,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                         isCompanyAdmin={isCompanyAdmin}
                     />
                 );
-            case 'personal':
-                return <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />;
             case 'email':
                 return <EmailSettingsTab currentCompanyProfile={currentCompanyProfile} />;
             case 'sms':

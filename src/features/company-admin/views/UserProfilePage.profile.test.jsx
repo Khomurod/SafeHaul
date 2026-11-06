@@ -1,5 +1,5 @@
 // UserProfilePage contract, part 1 of 2: the initial load and hydration
-// order, the avatar upload path, and the profile save.
+// order, the personal link, the avatar upload path, and the profile save.
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `UserProfilePage.support.jsx`; the registrations below delegate to it. All
 // credentials are artificial, non-production test values only.
@@ -15,6 +15,14 @@ vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/auth', async () => (await import('./UserProfilePage.support')).firebaseAuthMock());
 vi.mock('firebase/firestore', async () => (await import('./UserProfilePage.support')).firebaseFirestoreMock());
 vi.mock('firebase/storage', async () => (await import('./UserProfilePage.support')).firebaseStorageMock());
+// The card has its own suite (`PersonalLinkCard.test.jsx`); here, what it is given.
+vi.mock('@features/company-admin/components/profile/PersonalLinkCard', () => ({
+    PersonalLinkCard: ({ currentUser, currentCompanyProfile }) => (
+        <section aria-label="Your personal link">
+            {`Link for ${currentUser?.uid} at ${currentCompanyProfile?.id}`}
+        </section>
+    ),
+}));
 
 import { UserProfilePage } from './UserProfilePage';
 import {
@@ -27,7 +35,8 @@ import {
     fsMocks,
     storageMocks,
     firebaseMock,
-    snapshot,
+    dataMock,
+    currentUser,
     CURRENT_EMAIL,
     AUTH_PHOTO,
     FS_PHOTO,
@@ -39,7 +48,7 @@ const renderPage = makeRenderPage(UserProfilePage);
 beforeEach(resetHarness);
 
 describe('UserProfilePage — initial load', () => {
-    it('prefers Firestore name/photo/username and initializes the email edit value', async () => {
+    it('prefers Firestore name/photo and initializes the email edit value', async () => {
         renderPage();
 
         // Wait for the async getPortalUser state update to flush before asserting
@@ -47,7 +56,9 @@ describe('UserProfilePage — initial load', () => {
         await waitFor(() => {
             expect(screen.getByRole('textbox', { name: 'Display Name' })).toHaveValue('Firestore Name');
         });
-        expect(screen.getByRole('textbox', { name: 'Username' })).toHaveValue('fsuser');
+        // No Username field: nothing read it. A stored one is neither shown nor written.
+        expect(screen.queryByRole('textbox', { name: 'Username' })).toBeNull();
+        expect(screen.queryByDisplayValue('fsuser')).toBeNull();
         expect(screen.getByRole('img', { name: 'Profile photo' })).toHaveAttribute('src', FS_PHOTO);
         expect(screen.getByText(CURRENT_EMAIL)).toBeInTheDocument();
         expect(screen.getByText('Acme Freight')).toBeInTheDocument();
@@ -87,6 +98,30 @@ describe('UserProfilePage — initial load', () => {
         renderPage();
 
         expect(await screen.findByRole('img', { name: 'Profile photo' })).toHaveAttribute('src', FS_PHOTO);
+    });
+});
+
+describe('UserProfilePage — personal link', () => {
+    it("shows every staff member's personal link for the company in use", async () => {
+        const company = { id: 'company-1', companyName: 'Acme Freight', appSlug: 'acme' };
+        dataMock.value = {
+            currentUser,
+            currentCompanyProfile: company,
+            // A recruiter: the page is the same for every role.
+            currentUserClaims: { roles: { 'company-1': 'recruiter' } },
+        };
+        renderPage();
+        await hydrated();
+
+        expect(screen.getByRole('region', { name: 'Your personal link' }))
+            .toHaveTextContent('Link for user-1 at company-1');
+    });
+
+    it('offers no link while no company is chosen', async () => {
+        renderPage();
+        await hydrated();
+
+        expect(screen.queryByRole('region', { name: 'Your personal link' })).toBeNull();
     });
 });
 
@@ -176,56 +211,27 @@ describe('UserProfilePage — profile save', () => {
         expect(fsMocks.updateDoc).not.toHaveBeenCalled();
     });
 
-    it('runs the username uniqueness query and saves the exact payload', async () => {
-        const { where } = await import('firebase/firestore');
+    it('saves only the name, the field every screen reads, and forgets the kept copy', async () => {
         renderPage();
         await hydrated();
         fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
         await waitFor(() => {
-            expect(fsMocks.updateDoc).toHaveBeenCalledWith('users/user-1', {
-                name: 'Firestore Name',
-                username: 'fsuser',
-            });
+            expect(toastMocks.showSuccess).toHaveBeenCalledWith('Profile updated successfully!');
         });
-        expect(where).toHaveBeenCalledWith('username', '==', 'fsuser');
+        // Exactly `users/{uid}.name`, as Settings → My profile wrote it; a stored
+        // `username` is left as it is.
+        expect(fsMocks.updateDoc).toHaveBeenCalledTimes(1);
+        expect(fsMocks.updateDoc).toHaveBeenCalledWith('users/user-1', { name: 'Firestore Name' });
         // Display name changed from Auth "Old Name", so Auth is updated.
         expect(authFns.updateProfile).toHaveBeenCalledWith(firebaseMock.auth.currentUser, {
             displayName: 'Firestore Name',
         });
-        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Profile updated successfully!');
+        // The next screen to show the name (the top bar after a reload, the
+        // dashboard greeting) reads it again, once the write has landed.
         expect(userServiceMocks.forgetPortalUser).toHaveBeenCalledWith('user-1');
-    });
-
-    it('rejects a username already used by another account', async () => {
-        fsMocks.getDocs.mockResolvedValue(snapshot(['someone-else']));
-        renderPage();
-        await hydrated();
-        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-        await waitFor(() => {
-            expect(toastMocks.showError).toHaveBeenCalledWith(
-                'This username is already taken. Please choose a different one.',
-            );
-        });
-        expect(fsMocks.updateDoc).not.toHaveBeenCalled();
-    });
-
-    it('skips a permission-denied uniqueness check and still saves', async () => {
-        fsMocks.getDocs.mockRejectedValueOnce(new Error('permission-denied'));
-        const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        renderPage();
-        await hydrated();
-        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-        await waitFor(() => {
-            expect(fsMocks.updateDoc).toHaveBeenCalledWith('users/user-1', {
-                name: 'Firestore Name',
-                username: 'fsuser',
-            });
-        });
-        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Profile updated successfully!');
-        consoleWarn.mockRestore();
+        expect(fsMocks.updateDoc.mock.invocationCallOrder[0])
+            .toBeLessThan(userServiceMocks.forgetPortalUser.mock.invocationCallOrder[0]);
     });
 
     it('does not update Auth display name when it is unchanged', async () => {
@@ -239,7 +245,6 @@ describe('UserProfilePage — profile save', () => {
         await waitFor(() => {
             expect(fsMocks.updateDoc).toHaveBeenCalledWith('users/user-1', {
                 name: 'Old Name',
-                username: '',
             });
         });
         expect(authFns.updateProfile).not.toHaveBeenCalled();

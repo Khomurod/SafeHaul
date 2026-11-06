@@ -58,7 +58,7 @@ describe('candidateListEmpty', () => {
         const empty = candidateListEmpty({ scope: 'applications', narrowed: false, onClear: vi.fn() });
 
         expect(empty.title).toBe('No applications yet');
-        expect(empty.description).toMatch(/personal link \(Settings → My profile\)/);
+        expect(empty.description).toMatch(/personal link \(on your Profile page\)/);
         expect(empty.action).toBeUndefined();
     });
 

@@ -108,7 +108,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
     const sections = [
       'Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
-      'API keys', 'Facebook leads', 'Plan', 'My profile',
+      'API keys', 'Facebook leads', 'Plan',
     ];
     for (const label of sections) {
       await expect(page.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeAttached();

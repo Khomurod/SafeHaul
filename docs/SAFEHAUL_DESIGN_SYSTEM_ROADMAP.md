@@ -379,7 +379,7 @@ instead.
 
 | Gap | Status | Call sites, and why the nearest primitive does not fit |
 |---|---|---|
-| **Tinted icon tile** | Open — the largest un-owned shape | A rounded **square** carrying a brand or domain glyph on a brand or status tint: about two dozen sites, 32–80px, e.g. `ReviewChangePortal` (a shield on `bg-ds-action-primary`), `PaywallMessage`, `BrandingSection` (frame-sized glyph), `PersonalProfileTab`. Every rule misses it because each uses correct roles. A status-tinted **circle** around a glyph is `StatusMedallion` today — migrate those. It is also why `Notice`'s `accent`/`neutral` glyph defaults stay recorded guesses |
+| **Tinted icon tile** | Open — the largest un-owned shape | A rounded **square** carrying a brand or domain glyph on a brand or status tint: about two dozen sites, 32–80px, e.g. `ReviewChangePortal` (a shield on `bg-ds-action-primary`), `PaywallMessage`, `BrandingSection` (frame-sized glyph), `PersonalLinkCard`. Every rule misses it because each uses correct roles. A status-tinted **circle** around a glyph is `StatusMedallion` today — migrate those. It is also why `Notice`'s `accent`/`neutral` glyph defaults stay recorded guesses |
 | **Combobox / Listbox** | Open | `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox (`role="combobox"` with `aria-expanded`, `aria-controls`, `aria-activedescendant` over a `role="listbox"`), correctly; nothing owns a text input that filters a list. Worth promoting |
 | **Step indicator (read, not operated)** | Open | `BulkUploadLayout.jsx` (`<li>`) and `SendTemplateWizard.jsx` (`<span>`) carry `aria-current="step"` on a progress display a person reads. `SelectableCard` is for picking and `SectionNavigation` is a navigation rail; `hand-rolled-current` is scoped to `<button>`, so it leaves them alone |
 | **"Badge does not size its glyph"** | Open | `Badge` sizes a glyph passed through its `icon` prop but has no rule for one passed as a child, so `EnvelopeHistory` keeps `size="xs"`; `DataTable` and `SectionNavigation` carry no `> svg` rule either |
@@ -531,7 +531,7 @@ it does:
 | Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
 | Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
 | Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |
-| Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email, Automated texts and My profile; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
+| Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email and Automated texts; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
