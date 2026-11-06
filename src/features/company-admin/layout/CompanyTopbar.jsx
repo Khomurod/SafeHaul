@@ -24,8 +24,8 @@ export const CompanyTopbar = ({
     onOpenRecord,
 }) => {
     const { currentUser, handleLogout, currentCompanyProfile, currentUserClaims, returnToCompanyChooser } = useData();
-    // Switching company, logging out and opening E-Docs from the bell all leave
-    // the page: unsaved changes ask first.
+    // Switching company, logging out and opening E-Docs or the reader's leads
+    // from the bell all leave the page: unsaved changes ask first.
     const guard = useUnsavedChangesGuard();
     const navigate = useNavigate();
     const companyId = currentCompanyProfile?.id;
@@ -94,6 +94,7 @@ export const CompanyTopbar = ({
                     companyId={companyId}
                     onOpenRecord={onOpenRecord}
                     onOpenDocuments={() => guard.request(() => navigate('/company/e-docs'))}
+                    onOpenAssignedLeads={() => guard.request(() => navigate('/company/drivers/leads/my'))}
                 />
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden sm:block" aria-hidden="true" />
