@@ -1233,6 +1233,11 @@ the daily count**; refusing is a recorded outcome.
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
+- **Hire date** — the same application trigger stamps `hiredAt` (server time) whenever the
+  status enters `Hired`/`Approved` by any path: created hired or moved in, never on a save
+  while hired. Leaving hired keeps it; coming back sets it again (a re-hire has its own
+  date). Its own write changes no status, so it neither loops nor moves the counters.
+  Applications only, from 2026-11-06: never backfilled or inferred from other dates.
 - **Signing links** — a new request's email (`notifySigner`) and text (`notifySignerSMS`)
   each claim the event on the request (`emailDeliveryId`, `smsDeliveryId`, with the
   address in `linkSentTo`) before they send, so an event delivered twice sends once.
@@ -1391,6 +1396,9 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   unsigned record `validation_error` and move the dashboard counters before anyone
   read, consented to or signed anything. The driver's own submission promotes a
   draft (§5).
+- **A hire date is never guessed.** `hiredAt` exists only where the server saw the
+  status enter hired (from 2026-11-06, Д15). Older hires stay without one: no backfill,
+  and no hire date read from `createdAt`, `updatedAt`, `statusChangedAt` or Activity.
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
   `onCancel`, so "start a new application" is never the cancel action: Start
   over is its own explicit destructive confirmation, and Escape at either stage

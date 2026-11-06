@@ -181,6 +181,8 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 
 **Earliest valid-until date:** `dqExpiresNext` (`YYYY-MM-DD`) is the earliest `expirationDate` among the record's `dq_files` that are not removed and have one, absent when none has. Server-written only: `onDqFileWritten` (`functions/dqExpiresNext.js`) recomputes it in a transaction when a DQ write can move it and writes it only when it changes; `syncDqFiles` puts it right when the DQ tab opens and the stored value disagrees with the files (records filed before it existed). Read with a single-field range query; it is not a security boundary (the team may write any application field).
 
+**Hire date:** `hiredAt` (Timestamp) is the server's time when the status last entered `Hired` or `Approved`, by any path (`onApplicationWrittenDashboardRollup`, `functions/shared/hireDate.js`). A save while hired leaves it; leaving hired keeps it; coming back sets it again. Recorded from 2026-11-06 only: absent on records hired before, never backfilled or inferred from other dates. Leads have none. Not a security boundary (the team may write any application field).
+
 **Link to a lead:** `fromLeadId` names the company's lead the submitted application was matched to (server-written by `onApplicationSubmitted`, `functions/shared/leadApplicationLink.js`); the lead holds the other half (below).
 
 **Deterministic IDs:** doc ID = truncated SHA-256 of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)), which makes offline-queue retries idempotent upserts instead of duplicates. **Guest submissions go exclusively through the `submitGuestApplication` callable** (Admin SDK, which bypasses these rules); there is no unauthenticated client-write fallback.
