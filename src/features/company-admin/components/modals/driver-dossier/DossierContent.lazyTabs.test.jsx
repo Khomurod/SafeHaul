@@ -130,11 +130,12 @@ describe('a call logged in the dossier', () => {
 });
 
 describe('the DQ File tab', () => {
-    it('takes the record already loaded, for its checklist\'s employers', () => {
+    it('takes the record already loaded, for its checklist\'s employers, and the way to their tab', () => {
         const appData = { employers: [{ companyName: 'Prairie Line Freight' }] };
-        render(<DossierContent activeTab="dq" appData={appData} driverId="app-1" companyId="co-1" collectionName="applications" />);
+        const onOpenTab = vi.fn();
+        render(<DossierContent activeTab="dq" appData={appData} driverId="app-1" companyId="co-1" collectionName="applications" onOpenTab={onOpenTab} />);
 
-        expect(fx.dqProps).toEqual({ companyId: 'co-1', applicationId: 'app-1', collectionName: 'applications', appData });
+        expect(fx.dqProps).toEqual({ companyId: 'co-1', applicationId: 'app-1', collectionName: 'applications', appData, onOpenTab });
         expect(fx.dqProps.appData).toBe(appData);
     });
 });

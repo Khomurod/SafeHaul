@@ -34,7 +34,11 @@ vi.mock('@/context/DataContext', () => ({
 
 // The tab bodies are irrelevant here; the shell is under test.
 vi.mock('./DossierContent', () => ({
-  DossierContent: (props) => <div data-testid="content" data-active-tab={props.activeTab} data-record={props.driverId} />,
+  DossierContent: (props) => (
+    <div data-testid="content" data-active-tab={props.activeTab} data-record={props.driverId}>
+      <button type="button" onClick={() => props.onOpenTab('pev')}>content-open-pev</button>
+    </div>
+  ),
 }));
 vi.mock('./DossierSidebar', () => ({
   DossierSidebar: ({ activeTab, setActiveTab, onOpenRecord, collectionName }) => (
@@ -134,6 +138,20 @@ describe('DriverProfileModal open/close contract', () => {
 
     fireEvent.click(screen.getByText('go-documents'));
     expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'documents');
+  });
+
+  // The DQ file's employers open Previous Employment; the button pressed is gone.
+  it('lets a tab open another, at its top, with the focus on the panel', () => {
+    renderModal();
+    const panel = screen.getByRole('tabpanel');
+    panel.scrollTop = 120;
+
+    fireEvent.click(screen.getByText('content-open-pev'));
+
+    expect(screen.getByTestId('sidebar-active')).toHaveTextContent('pev');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'pev');
+    expect(document.activeElement).toBe(panel);
+    expect(panel.scrollTop).toBe(0);
   });
 
   it('keeps the active-tab state values the sidebar emits', () => {

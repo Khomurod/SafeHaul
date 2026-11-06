@@ -30,8 +30,9 @@ import { fileDriverUploads } from './dqFileSync';
  * Built on the design system's components and `--ds-*` tokens.
  *
  * Presentation only. Frozen and unchanged: the `DQ_FILE_TYPES` and their order
- * (`utils/dqFileTypes.js`, with `[0]` as the initial and post-upload reset value;
- * "CDL" joined them after "Medical Card"); the
+ * (`utils/dqFileTypes.js`; "CDL" joined them after "Medical Card"), none chosen
+ * at first or after an upload (it defaulted to "Application for Employment",
+ * which the server files itself, so nearly every upload began by changing it); the
  * `companies/{companyId}/{collectionName}/{applicationId}/dq_files` sub-collection
  * and its `orderBy('createdAt', 'desc')`; the Storage path
  * `companies/{companyId}/applications/{applicationId}/dq_files/{ms}_{type-with-non-alphanumerics-as-underscores}_{name}`
@@ -43,11 +44,15 @@ import { fileDriverUploads } from './dqFileSync';
  * the DQ tab uploaded; the expiration thresholds (`< 0` expired, `< 30` expiring,
  * now by the UTC day in `utils/dqExpiry.js`); the 2-second upload-message reset;
  * and every user-facing string but the dates' badges, which now say "Expired on
- * …", "Expires on …, in N days" or "Valid until …".
+ * …", "Expires on …, in N days" or "Valid until …", and the two cards' headings,
+ * "Files" and "Upload a file" (the tab's own name is its tab's and the header's).
  *
  * Above the list, "What's in the file" (`DQChecklist`) shows each item of the
  * file and whether it holds it, from the entries read and the record's employers
- * (`appData`, as the dossier read it). A team upload of a CDL, medical card or
+ * (`appData`, as the dossier read it). An item it lacks or holds expired opens
+ * the upload form, below the list, with that item's type chosen; the employers
+ * open the Previous Employment tab (`onOpenTab('pev')`, from the dossier). A
+ * team upload of a CDL, medical card or
  * MVR may carry an optional valid-until date (`expirationDate`, `YYYY-MM-DD`),
  * and a record of those kinds or a TWIC card can have its date set or cleared
  * (`DQFileRow`), logged as `dq_file_updated`. The server keeps the record's
@@ -94,7 +99,7 @@ import { fileDriverUploads } from './dqFileSync';
  * public application's two upload compositions and the PEV result upload.
  */
 
-export function DQFileTab({ companyId, applicationId, collectionName = 'applications', appData = null }) {
+export function DQFileTab({ companyId, applicationId, collectionName = 'applications', appData = null, onOpenTab = null }) {
 
   const [dqFiles, setDqFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +110,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   const [uploadMessage, setUploadMessage] = useState('');
   const [error, setError] = useState('');
   const [fileToUpload, setFileToUpload] = useState(null);
-  const [selectedFileType, setSelectedFileType] = useState(DQ_FILE_TYPES[0]);
+  const [selectedFileType, setSelectedFileType] = useState('');
   // Replaces the blocking `window.confirm` on delete.
   const [pendingDelete, setPendingDelete] = useState(null);
 
@@ -148,6 +153,14 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   const fileInputId = useId();
   // Replaces `document.getElementById('dq-file-input')`.
   const fileInputRef = useRef(null);
+  const uploadFormRef = useRef(null);
+
+  /** A checklist item's Upload: the form, with the item's type chosen and the file picker focused. */
+  const chooseUploadType = (type) => {
+    setSelectedFileType(type);
+    uploadFormRef.current?.scrollIntoView?.({ block: 'nearest' });
+    fileInputRef.current?.focus({ preventScroll: true });
+  };
 
   // --- 1. Get the correct Firestore path ---
   const dqFilesCollectionRef = useMemo(() => {
@@ -195,6 +208,10 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     );
     return () => { current = false; };
   }, [dqFilesCollectionRef]);
+
+  // The upload message's reset, which goes with the tab.
+  const messageTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(messageTimerRef.current), []);
 
   // --- 3. Handle File Upload ---
   const handleUpload = async () => {
@@ -251,12 +268,13 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
 
       setUploadMessage('Upload Complete!');
       setFileToUpload(null);
-      setSelectedFileType(DQ_FILE_TYPES[0]);
+      setSelectedFileType('');
       setValidUntil('');
       if (fileInputRef.current) fileInputRef.current.value = null;
 
       await loadFiles();
-      setTimeout(() => setUploadMessage(''), 2000);
+      clearTimeout(messageTimerRef.current);
+      messageTimerRef.current = setTimeout(() => setUploadMessage(''), 2000);
 
     } catch (err) {
       console.error("Upload failed:", err);
@@ -331,11 +349,49 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
 
   return (
     <Stack gap="lg">
-      {loaded && <DQChecklist files={shownFiles} record={appData} />}
+      {loaded && (
+        <DQChecklist
+          files={shownFiles}
+          record={appData}
+          onUpload={chooseUploadType}
+          onOpenPev={onOpenTab ? () => onOpenTab('pev') : null}
+          disabled={isUploading}
+        />
+      )}
 
       <Card padding="lg">
         <h3 className="mb-ds-4 border-b border-ds-border-subtle pb-ds-2 text-ds-heading-sm font-bold text-ds-content">
-          Add New DQ File
+          Files
+        </h3>
+        <Stack gap="sm">
+          {loading && (
+            <p role="status" className="p-ds-4 text-center text-ds-sm text-ds-content-secondary">
+              Loading DQ files...
+            </p>
+          )}
+          {!loading && shownFiles.length === 0 && (
+            <p className="p-ds-4 text-center text-ds-content-secondary">
+              No DQ files have been uploaded for this driver.
+            </p>
+          )}
+          {!loading && shownFiles.map(file => (
+            <DQFileRow
+              key={file.id}
+              file={file}
+              companyId={companyId}
+              applicationId={applicationId}
+              onAuditedDownload={handleAuditedDownload}
+              onOpenDriverUpload={openDriverUpload}
+              onDelete={setPendingDelete}
+              onSaveExpiration={saveExpiration}
+            />
+          ))}
+        </Stack>
+      </Card>
+
+      <Card ref={uploadFormRef} padding="lg">
+        <h3 className="mb-ds-4 border-b border-ds-border-subtle pb-ds-2 text-ds-heading-sm font-bold text-ds-content">
+          Upload a file
         </h3>
         <Stack gap="md">
           <FormField id={fileTypeFieldId} label="File Type">
@@ -344,6 +400,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               onChange={(e) => setSelectedFileType(e.target.value)}
               disabled={isUploading}
             >
+              <option value="">Choose a type</option>
               {DQ_FILE_TYPES.map(type => (
                 <option key={type} value={type}>{type}</option>
               ))}
@@ -379,7 +436,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
             <Button
               variant="primary"
               onClick={handleUpload}
-              disabled={isUploading || !fileToUpload}
+              disabled={isUploading || !fileToUpload || !selectedFileType}
               loading={isUploading}
             >
               {!isUploading && <Icon icon={Upload} size="xl" />}
@@ -402,36 +459,6 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               <Notice tone="danger" size="sm">{error}</Notice>
             )}
           </div>
-        </Stack>
-      </Card>
-
-      <Card padding="lg">
-        <h3 className="mb-ds-4 border-b border-ds-border-subtle pb-ds-2 text-ds-heading-sm font-bold text-ds-content">
-          Current DQ Files
-        </h3>
-        <Stack gap="sm">
-          {loading && (
-            <p role="status" className="p-ds-4 text-center text-ds-sm text-ds-content-secondary">
-              Loading DQ files...
-            </p>
-          )}
-          {!loading && shownFiles.length === 0 && (
-            <p className="p-ds-4 text-center text-ds-content-secondary">
-              No DQ files have been uploaded for this driver.
-            </p>
-          )}
-          {!loading && shownFiles.map(file => (
-            <DQFileRow
-              key={file.id}
-              file={file}
-              companyId={companyId}
-              applicationId={applicationId}
-              onAuditedDownload={handleAuditedDownload}
-              onOpenDriverUpload={openDriverUpload}
-              onDelete={setPendingDelete}
-              onSaveExpiration={saveExpiration}
-            />
-          ))}
         </Stack>
       </Card>
 

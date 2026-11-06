@@ -1,9 +1,9 @@
 /**
  * What a DQ file entry is, for the DQ tab and its checklist.
  *
- * `DQ_FILE_TYPES` are the types the tab offers for a team upload, `[0]` the
- * default and the value after an upload; a record keeps the chosen one as its
- * `fileType`. The server files the driver's uploads, the preserved original and
+ * `DQ_FILE_TYPES` are the types the tab offers for a team upload, in this
+ * order and with none chosen until the team picks one (the server files the
+ * application itself); a record keeps the chosen one as its `fileType`. The server files the driver's uploads, the preserved original and
  * the PEV and signing PDFs under a `type` of its own (`functions/shared/dqUploads.js`,
  * `preserveApplicationPdf.js`, `employmentVerification/requestAttachment.js`,
  * `sealedDocumentDq.js`), so an entry is named by that first, then by the type

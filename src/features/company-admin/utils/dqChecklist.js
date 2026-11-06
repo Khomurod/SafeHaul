@@ -26,18 +26,20 @@ import { calendarDay, expiryStatus, todayUtc } from './dqExpiry';
  * filed with the driver's uploads (`psp_report`), a team upload by its type.
  */
 
+// `uploadType`: the team-upload type (`DQ_FILE_TYPES`) that files the item, which
+// the DQ tab chooses when the item is pressed.
 const DOCUMENT_ITEMS = Object.freeze([
-    { id: 'application', label: 'Application for employment', kinds: ['application'] },
-    { id: 'cdl', label: 'CDL', kinds: ['cdl'], dated: true },
-    { id: 'medical_card', label: 'Medical card', kinds: ['medical_card'], dated: true },
-    { id: 'mvr', label: 'MVR', kinds: ['mvr'], dated: true },
+    { id: 'application', label: 'Application for employment', kinds: ['application'], uploadType: 'Application for Employment' },
+    { id: 'cdl', label: 'CDL', kinds: ['cdl'], dated: true, uploadType: 'CDL' },
+    { id: 'medical_card', label: 'Medical card', kinds: ['medical_card'], dated: true, uploadType: 'Medical Card' },
+    { id: 'mvr', label: 'MVR', kinds: ['mvr'], dated: true, uploadType: 'MVR (Annual)' },
     { id: 'pev', label: 'Previous employers, last 3 years', employers: true },
-    { id: 'road_test', label: 'Road test certificate', kinds: ['road_test'] },
-    { id: 'clearinghouse_full', label: 'Clearinghouse report (full)', kinds: ['clearinghouse_full'] },
-    { id: 'psp', label: 'PSP report', kinds: ['psp'], optional: true },
-    { id: 'clearinghouse_annual', label: 'Clearinghouse report (annual)', kinds: ['clearinghouse_annual'], optional: true },
-    { id: 'violations_annual', label: 'Certificate of violations (annual)', kinds: ['violations_annual'], optional: true },
-    { id: 'annual_review', label: 'Annual review', kinds: ['annual_review'], optional: true },
+    { id: 'road_test', label: 'Road test certificate', kinds: ['road_test'], uploadType: 'Road Test Certificate' },
+    { id: 'clearinghouse_full', label: 'Clearinghouse report (full)', kinds: ['clearinghouse_full'], uploadType: 'Clearinghouse Report (Full)' },
+    { id: 'psp', label: 'PSP report', kinds: ['psp'], optional: true, uploadType: 'PSP Report' },
+    { id: 'clearinghouse_annual', label: 'Clearinghouse report (annual)', kinds: ['clearinghouse_annual'], optional: true, uploadType: 'Clearinghouse Report (Annual)' },
+    { id: 'violations_annual', label: 'Certificate of violations (annual)', kinds: ['violations_annual'], optional: true, uploadType: 'Certificate of Violations (Annual)' },
+    { id: 'annual_review', label: 'Annual review', kinds: ['annual_review'], optional: true, uploadType: 'Annual Review' },
 ]);
 
 const NO_RESPONSE = /^no response/i;

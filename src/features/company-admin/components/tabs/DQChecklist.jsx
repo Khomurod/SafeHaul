@@ -1,6 +1,6 @@
 import React, { useId } from 'react';
 import { Icon, AlertCircle, AlertTriangle, CheckCircle, Circle, Clock, Info, MinusCircle } from '@design-system/icons';
-import { Badge, Card } from '@/design-system/components';
+import { Badge, Button, Card } from '@/design-system/components';
 import { buildDqChecklist } from '../../utils/dqChecklist';
 import { describeExpiry } from '../../utils/dqExpiry';
 
@@ -11,6 +11,10 @@ import { describeExpiry } from '../../utils/dqExpiry';
  *
  * It says what is in the file and what is not, never that a file is complete
  * or compliant. Optional items are shown and never counted. Dates are UTC days.
+ *
+ * An item the file lacks, or holds expired, has Upload (`onUpload(type)`: the
+ * tab's form with the item's type chosen); the employers have Open Previous
+ * Employment (`onOpenPev`), where they are verified.
  */
 
 /** Feature-owned item state → Badge. Each badge pairs its tone with an icon and words. */
@@ -59,8 +63,24 @@ function summaryOf({ missing, expired }) {
     return [missing > 0 && `${missing} missing`, expired > 0 && `${expired} expired`].filter(Boolean).join(', ') + '.';
 }
 
-function ChecklistItem({ item }) {
+/** The item's way to what fills it, or null. */
+function actionOf(item, { onUpload, onOpenPev, disabled }) {
+    if (item.employers) {
+        return onOpenPev
+            ? <Button variant="link" size="sm" onClick={onOpenPev}>Open Previous Employment</Button>
+            : null;
+    }
+    if (!onUpload || !item.uploadType || (item.state !== 'missing' && item.state !== 'expired')) return null;
+    return (
+        <Button variant="link" size="sm" aria-label={`Upload ${item.label}`} disabled={disabled} onClick={() => onUpload(item.uploadType)}>
+            Upload
+        </Button>
+    );
+}
+
+function ChecklistItem({ item, actions }) {
     const presentation = presentationOf(item);
+    const action = actionOf(item, actions);
     return (
         <li className="flex flex-col gap-ds-1 px-ds-4 py-ds-3 sm:flex-row sm:items-start sm:justify-between sm:gap-ds-4">
             <div className="min-w-0">
@@ -81,16 +101,18 @@ function ChecklistItem({ item }) {
                     </ul>
                 )}
             </div>
-            <div className="shrink-0">
+            <div className="flex shrink-0 flex-col items-start gap-ds-1 sm:items-end">
                 <Badge tone={presentation.tone} icon={presentation.icon}>{presentation.label}</Badge>
+                {action}
             </div>
         </li>
     );
 }
 
-export function DQChecklist({ files, record }) {
+export function DQChecklist({ files, record, onUpload = null, onOpenPev = null, disabled = false }) {
     const headingId = `dq-checklist-${useId().replace(/:/g, '')}`;
     const checklist = buildDqChecklist({ files, record });
+    const actions = { onUpload, onOpenPev, disabled };
 
     return (
         <Card padding="none" className="overflow-hidden">
@@ -100,7 +122,7 @@ export function DQChecklist({ files, record }) {
                     <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">{summaryOf(checklist)}</p>
                 </div>
                 <ul className="divide-y divide-ds-border-subtle">
-                    {checklist.items.map((item) => <ChecklistItem key={item.id} item={item} />)}
+                    {checklist.items.map((item) => <ChecklistItem key={item.id} item={item} actions={actions} />)}
                 </ul>
                 <p className="flex items-start gap-ds-2 border-t border-ds-border-subtle px-ds-4 py-ds-3 text-ds-xs text-ds-content-secondary">
                     <Icon icon={Info} size="sm" className="mt-px shrink-0" />

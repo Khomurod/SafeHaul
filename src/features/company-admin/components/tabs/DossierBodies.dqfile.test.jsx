@@ -42,14 +42,18 @@ beforeEach(resetHarness);
 
 describe('DQFileTab — file listing and expiration status', () => {
     // Twelve since "CDL" joined after "Medical Card", so a renewed licence copy
-    // can be filed with its valid-until date; the first is still the default.
-    it('offers the twelve DQ file types with the first as default', async () => {
+    // can be filed with its valid-until date. None is chosen: the default was
+    // "Application for Employment", which the server files itself.
+    it('offers the twelve DQ file types with none chosen', async () => {
         renderDq();
         const select = await screen.findByLabelText('File Type');
-        expect(select).toHaveValue('Application for Employment');
-        expect([...select.options]).toHaveLength(12);
-        expect([...select.options].map((o) => o.value)).toContain('Clearinghouse Report (Annual)');
-        expect([...select.options].map((o) => o.value).slice(3, 5)).toEqual(['Medical Card', 'CDL']);
+        expect(select).toHaveValue('');
+        expect(select.options[0]).toHaveTextContent('Choose a type');
+        const types = [...select.options].slice(1).map((o) => o.value);
+        expect(types).toHaveLength(12);
+        expect(types[0]).toBe('Application for Employment');
+        expect(types).toContain('Clearinghouse Report (Annual)');
+        expect(types.slice(3, 5)).toEqual(['Medical Card', 'CDL']);
     });
 
     it('shows the frozen empty state', async () => {
@@ -67,7 +71,7 @@ describe('DQFileTab — file listing and expiration status', () => {
         fs.getDocs.mockResolvedValue(snap([['f1', { ...DQ_FILE, expirationDate }]]));
         renderDq();
         await screen.findByRole('button', { name: 'Delete Medical Card: medcard.pdf' });
-        const list = screen.getByRole('heading', { name: 'Current DQ Files' }).parentElement;
+        const list = screen.getByRole('heading', { name: 'Files' }).parentElement;
         expect(within(list).getByText(label)).toBeInTheDocument();
     });
 
@@ -230,10 +234,30 @@ describe('DQFileTab — upload contract', () => {
         ));
     });
 
-    it('announces the upload outcome and resets the type to the first option', async () => {
+    it('announces the upload outcome and chooses no type again', async () => {
         await uploadFixture();
         expect(await screen.findByText('Upload Complete!')).toBeInTheDocument();
-        expect(screen.getByLabelText('File Type')).toHaveValue('Application for Employment');
+        expect(screen.getByLabelText('File Type')).toHaveValue('');
+    });
+
+    // The message's 2-second reset belongs to the tab: left running, it fired
+    // after a test's environment was gone and failed the whole run.
+    it('leaves no timer running once it closes after an upload', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+        try {
+            const { unmount } = renderDq();
+            fireEvent.change(await screen.findByLabelText('File Type'), { target: { value: 'Road Test Certificate' } });
+            fireEvent.change(screen.getByLabelText('File'), {
+                target: { files: [new File(['x'], 'road test.pdf', { type: 'application/pdf' })] },
+            });
+            fireEvent.click(screen.getByRole('button', { name: /Upload File/ }));
+            await screen.findByText('Upload Complete!');
+
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('announces an upload failure with the frozen prefix', async () => {
@@ -246,6 +270,17 @@ describe('DQFileTab — upload contract', () => {
         renderDq();
         await screen.findByLabelText('File Type');
         expect(screen.getByRole('button', { name: /Upload File/ })).toBeDisabled();
+    });
+
+    it('guards the upload until a type is chosen', async () => {
+        renderDq();
+        fireEvent.change(await screen.findByLabelText('File'), {
+            target: { files: [new File(['x'], 'road test.pdf', { type: 'application/pdf' })] },
+        });
+        expect(screen.getByRole('button', { name: /Upload File/ })).toBeDisabled();
+
+        fireEvent.change(screen.getByLabelText('File Type'), { target: { value: 'Road Test Certificate' } });
+        expect(screen.getByRole('button', { name: /Upload File/ })).toBeEnabled();
     });
 });
 

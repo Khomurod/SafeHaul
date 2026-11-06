@@ -51,6 +51,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A call logged here (`DossierLogCall`) reads the record again, so the stage
  *   it moved and the last call show, and reopens Activity and Notes on their
  *   newest entries; the tab the recruiter is on stays.
+ * - A tab may open another (`onOpenTab`: the DQ file's employers open Previous
+ *   Employment). The panel then starts at its top and takes the focus, as the
+ *   control that was pressed is gone.
  */
 export function DriverProfileModal({
     companyId,
@@ -73,6 +76,13 @@ export function DriverProfileModal({
     const [callsLogged, setCallsLogged] = useState(0);
     const cancelDeleteRef = useRef(null);
     const tabPanelRef = useRef(null);
+    const openTab = (id) => {
+        setActiveTab(id);
+        const panel = tabPanelRef.current;
+        if (!panel) return;
+        panel.scrollTop = 0;
+        panel.focus();
+    };
     /*
       One id base, shared with the sidebar that renders the strip.
       `tabIds` derives both halves of the `aria-controls` / `aria-labelledby`
@@ -253,6 +263,7 @@ export function DriverProfileModal({
                                     filesPending={filesPending}
                                     canEdit={canEdit}
                                     refreshKey={callsLogged}
+                                    onOpenTab={openTab}
                                 />
                             )}
                         </TabPanel>

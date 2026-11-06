@@ -34,7 +34,7 @@ afterEach(() => {
 
 const checklist = () => screen.getByRole('region', { name: "What's in the file" });
 /** The list of files, below the checklist (whose medical card row shows the same date). */
-const fileList = () => screen.getByRole('heading', { name: 'Current DQ Files' }).parentElement;
+const fileList = () => screen.getByRole('heading', { name: 'Files' }).parentElement;
 /** The checklist's row for an item, found by its label. */
 const row = (label) => within(checklist()).getByText(label).closest('li');
 
@@ -63,8 +63,9 @@ describe('DQFileTab — what the file holds and what it does not', () => {
         // It says what the file holds; it claims nothing more.
         expect(checklist()).not.toHaveTextContent(/complian(t|ce) (file|achieved)|complete DQ/i);
 
+        // The checklist, then the files, then the upload form.
         const lists = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
-        expect(lists.indexOf("What's in the file")).toBeLessThan(lists.indexOf('Current DQ Files'));
+        expect(lists).toEqual(["What's in the file", 'Files', 'Upload a file']);
     });
 
     it("lists the employers of the three years with what each verification says", async () => {
@@ -101,6 +102,50 @@ describe('DQFileTab — what the file holds and what it does not', () => {
         const pev = await waitFor(() => row('Previous employers, last 3 years'));
         expect(within(pev).getByText('All done')).toBeInTheDocument();
         expect(within(pev).queryByText('In file')).toBeNull();
+    });
+
+    it("opens the upload form on an item the file lacks or holds expired, with the item's type chosen", async () => {
+        fs.getDocs.mockResolvedValue(snap([
+            ['license_front', { ...SYNCED_DRIVER_UPLOAD, type: 'license_front', expirationDate: '2029-06-30' }],
+            ['medical_card', { type: 'medical_card', fileType: 'Medical Card', fileName: 'med.jpg', isSynced: true, expirationDate: '2026-10-01', storagePath: 'companies/co-1/applications/guest_uploads/1_med.jpg' }],
+        ]));
+        renderDq();
+
+        const upload = await waitFor(() => within(row('MVR')).getByRole('button', { name: 'Upload MVR' }));
+        // What the file holds needs nothing.
+        expect(within(row('CDL')).queryByRole('button')).toBeNull();
+        expect(within(row('PSP report')).getByRole('button', { name: 'Upload PSP report' })).toBeInTheDocument();
+
+        fireEvent.click(upload);
+        expect(screen.getByLabelText('File Type')).toHaveValue('MVR (Annual)');
+        expect(screen.getByLabelText('Valid until (optional)')).toBeInTheDocument();
+        expect(document.activeElement).toBe(screen.getByLabelText('File'));
+
+        // An expired one is renewed the same way.
+        fireEvent.click(within(row('Medical card')).getByRole('button', { name: 'Upload Medical card' }));
+        expect(screen.getByLabelText('File Type')).toHaveValue('Medical Card');
+    });
+
+    it('leads from the employers to the Previous Employment tab, where they are verified', async () => {
+        const onOpenTab = vi.fn();
+        renderDq({
+            onOpenTab,
+            appData: {
+                lifecycle: { submittedAt: '2026-10-01T12:00:00.000Z' },
+                employers: [{ companyName: 'Prairie Line Freight', endDate: '', verification: { status: 'Sent' } }],
+            },
+        });
+
+        const pev = await waitFor(() => row('Previous employers, last 3 years'));
+        fireEvent.click(within(pev).getByRole('button', { name: 'Open Previous Employment' }));
+        expect(onOpenTab).toHaveBeenCalledWith('pev');
+        expect(within(pev).queryByRole('button', { name: /^Upload/ })).toBeNull();
+    });
+
+    it('offers no way to another tab where none was given', async () => {
+        renderDq();
+        const pev = await waitFor(() => row('Previous employers, last 3 years'));
+        expect(within(pev).queryByRole('button')).toBeNull();
     });
 
     it('waits for the files before it says anything is missing', async () => {
