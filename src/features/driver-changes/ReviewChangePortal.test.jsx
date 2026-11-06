@@ -203,21 +203,23 @@ describe('ReviewChangePortal', () => {
         await waitFor(() => expect(screen.getByText(/Thank you/i)).toBeInTheDocument());
     });
 
-    it('shows the backend error message on an invalid/expired link', async () => {
-        mockCallable.mockImplementationOnce(() => Promise.reject(new Error('This review link has expired.')));
+    it("shows the shared link screen for an expired link, in the server's words", async () => {
+        mockCallable.mockImplementationOnce(() => Promise.reject(callableError('failed-precondition', 'This review link has expired.')));
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderPortal();
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('This review link has expired.');
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link has expired' })).toHaveFocus();
+        expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+        consoleError.mockRestore();
     });
 
-    it('falls back to the generic load error when no message is present', async () => {
+    it('says plainly that a link it could not check could not be opened, and offers Try again', async () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockCallable.mockImplementationOnce(() => Promise.reject({ code: 'x' }));
         renderPortal();
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent(
-            'This review link could not be opened. Please try again. If it keeps happening, contact support.',
-        );
+        expect(alert).toHaveTextContent('We could not check this link');
+        expect(alert).toHaveTextContent('This review link could not be opened. Please try again.');
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
         consoleError.mockRestore();
     });
 
@@ -408,7 +410,7 @@ describe('decisions are the driver\'s own', () => {
         expect(screen.getByRole('button', { name: /Submit my responses/i })).toBeInTheDocument();
     });
 
-    it('ends on the server\'s words when the link can no longer take answers', async () => {
+    it('ends on the shared link screen when the link can no longer take answers', async () => {
         mockCallable.mockImplementation((name) => {
             if (name === 'getChangeReview') return Promise.resolve(REVIEW);
             return Promise.reject(callableError('failed-precondition', 'This review is already complete.'));
@@ -419,7 +421,7 @@ describe('decisions are the driver\'s own', () => {
         decide('City', 'Approve');
         fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('This review is already complete.');
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link has already been used' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Submit my responses/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     });
