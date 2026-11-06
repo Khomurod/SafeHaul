@@ -210,6 +210,9 @@ export const submitRetryMock = (actual) => ({
 export const reactRouterDomMock = (actual) => ({ ...actual, useNavigate: () => navigateSpy });
 
 
+/** What the last "Finish later" press returned, as the step footer receives it. */
+export const partialSubmitOutcome = { current: undefined };
+
 // The wizard itself is replaced by a probe: these tests are about the
 // container's submission contract, not about rendering nine steps.
 export const stepperMock = () => ({
@@ -218,7 +221,7 @@ export const stepperMock = () => ({
     <div>
       <span data-testid="current-step">{step}</span>
       <button type="button" onClick={onFinalSubmit}>probe-submit</button>
-      <button type="button" onClick={onPartialSubmit}>probe-save-draft</button>
+      <button type="button" onClick={() => { partialSubmitOutcome.current = onPartialSubmit(); }}>probe-save-draft</button>
       <button type="button" onClick={() => onNavigate('next')}>probe-next</button>
       <button type="button" onClick={() => onNavigate('back')}>probe-back</button>
       {/* The applicant typing. Needed because navigation alone must NOT mark the

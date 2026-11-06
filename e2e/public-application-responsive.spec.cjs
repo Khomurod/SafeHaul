@@ -102,7 +102,7 @@ async function undersizedNavigation(page) {
     const out = [];
     for (const el of document.querySelectorAll('button')) {
       const label = (el.textContent || '').trim();
-      if (!/^(Back|Continue|Uploading\.\.\.|Save as Draft|Confirm & Proceed|Submit Full Application|Submitting\.\.\.)$/.test(label)) continue;
+      if (!/^(Back|Continue|Uploading\.\.\.|Finish later|Confirm & Proceed|Submit Full Application|Submitting\.\.\.)$/.test(label)) continue;
       const r = el.getBoundingClientRect();
       if (r.height === 0) continue;
       if (r.height < min - 0.5) out.push(`${label} h=${Math.round(r.height)}`);

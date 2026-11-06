@@ -1,7 +1,7 @@
 // The guest application's draft lifecycle, for `PublicApplyHandler.jsx`: the
 // synchronous per-step local write, the restore-and-mark-synced path behind
 // Continue, the post-submission close, Start Over with its quota-ordering rules,
-// and the explicit Save-as-Draft. The refs arrive as the ref objects, so
+// and the explicit "Finish later". The refs arrive as the ref objects, so
 // ownership semantics are the component's.
 import { useCallback, useEffect, useRef } from 'react';
 import {
@@ -9,6 +9,7 @@ import {
   saveApplicationDraft,
   clearApplicationDraft,
   writeDiscardMark,
+  draftSyncState,
 } from './applicationDraftStorage';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
@@ -22,6 +23,22 @@ export function storedFilePaths(formData) {
   return new Set(values
     .filter((value) => value && typeof value === 'object' && typeof value.storagePath === 'string')
     .map((value) => value.storagePath));
+}
+
+const filled = (value) => typeof value === 'string' && value.trim() !== '';
+
+/**
+ * Whether a saved copy of these answers can be found from another device: the
+ * server matches a last name, date of birth and nine-digit SSN (the identity key it
+ * builds from them, `buildIdentityKey`) plus an email or phone on record. The SSN
+ * lives only in page state, so after a reload this is false even when an earlier
+ * save left the key behind: it may say too little, never too much.
+ */
+export function canBeFoundElsewhere(formData) {
+  const answers = formData || {};
+  return filled(answers.lastName) && filled(answers.dob)
+    && String(answers.ssn || '').replace(/\D/g, '').length === 9
+    && (filled(answers.email) || filled(answers.phone));
 }
 
 export function useDraftLifecycle({
@@ -280,6 +297,17 @@ export function useDraftLifecycle({
     showInfo('Starting a new application.');
   }, [startOver, slug, showInfo, discardMarkRef, draftIdRef, restoredFromDraftRef]);
 
+  /**
+   * "Finish later": the same save Continue makes, without moving on.
+   *
+   * Returns what the step footer tells the driver about coming back (see
+   * `FinishLaterNotice`), or null when nothing was saved. `saved` is the local
+   * copy, which this browser restores when the link is opened again. `anotherDevice`
+   * resolves true only once the server has confirmed holding this very copy and
+   * the facts another device is matched on are on the page, so the footer never
+   * promises a match the server could not make. The save itself stays background
+   * work the driver never waits on.
+   */
   const handlePartialSubmit = () => {
     // SEC-2/DL-1 live in applicationDraftStorage: ssn/signature are stripped and a
     // QuotaExceededError is surfaced (false) rather than silently swallowed.
@@ -292,19 +320,25 @@ export function useDraftLifecycle({
     // failure look like a success.
     if (discardedElsewhere()) {
       handleDiscardedElsewhere();
-      return;
+      return null;
     }
     const { ok, localSeq, draftId } = saveApplicationDraft(slug, formData, {
       lastStep: currentStep,
       draftId: draftIdRef.current,
     });
     if (draftId) draftIdRef.current = draftId;
-    if (ok) {
-      saveDraftToServer({ formData, stepIndex: currentStep, localSeq, draftId: draftIdRef.current });
-      showSuccess("Progress saved.");
-    } else {
+    if (!ok) {
       showError("Could not save progress locally. Your data is still here — please continue filling the form.");
+      return null;
     }
+    const sent = saveDraftToServer({ formData, stepIndex: currentStep, localSeq, draftId: draftIdRef.current });
+    const anotherDevice = !sandbox && canBeFoundElsewhere(formData)
+      ? Promise.resolve(sent).then(
+        () => !discardedElsewhere() && draftSyncState(slug)?.dirty === false,
+        () => false,
+      )
+      : Promise.resolve(false);
+    return { saved: true, anotherDevice };
   };
 
   return {

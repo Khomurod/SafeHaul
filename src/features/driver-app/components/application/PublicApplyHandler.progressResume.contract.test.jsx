@@ -36,6 +36,7 @@ import {
   isQueueSupportedSpy,
   profileOverride,
   saveProgressSpy,
+  partialSubmitOutcome,
   findResumableSpy,
   resumeDraftSpy,
   stubDraftCallables,
@@ -116,16 +117,21 @@ describe('progress is saved as the applicant advances', () => {
     expect(showError).not.toHaveBeenCalled();
   });
 
-  it('records the step when the applicant saves a draft explicitly', async () => {
+  it('records the step when the applicant presses Finish later', async () => {
+    partialSubmitOutcome.current = undefined;
     await openWizard();
 
     fireEvent.click(screen.getByText('probe-save-draft'));
 
     // `lastStep` was omitted here, so an explicit save recorded the answers and
     // forgot the page — and the restore path ignored the field anyway.
-    await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('Progress saved.'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
     expect(JSON.parse(localStorage.getItem('draft_acme'))).toHaveProperty('lastStep');
-    expect(saveProgressSpy).toHaveBeenCalled();
+    // The step footer says how to come back (`FinishLaterNotice`); no toast does.
+    expect(partialSubmitOutcome.current).toMatchObject({ saved: true });
+    expect(showSuccess).not.toHaveBeenCalledWith('Progress saved.');
+    // No SSN on the page, so another device could not find this copy.
+    await expect(partialSubmitOutcome.current.anotherDevice).resolves.toBe(false);
   });
 
   it('restores the saved step on a revisit, not just the answers', async () => {

@@ -45,7 +45,7 @@ import {
  *
  * So: no server write for an identity happens until the resume question has been
  * answered. The gate is installed by the save path itself, so every caller —
- * Next, "Save as Draft", anything added later — is covered without having to know
+ * Next, "Finish later", anything added later — is covered without having to know
  * about it. The applicant is not waiting on any of this: the local draft was
  * written synchronously and the wizard has already advanced.
  *
