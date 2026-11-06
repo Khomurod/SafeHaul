@@ -3,6 +3,7 @@ import { Icon, X, Download, Trash2 } from '@design-system/icons';
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
 import { dossierStatusLabel as statusLabel } from './dossierStatusLabel';
+import { sectionTitle } from './dossierSections';
 
 /**
  * What the status picker offers: the funnel stages and Interested, and the
@@ -108,17 +109,8 @@ export function DossierHeader({
 
     const isLead = collectionName === 'leads';
 
-    const getTitle = () => {
-        switch (activeTab) {
-            case 'application': return isLead ? 'Lead' : 'Application Review';
-            case 'documents': return 'Documents to sign';
-            case 'dq': return 'Driver Qualification File';
-            case 'activity': return 'Activity Timeline';
-            case 'notes': return 'Internal Notes';
-            case 'pev': return 'Previous Employment Verification';
-            default: return 'Driver Dossier';
-        }
-    };
+    // The section's one name, the tab's (У4.7).
+    const getTitle = () => sectionTitle(activeTab, { isLead });
 
     const statusOptions = useMemo(() => statusOptionsFor(currentStatus), [currentStatus]);
 

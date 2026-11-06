@@ -67,9 +67,9 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
     await mariaRow.focus();
     await mariaRow.press('Enter');
-    await expect(page.getByRole('heading', { name: 'Application Review' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: 'Application', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('heading', { name: 'Application Review' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 3, name: 'Application', exact: true })).toHaveCount(0);
 
     // The phone number is the call button.
     await page.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true }).click();

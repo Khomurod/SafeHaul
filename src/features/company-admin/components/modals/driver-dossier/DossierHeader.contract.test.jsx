@@ -51,12 +51,12 @@ const renderHeader = (overrides = {}) => {
 
 describe('DossierHeader titles', () => {
   it.each([
-    ['application', 'Application Review'],
+    ['application', 'Application'],
     ['documents', 'Documents to sign'],
-    ['dq', 'Driver Qualification File'],
-    ['activity', 'Activity Timeline'],
-    ['notes', 'Internal Notes'],
-    ['pev', 'Previous Employment Verification'],
+    ['dq', 'DQ File'],
+    ['activity', 'Activity'],
+    ['notes', 'Notes'],
+    ['pev', 'Previous Employment'],
     ['something-else', 'Driver Dossier'],
   ])('tab %s keeps the frozen title %s', (activeTab, expected) => {
     renderHeader({ activeTab });
@@ -215,7 +215,7 @@ describe('DossierHeader for a lead (a lead is not an application)', () => {
     const props = renderHeader({ collectionName: 'leads', canDelete: true });
 
     expect(screen.getByRole('heading', { level: 3, name: 'Lead' })).toBeInTheDocument();
-    expect(screen.queryByText('Application Review')).toBeNull();
+    expect(screen.queryByRole('heading', { level: 3, name: 'Application' })).toBeNull();
     expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /delete application/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Delete lead' }));
@@ -224,14 +224,14 @@ describe('DossierHeader for a lead (a lead is not an application)', () => {
 
   it("keeps every other tab's title", () => {
     renderHeader({ collectionName: 'leads', activeTab: 'dq' });
-    expect(screen.getByText('Driver Qualification File')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'DQ File' })).toBeInTheDocument();
   });
 
   it.each([['applications'], [undefined]])(
     'keeps the application wording for collection %s, the default before a record loads',
     (collectionName) => {
       renderHeader({ collectionName, canDelete: true });
-      expect(screen.getByRole('heading', { level: 3, name: 'Application Review' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Application' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
     },

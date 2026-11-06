@@ -1,11 +1,12 @@
 import React from 'react';
-import { Icon, LayoutDashboard, FileText, ShieldCheck, Activity, StickyNote, Phone, Mail, History } from '@design-system/icons';
+import { Icon, Phone, Mail } from '@design-system/icons';
 import { Avatar, Button, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 import { dossierStatusLabel } from './dossierStatusLabel';
 import { DossierKeyFacts } from './DossierKeyFacts';
 import { DossierCloseButton } from './DossierHeader';
+import { DOSSIER_SECTIONS } from './dossierSections';
 
 /**
  * Driver identity block plus the dossier's section navigation.
@@ -51,14 +52,6 @@ import { DossierCloseButton } from './DossierHeader';
  * what stays fixed is two short rows rather than about 360 of 915 px.
  */
 
-const NAV_ITEMS = [
-    { id: 'application', label: 'Application', icon: LayoutDashboard },
-    { id: 'documents', label: 'Documents to sign', icon: FileText },
-    { id: 'dq', label: 'DQ File', icon: ShieldCheck },
-    { id: 'pev', label: 'Previous Employment', icon: History },
-    { id: 'activity', label: 'Activity', icon: Activity },
-    { id: 'notes', label: 'Notes', icon: StickyNote },
-];
 
 /**
  * The record a lead and the application it became name in each other, set by
@@ -177,7 +170,7 @@ export function DossierSectionTabs({ activeTab, setActiveTab, dqStatus, idBase =
             onChange={setActiveTab}
             orientation={isCompact ? 'horizontal' : 'vertical'}
             className="gap-ds-1 overflow-x-auto px-ds-2 py-ds-2 sm:flex-1 sm:overflow-x-visible sm:overflow-y-auto sm:px-ds-3 sm:py-ds-4"
-            tabs={NAV_ITEMS.map((item) => ({
+            tabs={DOSSIER_SECTIONS.map((item) => ({
                 ...item,
                 badge: item.id === 'dq' && dqStatus === 'incomplete' ? (
                     <>

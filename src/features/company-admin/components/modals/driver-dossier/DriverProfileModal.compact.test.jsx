@@ -136,7 +136,7 @@ describe('the dossier on a phone', () => {
     // Inside, in reading order: the driver's details, the section header, the section.
     const call = within(panel).getByRole('link', { name: /call/i });
     const phone = within(panel).getByText('Phone', { selector: 'dt' });
-    const title = within(panel).getByRole('heading', { level: 3, name: 'Application Review' });
+    const title = within(panel).getByRole('heading', { level: 3, name: 'Application' });
     const status = within(panel).getByRole('combobox', { name: /status/i });
     const remove = within(panel).getByRole('button', { name: 'Delete application' });
     const content = within(panel).getByTestId('content');
