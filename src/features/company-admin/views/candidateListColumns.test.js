@@ -109,16 +109,31 @@ describe('the columns each list shows', () => {
         expect(column('applications', 'identity').width).toBe('lg');
     });
 
-    it('leaves State out of Company Leads, which also has its selection column, and Recruiter out of My Leads', () => {
+    it('leaves State out of All leads, which also has its selection column, and Recruiter out of Assigned to me and Unassigned', () => {
         expect(keys('company_leads')).not.toContain('state');
         expect(keys('company_leads')).toContain('assignee');
-        expect(keys('my_leads')).not.toContain('assignee');
-        expect(keys('my_leads')).toContain('state');
-        expect(column('my_leads', 'addedDate').header).toBe('Added');
+        for (const scope of ['my_leads', 'unassigned_leads']) {
+            expect(keys(scope)).toEqual(['identity', 'phone', 'status', 'freight', 'state', 'addedDate', 'lastCall']);
+            expect(column(scope, 'addedDate').header).toBe('Added');
+        }
     });
 
     it("widens a lead list's Driver column for the Stale mark beside the name", () => {
         expect(column('company_leads', 'identity').width).toBe('xl');
         expect(column('my_leads', 'identity').width).toBe('xl');
+        expect(column('unassigned_leads', 'identity').width).toBe('xl');
+    });
+
+    it('fits each list in the 1,134px a 1440px window leaves it, a selection column included where there is one', () => {
+        // `DataTable.css`'s widths, and its selection column.
+        const PX = { xs: 88, sm: 120, md: 144, lg: 176, xl: 220 };
+        const SELECTION = 56;
+        const width = (scope, selection) => buildCandidateColumns({ handlePhoneClick: () => {}, scope })
+            .reduce((sum, c) => sum + PX[c.width], selection ? SELECTION : 0);
+
+        expect(width('applications', false)).toBe(1112);
+        expect(width('company_leads', true)).toBe(1124);
+        expect(width('my_leads', false)).toBe(1036);
+        expect(width('unassigned_leads', true)).toBe(1092);
     });
 });

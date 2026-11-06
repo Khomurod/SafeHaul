@@ -58,20 +58,39 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     featureName: 'Start an Application',
   },
   {
+    // The menu's one Leads item. Its address has no screen: it opens the tab a
+    // person starts on, All for a company admin and Assigned to me for anyone
+    // else (`LeadsRedirect`). Every tab's address sits under this one, so the
+    // menu reads the item as current on each of them.
+    id: 'leads',
+    path: 'drivers/leads',
+    screen: 'leadsRedirect',
+    featureName: 'Leads',
+    nav: { kind: 'group-item', group: 'applications', label: 'Leads', icon: 'Building2' },
+  },
+  {
+    // The Leads tabs (`LeadListTabs`): one route each and no menu item. All and
+    // Assigned to me keep the old Company Leads and My Leads addresses, so a
+    // bookmark or a dashboard tile still opens its list.
     id: 'companyLeads',
     path: 'drivers/leads/company',
     screen: 'companyCandidatesListPage',
-    featureName: 'Company Leads',
+    featureName: 'Leads',
     props: { scope: 'company_leads' },
-    nav: { kind: 'group-item', group: 'applications', label: 'Company Leads', icon: 'Building2' },
   },
   {
     id: 'myLeads',
     path: 'drivers/leads/my',
     screen: 'companyCandidatesListPage',
-    featureName: 'My Leads',
+    featureName: 'Leads',
     props: { scope: 'my_leads' },
-    nav: { kind: 'group-item', group: 'applications', label: 'My Leads', icon: 'User' },
+  },
+  {
+    id: 'unassignedLeads',
+    path: 'drivers/leads/unassigned',
+    screen: 'companyCandidatesListPage',
+    featureName: 'Leads',
+    props: { scope: 'unassigned_leads' },
   },
   {
     id: 'referralLinks',

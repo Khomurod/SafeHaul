@@ -260,7 +260,11 @@ export const CompanySidebar = ({
           if (entry.type === 'group') {
             const group = entry.group;
             const isGroupActive = expandedGroups[group.id];
-            const hasActiveChild = entry.children.some(child => location.pathname === child.path);
+            // As `NavLink` decides an item is current: its address or one under
+            // it, so Leads stays current on each of its tabs.
+            const hasActiveChild = entry.children.some((child) => (
+                location.pathname === child.path || location.pathname.startsWith(`${child.path}/`)
+            ));
             const GroupIcon = ICON_MAP[group.icon] || Users;
 
             return (

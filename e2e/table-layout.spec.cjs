@@ -74,6 +74,7 @@ const SCREENS = [
     { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin', row: 'James McDonald' },
     { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin', row: 'Omar Attempt' },
     { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin', row: 'Lena Leadsen' },
+    { name: 'unassigned leads', url: '/company/drivers/leads/unassigned?e2eAuth=company_admin', row: 'Omar Attempt' },
     {
         name: 'import leads preview',
         url: '/company/import-leads?e2eAuth=company_admin',

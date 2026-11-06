@@ -1,6 +1,6 @@
 /**
- * What the candidate list's cells show: one name per application status
- * group, the phone number as the call button, the Stale mark beside a name,
+ * What the candidate list's cells show: the dossier's one name for each
+ * stored status, the phone number as the call button, the Stale mark beside a name,
  * and the recruiter from the company's team.
  *
  * All names below are artificial.
@@ -10,6 +10,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { buildCandidateColumns } from './candidateListColumns';
+import { dossierStatusLabel } from '../components/modals/driver-dossier/dossierStatusLabel';
 
 const TEAM = [{ id: 'recruiter-1', name: 'Rae Recruiter' }];
 
@@ -31,10 +32,21 @@ describe('the Status column', () => {
         expect(screen.getByTestId('cell')).toHaveTextContent(new RegExp(`^${shown}$`));
     });
 
-    it("shows a lead's status as stored", () => {
-        cell('status', { status: 'New Lead' }, { scope: 'company_leads' });
-
-        expect(screen.getByTestId('cell')).toHaveTextContent(/^New Lead$/);
+    it.each([
+        ['New Lead', 'New'],
+        ['New', 'New'],
+        ['Rejected', 'Declined'],
+        ['Contact Attempt 2', 'Contact Attempt 2'],
+        ['Interested', 'Interested'],
+        ['Background Check', 'Background Check'],
+        ['', 'New'],
+    ])("shows a lead stored as %j as %j, the dossier's name for it", (status, shown) => {
+        for (const scope of ['company_leads', 'my_leads', 'unassigned_leads']) {
+            const { unmount } = cell('status', { status }, { scope });
+            expect(screen.getByTestId('cell')).toHaveTextContent(new RegExp(`^${shown}$`));
+            expect(dossierStatusLabel(status) || 'New').toBe(shown);
+            unmount();
+        }
     });
 });
 

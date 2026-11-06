@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
 import { validPeriod } from '@features/companies/hooks/dashboardPeriods';
+import { isLeadsTab } from '@features/companies/hooks/dashboardSearch';
 import { Card, DataTable } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
 import { useData } from '@/context/DataContext';
@@ -17,6 +18,7 @@ import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
 import { PeriodNotice } from './PeriodNotice';
 import { LeadsHeaderActions } from './LeadsHeaderActions';
+import { LeadListTabs } from './LeadListTabs';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 // The table is memoized: what the page hands it is built here, or memoized
@@ -165,14 +167,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         );
     };
 
+    // One title for the three leads lists: the tabs under it say which one.
     const getPageTitle = () => {
-        switch (scope) {
-            case 'applications': return 'Applications';
-
-            case 'company_leads': return 'Company Leads';
-            case 'my_leads': return 'My Leads';
-            default: return 'Candidates';
-        }
+        if (scope === 'applications') return 'Applications';
+        return isLeadsTab(scope) ? 'Leads' : 'Candidates';
     };
 
     // The number of records the filters, search and segment leave, beside the
@@ -183,7 +181,9 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const countNoun = scope === 'applications' ? 'application' : 'lead';
     const countLabel = listCount === 1 ? countNoun : `${countNoun}s`;
 
-    const canAssign = isCompanyAdmin && (scope === 'company_leads');
+    // Assigning stays a company admin's, on the lists where a lead may still
+    // need an owner: All and Unassigned.
+    const canAssign = isCompanyAdmin && (scope === 'company_leads' || scope === 'unassigned_leads');
 
     const selection = useMemo(() => (canAssign ? {
         selectedIds: selectedRowIds,
@@ -238,8 +238,9 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                     title={getPageTitle()}
                     count={listCount}
                     countLabel={countLabel}
-                    actions={scope === 'applications' ? undefined : <LeadsHeaderActions />}
+                    actions={isLeadsTab(scope) ? <LeadsHeaderActions /> : undefined}
                 />
+                {isLeadsTab(scope) && <LeadListTabs scope={scope} />}
                 <PeriodNotice period={dashboard.filters.period} truncated={dashboard.listTruncated} onShowAll={handleShowAll} />
                 <UndatedRecordsNotice count={dashboard.undatedCount} />
 
@@ -258,10 +259,14 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                         canAssign={canAssign}
                         onAssignLeads={handleAssignLeads}
                         teamMembers={dashboard.teamMembers}
-                        showMyAssignmentsToggle={scope === 'applications' || scope === 'company_leads'}
+                        // Only mine is the Applications list's: the leads lists
+                        // have Assigned to me as a tab. Assigned to me and
+                        // Unassigned name their assignee, so they offer no
+                        // Assigned to filter (`listAssignees` ignores one).
+                        showMyAssignmentsToggle={scope === 'applications'}
                         myAssignmentsOnly={!!dashboard.filters.myAssignmentsOnly}
                         onToggleMyAssignments={handleToggleMyAssignments}
-                        myAssignmentsLabel={scope === 'applications' ? 'Only mine' : 'My leads'}
+                        showAssigneeFilter={scope === 'applications' || scope === 'company_leads'}
                     />
 
                     <div className="flex-1 min-h-[448px] overflow-hidden lg:min-h-[240px]">

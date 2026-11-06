@@ -9,7 +9,9 @@ import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions
 /**
  * The candidate/lead list toolbar: the list-page `ListToolbar` with this list's
  * segments, its "only mine" switch, its search, its four filters and the
- * assignment action.
+ * assignment action. A list whose tab names its assignee (Assigned to me,
+ * Unassigned) leaves the Assigned to filter out (`showAssigneeFilter`), and a
+ * value it holds from another list is neither shown nor counted.
  *
  * Presentation only — the filter keys, the driver-type option list, the
  * `setFilters` shape, the assignment action and the my-assignments toggle
@@ -48,6 +50,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
     myAssignmentsOnly = false,
     onToggleMyAssignments,
     myAssignmentsLabel = 'Only mine',
+    showAssigneeFilter = true,
 }) {
     const [showFilters, setShowFilters] = useState(false);
 
@@ -55,7 +58,9 @@ export const DashboardToolbar = memo(function DashboardToolbar({
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
-    const activeCount = FILTER_FIELD_KEYS.filter((key) => Boolean(filters?.[key])).length;
+    const activeCount = FILTER_FIELD_KEYS
+        .filter((key) => showAssigneeFilter || key !== 'assignee')
+        .filter((key) => Boolean(filters?.[key])).length;
 
     return (
         /*
@@ -109,18 +114,20 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                             </Select>
                         </FormField>
 
-                        <FormField id="toolbar-assignee" label="Assigned to">
-                            <Select
-                                value={filters?.assignee || ''}
-                                onChange={(e) => handleFilterChange('assignee', e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="__unassigned__">Unassigned</option>
-                                {teamMembers.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name || m.displayName || m.email}</option>
-                                ))}
-                            </Select>
-                        </FormField>
+                        {showAssigneeFilter && (
+                            <FormField id="toolbar-assignee" label="Assigned to">
+                                <Select
+                                    value={filters?.assignee || ''}
+                                    onChange={(e) => handleFilterChange('assignee', e.target.value)}
+                                >
+                                    <option value="">All</option>
+                                    <option value="__unassigned__">Unassigned</option>
+                                    {teamMembers.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name || m.displayName || m.email}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
+                        )}
 
                         <FormField id="toolbar-date" label="Filter by date">
                             <Input

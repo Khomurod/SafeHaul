@@ -118,6 +118,35 @@ describe('CompanySidebar', () => {
         expect(settings).toHaveFocus();
     });
 
+    it('offers one Leads item, for everyone, where Company Leads and My Leads were', () => {
+        for (const role of ['company_admin', 'recruiter']) {
+            const { unmount } = renderSidebar({ role });
+            expect(screen.getByRole('link', { name: 'Leads' })).toHaveAttribute('href', '/company/drivers/leads');
+            expect(screen.queryByRole('link', { name: 'Company Leads' })).toBeNull();
+            expect(screen.queryByRole('link', { name: 'My Leads' })).toBeNull();
+            unmount();
+        }
+    });
+
+    it.each([
+        '/company/drivers/leads/company',
+        '/company/drivers/leads/my',
+        '/company/drivers/leads/unassigned',
+    ])('reads Leads, and its group, as current on %s', (path) => {
+        renderSidebar({ path });
+
+        expect(screen.getByRole('link', { name: 'Leads' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: 'Applications' })).not.toHaveAttribute('aria-current');
+        expect(screen.getByRole('button', { name: 'Driver Applications & Leads' })).toHaveClass('text-ds-status-info-fg');
+    });
+
+    it('reads the group as current on none of its items elsewhere', () => {
+        renderSidebar({ path: '/company/settings' });
+
+        expect(screen.getByRole('button', { name: 'Driver Applications & Leads' })).not.toHaveClass('text-ds-status-info-fg');
+        expect(screen.getByRole('link', { name: 'Leads' })).not.toHaveAttribute('aria-current');
+    });
+
     it('has no structural accessibility violations', async () => {
         const { container } = renderSidebar();
         expect((await axe(container)).violations).toEqual([]);

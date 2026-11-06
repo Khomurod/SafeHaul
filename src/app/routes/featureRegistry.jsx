@@ -1,6 +1,7 @@
 import React from 'react';
 import { loadPublicApplyHandler } from './applyScreenLoader';
 import { COMPANY_ROUTE_MANIFEST } from './companyRouteManifest';
+import { LeadsRedirect } from './LeadsRedirect';
 import { LegacyInterestRedirect } from './LegacyInterestRedirect';
 import { StartApplicationRedirect } from './StartApplicationRedirect';
 
@@ -37,6 +38,9 @@ export const featureScreens = Object.freeze({
   // Tiny synchronous redirect — the screen it replaced is now the primary action
   // inside `companyUnfinishedApplications`. Not worth a lazy chunk.
   startApplicationRedirect: StartApplicationRedirect,
+  // The menu's Leads item, opening the tab a person starts on. Tiny and
+  // synchronous, like the redirect above.
+  leadsRedirect: LeadsRedirect,
   referralLinksPage: lazyNamed(
     () => import('@features/referrals/ReferralLinksPage'),
     'ReferralLinksPage',
