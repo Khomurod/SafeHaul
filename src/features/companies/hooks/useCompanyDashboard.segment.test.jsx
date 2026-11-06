@@ -65,8 +65,11 @@ describe('the list a candidate page opens on', () => {
     it('lists and counts the same In process applications', async () => {
         renderHook(() => useCompanyDashboard('co-1', { initialSegment: 'in_process' }));
 
+        const countQueries = () => fs.queries.filter((q) => q.kind === 'count' && q.path === 'companies/co-1/applications');
+        // Both the list and its count have gone out, so the check below cannot pass on an empty count.
         await waitFor(() => expect(listQueries('applications').length).toBeGreaterThan(0));
-        const counts = fs.queries.filter((q) => q.kind === 'count' && q.path === 'companies/co-1/applications');
+        await waitFor(() => expect(countQueries().length).toBeGreaterThan(0));
+        const counts = countQueries();
         const inProcess = getStatusesForSegment('in_process');
         expect(inProcess).toContain('Contact Attempt 1');
         expect([...listQueries('applications'), ...counts].map(statusesOf))

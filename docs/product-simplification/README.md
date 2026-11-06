@@ -67,7 +67,7 @@
 
 ## Отдельно — один запуск рассылки (Д18)
 
-Слито 2026-11-06 в PR [#579](https://github.com/Khomurod/SafeHaul/pull/579).
+Слито 2026-11-06 в PR [#579](https://github.com/Khomurod/SafeHaul/pull/579) и выложено на Testing.
 
 | | Задача | Аудит | Объём | Статус |
 |---|---|---|---|---|

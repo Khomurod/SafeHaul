@@ -1245,8 +1245,9 @@ the daily count**; refusing is a recorded outcome.
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
-- **Hire date** — the same trigger stamps `hiredAt` (server time) when an application's
-  status enters `Hired`/`Approved` by any path, never on a save while hired; leaving keeps
+- **Hire date** — the same trigger stamps `hiredAt` (the time of the write, from the
+  event) when an application's status enters `Hired`/`Approved` by any path, so a hire just
+  before midnight keeps its month; never on a save while hired; leaving keeps
   it, coming back sets it again. Its write changes no status: no loop, no counter move (§10).
 - **Signing links** — a new request's email (`notifySigner`) and text (`notifySignerSMS`)
   each claim the event on the request (`emailDeliveryId`, `smsDeliveryId`, with the
@@ -1567,8 +1568,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   Firestore sorts by it (newest first, or as its date header says): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
-- **A list opened on a month forgets it on reload** (it travels in the link's state), and a
-  month of hires lists its 200 newest, saying so.
+- **A month or segment from a dashboard link travels in the link's state**: the page keeps
+  it on reload, but a copied link or a new tab opens the whole list (the Hired card
+  already worked so). A month of hires lists its 200 newest, saying so.
 - **In process with a State picked finds only its name and postal code** ("Texas", "TX"):
   twelve statuses leave room for two spellings in Firestore's 30 alternatives.
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter

@@ -130,3 +130,42 @@ describe('a list opened on a month of hires', () => {
         expect(result.current.listTruncated).toBe(true);
     });
 });
+
+// The list page stays mounted across the menu's lists, so a period belongs to
+// the navigation that opened it (`navigationKey`): the next one opens on its
+// own period or none, and only applications have one.
+describe('a period and the navigation that opened it', () => {
+    it('drops the period when the menu opens another list, so leads never show a month of hires', async () => {
+        fs.hires = [{ id: 'hire-1', status: 'Hired', hiredAt: ts(new Date(2026, 10, 9)) }];
+        const { result, rerender } = renderHook(
+            (props) => useCompanyDashboard('co-1', props),
+            { initialProps: { initialTab: 'applications', initialPeriod: HIRED, navigationKey: 'from-brief' } },
+        );
+        await waitFor(() => expect(result.current.paginatedData.map((r) => r.id)).toEqual(['hire-1']));
+
+        fs.queries = [];
+        rerender({ initialTab: 'company_leads', initialPeriod: null, navigationKey: 'from-menu' });
+        act(() => result.current.setActiveTab('company_leads'));
+
+        await waitFor(() => expect(result.current.filters.period).toBeNull());
+        await waitFor(() => expect(fs.queries.some((q) => q.path === 'companies/co-1/leads')).toBe(true));
+        expect(fs.queries.some((q) => q.constraints.some((c) => c.kind === 'where' && c.args[0] === 'hiredAt'))).toBe(false);
+    });
+
+    it('opens on the period a later navigation brings, and keeps it while the same one lasts', async () => {
+        const { result, rerender } = renderHook(
+            (props) => useCompanyDashboard('co-1', props),
+            { initialProps: { initialPeriod: null, navigationKey: 'first' } },
+        );
+        await waitFor(() => expect(of('docs').length).toBeGreaterThan(0));
+        expect(result.current.filters.period).toBeNull();
+
+        rerender({ initialPeriod: ADDED, navigationKey: 'second' });
+        await waitFor(() => expect(result.current.filters.period).toEqual(ADDED));
+
+        // A filter changed in the same navigation leaves the period alone.
+        act(() => result.current.setFilters('state', 'TX'));
+        rerender({ initialPeriod: ADDED, navigationKey: 'second' });
+        expect(result.current.filters.period).toEqual(ADDED);
+    });
+});

@@ -41,8 +41,15 @@ const ITEMS_PER_PAGE = 20;
  * applications: all | new | in_process | hired | terminated | declined — leads: all | attempting | in_process | interested.
  * `initialPeriod` (`{ field, month }`, `dashboardPeriods.js`) opens the list on a month of
  * applications added or hired, as the dashboard's brief does; `filters.period`, cleared with null.
+ * `navigationKey` (the location's key) ties it to that navigation: a new one opens on its own
+ * `initialPeriod`, or none, and a tab other than applications has none.
  */
-export function useCompanyDashboard(companyId, { initialTab = 'applications', initialSegment = 'all', initialPeriod = null } = {}) {
+export function useCompanyDashboard(companyId, {
+    initialTab = 'applications',
+    initialSegment = 'all',
+    initialPeriod = null,
+    navigationKey,
+} = {}) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -100,6 +107,18 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     if (segmentTab !== activeTab) {
         setSegmentTab(activeTab);
         setPipelineSegment('all');
+        // Only applications have a period: a month of hires is never a leads list.
+        if (activeTab !== 'applications') setFilters((prev) => (prev.period ? { ...prev, period: null } : prev));
+    }
+
+    // A period belongs to the navigation that opened it (`navigationKey`, the
+    // location's key): the page stays mounted across the menu's lists, so the
+    // next navigation opens on its own period, or none. Set while rendering, so
+    // no query goes out with the period a navigation left.
+    const [periodNavigation, setPeriodNavigation] = useState(navigationKey);
+    if (periodNavigation !== navigationKey) {
+        setPeriodNavigation(navigationKey);
+        setFilters((prev) => (prev.period === initialPeriod ? prev : { ...prev, period: initialPeriod }));
     }
 
     // E2E fixture dataset: the placeholder Firebase project is unreachable in

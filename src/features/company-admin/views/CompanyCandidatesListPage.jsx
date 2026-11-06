@@ -46,13 +46,16 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     // A link can open the list on one of its segments, as the dashboard's Hired
     // card does with `{ state: { segment: 'hired' } }`, and the applications on
     // a month, as the dashboard's brief does with `{ state: { period } }`.
-    const openedState = useLocation().state;
+    const location = useLocation();
+    const openedState = location.state;
     const openedSegment = openedState?.segment;
     const openedPeriod = scope === 'applications' ? validPeriod(openedState?.period) : null;
     const dashboard = useCompanyDashboard(companyId, {
         initialTab: scope,
         initialSegment: pipelineTabs.some((tab) => tab.id === openedSegment) ? openedSegment : 'all',
-        ...(openedPeriod && { initialPeriod: openedPeriod }),
+        initialPeriod: openedPeriod,
+        // The page stays mounted across the menu's lists: each navigation brings its own period.
+        navigationKey: location.key,
     });
     const { showError, showSuccess } = useToast();
 

@@ -1,10 +1,12 @@
 'use strict';
 
 /**
- * An application's hire date, `hiredAt`: the server's time when its status last
- * entered a hired status (`HIRED_STATUSES`), on any path — the dossier, Super Admin,
- * a direct database edit — through the application write trigger
- * (`onApplicationWrittenDashboardRollup`).
+ * An application's hire date, `hiredAt`: the time of the write by which its status
+ * last entered a hired status (`HIRED_STATUSES`), on any path — the dossier, Super
+ * Admin, a direct database edit — recorded by the application write trigger
+ * (`onApplicationWrittenDashboardRollup`) from its event's time, so a hire made just
+ * before midnight stays in its own month. An event without a readable time gets the
+ * server's time instead.
  *
  * - Only a write INTO hired sets it: a record created hired, or one moved from a
  *   status that is not. A save while already hired leaves it as it is.
@@ -38,7 +40,10 @@ async function recordHireDate(ref, changedAtMillis) {
         const snap = await transaction.get(ref);
         if (!snap.exists) return false;
         if (millisOf((snap.data() || {}).hiredAt) >= changedAtMillis) return false;
-        transaction.update(ref, { hiredAt: admin.firestore.FieldValue.serverTimestamp() });
+        const hiredAt = Number.isFinite(changedAtMillis)
+            ? admin.firestore.Timestamp.fromMillis(changedAtMillis)
+            : admin.firestore.FieldValue.serverTimestamp();
+        transaction.update(ref, { hiredAt });
         return true;
     });
 }

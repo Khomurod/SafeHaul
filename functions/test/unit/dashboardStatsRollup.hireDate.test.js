@@ -3,7 +3,8 @@
 /**
  * The server records the hire date: when an application's status enters a hired
  * status (`Hired`, `Approved`) by any write, the application write trigger stamps
- * `hiredAt` with the server's time. A save while already hired does not move it,
+ * `hiredAt` with that write's time (the event's), so a hire made just before
+ * midnight stays in its own month. A save while already hired does not move it,
  * leaving hired keeps it, and coming back sets it again. Its own write neither
  * re-stamps nor moves the dashboard counters, and a lead never gets one.
  *
@@ -25,7 +26,12 @@ jest.mock('../../firebaseAdmin', () => {
     set: async (data, options) => { mockStore.sets.push({ path, data, options }); },
   });
   return {
-    admin: { firestore: { FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP', increment: (n) => ({ increment: n }) } } },
+    admin: {
+      firestore: {
+        FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP', increment: (n) => ({ increment: n }) },
+        Timestamp: { fromMillis: (ms) => ({ writtenAt: ms }) },
+      },
+    },
     db: {
       collection: (name) => collectionAt(name),
       runTransaction: async (callback) => {
@@ -50,6 +56,8 @@ const LEAD_PATH = 'companies/c1/leads/l1';
 const STATS_PATH = 'companies/c1/internal_stats/dashboard';
 const CHANGED_AT = '2026-11-06T15:00:00.000Z';
 const at = (iso) => ({ toMillis: () => Date.parse(iso) });
+/** The hire date written for a write made at `iso`: that write's own time. */
+const HIRED_AT = (iso = CHANGED_AT) => ({ writtenAt: Date.parse(iso) });
 
 const snap = (path, data) => ({ exists: data != null, data: () => data, ref: { path } });
 
@@ -78,16 +86,28 @@ describe('the hire date', () => {
   ])('is stamped when the status moves from %s to %s, and the hired counter moves once', async (from, to) => {
     await applicationWrite({ status: from }, { status: to });
 
-    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: 'SERVER_TIMESTAMP' } }]);
+    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: HIRED_AT() } }]);
     expect(mockStore.sets).toEqual([
       expect.objectContaining({ path: STATS_PATH, data: expect.objectContaining({ hiredTotal: { increment: 1 } }) }),
     ]);
   });
 
+  it('is the time of the write that hired, not when the trigger ran: a hire at 23:59:59 stays in its month', async () => {
+    await applicationWrite({ status: 'In Process' }, { status: 'Hired' }, '2026-11-30T23:59:59.900Z');
+
+    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: HIRED_AT('2026-11-30T23:59:59.900Z') } }]);
+  });
+
+  it("falls back to the server's time when the event carries no readable time", async () => {
+    await applicationWrite({ status: 'In Process' }, { status: 'Hired' }, null);
+
+    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: 'SERVER_TIMESTAMP' } }]);
+  });
+
   it('is stamped for an application created hired', async () => {
     await applicationWrite(null, { status: 'Hired' });
 
-    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: 'SERVER_TIMESTAMP' } }]);
+    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: HIRED_AT() } }]);
   });
 
   it.each([
@@ -129,7 +149,7 @@ describe('the hire date', () => {
       { status: 'Hired', hiredAt: at('2026-08-01T10:00:00Z') },
     );
 
-    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: 'SERVER_TIMESTAMP' } }]);
+    expect(mockStore.updates).toEqual([{ path: APP_PATH, data: { hiredAt: HIRED_AT() } }]);
   });
 
   it('is not written for a record deleted before the trigger ran', async () => {

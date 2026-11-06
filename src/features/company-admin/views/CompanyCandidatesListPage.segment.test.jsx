@@ -39,23 +39,26 @@ vi.mock('../components/modals/driver-dossier/DriverProfileModal', () => ({ Drive
 
 import { CompanyCandidatesListPage } from './CompanyCandidatesListPage';
 
+/** What the page asks the list for; `navigationKey` is checked on its own below. */
 function openedWith(scope, state) {
     fixture.options = [];
     render(
-        <MemoryRouter initialEntries={[{ pathname: '/company/drivers/list', state }]}>
+        <MemoryRouter initialEntries={[{ pathname: '/company/drivers/list', state, key: 'from-link' }]}>
             <CompanyCandidatesListPage scope={scope} />
         </MemoryRouter>,
     );
-    return fixture.options[0];
+    const { navigationKey, ...options } = fixture.options[0];
+    expect(navigationKey).toBe('from-link');
+    return options;
 }
 
 describe('the list a candidate page opens on', () => {
     it('is the Hired applications from the Hired card', () => {
-        expect(openedWith('applications', { segment: 'hired' })).toEqual({ initialTab: 'applications', initialSegment: 'hired' });
+        expect(openedWith('applications', { segment: 'hired' })).toEqual({ initialTab: 'applications', initialSegment: 'hired', initialPeriod: null });
     });
 
     it('is the applications in process from the dashboard brief', () => {
-        expect(openedWith('applications', { segment: 'in_process' })).toEqual({ initialTab: 'applications', initialSegment: 'in_process' });
+        expect(openedWith('applications', { segment: 'in_process' })).toEqual({ initialTab: 'applications', initialSegment: 'in_process', initialPeriod: null });
     });
 
     it.each([
@@ -70,11 +73,11 @@ describe('the list a candidate page opens on', () => {
         ['applications', { period: { field: 'hiredAt', month: 'November' } }],
         ['company_leads', { period: { field: 'createdAt', month: '2026-11' } }],
     ])('ignores a period %s has not got: %o', (scope, state) => {
-        expect(openedWith(scope, state)).toEqual({ initialTab: scope, initialSegment: 'all' });
+        expect(openedWith(scope, state)).toEqual({ initialTab: scope, initialSegment: 'all', initialPeriod: null });
     });
 
     it("is a leads segment on a leads list, in the list's own tab", () => {
-        expect(openedWith('company_leads', { segment: 'attempting' })).toEqual({ initialTab: 'company_leads', initialSegment: 'attempting' });
+        expect(openedWith('company_leads', { segment: 'attempting' })).toEqual({ initialTab: 'company_leads', initialSegment: 'attempting', initialPeriod: null });
     });
 
     it.each([
@@ -83,6 +86,6 @@ describe('the list a candidate page opens on', () => {
         ['applications', null],
         ['applications', undefined],
     ])('is the whole %s list for %o', (scope, state) => {
-        expect(openedWith(scope, state)).toEqual({ initialTab: scope, initialSegment: 'all' });
+        expect(openedWith(scope, state)).toEqual({ initialTab: scope, initialSegment: 'all', initialPeriod: null });
     });
 });
