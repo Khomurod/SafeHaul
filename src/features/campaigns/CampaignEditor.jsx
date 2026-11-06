@@ -25,6 +25,18 @@ const SECTIONS = [
     { id: 'launch', label: 'Launch', icon: Rocket },
 ];
 
+/**
+ * The campaign as its draft stores it: `rawData`, a large array, lives only in
+ * React state, and the launch claim is the server's (`initBulkSession`), so a
+ * tab never writes it back.
+ */
+function draftToSave(campaignData) {
+    const { filters, ...rest } = campaignData;
+    delete rest.launchClaim;
+    const { rawData, ...cleanFilters } = filters || {};
+    return { ...rest, filters: cleanFilters };
+}
+
 export function CampaignEditor({ companyId, campaignId, onClose, onViewReport }) {
     const [activeSection, setActiveSection] = useState('audience');
     const [campaignData, setCampaignData] = useState({
@@ -35,7 +47,7 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
     });
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
 
-    const { saveDraft, markLaunched, isSaving } = useCampaignDraft(companyId);
+    const { saveDraft, isSaving } = useCampaignDraft(companyId);
     const isLaunched = isLaunchedDraft(campaignData);
 
     // #9 FIX: Track whether user has made actual changes — prevents auto-save on mount with defaults
@@ -82,19 +94,25 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
     useEffect(() => {
         if (!isDirty || !isInitializedRef.current || isLaunched) return;
         const timer = setTimeout(() => {
-            if (campaignId) {
-                // Strip rawData before saving — it's a large array that only lives in React state
-                const { filters, ...rest } = campaignData;
-                const { rawData, ...cleanFilters } = filters || {};
-                saveDraft(campaignId, { ...rest, filters: cleanFilters });
-            }
+            if (campaignId) saveDraft(campaignId, draftToSave(campaignData));
         }, 2000); // 2 second auto-save delay
         return () => clearTimeout(timer);
     }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
 
-    // A launch marks the draft, so it leaves Drafts and cannot be launched again.
-    const handleLaunchSuccess = (launch) => {
-        if (!isE2ECampaignMock) markLaunched(campaignId, launch?.sessionId);
+    // Launch sends what the editor shows, so an edit autosave has not written
+    // yet is saved first: the draft the server claims, and keeps as the
+    // record, holds the same, and the claim's update brings back nothing older.
+    // A failed save stops the launch, so nothing goes out that the draft lacks.
+    const saveBeforeLaunch = useCallback(async () => {
+        if (!campaignId || !isDirty || !isInitializedRef.current || isLaunched) return;
+        if (await saveDraft(campaignId, draftToSave(campaignData)) === false) {
+            throw new Error('We could not save the campaign. Check your connection and try again.');
+        }
+    }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
+
+    // The server marked the draft launched (`launchedAt`, `sessionId`) before it
+    // answered, so it leaves Drafts and cannot be launched again.
+    const handleLaunchSuccess = () => {
         onClose();
     };
 
@@ -231,7 +249,9 @@ export function CampaignEditor({ companyId, campaignId, onClose, onViewReport })
                     {activeSection === 'launch' && (
                         <LaunchPad
                             companyId={companyId}
+                            campaignId={campaignId}
                             campaign={campaignData}
+                            onBeforeLaunch={saveBeforeLaunch}
                             onLaunchSuccess={handleLaunchSuccess}
                         />
                     )}

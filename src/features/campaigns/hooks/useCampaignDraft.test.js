@@ -21,35 +21,44 @@ beforeEach(() => {
     fs.serverTimestamp.mockImplementation(() => '__serverTimestamp__');
 });
 
-describe('useCampaignDraft — markLaunched', () => {
-    it('marks the draft launched, with its session, on the draft document itself', async () => {
+describe('useCampaignDraft — saveDraft', () => {
+    it('merges the data into the draft document', async () => {
         const { result } = renderHook(() => useCampaignDraft('co-1'));
 
-        await result.current.markLaunched('camp-1', 'session-1');
+        await expect(result.current.saveDraft('camp-1', { name: 'Spring drive' })).resolves.toBe(true);
 
-        expect(fs.setDoc).toHaveBeenCalledTimes(1);
         expect(fs.setDoc).toHaveBeenCalledWith(
             { path: 'companies/co-1/campaign_drafts/camp-1' },
-            { launchedAt: '__serverTimestamp__', sessionId: 'session-1' },
+            { name: 'Spring drive' },
             { merge: true },
         );
     });
 
-    it('still marks the draft launched when no session id came back', async () => {
+    // A launch is the server's to mark (`initBulkSession`): the hook offers no way to.
+    it('offers no launch mark', () => {
         const { result } = renderHook(() => useCampaignDraft('co-1'));
 
-        await result.current.markLaunched('camp-1', undefined);
-
-        expect(fs.setDoc.mock.calls[0][1]).toEqual({ launchedAt: '__serverTimestamp__', sessionId: null });
+        expect(result.current).not.toHaveProperty('markLaunched');
     });
 
     it('writes nothing without a company or a draft', async () => {
         const { result } = renderHook(() => useCampaignDraft(undefined));
-        await result.current.markLaunched('camp-1', 'session-1');
+        await result.current.saveDraft('camp-1', { name: 'x' });
 
         const { result: noDraft } = renderHook(() => useCampaignDraft('co-1'));
-        await noDraft.current.markLaunched(undefined, 'session-1');
+        await noDraft.current.saveDraft(undefined, { name: 'x' });
 
         expect(fs.setDoc).not.toHaveBeenCalled();
+    });
+
+    // Autosave goes on after a failed save; the save before Launch stops on it.
+    it('logs a failed save and says so (false) instead of throwing', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        fs.setDoc.mockImplementation(async () => { throw new Error('permission-denied'); });
+        const { result } = renderHook(() => useCampaignDraft('co-1'));
+
+        await expect(result.current.saveDraft('camp-1', { name: 'x' })).resolves.toBe(false);
+        expect(consoleError).toHaveBeenCalled();
+        consoleError.mockRestore();
     });
 });

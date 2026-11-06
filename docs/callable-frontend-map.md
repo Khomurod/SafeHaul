@@ -50,7 +50,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getSigningLink` | [`useSentDocumentActions.js`](../src/features/signing/hooks/useSentDocumentActions.js) (Copy Link in the Documents workspace) | Resolve link with secret token; a link a correction left with an old email or phone is replaced first |
 | `sendSignedDocumentCopy` | [`useSignedCopySend.js`](../src/features/signing/hooks/useSignedCopySend.js) (Documents workspace) | Email the signer the sealed PDF of a document with a company signature, once, after a team member approves |
 | `getVerificationRequest` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | PEV portal load |
-| `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
+| `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session; `campaignId` names the draft, launched once |
 | `listCompanyTeam` | [`useTeamRoster.js`](../src/features/settings/hooks/useTeamRoster.js), [`useLineAssignments.js`](../src/features/settings/hooks/useLineAssignments.js) | Authoritative team roster: resolves each membership to a real name/email (Admin SDK, Firebase Auth fallback) and reports missing/stale/orphaned/duplicate records explicitly |
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |

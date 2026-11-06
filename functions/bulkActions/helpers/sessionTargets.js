@@ -28,12 +28,15 @@ async function readSessionTargetIds(sessionRef, sessionData, transaction) {
 
 /**
  * Write a new session and its recipients in one batch: no reader sees the
- * session without its list.
+ * session without its list. `alsoUpdate` (`{ ref, data }`) is one more document
+ * changed in the same batch: the campaign draft a launch marks launched
+ * (`launchClaim.js`), so no session exists without that mark.
  */
-async function writeNewSession(sessionRef, sessionData, targetIds) {
+async function writeNewSession(sessionRef, sessionData, targetIds, alsoUpdate = null) {
     const batch = db.batch();
     batch.set(sessionRef, sessionData);
     batch.set(sessionTargetsRef(sessionRef), { ids: targetIds });
+    if (alsoUpdate) batch.update(alsoUpdate.ref, alsoUpdate.data);
     await batch.commit();
 }
 
