@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
-import { serverMessageOf } from '@shared/utils/callableErrors';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** The connection fields, in page order, with the names the save bar uses. */
 const CONNECTION = [
@@ -154,7 +154,7 @@ export function useSmtpSettingsDraft(companyId) {
         } catch (error) {
             // The failure carries no password; the payload is never logged.
             console.error('Error saving email settings:', error);
-            return serverMessageOf(error) ?? 'Could not save the email settings. Try again.';
+            return plainErrorMessage(error, 'The email settings could not be saved.');
         }
     };
 
@@ -213,7 +213,7 @@ export function useSmtpSettingsDraft(companyId) {
             console.error('Test connection error:', error);
             setTestResult({
                 success: false,
-                message: serverMessageOf(error) ?? 'The connection could not be tested. Try again.',
+                message: plainErrorMessage(error, 'The connection could not be tested.'),
             });
             showError('Connection test failed. Please check your credentials.');
         } finally {

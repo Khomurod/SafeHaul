@@ -293,9 +293,9 @@ describe('AutomatedSmsTab save bar', () => {
         fireEvent.click(barButton('Save'));
 
         const alert = await within(await screen.findByRole('region', { name: 'Unsaved changes' })).findByRole('alert');
-        expect(alert).toHaveTextContent('Could not save the templates. Try again.');
+        expect(alert).toHaveTextContent('The templates could not be saved.');
         // The database's own words stay in the console, for whoever investigates.
-        expect(alert).not.toHaveTextContent(/permission/i);
+        expect(alert).not.toHaveTextContent(/insufficient permissions/i);
         expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
         expect(one).toHaveValue('Updated first message');
         expect(barButton('Save')).toBeEnabled();

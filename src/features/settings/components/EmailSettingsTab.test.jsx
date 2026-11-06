@@ -262,7 +262,7 @@ describe('EmailSettingsTab — one save bar', () => {
         fireEvent.click(barButton('Save'));
 
         const alert = await within(saveBar()).findByRole('alert');
-        expect(alert).toHaveTextContent('Could not save the email settings. Try again.');
+        expect(alert).toHaveTextContent('The email settings could not be saved.');
         expect(alert).not.toHaveTextContent(/internal/i);
         expect(err).toHaveBeenCalledWith(expect.any(String), failure);
         expect(host()).toHaveValue('smtp.office365.com');
@@ -472,8 +472,8 @@ describe('EmailSettingsTab — verification copies in the one Save', () => {
 
         await waitFor(() => expect(saveBar()).toHaveTextContent('1 change · Verification copies'));
         const alert = within(saveBar()).getByRole('alert');
-        expect(alert).toHaveTextContent('Could not save the verification copies. Try again.');
-        expect(alert).not.toHaveTextContent(/permission/i);
+        expect(alert).toHaveTextContent('The verification copies could not be saved.');
+        expect(alert).not.toHaveTextContent(/insufficient permissions/i);
         expect(err).toHaveBeenCalledWith(expect.any(String), failure);
         expect(toastMocks.showSuccess).toHaveBeenCalledWith('Email settings saved securely!');
         expect(copies()).toHaveValue('safety@acme.com');
@@ -590,7 +590,7 @@ describe('EmailSettingsTab — test connection', () => {
             expect(toastMocks.showError)
                 .toHaveBeenCalledWith('Connection test failed. Please check your credentials.');
         });
-        expect(screen.getByRole('alert')).toHaveTextContent('The connection could not be tested. Try again.');
+        expect(screen.getByRole('alert')).toHaveTextContent('The connection could not be tested.');
         expect(err).toHaveBeenCalledWith(expect.any(String), failure);
         err.mockRestore();
     });

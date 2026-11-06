@@ -3,6 +3,7 @@ import { saveCompanySettings } from '@features/companies';
 import { useToast } from '@shared/components/feedback';
 import { formatPevCopies, parsePevCopies } from '@features/company-admin/utils/pevCopies';
 import { usePevDefaultCopies } from '@features/company-admin/hooks/usePevDefaultCopies';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Settings → Email's verification copies: the people every previous employment
@@ -62,7 +63,7 @@ export function usePevCopiesDraft(currentCompanyProfile) {
             return null;
         } catch (saveError) {
             console.error('Could not save the verification copies:', saveError);
-            return 'Could not save the verification copies. Try again.';
+            return plainErrorMessage(saveError, 'The verification copies could not be saved.');
         }
     };
 

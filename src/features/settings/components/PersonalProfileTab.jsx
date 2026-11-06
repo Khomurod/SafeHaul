@@ -18,6 +18,7 @@ import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { useToast } from '@shared/components/feedback';
 import { recruiterCodeFor } from '../services/recruiterLinkCode';
 import { saveBarSummary } from '../utils/saveBarSummary';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Settings → My profile: the signed-in member's name and their recruiting
@@ -91,7 +92,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
             showSuccess('Personal profile updated successfully.');
         } catch (error) {
             console.error("User save failed", error);
-            setSaveError('Could not save your profile. Try again.');
+            setSaveError(plainErrorMessage(error, 'Your profile could not be saved.'));
         } finally {
             setSaving(false);
         }

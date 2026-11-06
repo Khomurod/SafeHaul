@@ -333,9 +333,9 @@ describe('PersonalProfileTab save bar', () => {
         fireEvent.click(barButton('Save'));
 
         const alert = await within(saveBar()).findByRole('alert');
-        expect(alert).toHaveTextContent('Could not save your profile. Try again.');
+        expect(alert).toHaveTextContent('Your profile could not be saved.');
         // The database's own words stay in the console, for whoever investigates.
-        expect(alert).not.toHaveTextContent(/permission/i);
+        expect(alert).not.toHaveTextContent(/insufficient permissions/i);
         expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
         expect(name).toHaveValue('Updated Admin');
         expect(barButton('Save')).toBeEnabled();

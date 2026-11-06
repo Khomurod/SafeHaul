@@ -152,8 +152,8 @@ describe('PevCopiesSection with its draft', () => {
         fireEvent.change(field(), { target: { value: 'ops@carrier.test' } });
         save();
 
-        await waitFor(() => expect(said()).toHaveTextContent('Could not save the verification copies. Try again.'));
-        expect(said()).not.toHaveTextContent(/permission/i);
+        await waitFor(() => expect(said()).toHaveTextContent('The verification copies could not be saved.'));
+        expect(said()).not.toHaveTextContent(/insufficient permissions/i);
         expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
         expect(field()).toHaveValue('ops@carrier.test');
         expect(screen.getByText('Unsaved')).toBeInTheDocument();

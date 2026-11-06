@@ -12,6 +12,7 @@ import {
 import { PageHeader } from '@/design-system/layouts';
 import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { saveBarSummary } from '../utils/saveBarSummary';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** The three messages, each saved under its own field of `settings/automated_sms`. */
 const TEMPLATES = [
@@ -92,7 +93,7 @@ export function AutomatedSmsTab({ companyId }) {
             showSuccess('Automated SMS templates saved.');
         } catch (e) {
             console.error('[AutomatedSmsTab] Could not save the templates:', e);
-            setSaveError('Could not save the templates. Try again.');
+            setSaveError(plainErrorMessage(e, 'The templates could not be saved.'));
         } finally {
             setSaving(false);
         }
