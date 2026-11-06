@@ -282,7 +282,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                         canAssign={canAssign}
                         onAssignLeads={handleAssignLeads}
                         teamMembers={dashboard.teamMembers}
-                        // Only mine is the Applications list's: the leads lists
+                        // Assigned to me is a switch on Applications: the leads lists
                         // have Assigned to me as a tab. Assigned to me and
                         // Unassigned name their assignee, so they offer no
                         // Assigned to filter (`listAssignees` ignores one).

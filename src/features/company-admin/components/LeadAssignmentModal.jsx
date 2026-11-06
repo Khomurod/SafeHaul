@@ -230,7 +230,7 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
 
                         {/* Manual Body */}
                         {mode === 'manual' && (
-                            <FormField id={recruiterFieldId} label="Select Recruiter">
+                            <FormField id={recruiterFieldId} label="Assigned to">
                                 <Select
                                     value={selectedUserId}
                                     onChange={(e) => setSelectedUserId(e.target.value)}
