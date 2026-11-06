@@ -90,6 +90,9 @@ describe('plainErrorMessage — sentences already written for people', () => {
         'out-of-range',
         'permission-denied',
         'resource-exhausted',
+        'deadline-exceeded',
+        'unavailable',
+        'unauthenticated',
     ])('shows the server\'s own sentence for a callable refusal "%s"', (code) => {
         const error = new FirebaseError(`functions/${code}`, 'This document has already been signed.');
         expect(plainErrorMessage(error, FAILED)).toBe('This document has already been signed.');

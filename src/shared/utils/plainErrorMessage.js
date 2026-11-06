@@ -7,10 +7,10 @@ import { serverMessageOf } from './callableErrors';
  * caller keeps the technical detail in `console.error`.
  *
  * In order:
- *  1. A callable's refusal (an `HttpsError` with one of the refusal codes below)
- *     carries a sentence the server wrote for the person, so it is shown as sent.
- *     `internal` and `unknown` are not refusals: their text is often a raw
- *     error the server passed on.
+ *  1. A callable's refusal (an `HttpsError`) carries a sentence the server wrote
+ *     for the person, so it is shown as sent. Not an `internal` or `unknown`
+ *     one: that text is often a raw error the server passed on. A message that
+ *     is only the code means the server never answered (`serverMessageOf`).
  *  2. A plain `Error` the app raised itself with a sentence of its own is shown
  *     as written, unless it carries a database's or an SDK's words.
  *  3. A failure the person can do something about (no connection, no
@@ -29,7 +29,7 @@ export function plainErrorMessage(error, failed = 'Something went wrong.') {
     const callable = code.startsWith('functions/');
     const canonical = callable ? code.slice('functions/'.length) : code;
 
-    if (callable && SERVER_REFUSALS.has(canonical)) {
+    if (callable && !PASSED_ON.has(canonical)) {
         const sentence = serverMessageOf(error);
         if (sentence) return sentence;
     }
@@ -39,16 +39,8 @@ export function plainErrorMessage(error, failed = 'Something went wrong.') {
     return `${failed} ${kind ? ADVICE[kind] : UNKNOWN_ADVICE}`;
 }
 
-const SERVER_REFUSALS = new Set([
-    'invalid-argument',
-    'failed-precondition',
-    'not-found',
-    'already-exists',
-    'aborted',
-    'out-of-range',
-    'permission-denied',
-    'resource-exhausted',
-]);
+/** Callable codes whose text is often another error's, passed on as it was. */
+const PASSED_ON = new Set(['internal', 'unknown']);
 
 const ADVICE = Object.freeze({
     connection: 'Check your internet connection and try again.',
