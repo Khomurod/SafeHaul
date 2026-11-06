@@ -8,12 +8,21 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
-const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
+const { SUPERSEDED_MESSAGE, requestIdOf } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
 const { attemptEntry } = require("./attemptLog");
 
 /** The statuses an open moves to `opened`. */
 const OPENABLE = ['sent', 'pending', 'reminder_sent'];
+
+/**
+ * The number the portal shows the employer for this request: the start of its
+ * reference (`requestIdOf`), which the result PDF prints in full as its
+ * "Request Reference", so the team can match it. Never any part of the token:
+ * the token answers as the employer (PEV-SEC-3), and the request's document id
+ * IS the token.
+ */
+const requestNumberOf = (data, token) => requestIdOf(data, token).slice(0, 8);
 
 /**
  * The first open, on the employer row: the team cannot read the request. Once
@@ -91,9 +100,11 @@ exports.getVerificationRequest = onCall({ cors: true }, async (request) => {
             if (firstOpen) await mirrorFirstOpen(data);
         }
 
-        // Return sanitized data (never expose internal IDs)
+        // Return sanitized data (never expose internal IDs; the request number is
+        // the first characters of the reference the result PDF prints)
         return {
             status: 'pending',
+            requestNumber: requestNumberOf(data, token),
             applicantName: data.applicantName,
             employerName: data.employerName,
             companyName: data.companyName,
