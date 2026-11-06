@@ -145,9 +145,10 @@ describe('a period and the navigation that opened it', () => {
 
         fs.queries = [];
         rerender({ initialTab: 'company_leads', initialPeriod: null, navigationKey: 'from-menu' });
-        act(() => result.current.setActiveTab('company_leads'));
 
-        await waitFor(() => expect(result.current.filters.period).toBeNull());
+        // The tab and the period change in the same render, before any query goes out.
+        expect(result.current.activeTab).toBe('company_leads');
+        expect(result.current.filters.period).toBeNull();
         await waitFor(() => expect(fs.queries.some((q) => q.path === 'companies/co-1/leads')).toBe(true));
         expect(fs.queries.some((q) => q.constraints.some((c) => c.kind === 'where' && c.args[0] === 'hiredAt'))).toBe(false);
     });
@@ -167,5 +168,24 @@ describe('a period and the navigation that opened it', () => {
         act(() => result.current.setFilters('state', 'TX'));
         rerender({ initialPeriod: ADDED, navigationKey: 'second' });
         expect(result.current.filters.period).toEqual(ADDED);
+    });
+
+    it('brings the tab and the month back together on Back, so no query mixes the two', async () => {
+        fs.hires = [{ id: 'hire-1', status: 'Hired', hiredAt: ts(new Date(2026, 10, 9)) }];
+        const { result, rerender } = renderHook(
+            (props) => useCompanyDashboard('co-1', props),
+            { initialProps: { initialTab: 'applications', initialPeriod: HIRED, navigationKey: 'from-brief' } },
+        );
+        await waitFor(() => expect(result.current.paginatedData.map((r) => r.id)).toEqual(['hire-1']));
+        rerender({ initialTab: 'company_leads', initialPeriod: null, navigationKey: 'from-menu' });
+        await waitFor(() => expect(fs.queries.some((q) => q.path === 'companies/co-1/leads')).toBe(true));
+
+        fs.queries = [];
+        rerender({ initialTab: 'applications', initialPeriod: HIRED, navigationKey: 'from-brief' });
+
+        expect(result.current.activeTab).toBe('applications');
+        expect(result.current.filters.period).toEqual(HIRED);
+        await waitFor(() => expect(result.current.paginatedData.map((r) => r.id)).toEqual(['hire-1']));
+        expect(fs.queries.some((q) => q.path === 'companies/co-1/leads')).toBe(false);
     });
 });

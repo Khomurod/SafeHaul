@@ -111,13 +111,15 @@ export function useCompanyDashboard(companyId, {
         if (activeTab !== 'applications') setFilters((prev) => (prev.period ? { ...prev, period: null } : prev));
     }
 
-    // A period belongs to the navigation that opened it (`navigationKey`, the
-    // location's key): the page stays mounted across the menu's lists, so the
-    // next navigation opens on its own period, or none. Set while rendering, so
-    // no query goes out with the period a navigation left.
+    // A tab and a period belong to the navigation that opened them
+    // (`navigationKey`, the location's key): the page stays mounted across the
+    // menu's lists, so the next navigation, Back included, opens on its own tab
+    // and period, or none. Both are set while rendering, together, so no query
+    // goes out with a tab from one navigation and a period from another.
     const [periodNavigation, setPeriodNavigation] = useState(navigationKey);
     if (periodNavigation !== navigationKey) {
         setPeriodNavigation(navigationKey);
+        if (initialTab !== activeTab) setActiveTab(initialTab);
         setFilters((prev) => (prev.period === initialPeriod ? prev : { ...prev, period: initialPeriod }));
     }
 
