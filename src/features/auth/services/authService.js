@@ -23,8 +23,8 @@ export async function resetPassword(email) {
 }
 
 // --- HELPER: Error Mapping ---
-// The sign-in screen reads any other failure, code and all, through
-// `plainErrorMessage`, so a lost connection says to check it.
+// Any other failure keeps its code, so the sign-in screen's `plainErrorMessage`
+// can say to check a lost connection; its own text never reaches the screen.
 function mapAuthError(error) {
     console.error("Auth Error:", error.code, error.message);
     switch (error.code) {
@@ -37,6 +37,9 @@ function mapAuthError(error) {
         case 'auth/too-many-requests':
             return new Error('Too many failed attempts. Please try again later.');
         default:
-            return error;
+            return Object.assign(
+                new Error('An unexpected error occurred. Please try again.'),
+                error?.code ? { code: error.code } : {},
+            );
     }
 }

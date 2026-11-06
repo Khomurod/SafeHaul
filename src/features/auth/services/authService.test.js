@@ -41,6 +41,13 @@ describe('authService — what the sign-in screen reads', () => {
             .toBe('You could not be signed in. Check your internet connection and try again.');
     });
 
+    it('says an unexpected error, never the text, of a failure that carries no code', async () => {
+        auth.signInWithEmailAndPassword.mockRejectedValueOnce(new Error('Network error'));
+        const failure = await loginUser('a@example.test', 'pw').catch((error) => error);
+        expect(plainErrorMessage(failure, 'You could not be signed in.'))
+            .toBe('An unexpected error occurred. Please try again.');
+    });
+
     it('never shows the SDK text of a failure it does not name', async () => {
         auth.sendPasswordResetEmail.mockRejectedValueOnce(new FirebaseError('auth/internal-error'));
         const failure = await resetPassword('a@example.test').catch((error) => error);
