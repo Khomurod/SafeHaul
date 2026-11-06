@@ -26,7 +26,8 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * (`SigningDocumentsSection`) only. The driver's uploads have one place, the DQ
  * File tab, which lists and opens them; the gallery that repeated them here is
  * gone, and the tab says where they are. The DQ File tab also takes the record
- * (`appData`): its checklist reads the employers' verifications from it.
+ * (`appData`): its checklist reads the employers' verifications from it, and
+ * Documents to sign sends a document to it.
  *
  * `refreshKey` changes when a call is logged in the dossier: Activity and Notes,
  * which read their entries once, start again and show it.
@@ -69,6 +70,7 @@ export function DossierContent({
                             companyId={companyId}
                             recordId={driverId}
                             collectionName={collectionName}
+                            record={appData}
                         />
                         <p className="px-ds-1 text-ds-sm text-ds-content-secondary">
                             The driver&apos;s uploads, such as the CDL and the medical card, are in the DQ File tab.

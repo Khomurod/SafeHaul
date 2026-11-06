@@ -106,7 +106,8 @@ describe('the Documents tab', () => {
 
         const texts = [...document.querySelectorAll('p')].map((p) => p.textContent);
         expect(texts).toEqual(['Signing documents', "The driver's uploads, such as the CDL and the medical card, are in the DQ File tab."]);
-        expect(fx.signingProps).toEqual({ companyId: 'co-1', recordId: 'lead-1', collectionName: 'leads' });
+        // The record too: Send a document sends to this driver.
+        expect(fx.signingProps).toEqual({ companyId: 'co-1', recordId: 'lead-1', collectionName: 'leads', record: appData });
         expect(screen.queryByText('Uploaded Documents')).toBeNull();
     });
 });
