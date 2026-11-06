@@ -17,10 +17,12 @@ vi.mock('@lib/runtime/e2eMode', () => ({
     getE2EQueryParam: () => '',
 }));
 
+import { LINK_PROBLEM } from '@shared/components/public-link';
 import { useVerificationPortal } from './useVerificationPortal';
 
 const VALID = {
     status: 'pending',
+    requestNumber: '9f8e7d6c',
     applicantName: 'Artificial Applicant',
     employerName: 'Artificial Prior Employer',
     companyName: 'Artificial Requesting Carrier',
@@ -59,7 +61,7 @@ describe('useVerificationPortal — token-load and submission contract', () => {
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.verificationData).toEqual(VALID);
         expect(result.current.alreadyCompleted).toBe(false);
-        expect(result.current.error).toBeNull();
+        expect(result.current.linkProblem).toBeNull();
     });
 
     it('marks a completed-status token as already completed', async () => {
@@ -70,44 +72,74 @@ describe('useVerificationPortal — token-load and submission contract', () => {
         expect(result.current.verificationData).toBeNull();
     });
 
-    it('maps a not-found error to the invalid-link message', async () => {
-        const err = new Error('nf');
+    it('reads a not-found refusal as a link that is not valid', async () => {
+        const err = new Error('Verification request not found. The link may be invalid.');
         err.code = 'functions/not-found';
         callables.getVerificationRequest.mockRejectedValue(err);
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const { result } = renderHook(() => useVerificationPortal('token-abc'));
         await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.error).toBe('This verification link is invalid or has been removed.');
+        expect(result.current.linkProblem).toEqual({ reason: LINK_PROBLEM.NOT_FOUND });
         consoleError.mockRestore();
     });
 
-    it('maps a deadline-exceeded error to the expired state', async () => {
-        const err = new Error('exp');
+    it("reads the server's words for a request a newer one replaced", async () => {
+        const err = new Error('This request was replaced by a newer one. Please use the most recent email you received.');
+        err.code = 'functions/not-found';
+        callables.getVerificationRequest.mockRejectedValue(err);
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderHook(() => useVerificationPortal('token-abc'));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.linkProblem).toEqual({ reason: LINK_PROBLEM.REPLACED });
+        consoleError.mockRestore();
+    });
+
+    it('reads a deadline-exceeded refusal in the server\'s words as an expired link', async () => {
+        const err = new Error('This verification request has expired. Please contact the requesting company.');
         err.code = 'functions/deadline-exceeded';
         callables.getVerificationRequest.mockRejectedValue(err);
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const { result } = renderHook(() => useVerificationPortal('token-abc'));
         await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.expired).toBe(true);
+        expect(result.current.linkProblem).toEqual({ reason: LINK_PROBLEM.EXPIRED });
         consoleError.mockRestore();
     });
 
-    it('surfaces a generic load failure message', async () => {
+    it('says plainly that a link it could not check could not be loaded', async () => {
         callables.getVerificationRequest.mockRejectedValue(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const { result } = renderHook(() => useVerificationPortal('token-abc'));
         await waitFor(() => expect(result.current.loading).toBe(false));
-        // A plain sentence, never the error's own text.
-        expect(result.current.error).toBe(
-            'This verification request could not be loaded. Please try again. If it keeps happening, contact support.',
-        );
+        // A plain sentence, never the error's own text; who to contact is the screen's.
+        expect(result.current.linkProblem).toEqual({
+            reason: LINK_PROBLEM.UNAVAILABLE,
+            detail: 'This verification request could not be loaded. Please try again.',
+        });
         consoleError.mockRestore();
     });
 
-    it('errors without calling the load callable when no token is provided', async () => {
+    it('loads the link again on retry', async () => {
+        let calls = 0;
+        callables.getVerificationRequest.mockImplementation(() => {
+            calls += 1;
+            return calls === 1 ? Promise.reject(new Error('offline')) : Promise.resolve({ data: VALID });
+        });
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderHook(() => useVerificationPortal('token-abc'));
+        await waitFor(() => expect(result.current.linkProblem?.reason).toBe(LINK_PROBLEM.UNAVAILABLE));
+
+        act(() => result.current.retry());
+        await waitFor(() => expect(result.current.verificationData).toEqual(VALID));
+        expect(result.current.linkProblem).toBeNull();
+        expect(result.current.loading).toBe(false);
+        expect(callables.getVerificationRequest).toHaveBeenCalledTimes(2);
+        consoleError.mockRestore();
+    });
+
+    it('reads a link with no token as not valid, without calling the load callable', async () => {
         const { result } = renderHook(() => useVerificationPortal(undefined));
         await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.error).toBe('No verification token provided.');
+        expect(result.current.linkProblem).toEqual({ reason: LINK_PROBLEM.NOT_FOUND });
         expect(callables.getVerificationRequest).not.toHaveBeenCalled();
     });
 
@@ -224,7 +256,7 @@ describe('useVerificationPortal — token-load and submission contract', () => {
         });
 
         expect(result.current.completed).toBe(false);
-        expect(result.current.error).toBeNull();
+        expect(result.current.linkProblem).toBeNull();
         expect(result.current.submitError).toBe(
             'Your response was not sent. Your answers are still on this page: check your connection and try again.',
         );

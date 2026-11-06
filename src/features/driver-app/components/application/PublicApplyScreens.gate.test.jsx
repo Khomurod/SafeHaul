@@ -112,6 +112,15 @@ describe('where the link problem sits in the chain', () => {
     expect(screen.getByRole('button', { name: 'Continue to the application' })).toBeInTheDocument();
   });
 
+  it("is the public pages' shared link screen, the page's own words and nothing added", () => {
+    render(resolveApplyStatusScreen(base({ inviteProblem: DEAD, intakeMode: null })));
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'This link could not be opened' });
+    expect(heading).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAccessibleName('This link could not be opened');
+    expect(screen.getByText(DEAD.message)).toHaveTextContent(/^This application link cannot be opened\.$/);
+  });
+
   it('offers only continue when retrying never will', () => {
     render(resolveApplyStatusScreen(base({ inviteProblem: DEAD, intakeMode: null })));
 

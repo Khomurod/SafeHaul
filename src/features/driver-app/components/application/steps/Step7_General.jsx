@@ -125,6 +125,7 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onSaveDraft={onPartialSubmit}
+                answers={formData}
                 onContinue={handleContinue}
             />
         </div>

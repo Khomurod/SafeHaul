@@ -5,7 +5,8 @@
  * and the server's words, with no way back to the answers: the respondent had
  * to reload the link and fill everything in again. Now the form stays, says why
  * the response was not sent and offers Try again. Only an answer the link can
- * no longer take (already on file, expired, removed) ends on its own screen.
+ * no longer take (already on file, expired, replaced, removed) ends on its own
+ * screen: the public pages' shared link screen for the last three.
  *
  * Artificial data only — no real tokens, drivers or employers.
  */
@@ -89,7 +90,7 @@ const expectAnswersKept = () => {
     expect(screen.getByRole('radio', { name: 'No / No Record Found' })).toBeChecked();
     expect(screen.getByRole('textbox', { name: /Your Full Name/i })).toHaveValue('Artificial Respondent');
     expect(screen.getByRole('textbox', { name: /Your Title \/ Position/i })).toHaveValue('HR Manager');
-    expect(screen.queryByRole('heading', { name: 'Verification Error' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: /link/i })).not.toBeInTheDocument();
 };
 
 beforeEach(() => {
@@ -140,7 +141,7 @@ describe('a response that is not sent', () => {
 
         const notice = await screen.findByRole('alert');
         expect(notice).toHaveTextContent('We did not hear back in time');
-        expect(screen.queryByRole('heading', { name: 'Link Expired' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'This link has expired' })).not.toBeInTheDocument();
         expectAnswersKept();
     });
 
@@ -156,20 +157,35 @@ describe('a response that is not sent', () => {
         expect(await screen.findByRole('heading', { name: 'Already Completed' })).toBeInTheDocument();
     });
 
-    it('shows Link Expired when the link ran out while the form was open', async () => {
+    it('shows the expired link screen, naming the company, when the link ran out while the form was open', async () => {
         submitAnswers(callableError('deadline-exceeded', 'This verification request has expired.'));
         renderPortal();
         await fillAndSubmit();
 
-        expect(await screen.findByRole('heading', { name: 'Link Expired' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link has expired' })).toHaveFocus();
+        expect(screen.getByText(/ask Artificial Requesting Carrier for a new link/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     });
 
-    it('shows the invalid-link screen when the request is gone', async () => {
+    it('shows the replaced link screen when a newer request replaced this one', async () => {
+        submitAnswers(callableError(
+            'not-found',
+            'This request was replaced by a newer one. Please use the most recent email you received.',
+        ));
+        renderPortal();
+        await fillAndSubmit();
+
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link was replaced by a newer one' }))
+            .toBeInTheDocument();
+        expect(screen.getByText(/Open the newest message from Artificial Requesting Carrier/)).toBeInTheDocument();
+    });
+
+    it('shows the not-valid link screen when the request is gone', async () => {
         submitAnswers(callableError('not-found', 'Verification request not found.'));
         renderPortal();
         await fillAndSubmit();
 
-        expect(await screen.findByRole('heading', { name: 'Verification Error' })).toBeInTheDocument();
-        expect(screen.getByText('This verification link is invalid or has been removed.')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link is not valid' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     });
 });

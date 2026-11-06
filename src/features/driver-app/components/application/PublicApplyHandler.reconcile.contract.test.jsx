@@ -250,7 +250,7 @@ describe('reconciling the local and server drafts', () => {
   });
 
   it('retries the server copy when the connection returns', async () => {
-    // Next and "Save as Draft" are the only other triggers, so an applicant who
+    // Next and "Finish later" are the only other triggers, so an applicant who
     // regained signal while sitting on a page kept their work locally and never
     // sent it.
     seedLocal({ data: { phone: '5551234' }, localSeq: 6, syncedSeq: 4, lastStep: 2 });

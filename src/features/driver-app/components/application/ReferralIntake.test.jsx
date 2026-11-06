@@ -11,12 +11,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { resolveApplyStatusScreen } from './PublicApplyScreens';
 import {
-  adoptReferralCode, findQuickInterestGaps, referralCodeFrom, referralConsentText,
+  adoptReferralCode, findQuickInterestGaps, prefillFromQuickInterest, referralCodeFrom, referralConsentText,
 } from './referralIntake';
 
-const { callable, send } = vi.hoisted(() => {
+const { callable, send, prefill } = vi.hoisted(() => {
   const sendFn = vi.fn();
-  return { send: sendFn, callable: vi.fn(() => sendFn) };
+  return { send: sendFn, callable: vi.fn(() => sendFn), prefill: vi.fn() };
 });
 
 vi.mock('firebase/functions', () => ({ httpsCallable: callable }));
@@ -44,6 +44,7 @@ const screenFor = (overrides = {}) => resolveApplyStatusScreen({
   companyId: 'company-1',
   companyName: 'Blue Line Freight',
   referralCode: 'ABCD2345',
+  onQuickInterestPrefill: prefill,
   handleChooseAutoFill: vi.fn(),
   handleChooseManual: vi.fn(),
   cdlAutoFillInputRef: { current: null },
@@ -67,6 +68,7 @@ async function fillQuickForm(user) {
 beforeEach(() => {
   send.mockReset();
   callable.mockClear();
+  prefill.mockReset();
 });
 
 describe('the code in the link', () => {
@@ -93,6 +95,44 @@ describe('the code in the link', () => {
     const [first, second] = referralConsentText('${companyName}').split('. M');
     expect(server).toContain(`\`${first}. \``);
     expect(server).toContain(`'M${second}'`);
+  });
+});
+
+describe('what the quick form fills in on page one', () => {
+  const sent = {
+    firstName: ' Sam ', lastName: 'Rivera', phone: '(312) 555-0142', email: 'sam.rivera@example.com',
+  };
+
+  it('fills the four answers, trimmed, and keeps everything else the application holds', () => {
+    expect(prefillFromQuickInterest({ referralCode: 'ABCD2345' }, sent)).toEqual({
+      referralCode: 'ABCD2345',
+      firstName: 'Sam',
+      lastName: 'Rivera',
+      phone: '(312) 555-0142',
+      email: 'sam.rivera@example.com',
+    });
+  });
+
+  it('takes nothing but those four, so the consent to be contacted never becomes an answer', () => {
+    const next = prefillFromQuickInterest({}, { ...sent, contactConsent: true, 'sms-consent': 'yes', middleName: 'J' });
+    expect(Object.keys(next).sort()).toEqual(['email', 'firstName', 'lastName', 'phone']);
+  });
+
+  it('never replaces an answer already there, so a stored draft wins', () => {
+    const stored = { firstName: 'Samuel', lastName: '  ', email: 'samuel@example.com' };
+    expect(prefillFromQuickInterest(stored, sent)).toEqual({
+      firstName: 'Samuel',
+      lastName: 'Rivera',
+      email: 'samuel@example.com',
+      phone: '(312) 555-0142',
+    });
+  });
+
+  it('returns the same answers when there is nothing to fill', () => {
+    const full = { firstName: 'A', lastName: 'B', phone: '1', email: 'c' };
+    expect(prefillFromQuickInterest(full, sent)).toBe(full);
+    const empty = { firstName: 'A' };
+    expect(prefillFromQuickInterest(empty, {})).toBe(empty);
   });
 });
 
@@ -182,8 +222,28 @@ describe('the quick interest form', () => {
     expect(thanks).toHaveFocus();
     expect(screen.getByText('A recruiter from Blue Line Freight will contact you soon.')).toBeInTheDocument();
 
+    expect(prefill).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Fill out the full application' }));
     expect(screen.getByTestId('intake-chooser')).toBeInTheDocument();
+    // The four answers as sent, for page one; the consent is not among them.
+    expect(prefill).toHaveBeenCalledTimes(1);
+    expect(prefill).toHaveBeenCalledWith({
+      firstName: 'Sam',
+      lastName: 'Rivera',
+      phone: '(312) 555-0142',
+      email: 'sam.rivera@example.com',
+    });
+  });
+
+  it('fills nothing in when the form was left without sending', async () => {
+    const user = userEvent.setup();
+    await openQuickForm(user);
+    await fillQuickForm(user);
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await user.click(screen.getByRole('button', { name: /Full application/ }));
+
+    expect(screen.getByTestId('intake-chooser')).toBeInTheDocument();
+    expect(prefill).not.toHaveBeenCalled();
   });
 
   it('keeps the answers and shows the server\'s reason when it refuses', async () => {

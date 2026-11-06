@@ -30,7 +30,6 @@ vi.mock('@shared/components/layout/Stepper', async () => (await import('./Public
 
 import { PublicApplyHandler } from './PublicApplyHandler';
 import {
-  showSuccess,
   showError,
   callableSpy,
   httpsCallableSpy,
@@ -43,6 +42,7 @@ import {
   retryWaitSpy,
   generateIdSpy,
   profileOverride,
+  partialSubmitOutcome,
   SIGNED_DRAFT,
   stubDraftCallables,
   makeRenderers,
@@ -439,6 +439,7 @@ describe('PublicApplyHandler submission contract', () => {
   });
 
   it('reports a failed local draft save instead of silently losing it', async () => {
+    partialSubmitOutcome.current = undefined;
     await renderWithCompleteDraft();
     const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
@@ -449,7 +450,8 @@ describe('PublicApplyHandler submission contract', () => {
     expect(showError).toHaveBeenCalledWith(
       'Could not save progress locally. Your data is still here — please continue filling the form.',
     );
-    expect(showSuccess).not.toHaveBeenCalledWith('Progress saved.');
+    // Nothing saved, so the step footer says nothing about coming back.
+    expect(partialSubmitOutcome.current).toBeNull();
     setItem.mockRestore();
   });
 

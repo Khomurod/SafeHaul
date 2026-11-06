@@ -29,14 +29,13 @@ vi.mock('@shared/components/signature/SignaturePad', () => ({
 import { VerificationPortal } from './VerificationPortal';
 import {
     LoadingScreen,
-    ErrorScreen,
-    ExpiredScreen,
     AlreadyCompletedScreen,
     CompletedScreen,
 } from './components/PortalStatusScreens';
 
 const VALID = {
     status: 'pending',
+    requestNumber: '9f8e7d6c',
     applicantName: 'Artificial Applicant',
     companyName: 'Artificial Requesting Carrier',
     employmentStartDate: '2020-02-02',
@@ -156,30 +155,97 @@ describe('VerificationPortal', () => {
         expect(screen.getByText(/A PDF record has been generated/i)).toBeInTheDocument();
     });
 
-    it('shows the invalid-link error screen for a not-found token', async () => {
-        const err = new Error('nf');
+    it('shows the shared link screen for a link that is not valid', async () => {
+        const err = new Error('Verification request not found. The link may be invalid.');
         err.code = 'functions/not-found';
         callables.getVerificationRequest.mockRejectedValue(err);
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderPortal();
 
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('This verification link is invalid or has been removed.');
-        expect(screen.getByRole('heading', { level: 1, name: 'Verification Error' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link is not valid' })).toHaveFocus();
+        expect(screen.getByText(/ask the sender for a new one/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         consoleError.mockRestore();
     });
 
-    it('shows the expired screen with its frozen message for an expired token', async () => {
-        const err = new Error('exp');
+    it('shows the shared link screen for an expired link', async () => {
+        const err = new Error('This verification request has expired. Please contact the requesting company.');
         err.code = 'functions/deadline-exceeded';
         callables.getVerificationRequest.mockRejectedValue(err);
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderPortal();
 
-        expect(await screen.findByText(
-            'This verification request has expired. Please contact the requesting company for a new link.',
-        )).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link has expired' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         consoleError.mockRestore();
+    });
+
+    it('offers Try again when the link could not be checked, and opens the form on it', async () => {
+        let calls = 0;
+        callables.getVerificationRequest.mockImplementation(() => {
+            calls += 1;
+            return calls === 1
+                ? Promise.reject(Object.assign(new Error('internal'), { code: 'functions/internal' }))
+                : Promise.resolve({ data: VALID });
+        });
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        renderPortal();
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('We could not check this link');
+        expect(alert).toHaveTextContent('This verification request could not be loaded. Please try again.');
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+        expect(await screen.findByRole('heading', { level: 1, name: /Previous Employment Verification/i }))
+            .toBeInTheDocument();
+        expect(callables.getVerificationRequest).toHaveBeenCalledTimes(2);
+        consoleError.mockRestore();
+    });
+
+    describe('what the page says about the request', () => {
+        it('shows the short request number and never the link token', async () => {
+            const { container } = renderPortal('secret-link-token-0001');
+            await screen.findByRole('heading', { level: 1, name: /Previous Employment Verification/i });
+
+            expect(screen.getByText('Request number: 9f8e7d6c')).toBeInTheDocument();
+            expect(container.textContent).not.toContain('secret-link-token');
+            expect(container.innerHTML).not.toContain('secret-link-token');
+            expect(screen.queryByText(/verification ID/i)).not.toBeInTheDocument();
+        });
+
+        it('carries no "Compliance" branding in its header or footer', async () => {
+            const { container } = await renderLoadedForm();
+            expect(container.querySelector('header')).not.toHaveTextContent(/Compliance/);
+            expect(screen.getByText('Requested under FMCSA 49 CFR Part 391.23')).toBeInTheDocument();
+            expect(screen.queryByText(/SafeHaul Compliance Services/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/Compliance Services/)).not.toBeInTheDocument();
+        });
+
+        it('shows no number line when the server sends none', async () => {
+            callables.getVerificationRequest.mockResolvedValue({ data: { ...VALID, requestNumber: undefined } });
+            await renderLoadedForm();
+            expect(screen.queryByText(/Request number/)).not.toBeInTheDocument();
+        });
+
+        it('shows the number, never the token, once the answer is recorded', async () => {
+            const { container } = renderPortal('secret-link-token-0002');
+            await screen.findByRole('heading', { level: 1, name: /Previous Employment Verification/i });
+            fireEvent.click(screen.getByRole('radio', { name: 'No / No Record Found' }));
+            fireEvent.change(screen.getByRole('textbox', { name: /Your Full Name/i }), {
+                target: { value: 'Artificial Respondent' },
+            });
+            fireEvent.change(screen.getByRole('textbox', { name: /Your Title \/ Position/i }), {
+                target: { value: 'HR Manager' },
+            });
+            fireEvent.change(screen.getByRole('textbox', { name: /Phone Number/i }), {
+                target: { value: '555-000-1111' },
+            });
+            fireEvent.click(screen.getByRole('button', { name: 'Mock sign' }));
+            fireEvent.click(screen.getByRole('button', { name: /Submit Verification Response/i }));
+
+            expect(await screen.findByText('Verification Submitted Successfully')).toBeInTheDocument();
+            expect(screen.getByText('Request number: 9f8e7d6c')).toBeInTheDocument();
+            expect(container.innerHTML).not.toContain('secret-link-token');
+        });
     });
 
     it('has no accessibility violations in the loaded form', async () => {
@@ -190,11 +256,9 @@ describe('VerificationPortal', () => {
     describe('status screens', () => {
         const cases = [
             [<LoadingScreen key="l" />, 'Loading verification request...'],
-            [<ErrorScreen key="e" error="Artificial failure" />, 'Verification Error'],
-            [<ExpiredScreen key="x" />, 'Link Expired'],
             [<AlreadyCompletedScreen key="a" />, 'Already Completed'],
             [
-                <CompletedScreen key="c" verificationData={{ applicantName: 'Artificial Applicant' }} token="token-xyz" />,
+                <CompletedScreen key="c" verificationData={{ applicantName: 'Artificial Applicant', requestNumber: '9f8e7d6c' }} />,
                 'Verification Submitted Successfully',
             ],
         ];

@@ -10,9 +10,14 @@ import { QuickInterestForm } from './QuickInterestForm';
  * Shown where the intake chooser would be, so a restored draft, an opened
  * carrier link and a confirmed identity, which all skip that chooser, skip this
  * one too. `children` is the chooser the full application starts from.
+ *
+ * "Fill out the full application" after the quick form hands what was sent to
+ * `onPrefill` first, so page one does not ask for it again. Held here, in the
+ * browser, from the form's own state: nothing is read back from the server.
  */
-export function ReferralIntake({ companyId, companyName, referralCode, children }) {
+export function ReferralIntake({ companyId, companyName, referralCode, onPrefill, children }) {
   const [view, setView] = useState('choose');
+  const [sent, setSent] = useState(null);
   const headingId = `referral-intake-${useId().replace(/:/g, '')}`;
   const sentHeadingRef = useRef(null);
 
@@ -29,7 +34,10 @@ export function ReferralIntake({ companyId, companyName, referralCode, children 
         companyId={companyId}
         companyName={companyName}
         referralCode={referralCode}
-        onSent={() => setView('sent')}
+        onSent={(contact) => {
+          setSent(contact);
+          setView('sent');
+        }}
         onBack={() => setView('choose')}
       />
     );
@@ -47,7 +55,15 @@ export function ReferralIntake({ companyId, companyName, referralCode, children 
             <p className="text-ds-content-secondary">
               A recruiter from {companyName} will contact you soon.
             </p>
-            <Button variant="secondary" onClick={() => setView('full')}>Fill out the full application</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (sent) onPrefill?.(sent);
+                setView('full');
+              }}
+            >
+              Fill out the full application
+            </Button>
           </div>
         ) : (
           <>

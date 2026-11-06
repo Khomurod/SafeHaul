@@ -293,6 +293,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onSaveDraft={onPartialSubmit}
+                answers={formData}
                 onContinue={handleContinue}
             />
         </div>

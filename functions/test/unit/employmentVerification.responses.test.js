@@ -63,6 +63,33 @@ describe('employmentVerification callables', () => {
       });
       expect(verificationDocs.get('pending-token')).toMatchObject({ status: 'opened' });
     });
+
+    it("shows the employer a short request number from the request's reference, never from the token", async () => {
+      const token = 'a1b2c3d4-0000-4000-8000-000000000000';
+      verificationDocs.set(token, {
+        status: 'sent',
+        requestId: '9f8e7d6c-1111-4111-8111-111111111111',
+        applicantName: 'Jane Driver',
+        expiresAt: createTs(Date.now() + 60000),
+      });
+
+      const result = await getVerificationRequest({ data: { token } });
+
+      // The start of the reference the result PDF prints as "Request Reference".
+      expect(result.requestNumber).toBe('9f8e7d6c');
+      expect(JSON.stringify(result)).not.toContain(token.slice(0, 8));
+    });
+
+    it('names a request sent before references were kept by a hash of its token, not the token', async () => {
+      const token = 'legacy-token-0000';
+      verificationDocs.set(token, { status: 'sent', applicantName: 'Jane Driver', expiresAt: createTs(Date.now() + 60000) });
+
+      const result = await getVerificationRequest({ data: { token } });
+
+      const hashed = require('crypto').createHash('sha256').update(token).digest('hex').slice(0, 8);
+      expect(result.requestNumber).toBe(hashed);
+      expect(JSON.stringify(result)).not.toContain(token);
+    });
   });
 
   describe('submitVerificationResponse', () => {
