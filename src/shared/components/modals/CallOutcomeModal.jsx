@@ -2,8 +2,9 @@ import React from 'react';
 import { CallOutcomeModalUI } from './CallOutcomeModalUI';
 import { useCallOutcome } from '@shared/hooks/useCallOutcome';
 
-export function CallOutcomeModal({ lead, companyId, onClose, onUpdate }) {
-    const hookProps = useCallOutcome(lead, companyId, onUpdate, onClose);
+/** `collectionName`: where the record lives, when the opener knows it (`useCallOutcome`). */
+export function CallOutcomeModal({ lead, companyId, onClose, onUpdate, collectionName = null }) {
+    const hookProps = useCallOutcome(lead, companyId, onUpdate, onClose, collectionName);
 
     return (
         <CallOutcomeModalUI 

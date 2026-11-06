@@ -55,7 +55,11 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  *     slot look alike, and the empty one is announced when the notes finish
  *     loading instead of appearing silently.
  */
-export function NotesTab({ companyId, applicationId, collectionName = 'applications', sharedHistory }) {
+/**
+ * `refreshKey` changes when a call is logged in the dossier: the notes are read
+ * again, and a note being written stays in its box.
+ */
+export function NotesTab({ companyId, applicationId, collectionName = 'applications', sharedHistory, refreshKey = 0 }) {
     const [notes, setNotes] = useState([]);
     const [newNote, setNewNote] = useState('');
     const [loading, setLoading] = useState(true);
@@ -136,7 +140,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
         }
         init();
         return () => { active = false; };
-    }, [companyId, applicationId, collectionName, sharedHistory]);
+    }, [companyId, applicationId, collectionName, sharedHistory, refreshKey]);
 
     const handleSend = async (e) => {
         e.preventDefault();

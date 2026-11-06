@@ -81,16 +81,16 @@ describe('PEVTab employer presentation', () => {
     });
 
     // Total 4, Completed 1, and 'Sent' + 'Requested' both count as pending: one line.
-    expect(screen.getByText('4 employers, 1 completed, 2 waiting for an answer')).toBeInTheDocument();
+    expect(screen.getByText('4 employers, 1 completed, 2 in progress')).toBeInTheDocument();
   });
 
   it('says one employer in the singular, and no counts when there are none', () => {
     const { unmount } = renderTab({ employers: [{ companyName: 'A' }] });
-    expect(screen.getByText('1 employer, 0 completed, 0 waiting for an answer')).toBeInTheDocument();
+    expect(screen.getByText('1 employer, 0 completed, 0 in progress')).toBeInTheDocument();
     unmount();
 
     renderTab({ employers: [] });
-    expect(screen.queryByText(/waiting for an answer/)).toBeNull();
+    expect(screen.queryByText(/in progress/)).toBeNull();
   });
 
   // It was a fixed card, not data, beside a "(DOT Compliance)" heading that

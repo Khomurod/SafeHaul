@@ -6,7 +6,7 @@ import { useCompactViewport } from './useCompactViewport';
 import { dossierStatusLabel } from './dossierStatusLabel';
 import { DossierKeyFacts } from './DossierKeyFacts';
 import { DossierCloseButton } from './DossierHeader';
-import { DOSSIER_SECTIONS } from './dossierSections';
+import { DOSSIER_SECTIONS, sectionTitle } from './dossierSections';
 
 /**
  * Driver identity block plus the dossier's section navigation.
@@ -160,8 +160,10 @@ function ContactBlock({ appData, collectionName, companyId, canEdit, logCall = n
  * and select, so the panel always matches the focused tab. The strip is
  * horizontal on a phone and a vertical rail from `sm` up.
  */
-export function DossierSectionTabs({ activeTab, setActiveTab, dqStatus, idBase = 'dossier' }) {
+export function DossierSectionTabs({ activeTab, setActiveTab, dqStatus, idBase = 'dossier', collectionName }) {
     const isCompact = useCompactViewport();
+    // Each tab says its section's one name, the header's too (a lead's first: Lead).
+    const isLead = collectionName === 'leads';
     return (
         <TabList
             ariaLabel="Driver dossier sections"
@@ -172,6 +174,7 @@ export function DossierSectionTabs({ activeTab, setActiveTab, dqStatus, idBase =
             className="gap-ds-1 overflow-x-auto px-ds-2 py-ds-2 sm:flex-1 sm:overflow-x-visible sm:overflow-y-auto sm:px-ds-3 sm:py-ds-4"
             tabs={DOSSIER_SECTIONS.map((item) => ({
                 ...item,
+                label: sectionTitle(item.id, { isLead }),
                 badge: item.id === 'dq' && dqStatus === 'incomplete' ? (
                     <>
                         <span
@@ -264,7 +267,7 @@ export function DossierSidebar({
             </div>
 
             {/* Navigation */}
-            <DossierSectionTabs activeTab={activeTab} setActiveTab={setActiveTab} dqStatus={dqStatus} idBase={idBase} />
+            <DossierSectionTabs activeTab={activeTab} setActiveTab={setActiveTab} dqStatus={dqStatus} idBase={idBase} collectionName={collectionName} />
         </div>
     );
 }

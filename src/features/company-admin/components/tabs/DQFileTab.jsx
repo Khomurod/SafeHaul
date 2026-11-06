@@ -154,13 +154,27 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   // Replaces `document.getElementById('dq-file-input')`.
   const fileInputRef = useRef(null);
   const uploadFormRef = useRef(null);
+  const validUntilRef = useRef(null);
+  // Where focus goes once the chosen type has rendered its fields.
+  const [focusAfterChoice, setFocusAfterChoice] = useState(null);
 
-  /** A checklist item's Upload: the form, with the item's type chosen and the file picker focused. */
+  /**
+   * A checklist item's Upload: the form, with the item's type chosen. Focus
+   * goes to the first field still to fill: a dated type's date, so the forward
+   * path meets it before the file, else the file picker.
+   */
   const chooseUploadType = (type) => {
     setSelectedFileType(type);
+    setFocusAfterChoice(DATED_FILE_TYPES.includes(type) ? 'date' : 'file');
     uploadFormRef.current?.scrollIntoView?.({ block: 'nearest' });
-    fileInputRef.current?.focus({ preventScroll: true });
   };
+
+  useEffect(() => {
+    if (!focusAfterChoice) return;
+    const target = focusAfterChoice === 'date' ? validUntilRef.current : fileInputRef.current;
+    target?.focus({ preventScroll: true });
+    setFocusAfterChoice(null);
+  }, [focusAfterChoice]);
 
   // --- 1. Get the correct Firestore path ---
   const dqFilesCollectionRef = useMemo(() => {
@@ -410,6 +424,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
           {DATED_FILE_TYPES.includes(selectedFileType) && (
             <FormField id={validUntilFieldId} label="Valid until (optional)" description="The date printed on the document, if it has one.">
               <Input
+                ref={validUntilRef}
                 type="date"
                 value={validUntil}
                 onChange={(e) => setValidUntil(e.target.value)}

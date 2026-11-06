@@ -118,8 +118,13 @@ describe('DQFileTab — what the file holds and what it does not', () => {
 
         fireEvent.click(upload);
         expect(screen.getByLabelText('File Type')).toHaveValue('MVR (Annual)');
-        expect(screen.getByLabelText('Valid until (optional)')).toBeInTheDocument();
-        expect(document.activeElement).toBe(screen.getByLabelText('File'));
+        // A dated type starts at its date, so the forward path meets it before the file.
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Valid until (optional)')));
+
+        // An undated one starts at the file.
+        fireEvent.click(within(row('PSP report')).getByRole('button', { name: 'Upload PSP report' }));
+        expect(screen.queryByLabelText('Valid until (optional)')).toBeNull();
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('File')));
 
         // An expired one is renewed the same way.
         fireEvent.click(within(row('Medical card')).getByRole('button', { name: 'Upload Medical card' }));

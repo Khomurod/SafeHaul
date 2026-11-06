@@ -299,3 +299,20 @@ describe('NotesTab — write contract', () => {
     });
 });
 
+
+// A call logged in the dossier (`refreshKey`) reads the notes again so the
+// call's note shows, without starting the tab over: a note being written
+// stays in its box.
+describe('NotesTab — a call logged meanwhile', () => {
+    it('reads the notes again and keeps the note being written', async () => {
+        const { rerender } = renderNotes({ refreshKey: 0 });
+        const box = await screen.findByLabelText('New note');
+        fireEvent.change(box, { target: { value: 'Prefers night runs' } });
+        await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(1));
+
+        rerender(<NotesTab companyId="co-1" applicationId="app-1" refreshKey={1} />);
+
+        await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(2));
+        expect(await screen.findByLabelText('New note')).toHaveValue('Prefers night runs');
+    });
+});

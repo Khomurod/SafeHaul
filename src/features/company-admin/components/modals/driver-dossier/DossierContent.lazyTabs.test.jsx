@@ -84,6 +84,7 @@ describe('the dossier tabs that load later', () => {
             applicationId: 'app-1',
             collectionName: 'leads',
             sharedHistory,
+            refreshKey: 0,
         });
         // The same array, so an unchanged record does not re-run the tab's read.
         expect(fx.notesProps.sharedHistory).toBe(sharedHistory);
@@ -113,9 +114,18 @@ describe('the Documents tab', () => {
 });
 
 describe('a call logged in the dossier', () => {
+    it('hands Notes the refresh, without starting it over (a note being written stays)', async () => {
+        const props = { activeTab: 'notes', appData: {}, driverId: 'app-1', companyId: 'co-1', collectionName: 'applications' };
+        const { rerender } = render(<DossierContent {...props} refreshKey={0} />);
+        expect(await screen.findByText('Notes')).toBeInTheDocument();
+
+        rerender(<DossierContent {...props} refreshKey={1} />);
+        expect(fx.mounts).toEqual(['notes']);
+        expect(fx.notesProps.refreshKey).toBe(1);
+    });
+
     it.each([
         ['activity', 'Audit trail'],
-        ['notes', 'Notes'],
     ])('reopens %s, which reads its entries once, so the call shows', async (tab, text) => {
         const props = { activeTab: tab, appData: {}, driverId: 'app-1', companyId: 'co-1', collectionName: 'applications' };
         const { rerender } = render(<DossierContent {...props} refreshKey={0} />);

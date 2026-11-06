@@ -59,7 +59,12 @@ function reminderLabelOf(date, time) {
     return `${day} at ${clock}`;
 }
 
-export function useCallOutcome(lead, companyId, onUpdate, onClose) {
+/**
+ * `collectionName`, when the opener knows it ('applications' or 'leads': the
+ * dossier's record, the list's scope), is where the call is written. Without it
+ * the record is guessed from what it carries, as before.
+ */
+export function useCallOutcome(lead, companyId, onUpdate, onClose, knownCollection = null) {
     const { showSuccess, showError } = useToast();
 
     const [outcome, setOutcome] = useState('interested');
@@ -131,7 +136,8 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
         const outcomeConfig = OUTCOMES.find(o => o.id === outcome) || OUTCOMES[0];
         const outcomeLabel = outcomeConfig.label;
 
-        const collectionName = (lead.submittedAt || lead.sourceType === 'Company App') ? 'applications' : 'leads';
+        const collectionName = knownCollection
+            || ((lead.submittedAt || lead.sourceType === 'Company App') ? 'applications' : 'leads');
 
         try {
             const companyLeadRef = doc(db, 'companies', companyId, collectionName, lead.id);

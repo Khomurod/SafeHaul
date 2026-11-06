@@ -23,7 +23,7 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  * primitives, the approved accessible `Modal`, and `--ds-*` tokens.
  *
  * The tab is named once, by its tab and the dossier header: it opens with the
- * counts on one line (employers, completed, waiting for an answer), then the
+ * counts on one line (employers, completed, in progress), then the
  * §391.23 note and the employers. No status is claimed that the data does not
  * hold (a fixed "Compliance Status: Audit in Progress" card stood here).
  *
@@ -70,9 +70,9 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
 
 const RESULT_NOT_FILED = 'The result was recorded, but it could not be filed in the DQ file. It opens from the verification history.';
 
-/** "3 employers, 1 completed, 2 waiting for an answer". */
+/** "3 employers, 1 completed, 2 in progress". */
 function countsLine({ total, completed, pending }) {
-    return `${total} ${total === 1 ? 'employer' : 'employers'}, ${completed} completed, ${pending} waiting for an answer`;
+    return `${total} ${total === 1 ? 'employer' : 'employers'}, ${completed} completed, ${pending} in progress`;
 }
 
 export function PEVTab({ companyId, applicationId, appData, collectionName = 'applications' }) {

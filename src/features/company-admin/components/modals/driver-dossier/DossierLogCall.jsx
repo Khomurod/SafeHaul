@@ -18,7 +18,7 @@ import { CallOutcomeModal } from '@shared/components/modals/CallOutcomeModal';
  * Presentation: the approved `Button`, in the tile shape of the Call and Email
  * links beside it.
  */
-export function DossierLogCall({ companyId, recordId, record, canLog = false, onLogged }) {
+export function DossierLogCall({ companyId, recordId, record, collectionName = null, canLog = false, onLogged }) {
     const [open, setOpen] = useState(false);
     if (!canLog || !companyId || !recordId || !record?.phone) return null;
 
@@ -38,6 +38,8 @@ export function DossierLogCall({ companyId, recordId, record, canLog = false, on
                 <CallOutcomeModal
                     lead={{ companyId, ...record, id: recordId }}
                     companyId={companyId}
+                    // The collection the dossier found the record in, not a guess.
+                    collectionName={collectionName}
                     onClose={() => setOpen(false)}
                     onUpdate={() => onLogged?.()}
                 />

@@ -264,6 +264,17 @@ describe('DossierSidebar — a referred driver', () => {
 describe('DossierSidebar — a lead and the application it became', () => {
   afterEach(cleanup);
 
+  it("names a lead's first section Lead in the strip, as its header does", () => {
+    renderSidebar({ collectionName: 'leads' });
+    expect(screen.getByRole('tab', { name: /^Lead/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Application/ })).toBeNull();
+  });
+
+  it("keeps Application for an application's first section", () => {
+    renderSidebar({ collectionName: 'applications' });
+    expect(screen.getByRole('tab', { name: /^Application/ })).toBeInTheDocument();
+  });
+
   it('a lead that applied opens its application', () => {
     const onOpenRecord = vi.fn();
     renderSidebar({

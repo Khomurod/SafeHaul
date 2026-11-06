@@ -267,3 +267,26 @@ describe('DriverProfileModal page states', () => {
     expect(screen.getByTestId('content')).toBeInTheDocument();
   });
 });
+
+// `useAppFetch` keeps the last record's data until the next arrives, so while
+// a linked record loads (or after its read failed) the left column still shows
+// the previous one's phone. Do not text is not offered then: it would list a
+// number that is not the one being opened.
+describe('Do not text while a record loads', () => {
+  afterEach(cleanup);
+
+  it.each([
+    ['loading', { loading: true }],
+    ['failed', { error: 'Could not load' }],
+  ])('is not offered while the record is %s', (_label, state) => {
+    viewState = { ...baseView(), ...state };
+    renderFromTrigger();
+    expect(screen.queryByRole('button', { name: /do not text/i })).toBeNull();
+  });
+
+  it('is offered once the record is shown', () => {
+    viewState = baseView();
+    renderFromTrigger();
+    expect(screen.getByRole('button', { name: /do not text/i })).toBeInTheDocument();
+  });
+});

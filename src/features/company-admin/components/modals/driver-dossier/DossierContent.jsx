@@ -30,8 +30,9 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * opens Previous Employment for them (`onOpenTab`); Documents to sign sends a
  * document to it.
  *
- * `refreshKey` changes when a call is logged in the dossier: Activity and Notes,
- * which read their entries once, start again and show it.
+ * `refreshKey` changes when a call is logged in the dossier: Activity, which
+ * reads its entries once, starts again; Notes reads its notes again and keeps a
+ * note being written.
  */
 export function DossierContent({
     activeTab,
@@ -117,7 +118,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <NotesTab
-                            key={refreshKey}
+                            refreshKey={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}

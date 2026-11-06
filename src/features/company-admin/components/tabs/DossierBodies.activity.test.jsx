@@ -111,6 +111,7 @@ describe('ActivityHistoryTab — filtering', () => {
         await screen.findByText('Call logged');
         expect(screen.queryByText('Audit Trail')).toBeNull();
         expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+        expect(screen.queryByRole('heading', { name: 'Activity' })).toBeNull();
     });
 });
 

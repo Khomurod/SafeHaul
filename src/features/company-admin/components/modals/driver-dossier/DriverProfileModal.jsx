@@ -151,18 +151,21 @@ export function DriverProfileModal({
         collectionName,
         onOpenRecord: openLinkedRecord,
         companyId,
-        canEdit,
+        // Do not text acts on the phone shown, which is the last record's while
+        // the next loads or after its read failed.
+        canEdit: canEdit && !loading && !error,
         logCall: (
             <DossierLogCall
                 companyId={companyId}
                 recordId={recordId}
                 record={appData}
+                collectionName={collectionName}
                 canLog={canEdit && !loading && !error}
                 onLogged={handleCallLogged}
             />
         ),
     };
-    const tabsProps = { activeTab, setActiveTab, dqStatus, idBase: tabsIdBase };
+    const tabsProps = { activeTab, setActiveTab, dqStatus, idBase: tabsIdBase, collectionName };
 
     const header = (
         /*

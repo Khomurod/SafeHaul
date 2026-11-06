@@ -304,6 +304,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 <CallOutcomeModal
                     lead={callModalData.lead}
                     companyId={companyId}
+                    // The list's own collection: a lead list reads leads, Applications applications.
+                    collectionName={isLeadsTab(scope) ? 'leads' : 'applications'}
                     onClose={() => setCallModalData(null)}
                     onUpdate={() => dashboard.refreshData()}
                 />
