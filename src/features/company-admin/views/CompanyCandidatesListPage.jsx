@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
+import { validPeriod } from '@features/companies/hooks/dashboardPeriods';
 import { Card, DataTable } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
 import { useData } from '@/context/DataContext';
@@ -14,6 +15,7 @@ import { loadDriverDossier } from '../components/modals/driver-dossier/loadDrive
 
 import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
+import { PeriodNotice } from './PeriodNotice';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 // The table is memoized: what the page hands it is built here, or memoized
@@ -42,11 +44,18 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const pipelineTabs =
         scope === 'applications' ? APPLICATION_PIPELINE_TABS : LEAD_PIPELINE_TABS;
     // A link can open the list on one of its segments, as the dashboard's Hired
-    // card does with `{ state: { segment: 'hired' } }`.
-    const openedSegment = useLocation().state?.segment;
+    // card does with `{ state: { segment: 'hired' } }`, and the applications on
+    // a month, as the dashboard's brief does with `{ state: { period } }`.
+    const location = useLocation();
+    const openedState = location.state;
+    const openedSegment = openedState?.segment;
+    const openedPeriod = scope === 'applications' ? validPeriod(openedState?.period) : null;
     const dashboard = useCompanyDashboard(companyId, {
         initialTab: scope,
         initialSegment: pipelineTabs.some((tab) => tab.id === openedSegment) ? openedSegment : 'all',
+        initialPeriod: openedPeriod,
+        // The page stays mounted across the menu's lists: each navigation brings its own period.
+        navigationKey: location.key,
     });
     const { showError, showSuccess } = useToast();
 
@@ -103,6 +112,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     };
 
     const handleAssignLeads = useCallback(() => setAssigningLeads(selectedRowIds), [selectedRowIds]);
+
+    const handleShowAll = useCallback(() => setFilters((prev) => ({ ...prev, period: null })), [setFilters]);
 
     const handleToggleMyAssignments = useCallback(
         (next) => setFilters((prev) => ({ ...prev, myAssignmentsOnly: next })),
@@ -223,6 +234,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 window keeps its layout. */}
             <div className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-6 flex flex-col gap-ds-4">
                 <PageHeader title={getPageTitle()} count={listCount} countLabel={countLabel} />
+                <PeriodNotice period={dashboard.filters.period} truncated={dashboard.listTruncated} onShowAll={handleShowAll} />
                 <UndatedRecordsNotice count={dashboard.undatedCount} />
 
                 {/* The list-page standard: one card holding the toolbar and the

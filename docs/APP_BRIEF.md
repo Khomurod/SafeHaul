@@ -468,6 +468,14 @@ driver's file). Each row links to the page that shows those records where one ex
 of a feature that is off are left out. A failed count says "could not be checked";
 with nothing to show it is one calm line.
 
+**This month (dashboard).** For everyone, one line read once per visit, each number a
+server count of the list its link opens: applications added this month (`createdAt`), in
+process (the In process tab) and hired this month (`hiredAt`, whatever their status now),
+on the viewer's clock. Until a whole month of hire dates exists it says "hired since Nov 6"
+(`HIRED_AT_RECORDED_FROM`). A placeholder while loading, Try again after a failure, never an
+uncounted 0; the Hired card is not repeated. The list it opens names the month, with Show
+all applications; a month of hires is one client-filtered list of at most 200.
+
 **DQ file: what's in it, valid-until dates.** The DQ tab opens with *What's in the
 file*: the application, CDL, medical card, MVR, the employers of the three years before
 the application (each answered, no answer after the attempts, waiting or not requested),
@@ -1031,8 +1039,12 @@ stage takes its place under the stage's name (`New Lead` and `New Application` r
 New, `Approved` Hired, `Rejected` Declined), any other keeps its stored name.
 Legacy values stay stored and valid in the rules. Creation defaults differ: leads get `New Lead`,
 applications `New Application`. Application lists show one name per group
-(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Rules
-validate transitions and **cannot import JS**: a rename edits them too.
+(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Their **In
+process** tab, and the dashboard's count of it, is Contact Attempt 1–3, Interested,
+In Process and the older stages between them (`APPLICATION_IN_PROCESS_STATUSES`, Д14):
+not New, Hired, Terminated, Declined or the closed `Disqualified`, `Stale`,
+`Offer Declined`. Rules validate transitions and **cannot import JS**: a rename edits
+them too.
 
 **Tenant binding is immutable.** Rules require `companyId` to match the path on
 create and never change, so no record claims another company.
@@ -1227,10 +1239,16 @@ the daily count**; refusing is a recorded outcome.
   application's and lead's `dqExpiresNext` (the earliest valid-until date among records
   not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
   tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
-- **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
+- **Stats** — only calls in `activity_logs` roll up into `stats_daily`, which only Super
+  Admin → Analytics reads (Maintenance rebuilds it; the company dashboard shows no call
+  statistics); application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
+- **Hire date** — the same trigger stamps `hiredAt` (the time of the write, from the
+  event) when an application's status enters `Hired`/`Approved` by any path, so a hire just
+  before midnight keeps its month; never on a save while hired; leaving keeps
+  it, coming back sets it again. Its write changes no status: no loop, no counter move (§10).
 - **Signing links** — a new request's email (`notifySigner`) and text (`notifySignerSMS`)
   each claim the event on the request (`emailDeliveryId`, `smsDeliveryId`, with the
   address in `linkSentTo`) before they send, so an event delivered twice sends once.
@@ -1389,6 +1407,9 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   unsigned record `validation_error` and move the dashboard counters before anyone
   read, consented to or signed anything. The driver's own submission promotes a
   draft (§5).
+- **A hire date is never guessed.** `hiredAt` exists only where the server saw the
+  status enter hired (from 2026-11-06, Д15). Older hires stay without one: no backfill,
+  and no hire date read from `createdAt`, `updatedAt`, `statusChangedAt` or Activity.
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
   `onCancel`, so "start a new application" is never the cancel action: Start
   over is its own explicit destructive confirmation, and Escape at either stage
@@ -1547,6 +1568,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   Firestore sorts by it (newest first, or as its date header says): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
+- **A month or segment from a dashboard link travels in the link's state**: the page keeps
+  it on reload, but a copied link or a new tab opens the whole list (the Hired card
+  already worked so). A month of hires lists its 200 newest, saying so.
+- **In process with a State picked finds only its name and postal code** ("Texas", "TX"):
+  twelve statuses leave room for two spellings in Firestore's 30 alternatives.
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
   asks for. Older leads with `null` (imported) or none (Quick Add, Facebook)
   are not found there until Data cleanup's lead fields item runs (below).

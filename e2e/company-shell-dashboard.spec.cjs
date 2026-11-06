@@ -6,13 +6,13 @@ const DASHBOARD_URL = '/company/dashboard?e2eAuth=company_admin';
 async function openDashboard(page) {
   await page.goto(DASHBOARD_URL);
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Team leaderboard' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hired: 2' })).toBeVisible();
 }
 
 test.describe('Company workspace shell and dashboard', () => {
   test.describe.configure({ timeout: 90_000 });
 
-  test('preserves dashboard actions, routes, table alignment, and desktop collapse', async ({ page }, testInfo) => {
+  test('preserves dashboard actions, routes and desktop collapse, with no team leaderboard', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop and laptop shell behavior.');
     await openDashboard(page);
 
@@ -23,20 +23,13 @@ test.describe('Company workspace shell and dashboard', () => {
 
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await expect(page).toHaveURL(/\/company\/dashboard/);
-
-    const dialsHeader = page.getByRole('columnheader', { name: 'Dials' });
-    const jordanRow = page.getByRole('rowheader', { name: /Jordan Recruiter/i });
-    const dialsCell = jordanRow.locator('xpath=ancestor::tr').getByRole('cell', { name: '18' });
-    await expect(dialsHeader).toHaveAttribute('data-align', 'end');
-    await expect(dialsCell).toHaveAttribute('data-align', 'end');
-
-    const [headerBox, cellBox] = await Promise.all([
-      dialsHeader.boundingBox(),
-      dialsCell.boundingBox(),
-    ]);
-    expect(Math.abs(
-      (headerBox.x + headerBox.width) - (cellBox.x + cellBox.width),
-    )).toBeLessThan(1);
+    await expect(page.getByRole('button', { name: 'Hired: 2' })).toBeVisible();
+    // Nothing on the page is "today" any more, so the heading does not say it.
+    await expect(page.getByText(/^Here's what's happening at .+\.$/)).toBeVisible();
+    await expect(page.getByText(/^Here's what's happening at .* today\.$/)).toHaveCount(0);
+    // The team leaderboard is gone; the call statistics stay for Super Admin → Analytics.
+    await expect(page.getByRole('table')).toHaveCount(0);
+    await expect(page.getByText(/leaderboard/i)).toHaveCount(0);
 
     const navigation = page.getByLabel('Company navigation');
     const expandedWidth = await navigation.evaluate((element) => element.getBoundingClientRect().width);
@@ -66,6 +59,59 @@ test.describe('Company workspace shell and dashboard', () => {
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
     await expect(page.getByText('Derek Nguyen')).toBeVisible();
     await expect(page.getByText('2 applications', { exact: true })).toBeVisible();
+  });
+
+  // The brief counts the fixture applications (src/features/companies/hooks/e2eDashboardFixtures.js)
+  // on a frozen clock: Aisha Robinson's hire is the one recorded after hire dates began (Nov 6).
+  test('the hiring brief opens the In process tab and the month\'s hires it counts @mobile', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-20T18:00:00Z'));
+    await openDashboard(page);
+
+    const brief = page.getByRole('region', { name: 'This month' });
+    await expect(brief).toContainText('This month: 0 applications · 1 in process · 1 hired since Nov 6');
+    // One line at 1440, wrapping on a phone, never wider than the page.
+    const geometry = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
+
+    await brief.getByRole('link', { name: '1 in process' }).click();
+    await expect(page).toHaveURL(/\/company\/drivers\/applications/);
+    await expect(page.getByRole('button', { name: 'In process', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('Henry Inprocess')).toBeVisible();
+    await expect(page.getByText('1 application', { exact: true })).toBeVisible();
+
+    await openDashboard(page);
+    await page.getByRole('region', { name: 'This month' }).getByRole('link', { name: '1 hired since Nov 6' }).click();
+    await expect(page.getByText('Showing applications hired since Nov 6, 2026, whatever their status now.')).toBeVisible();
+    await expect(page.getByText('Aisha Robinson')).toBeVisible();
+    // Derek Nguyen is hired too, from before hire dates were recorded.
+    await expect(page.getByText('Derek Nguyen')).toHaveCount(0);
+    await expect(page.getByText('1 application', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Show all applications' }).click();
+    await expect(page.getByText('8 applications', { exact: true })).toBeVisible();
+  });
+
+  test("the hiring brief opens the month's applications it counts, at 1440", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop width check; the phone runs the test above.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.clock.setFixedTime(new Date('2026-07-15T18:00:00Z'));
+    await openDashboard(page);
+
+    const brief = page.getByRole('region', { name: 'This month' });
+    await expect(brief).toContainText('This month: 3 applications · 1 in process · 0 hired since Nov 6');
+    const links = await brief.getByRole('link').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+    expect(new Set(links).size).toBe(1);
+
+    await brief.getByRole('link', { name: '3 applications' }).click();
+    await expect(page.getByText('Showing applications added in July 2026.')).toBeVisible();
+    for (const name of ['Maria Garcia', 'James McDonald', 'Henry Inprocess']) {
+      await expect(page.getByText(name)).toBeVisible();
+    }
+    await expect(page.getByText('Aisha Robinson')).toHaveCount(0);
+    await expect(page.getByText('3 applications', { exact: true })).toBeVisible();
   });
 
   test('keeps laptop content usable without document-level horizontal overflow', async ({ page }, testInfo) => {

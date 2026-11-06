@@ -16,10 +16,11 @@ import {
     normalizeSearchConfirmation,
     normalizeSearchApplicationId,
 } from '@shared/utils/searchNormalization';
-import { statusMatchesSegment } from '@shared/utils/applicationStatus';
+import { getStatusesForSegment, statusMatchesSegment } from '@shared/utils/applicationStatus';
 import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
 import { NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs } from '@shared/utils/northAmericanRegions';
 import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
+import { periodRange } from './dashboardPeriods';
 
 const CONFIRMATION_PATTERN = /^[A-Za-z]{2,5}\s*-\s*\d{4}\s*-\s*[A-Za-z0-9]{4,8}$/;
 const PHONE_PATTERN = /^[+()\-.\s\d]{7,}$/;
@@ -211,11 +212,15 @@ const SHARED_REGION_CODES = (() => {
  * segment's `status in` (three at most) inside Firestore's 30 alternatives. A
  * name typed in mixed case ("tExAs") is not matched.
  *
+ * `limit` keeps at most that many, the name and the postal code first: the two
+ * spellings an application itself stores.
+ *
  * @param {unknown} value the picked region, e.g. `'Texas'`
+ * @param {number} [limit] the most spellings to return
  * @returns {string[]} e.g. `['Texas', 'TEXAS', 'texas', 'TX', 'tx', 'Tx', 'tX']`;
  *   a value that names no region is matched as it is
  */
-export function stateFilterValues(value) {
+export function stateFilterValues(value, limit = Infinity) {
     const text = String(value ?? '').trim();
     const name = toUsStateName(text) || REGION_BY_LOWER_NAME.get(text.toLowerCase()) || '';
     if (!name) return text ? [text] : [];
@@ -223,7 +228,27 @@ export function stateFilterValues(value) {
     const codes = code && !SHARED_REGION_CODES.has(code)
         ? [code, code.toLowerCase(), code[0] + code[1].toLowerCase(), code[0].toLowerCase() + code[1]]
         : [];
-    return [...new Set([name, name.toUpperCase(), name.toLowerCase(), ...codes])];
+    const all = [...new Set([name, name.toUpperCase(), name.toLowerCase(), ...codes])];
+    if (all.length <= limit) return all;
+    const first = [name, ...codes.slice(0, 1)];
+    return [...first, ...all.filter((spelling) => !first.includes(spelling))].slice(0, limit);
+}
+
+/** Firestore's limit on the alternatives one query expands into: each `in` value times each other's. */
+export const QUERY_ALTERNATIVES_LIMIT = 30;
+
+/**
+ * The State filter's spellings for a list beside its segment's `status in`: as
+ * many as Firestore's 30 alternatives leave room for. Every segment leaves all
+ * seven, but In process's twelve statuses leave two (the name and the postal
+ * code), so there a lower-case or other spelling a lead import kept is not found.
+ * The query and its client-side mirror both use it.
+ */
+export function stateValuesForSegment(state, { activeTab, pipelineSegment } = {}) {
+    const statuses = activeTab === 'applications'
+        ? getStatusesForSegment(pipelineSegment)
+        : LEAD_SEGMENT_STATUSES[pipelineSegment];
+    return stateFilterValues(state, Math.floor(QUERY_ALTERNATIVES_LIMIT / Math.max(1, statuses?.length || 1)));
 }
 
 /**
@@ -245,6 +270,28 @@ export function dateFilterRange(dateFilter) {
     };
 }
 
+/**
+ * The Added dates the filters ask for: the picked day, the month of a period of
+ * applications added (`filters.period`, field `createdAt`), or the days both
+ * share, which may be none (`start >= end`). `null` when neither is set.
+ *
+ * @returns {{ start: Date, end: Date } | null}
+ */
+export function addedWindow(filters = {}) {
+    const day = dateFilterRange(filters.dateFilter);
+    const month = filters.period?.field === 'createdAt' ? periodRange(filters.period) : null;
+    if (!day || !month) return day || month;
+    return {
+        start: day.start > month.start ? day.start : month.start,
+        end: day.end < month.end ? day.end : month.end,
+    };
+}
+
+/** The hire dates a period of applications hired asks for (`filters.period`, field `hiredAt`); `null` otherwise. */
+export function hiredWindow(filters = {}) {
+    return filters.period?.field === 'hiredAt' ? periodRange(filters.period) : null;
+}
+
 /** A stored time (a Firestore Timestamp or its plain `{ seconds }` form) in milliseconds; `null` if there is none. */
 function timeMillis(ts) {
     if (!ts) return null;
@@ -261,11 +308,10 @@ export function createdAtMillis(record) {
     return timeMillis(record?.createdAt);
 }
 
-function matchesDateFilter(record, dateFilter) {
-    const range = dateFilterRange(dateFilter);
-    if (!range) return true;
-    const at = createdAtMillis(record);
-    return at !== null && at >= range.start.getTime() && at < range.end.getTime();
+/** Whether a stored time lies in a window; a window not asked for (`null`) takes everything. */
+function within(at, window) {
+    if (!window) return true;
+    return at !== null && at >= window.start.getTime() && at < window.end.getTime();
 }
 
 /**
@@ -324,7 +370,7 @@ export function applyClientSideFilters(records, {
                 return false;
             }
         }
-        if (filters.state && !stateFilterValues(filters.state).includes(record.state)) {
+        if (filters.state && !stateValuesForSegment(filters.state, { activeTab, pipelineSegment }).includes(record.state)) {
             return false;
         }
         if (filters.driverType) {
@@ -333,7 +379,8 @@ export function applyClientSideFilters(records, {
                 : (record.driverType ? [record.driverType] : []);
             if (!types.includes(filters.driverType)) return false;
         }
-        if (!matchesDateFilter(record, filters.dateFilter)) return false;
+        if (!within(createdAtMillis(record), addedWindow(filters))) return false;
+        if (!within(timeMillis(record.hiredAt), hiredWindow(filters))) return false;
 
         return true;
     });

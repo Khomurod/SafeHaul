@@ -11,6 +11,11 @@
  * and firestore.rules allowedRecruiterPipelineStatus). Renaming them breaks
  * existing documents; only APPEND new variants.
  */
+import {
+    ATS_INTERESTED_STATUS,
+    ATS_LEGACY_IN_PROCESS_STATUSES,
+    CONTACT_ATTEMPT_STATUSES,
+} from '../constants/atsStatus';
 
 /** Raw stored status variants per canonical application pipeline segment. */
 export const APPLICATION_STATUS_GROUPS = Object.freeze({
@@ -19,6 +24,22 @@ export const APPLICATION_STATUS_GROUPS = Object.freeze({
     terminated: Object.freeze(['Terminated']),
     declined: Object.freeze(['Declined', 'Rejected']),
 });
+
+/**
+ * The applications "in process" (Д14): Contact Attempt 1–3, Interested, In Process
+ * and the older stages between them; not New, Hired, Terminated, Declined or a
+ * closed older stage. Its own segment, not a group: each stage keeps its name
+ * (`applicationStatusLabel`) and a call still moves a record between them
+ * (`useCallOutcome`). Exact stored values, as the In process tab's `status in`
+ * and the dashboard's count ask for them: twelve, which leaves room in Firestore's
+ * 30 alternatives for two State spellings (`stateValuesForSegment`).
+ */
+export const APPLICATION_IN_PROCESS_STATUSES = Object.freeze([
+    ...CONTACT_ATTEMPT_STATUSES,
+    ATS_INTERESTED_STATUS,
+    'In Process',
+    ...ATS_LEGACY_IN_PROCESS_STATUSES,
+]);
 
 const CANONICAL_BY_LOWERCASE = (() => {
     const map = new Map();
@@ -54,10 +75,11 @@ export function applicationStatusLabel(rawStatus) {
 
 /**
  * Raw stored status values to use in a Firestore `where('status', 'in', ...)`
- * for a pipeline segment. Returns null for 'all' / unknown segments (no
- * constraint should be applied).
+ * for a pipeline segment ('in_process' included). Returns null for 'all' /
+ * unknown segments (no constraint should be applied).
  */
 export function getStatusesForSegment(segmentId) {
+    if (segmentId === 'in_process') return [...APPLICATION_IN_PROCESS_STATUSES];
     const variants = APPLICATION_STATUS_GROUPS[segmentId];
     return variants ? [...variants] : null;
 }
@@ -65,5 +87,6 @@ export function getStatusesForSegment(segmentId) {
 /** True when a record's raw status belongs to the given pipeline segment. */
 export function statusMatchesSegment(rawStatus, segmentId) {
     if (!segmentId || segmentId === 'all') return true;
+    if (segmentId === 'in_process') return APPLICATION_IN_PROCESS_STATUSES.includes(rawStatus);
     return normalizeApplicationStatus(rawStatus) === segmentId;
 }

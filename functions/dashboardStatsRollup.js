@@ -3,7 +3,8 @@
 /**
  * Maintains companies/{companyId}/internal_stats/dashboard for employer KPI tiles.
  * Server-only writes; clients read via rules. Counters are adjusted incrementally with
- * early exits to avoid extra writes on irrelevant application updates.
+ * early exits to avoid extra writes on irrelevant application updates. The same
+ * application trigger stamps the hire date, `hiredAt` (`shared/hireDate.js`).
  *
  * Increments drift: a counter that began after records existed goes below zero as
  * they are deleted, and a trigger delivered twice counts twice. So every company is
@@ -18,6 +19,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { admin, db } = require('./firebaseAdmin');
 const { assertSuperAdminAuth } = require('./shared/superAdmin');
 const { HIRED_STATUSES, isHiredStatus } = require('./shared/applicationStatus');
+const { entersHiredStatus, recordHireDate } = require('./shared/hireDate');
 
 const INTERNAL_STATS = 'internal_stats';
 const DASHBOARD_DOC_ID = 'dashboard';
@@ -95,6 +97,16 @@ exports.onApplicationWrittenDashboardRollup = onDocumentWritten(
     const change = event.data;
     if (!change) return;
     const companyId = event.params.companyId;
+    // The hire date (`shared/hireDate.js`), whichever path moved the status.
+    const before = change.before.exists ? change.before.data() : null;
+    const after = change.after.exists ? change.after.data() : null;
+    if (entersHiredStatus(before, after)) {
+      try {
+        await recordHireDate(change.after.ref, Date.parse(event.time));
+      } catch (e) {
+        console.error('[dashboardRollup] hire date not recorded:', companyId, event.params.applicationId, e?.message || e);
+      }
+    }
     const deltas = computeApplicationRollupDeltas(change.before, change.after);
     if (!deltas) return;
     try {

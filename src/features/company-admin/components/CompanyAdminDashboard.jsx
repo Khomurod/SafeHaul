@@ -13,8 +13,8 @@ import {
 } from '@/design-system/layouts';
 import { useDashboardCounts } from '@features/companies';
 
-import { InlineLeaderboard } from './InlineLeaderboard';
 import { CompanyReadinessCard } from './CompanyReadinessCard';
+import { HiringBrief } from './HiringBrief';
 import { NeedsAttentionCard } from './NeedsAttentionCard';
 
 import { Icon, FileText, Briefcase, User, CheckCircle } from '@design-system/icons';
@@ -59,7 +59,7 @@ export function CompanyAdminDashboard() {
                 <Stack gap="lg">
                     <PageHeader
                         title={userName ? `Welcome back, ${userName}` : 'Welcome back'}
-                        description={`Here's what's happening at ${companyName} today.`}
+                        description={`Here's what's happening at ${companyName}.`}
                     />
 
                     <Section aria-label="Company activity summary">
@@ -130,9 +130,8 @@ export function CompanyAdminDashboard() {
                     {/* Admins only: what the company has not set up, read once (one calm line when ready). */}
                     <CompanyReadinessCard companyId={companyId} />
 
-                    <Section aria-label="Team performance">
-                        <InlineLeaderboard companyId={companyId} />
-                    </Section>
+                    {/* Everyone: this month's applications, those in process and this month's hires, each opening its list. */}
+                    <HiringBrief key={companyId} companyId={companyId} />
                 </Stack>
             </PageContainer>
         </div>

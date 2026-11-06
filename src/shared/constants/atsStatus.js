@@ -31,6 +31,21 @@ export const ATS_LEGACY_STATUS_ALIASES = [
     'Offer Declined',
 ];
 
+/**
+ * Older stages between first contact and a decision: still stored on some records
+ * (the rules accept each), counted as "in process" (`APPLICATION_IN_PROCESS_STATUSES`).
+ * The closed older stages — Disqualified, Stale, Offer Declined — are not.
+ */
+export const ATS_LEGACY_IN_PROCESS_STATUSES = [
+    'Contacted',
+    'Attempted',
+    'In Review',
+    'Background Check',
+    'Qualified',
+    'Hold',
+    'Offer Accepted',
+];
+
 /** What the status picker offers: the funnel and Interested (a record's own legacy value is added by the picker). */
 export const ATS_STATUS_DROPDOWN_OPTIONS = [
     ...ATS_PIPELINE_STATUSES,

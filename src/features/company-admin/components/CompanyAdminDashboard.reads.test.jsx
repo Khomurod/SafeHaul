@@ -1,9 +1,9 @@
 /**
  * What the company dashboard reads: its four counts, the signed-in user's
- * name, the server's "Needs attention" counts (one call, for everyone), and for
- * a company admin the "Company setup" card's few documents and the email
- * settings, once. It shows no list, so it asks for no records, no list counts
- * and no team.
+ * name, the server's "Needs attention" counts (one call, for everyone), the
+ * hiring brief's three application counts, and for a company admin the "Company
+ * setup" card's few documents and the email settings, once. It shows no list,
+ * so it asks for no records, no list counts and no team.
  *
  * All names and ids below are artificial.
  */
@@ -74,8 +74,6 @@ vi.mock('@lib/firebase', () => {
 });
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
-// The leaderboard reads its own day of stats, with a suite of its own.
-vi.mock('./InlineLeaderboard', () => ({ InlineLeaderboard: () => null }));
 
 import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';
@@ -106,6 +104,8 @@ const COUNTS_AND_NAME = [
     'count companies/co-1/leads',
     'doc users/uid-1',
 ];
+// This month's applications, those in process and this month's hires: counts, not records.
+const BRIEF = Array(3).fill('count companies/co-1/applications');
 
 afterEach(() => {
     fx.reads = [];
@@ -121,9 +121,11 @@ describe('the company dashboard', () => {
         // The texting set-up is missing here, so the card lists it.
         expect(await screen.findByRole('heading', { name: 'Company setup' })).toBeInTheDocument();
         expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
+        expect(await screen.findByText('This month’s numbers loaded.')).toBeInTheDocument();
         expect([...fx.reads].sort()).toEqual([
             'call getDashboardAttention',
             'call getEmailSettingsMeta',
+            ...BRIEF,
             ...COUNTS_AND_NAME.slice(0, 4),
             'doc companies/co-1',
             'doc companies/co-1/integrations/sms_provider',
@@ -137,11 +139,13 @@ describe('the company dashboard', () => {
 
         await waitFor(() => expect(screen.getByRole('button', { name: 'Hired: 3' })).toBeInTheDocument());
         expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
+        expect(await screen.findByText('This month’s numbers loaded.')).toBeInTheDocument();
         await act(async () => {});
         expect(screen.queryByText(/Company setup|Checking company setup/)).toBeNull();
         // The name was read by the test before: the session keeps it.
         expect(fx.reads.filter((read) => read !== 'doc users/uid-1').sort()).toEqual([
             'call getDashboardAttention',
+            ...BRIEF,
             ...COUNTS_AND_NAME.slice(0, 4),
         ]);
     });
