@@ -11,6 +11,7 @@ import {
   writeDiscardMark,
   draftSyncState,
 } from './applicationDraftStorage';
+import { canBeFoundElsewhere } from './resumeIdentity';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
 
@@ -25,29 +26,9 @@ export function storedFilePaths(formData) {
     .map((value) => value.storagePath));
 }
 
-const filled = (value) => typeof value === 'string' && value.trim() !== '';
-
-/** A phone the server can match: ten digits, after a leading US 1 (`contactMatches`). */
-function matchablePhone(value) {
-  const digits = String(value || '').replace(/\D/g, '');
-  const national = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-  return national.length >= 10;
-}
-
-/**
- * Whether a saved copy of these answers can be found from another device: the
- * server matches a last name, date of birth and nine-digit SSN (the identity key it
- * builds from them, `buildIdentityKey`) plus an email or phone on record — a phone
- * only with ten digits, as `contactMatches` (functions/shared/applicationDraft.js)
- * requires. The SSN lives only in page state, so after a reload this is false even
- * when an earlier save left the key behind: it may say too little, never too much.
- */
-export function canBeFoundElsewhere(formData) {
-  const answers = formData || {};
-  return filled(answers.lastName) && filled(answers.dob)
-    && String(answers.ssn || '').replace(/\D/g, '').length === 9
-    && (filled(answers.email) || matchablePhone(answers.phone));
-}
+// The facts another device is matched on (`resumeIdentity.js`), re-exported for
+// the callers and tests that knew the rule here.
+export { canBeFoundElsewhere };
 
 export function useDraftLifecycle({
   slug,
@@ -63,6 +44,7 @@ export function useDraftLifecycle({
   startOver,
   forgetDraftOwnership,
   saveDraftToServer,
+  serverHoldsIdentity = () => false,
   setFormData,
   setCurrentStep,
   setIntakeMode,
@@ -312,7 +294,8 @@ export function useDraftLifecycle({
    * `FinishLaterNotice`), or null when nothing was saved. `saved` is the local
    * copy, which this browser restores when the link is opened again. `anotherDevice`
    * resolves true only once the server has confirmed holding this very copy and
-   * the facts another device is matched on are on the page, so the footer never
+   * a save carrying the facts another device is matched on (`serverHoldsIdentity`),
+   * and those facts are on the page, so the footer never
    * promises a match the server could not make. The save itself stays background
    * work the driver never waits on.
    */
@@ -342,7 +325,10 @@ export function useDraftLifecycle({
     const sent = saveDraftToServer({ formData, stepIndex: currentStep, localSeq, draftId: draftIdRef.current });
     const anotherDevice = !sandbox && canBeFoundElsewhere(formData)
       ? Promise.resolve(sent).then(
-        () => !discardedElsewhere() && draftSyncState(slug)?.dirty === false,
+        // The sync state alone is not enough: the local copy strips the SSN, so an
+        // SSN typed since the last confirmed save leaves it clean while the server
+        // never received it. The server must have confirmed these very facts.
+        () => !discardedElsewhere() && draftSyncState(slug)?.dirty === false && serverHoldsIdentity(formData),
         () => false,
       )
       : Promise.resolve(false);
