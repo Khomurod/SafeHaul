@@ -20,6 +20,7 @@ import { getStatusesForSegment, statusMatchesSegment } from '@shared/utils/appli
 import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
 import { NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs } from '@shared/utils/northAmericanRegions';
 import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
+import { periodRange } from './dashboardPeriods';
 
 const CONFIRMATION_PATTERN = /^[A-Za-z]{2,5}\s*-\s*\d{4}\s*-\s*[A-Za-z0-9]{4,8}$/;
 const PHONE_PATTERN = /^[+()\-.\s\d]{7,}$/;
@@ -269,6 +270,28 @@ export function dateFilterRange(dateFilter) {
     };
 }
 
+/**
+ * The Added dates the filters ask for: the picked day, the month of a period of
+ * applications added (`filters.period`, field `createdAt`), or the days both
+ * share, which may be none (`start >= end`). `null` when neither is set.
+ *
+ * @returns {{ start: Date, end: Date } | null}
+ */
+export function addedWindow(filters = {}) {
+    const day = dateFilterRange(filters.dateFilter);
+    const month = filters.period?.field === 'createdAt' ? periodRange(filters.period) : null;
+    if (!day || !month) return day || month;
+    return {
+        start: day.start > month.start ? day.start : month.start,
+        end: day.end < month.end ? day.end : month.end,
+    };
+}
+
+/** The hire dates a period of applications hired asks for (`filters.period`, field `hiredAt`); `null` otherwise. */
+export function hiredWindow(filters = {}) {
+    return filters.period?.field === 'hiredAt' ? periodRange(filters.period) : null;
+}
+
 /** A stored time (a Firestore Timestamp or its plain `{ seconds }` form) in milliseconds; `null` if there is none. */
 function timeMillis(ts) {
     if (!ts) return null;
@@ -285,11 +308,10 @@ export function createdAtMillis(record) {
     return timeMillis(record?.createdAt);
 }
 
-function matchesDateFilter(record, dateFilter) {
-    const range = dateFilterRange(dateFilter);
-    if (!range) return true;
-    const at = createdAtMillis(record);
-    return at !== null && at >= range.start.getTime() && at < range.end.getTime();
+/** Whether a stored time lies in a window; a window not asked for (`null`) takes everything. */
+function within(at, window) {
+    if (!window) return true;
+    return at !== null && at >= window.start.getTime() && at < window.end.getTime();
 }
 
 /**
@@ -357,7 +379,8 @@ export function applyClientSideFilters(records, {
                 : (record.driverType ? [record.driverType] : []);
             if (!types.includes(filters.driverType)) return false;
         }
-        if (!matchesDateFilter(record, filters.dateFilter)) return false;
+        if (!within(createdAtMillis(record), addedWindow(filters))) return false;
+        if (!within(timeMillis(record.hiredAt), hiredWindow(filters))) return false;
 
         return true;
     });

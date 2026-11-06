@@ -1,9 +1,9 @@
 import React, { useId, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button, ButtonLink, Card, StatusMedallion } from '@/design-system/components';
 import { Icon, AlertCircle, ArrowRight, CheckCircle, Info } from '@design-system/icons';
 import { DriverDossier } from './modals/driver-dossier/DriverDossier';
 import { forgetDashboardAttention, useDashboardAttention } from '../hooks/useDashboardAttention';
+import { useInAppLink } from '../hooks/useInAppLink';
 import { attentionItems, localDay } from '../utils/dashboardAttention';
 
 /**
@@ -17,16 +17,6 @@ import { attentionItems, localDay } from '../utils/dashboardAttention';
  * failed is one line with Try again. It never stops the rest of the dashboard.
  * The hired drivers in the DQ row open their file over the dashboard.
  */
-
-/** A link inside the app: a plain press stays in the page (with the link's state), any other opens as the browser would. */
-function useInAppLink() {
-    const navigate = useNavigate();
-    return (link) => (event) => {
-        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-        event.preventDefault();
-        navigate(link.href, link.state ? { state: link.state } : undefined);
-    };
-}
 
 function DriverList({ item, onOpen }) {
     return (

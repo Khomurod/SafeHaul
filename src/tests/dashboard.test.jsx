@@ -16,8 +16,17 @@ const dashboardState = vi.hoisted(() => ({
     refresh: vi.fn(),
 }));
 
+const briefState = vi.hoisted(() => ({
+    brief: { applications: 18, inProcess: 42, hired: 3 },
+    month: '2026-12',
+    isLoading: false,
+    error: null,
+    refresh: () => {},
+}));
+
 vi.mock('@features/companies', () => ({
     useDashboardCounts: () => dashboardState,
+    useHiringBrief: () => briefState,
 }));
 
 // Mock Firebase with complete auth state management
@@ -160,6 +169,10 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
         // The team leaderboard is gone; the daily call statistics stay for Super Admin → Analytics.
         expect(screen.queryByRole('heading', { name: /leaderboard/i })).toBeNull();
         expect(screen.queryByRole('table', { name: /leaderboard/i })).toBeNull();
+        // In its place, this month's brief.
+        expect(screen.getByRole('region', { name: 'This month' })).toHaveTextContent(
+            'This month: 18 applications · 42 in process · 3 hired this month',
+        );
     });
 
     it('keeps metric navigation keyboard-accessible', () => {

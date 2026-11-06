@@ -3,9 +3,10 @@
 // The dashboard's Firestore side, kept apart from `useCompanyDashboard.js` for
 // the source-size standard. Everything here is React-free:
 // constraint planning for the list queries, the parallel search execution,
-// and the stats counts (rollup-first, with the count-query fallback). The
-// hook keeps the state, the effects, the pagination bookkeeping and the E2E
-// fixture branches, and passes its current state in as plain arguments.
+// a period of hires as one list, the stats counts (rollup-first, with the
+// count-query fallback) and the hiring brief's counts, from the lists' own
+// queries. The hooks keep the state, the effects, the pagination bookkeeping
+// and the E2E fixture branches, and pass their current state in as plain arguments.
 
 import {
     collection,
@@ -33,10 +34,12 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     stateValuesForSegment,
-    dateFilterRange,
+    addedWindow,
+    hiredWindow,
     SEARCH_PLAN_LIMIT,
     PREFIX_END,
 } from './dashboardSearch';
+import { HIRED_PERIOD_LIMIT, periodRange } from './dashboardPeriods';
 
 function pipelineConstraints({ activeTab, pipelineSegment }) {
     if (activeTab === 'applications') {
@@ -74,18 +77,23 @@ function wantedAssignees({ activeTab, filters }) {
 /**
  * The list query for a tab, a pipeline segment and the toolbar's filters: the
  * equality filters, then the createdAt order (`dateOrder`, newest first unless
- * the Added Date arrows turn it), then the picked day as cursors on that order.
- * A sort leaves out records without createdAt, which no date order can list;
- * `ordered: false` returns the filters alone, so the hook can count those
- * records and the page can say how to find them.
+ * the Added Date arrows turn it), then the Added dates asked for — the picked
+ * day, a period's month, or the days both share (`addedWindow`) — as cursors on
+ * that order. A sort leaves out records without createdAt, which no date order
+ * can list; `ordered: false` returns the filters alone, so the hook can count
+ * those records and the page can say how to find them. A period of hires is
+ * not this query's: `runHiredPeriodList` lists it.
  *
- * `null` when the filters ask for two different assignees, which no record
- * has: the list is empty without asking Firestore, which would also refuse the
- * widest such query (two assignee filters in every alternative it expands).
+ * `null` when no record can match, so the list is empty without asking
+ * Firestore: the filters ask for two different assignees (Firestore would also
+ * refuse the widest such query, two assignee filters in every alternative it
+ * expands), or a picked day outside a period's month.
  */
 export function buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder = 'desc', ordered = true }) {
     const assignees = wantedAssignees({ activeTab, filters });
     if (assignees.length > 1) return null;
+    const added = addedWindow(filters);
+    if (added && added.start >= added.end) return null;
 
     const constraints = [];
 
@@ -112,16 +120,15 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
     const direction = dateOrder === 'asc' ? 'asc' : 'desc';
     constraints.push(orderBy('createdAt', direction));
 
-    const day = dateFilterRange(filters.dateFilter);
-    if (day) {
-        // The recruiter's own day, from local midnight to the next, as cursors
-        // on the createdAt order rather than range filters: equality filters
-        // with a sort are what Firestore serves by merging the declared
-        // indexes. A later page's startAfter(lastDoc) replaces the first cursor
-        // and keeps the second.
+    if (added) {
+        // The recruiter's own days, from local midnight, as cursors on the
+        // createdAt order rather than range filters: equality filters with a
+        // sort are what Firestore serves by merging the declared indexes. A
+        // later page's startAfter(lastDoc) replaces the first cursor and keeps
+        // the second.
         constraints.push(...(direction === 'asc'
-            ? [startAt(day.start), endBefore(day.end)]
-            : [startAfter(day.end), endAt(day.start)]));
+            ? [startAt(added.start), endBefore(added.end)]
+            : [startAfter(added.end), endAt(added.start)]));
     }
 
     return constraints;
@@ -192,6 +199,60 @@ export async function loadDashboardStats({ companyId }) {
         myLeads: myLeadsSnap.data().count,
         hired: hiredSnap.data().count,
     };
+}
+
+/** Applications hired in a window: `hiredAt` from its start to its end. One field, so no composite index. */
+export function hiredPeriodConstraints(window) {
+    return [where('hiredAt', '>=', window.start), where('hiredAt', '<', window.end)];
+}
+
+/**
+ * A period of hires (`hiredWindow`) as one list: the period's applications,
+ * newest hire first and at most `HIRED_PERIOD_LIMIT`, then the tab's segment and
+ * the toolbar's filters on the client, as search does, so no combination waits
+ * for a composite index. A record without createdAt is listed too: the hook sorts
+ * this list itself. `truncated` says the period held more.
+ */
+export async function runHiredPeriodList({ companyId, filterContext }) {
+    const window = hiredWindow(filterContext.filters);
+    if (!window || window.start >= window.end) return { records: [], truncated: false };
+    const snapshot = await getDocs(query(
+        collection(db, 'companies', companyId, 'applications'),
+        ...hiredPeriodConstraints(window),
+        orderBy('hiredAt', 'desc'),
+        limit(HIRED_PERIOD_LIMIT + 1),
+    ));
+    const records = snapshot.docs
+        .slice(0, HIRED_PERIOD_LIMIT)
+        .map((docSnap) => ({ id: docSnap.id, companyId, ...docSnap.data() }));
+    return {
+        records: applyClientSideFilters(records, filterContext),
+        truncated: snapshot.docs.length > HIRED_PERIOD_LIMIT,
+    };
+}
+
+/**
+ * The hiring brief's three numbers for a month, each a server count of the
+ * very list it opens: applications added in the month (All Applications on that
+ * period), applications in process (the In process tab), and applications hired
+ * in the month from the day hire dates began (that period of hires, whatever
+ * their status now). A count no record can match is 0 without asking.
+ */
+export async function loadHiringBrief({ companyId, month }) {
+    const appsRef = collection(db, 'companies', companyId, 'applications');
+    const countOf = async (constraints) => (constraints
+        ? (await getCountFromServer(query(appsRef, ...constraints))).data().count
+        : 0);
+    const hires = periodRange({ field: 'hiredAt', month });
+
+    const [applications, inProcess, hired] = await Promise.all([
+        countOf(buildDashboardConstraints({
+            activeTab: 'applications', pipelineSegment: 'all', filters: { period: { field: 'createdAt', month } },
+        })),
+        countOf(buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'in_process', filters: {} })),
+        countOf(hires && hires.start < hires.end ? hiredPeriodConstraints(hires) : null),
+    ]);
+    return { applications, inProcess, hired };
 }
 
 /**

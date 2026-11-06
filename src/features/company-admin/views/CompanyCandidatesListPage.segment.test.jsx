@@ -58,6 +58,21 @@ describe('the list a candidate page opens on', () => {
         expect(openedWith('applications', { segment: 'in_process' })).toEqual({ initialTab: 'applications', initialSegment: 'in_process' });
     });
 
+    it.each([
+        { field: 'createdAt', month: '2026-11' },
+        { field: 'hiredAt', month: '2026-11' },
+    ])('is the applications of a month the brief named: %o', (period) => {
+        expect(openedWith('applications', { period })).toEqual({ initialTab: 'applications', initialSegment: 'all', initialPeriod: period });
+    });
+
+    it.each([
+        ['applications', { period: { field: 'statusChangedAt', month: '2026-11' } }],
+        ['applications', { period: { field: 'hiredAt', month: 'November' } }],
+        ['company_leads', { period: { field: 'createdAt', month: '2026-11' } }],
+    ])('ignores a period %s has not got: %o', (scope, state) => {
+        expect(openedWith(scope, state)).toEqual({ initialTab: scope, initialSegment: 'all' });
+    });
+
     it("is a leads segment on a leads list, in the list's own tab", () => {
         expect(openedWith('company_leads', { segment: 'attempting' })).toEqual({ initialTab: 'company_leads', initialSegment: 'attempting' });
     });

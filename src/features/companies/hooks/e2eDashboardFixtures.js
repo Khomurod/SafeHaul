@@ -56,6 +56,8 @@ export const E2E_DASHBOARD_APPLICATIONS = [
         assignedTo: 'e2e-company_admin',
         submittedAt: ts('2026-06-20T09:15:00Z'),
         createdAt: ts('2026-06-20T09:15:00Z'),
+        // Hired after the server began recording hire dates; Derek was hired before.
+        hiredAt: ts('2026-11-10T15:00:00Z'),
     },
     {
         id: 'e2eapp0000000000004d',

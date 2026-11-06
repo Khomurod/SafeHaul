@@ -80,9 +80,11 @@ vi.mock('@lib/firebase', () => ({
 }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
-// So do the Company setup and Needs attention cards (`CompanyReadinessCard.test.jsx`, `NeedsAttentionCard.test.jsx`).
+// So do the Company setup and Needs attention cards and the hiring brief
+// (`CompanyReadinessCard.test.jsx`, `NeedsAttentionCard.test.jsx`, `HiringBrief.test.jsx`).
 vi.mock('./CompanyReadinessCard', () => ({ CompanyReadinessCard: () => null }));
 vi.mock('./NeedsAttentionCard', () => ({ NeedsAttentionCard: () => null }));
+vi.mock('./HiringBrief', () => ({ HiringBrief: () => null }));
 
 import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';

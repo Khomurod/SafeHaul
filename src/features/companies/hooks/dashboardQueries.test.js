@@ -30,7 +30,7 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: { uid: 'recruiter-1' } } }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
 
-import { buildDashboardConstraints } from './dashboardQueries';
+import { buildDashboardConstraints, hiredPeriodConstraints } from './dashboardQueries';
 
 const INDEXES = JSON.parse(readFileSync(resolve(process.cwd(), 'firestore.indexes.json'), 'utf8')).indexes;
 
@@ -65,6 +65,8 @@ function matches(record, constraints) {
         if (c.op === '==') return value === c.value;
         if (c.op === 'in') return c.value.includes(value);
         if (c.op === 'array-contains') return Array.isArray(value) && value.includes(c.value);
+        if (c.op === '>=') return value != null && value >= c.value;
+        if (c.op === '<') return value != null && value < c.value;
         throw new Error(`no model for ${c.op}`);
     });
 }
@@ -141,13 +143,16 @@ function everyListQuery() {
                     for (const assignee of ['', 'recruiter-2', '__unassigned__']) {
                         for (const myAssignmentsOnly of [false, true]) {
                             for (const dateFilter of ['', '2026-10-12']) {
-                                for (const dateOrder of ['desc', 'asc']) {
-                                    const filters = { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter };
-                                    queries.push({
-                                        label: `${activeTab}/${pipelineSegment} ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly, dateFilter, dateOrder })}`,
-                                        collectionGroup: COLLECTION_BY_TAB[activeTab],
-                                        constraints: buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder }),
-                                    });
+                                // A month the dashboard's brief opened the list on.
+                                for (const period of [null, { field: 'createdAt', month: '2026-10' }]) {
+                                    for (const dateOrder of ['desc', 'asc']) {
+                                        const filters = { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter, period };
+                                        queries.push({
+                                            label: `${activeTab}/${pipelineSegment} ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly, dateFilter, period, dateOrder })}`,
+                                            collectionGroup: COLLECTION_BY_TAB[activeTab],
+                                            constraints: buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder }),
+                                        });
+                                    }
                                 }
                                 // The count of records without createdAt runs the filters alone.
                                 queries.push({
@@ -332,6 +337,79 @@ describe('the date filter', () => {
         });
 
         expect(constraints).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'desc' }]);
+    });
+});
+
+describe('a month the dashboard brief opened the list on', () => {
+    let zone;
+
+    beforeEach(() => {
+        zone = process.env.TZ;
+        process.env.TZ = 'America/Chicago';
+    });
+
+    afterEach(() => {
+        if (zone === undefined) delete process.env.TZ;
+        else process.env.TZ = zone;
+    });
+
+    // Artificial records around November on a recruiter's clock in Chicago.
+    const records = [
+        { id: 'october-night', createdAt: new Date('2026-11-01T04:59:00Z') }, // 31 Oct, 23:59
+        { id: 'first-minute', createdAt: new Date('2026-11-01T05:00:00Z') }, // 1 Nov, 00:00
+        { id: 'mid-month', createdAt: new Date('2026-11-12T15:00:00Z') }, // 12 Nov
+        { id: 'last-minute', createdAt: new Date('2026-12-01T05:59:00Z') }, // 30 Nov, 23:59
+        { id: 'december', createdAt: new Date('2026-12-01T06:00:00Z') }, // 1 Dec, 00:00
+        { id: 'no-date' },
+    ];
+    const added = { field: 'createdAt', month: '2026-11' };
+    const found = (filters, dateOrder) => {
+        const constraints = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'all', filters, dateOrder });
+        return constraints ? records.filter((record) => matches(record, constraints)).map((record) => record.id) : null;
+    };
+
+    it.each(['desc', 'asc'])('asks the server for the applications added in the month (%s)', (dateOrder) => {
+        expect(found({ period: added }, dateOrder)).toEqual(['first-minute', 'mid-month', 'last-minute']);
+    });
+
+    it('narrows to a day picked inside the month', () => {
+        expect(found({ period: added, dateFilter: '2026-11-12' })).toEqual(['mid-month']);
+    });
+
+    it('asks nothing for a day picked outside the month: no record can be in both', () => {
+        expect(found({ period: added, dateFilter: '2026-10-31' })).toBeNull();
+    });
+
+    it('leaves a period of hires to its own list', () => {
+        const constraints = buildDashboardConstraints({
+            activeTab: 'applications', pipelineSegment: 'all', filters: { period: { field: 'hiredAt', month: '2026-11' } },
+        });
+
+        expect(constraints).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'desc' }]);
+    });
+});
+
+describe('a period of hires', () => {
+    const window = { start: new Date('2026-11-06T06:00:00Z'), end: new Date('2026-12-01T06:00:00Z') };
+    // Artificial records; the hire dates the server stamped, if any.
+    const records = [
+        { id: 'before', hiredAt: new Date('2026-11-06T05:59:00Z') },
+        { id: 'first-day', hiredAt: new Date('2026-11-06T06:00:00Z') },
+        { id: 'late', hiredAt: new Date('2026-11-30T23:00:00Z'), status: 'Terminated' },
+        { id: 'next-month', hiredAt: new Date('2026-12-01T06:00:00Z') },
+        { id: 'hired-earlier', status: 'Hired' },
+    ];
+
+    it('asks for the hire dates in the window, whatever the status now', () => {
+        expect(records.filter((record) => matches(record, hiredPeriodConstraints(window))).map((record) => record.id))
+            .toEqual(['first-day', 'late']);
+    });
+
+    it('needs no composite index, counted or listed newest hire first', () => {
+        const constraints = hiredPeriodConstraints(window);
+
+        expect(servable(constraints, 'applications')).toBe(true);
+        expect(servable([...constraints, { kind: 'orderBy', field: 'hiredAt', direction: 'desc' }], 'applications')).toBe(true);
     });
 });
 

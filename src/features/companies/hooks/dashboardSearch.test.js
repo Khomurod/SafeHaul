@@ -8,6 +8,7 @@ import {
     leadStatusMatchesSegment,
     stateFilterValues,
     stateValuesForSegment,
+    addedWindow,
     dateFilterRange,
     sortByAddedDate,
     searchableTerm,
@@ -287,6 +288,40 @@ describe('the State spellings beside a segment', () => {
 
         expect(ids({})).toEqual(['attempt', 'legacy', 'lower']);
         expect(ids({ state: 'Texas' })).toEqual(['attempt', 'legacy']);
+    });
+});
+
+describe('a month the list was opened on, mirrored on the client', () => {
+    const ts = (iso) => ({ toDate: () => new Date(iso) });
+    // Artificial records; dates in UTC, months on the test's own clock.
+    const local = (y, m, d) => new Date(y, m - 1, d, 12).toISOString();
+    const records = [
+        { id: 'added-november', status: 'New Application', createdAt: ts(local(2026, 11, 3)) },
+        { id: 'added-october', status: 'Hired', createdAt: ts(local(2026, 10, 3)), hiredAt: ts(local(2026, 11, 9)) },
+        { id: 'hired-before-recording', status: 'Hired', createdAt: ts(local(2026, 9, 3)) },
+        { id: 'hired-then-left', status: 'Terminated', hiredAt: ts(local(2026, 11, 20)) },
+        { id: 'hired-early-november', status: 'Hired', createdAt: ts(local(2026, 11, 2)), hiredAt: ts(local(2026, 11, 2)) },
+    ];
+    const ids = (pipelineSegment, filters) => applyClientSideFilters(records, { activeTab: 'applications', pipelineSegment, filters })
+        .map((record) => record.id);
+
+    it('keeps the applications added in the month', () => {
+        expect(ids('all', { period: { field: 'createdAt', month: '2026-11' } })).toEqual(['added-november', 'hired-early-november']);
+    });
+
+    it('keeps the month\'s hires since recording began, whatever their status now, dated or not', () => {
+        expect(ids('all', { period: { field: 'hiredAt', month: '2026-11' } })).toEqual(['added-october', 'hired-then-left']);
+        expect(ids('hired', { period: { field: 'hiredAt', month: '2026-11' } })).toEqual(['added-october']);
+    });
+
+    it('shares the days of a picked day and the month, or none', () => {
+        const period = { field: 'createdAt', month: '2026-11' };
+        const day = (dateFilter) => addedWindow({ period, dateFilter });
+
+        expect(day('2026-11-03')).toEqual(dateFilterRange('2026-11-03'));
+        expect(day('2026-10-03').start >= day('2026-10-03').end).toBe(true);
+        expect(ids('all', { period, dateFilter: '2026-10-03' })).toEqual([]);
+        expect(addedWindow({ period: { field: 'hiredAt', month: '2026-11' } })).toBeNull();
     });
 });
 
