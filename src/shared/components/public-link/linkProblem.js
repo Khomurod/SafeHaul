@@ -28,6 +28,13 @@ export const LINK_PROBLEM = Object.freeze({
 /** Trying again can only help when the link could not be checked. */
 export const isRetryableLinkProblem = (reason) => reason === LINK_PROBLEM.UNAVAILABLE;
 
+/**
+ * `plainErrorMessage`'s closing advice for a failure it cannot name. The screen
+ * closes with who to contact if it keeps happening (the sender, by name when
+ * known), so the detail drops this one rather than saying it twice.
+ */
+const CONTACT_SUPPORT = /\s*If it keeps happening, contact support\.$/;
+
 const REPLACED_WORDS = /\breplaced\b|\bnewer\b/i;
 const EXPIRED_WORDS = /\bexpired\b/i;
 const USED_WORDS = /\balready (?:been )?(?:complete|completed|submitted|signed|used)\b/i;
@@ -74,6 +81,6 @@ export function linkProblemFromError(error, failed = 'This link could not be che
     }
     return {
         reason: LINK_PROBLEM.UNAVAILABLE,
-        detail: plainErrorMessage(error, failed, { viaLink: true }),
+        detail: plainErrorMessage(error, failed, { viaLink: true }).replace(CONTACT_SUPPORT, ''),
     };
 }

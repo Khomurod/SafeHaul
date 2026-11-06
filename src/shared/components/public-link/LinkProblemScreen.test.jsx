@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { LinkProblemScreen } from './LinkProblemScreen';
-import { LINK_PROBLEM } from './linkProblem';
+import { LINK_PROBLEM, linkProblemFromError } from './linkProblem';
 
 const ALL = [
     [LINK_PROBLEM.EXPIRED, 'This link has expired', /stop working after a while/, /ask Acme Freight for a new link/],
@@ -68,6 +68,18 @@ describe('LinkProblemScreen', () => {
         const description = screen.getByText(/removed this unfinished application/);
         expect(description).toHaveTextContent(/^Acme Freight removed this unfinished application\.$/);
         expect(screen.getByRole('button', { name: 'Continue to the application' })).toBeInTheDocument();
+    });
+
+    it('says once who to contact when a link could not be checked for a reason no one named', () => {
+        const problem = linkProblemFromError(
+            Object.assign(new Error('internal'), { code: 'functions/internal' }),
+            'This document could not be opened.',
+        );
+        render(<LinkProblemScreen {...problem} companyName="Acme Freight" onRetry={vi.fn()} />);
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'This document could not be opened. Please try again. If it keeps happening, contact Acme Freight.',
+        );
+        expect(screen.queryByText(/contact support/)).not.toBeInTheDocument();
     });
 
     it('wraps an unbroken server sentence rather than overflowing', () => {

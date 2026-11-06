@@ -55,6 +55,16 @@ describe('linkProblemFromError', () => {
         expect(problem.detail).toMatch(/^This document could not be opened\./);
     });
 
+    it('leaves who to contact to the screen, which names the sender', () => {
+        // plainErrorMessage closes an unnamed failure with "contact support"; the
+        // screen closes with "contact <sender>", and the two must not both show.
+        const internal = refusal('internal', 'internal');
+        expect(linkProblemFromError(internal, 'The review could not be opened.')).toEqual({
+            reason: LINK_PROBLEM.UNAVAILABLE,
+            detail: 'The review could not be opened. Please try again.',
+        });
+    });
+
     it('reads no reason into an internal failure that happens to say "expired"', () => {
         const internal = refusal('internal', 'token expired in upstream');
         expect(linkProblemFromError(internal).reason).toBe(LINK_PROBLEM.UNAVAILABLE);
