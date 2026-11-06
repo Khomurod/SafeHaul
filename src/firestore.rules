@@ -291,9 +291,15 @@ service cloud.firestore {
         }
       }
 
-      // CAMPAIGN DRAFTS: Persistent storage for wizard states
+      // CAMPAIGN DRAFTS: the editor's saved state. The launch fields are the
+      // server's (functions/bulkActions/helpers/launchClaim.js): no client writes
+      // `launchClaim`, and a launched draft keeps `launchedAt` and `sessionId`.
       match /campaign_drafts/{draftId} {
-        allow read, write: if isCompanyTeam(companyId);
+        allow read, delete: if isCompanyTeam(companyId);
+        allow create: if isCompanyTeam(companyId) && !request.resource.data.keys().hasAny(['launchClaim']);
+        allow update: if isCompanyTeam(companyId)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+            resource.data.get('launchedAt', null) == null ? ['launchClaim'] : ['launchClaim', 'launchedAt', 'sessionId']);
       }
 
       // SEGMENTS (Audience Intelligence)

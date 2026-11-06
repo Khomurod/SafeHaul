@@ -11,7 +11,18 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import { describeFirestore, createRulesTestEnv } from './firestoreRules.support.js';
 
 let testEnv;
@@ -97,6 +108,45 @@ describeFirestore('firestore.rules security regressions', () => {
 
     await assertSucceeds(updateDoc(doc(teamOf('company-a'), 'companies', 'company-a', 'campaign_drafts', 'd1'), { step: 3 }));
     await assertFails(getDoc(doc(teamOf('company-b'), 'companies', 'company-a', 'campaign_drafts', 'd1')));
+  });
+
+  // The server claims a draft for one launch and marks it launched
+  // (functions/bulkActions/helpers/launchClaim.js). A client that could drop
+  // the claim or the mark could launch the same campaign twice.
+  it('SURFACE: campaign_drafts — no client writes the launch claim, at create or after', async () => {
+    const team = teamOf('company-a');
+    const draft = (id) => doc(team, 'companies', 'company-a', 'campaign_drafts', id);
+    const claim = { by: 'admin-1', sessionId: 's1', at: Timestamp.fromMillis(1800000000000) };
+    await seed(['companies', 'company-a', 'campaign_drafts', 'claimed'], { step: 2, launchClaim: claim });
+
+    await assertFails(setDoc(draft('forged'), { step: 1, launchClaim: claim }));
+    await assertSucceeds(setDoc(draft('fresh'), { step: 1 }));
+    await assertFails(updateDoc(draft('fresh'), { launchClaim: claim }));
+    await assertFails(updateDoc(draft('claimed'), { launchClaim: deleteField() }));
+    await assertFails(updateDoc(draft('claimed'), { 'launchClaim.sessionId': 's2' }));
+    // The editor's autosave leaves the claim out, or writes back what it read.
+    await assertSucceeds(setDoc(draft('claimed'), { step: 3 }, { merge: true }));
+    await assertSucceeds(setDoc(draft('claimed'), { step: 4, launchClaim: claim }, { merge: true }));
+    await assertSucceeds(deleteDoc(draft('claimed')));
+  });
+
+  it('SURFACE: campaign_drafts — a launched draft stays launched, by its session', async () => {
+    const team = teamOf('company-a');
+    const draft = (id) => doc(team, 'companies', 'company-a', 'campaign_drafts', id);
+    const launchedAt = Timestamp.fromMillis(1800000000000);
+    await seed(['companies', 'company-a', 'campaign_drafts', 'sent'], { step: 4, launchedAt, sessionId: 's1' });
+    await seed(['companies', 'company-a', 'campaign_drafts', 'open'], { step: 4 });
+
+    await assertFails(updateDoc(draft('sent'), { launchedAt: deleteField() }));
+    await assertFails(updateDoc(draft('sent'), { launchedAt: Timestamp.fromMillis(1800000000001) }));
+    await assertFails(updateDoc(draft('sent'), { sessionId: 's2' }));
+    await assertFails(updateDoc(draft('sent'), { sessionId: deleteField() }));
+    await assertFails(setDoc(draft('sent'), { step: 1 }));
+    await assertSucceeds(setDoc(draft('sent'), { step: 5, launchedAt, sessionId: 's1' }, { merge: true }));
+    await assertSucceeds(updateDoc(draft('sent'), { name: 'Spring drive' }));
+    // Production's screens mark their own launch until a release ships the server's mark.
+    await assertSucceeds(updateDoc(draft('open'), { launchedAt: serverTimestamp(), sessionId: 's9' }));
+    await assertSucceeds(deleteDoc(draft('sent')));
   });
 
   it('SURFACE: stats_daily and internal_stats are client read-only, super admin included', async () => {

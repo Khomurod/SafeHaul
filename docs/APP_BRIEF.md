@@ -495,8 +495,9 @@ save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
 refuses a second launch from another tab or person. The batch that writes the
 session also marks the draft (`launchedAt`, `sessionId`), so no session exists
 without its mark; a launch that stops before that batch gives the claim back,
-and a claim over 10 minutes old (its launch died first) is taken over.
-Kept, off Drafts; opened, it links its report, not Launch. Screens that name no
+and a claim over 10 minutes old (its launch died first) is taken over. The
+rules keep these fields the server's: no client writes `launchClaim`, and a
+launched draft keeps `launchedAt` and `sessionId`. Kept, off Drafts; opened, it links its report, not Launch. Screens that name no
 draft (Production's, until a release) launch unclaimed.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
