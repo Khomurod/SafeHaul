@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import { AlertCircle, Building2 } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
+import { LINK_PROBLEM, LinkProblemScreen } from '@shared/components/public-link';
 import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
 import { ApplyIdentityCheckScreen } from './ApplyIdentityCheckScreen';
 import { ApplyPagePlaceholder } from './ApplyPagePlaceholder';
@@ -132,30 +133,21 @@ export function ParsingCdlScreen({ onCancel }) {
  * person's application exists.
  */
 export function ApplyLinkProblemScreen({ message, onRetry, onContinue }) {
-  const headingId = `apply-link-problem-${useId().replace(/:/g, '')}`;
+  // The public pages' one link screen, on its "could not be opened" reason: the
+  // same title for every outcome, so a wrong link and an expired one still read
+  // alike. The message says what to do, so the screen adds no advice of its own.
   return (
-    <StatusPage labelledBy={headingId}>
-      <div className="w-full max-w-md">
-        <ErrorState
-          icon={AlertCircle}
-          headingLevel={1}
-          titleId={headingId}
-          focusOnMount
-          title="This link could not be opened"
-          description={message}
-          actions={(
-            <>
-              {onRetry && (
-                <Button variant="primary" onClick={onRetry}>Try again</Button>
-              )}
-              <Button variant={onRetry ? 'secondary' : 'primary'} onClick={onContinue}>
-                Continue to the application
-              </Button>
-            </>
-          )}
-        />
-      </div>
-    </StatusPage>
+    <LinkProblemScreen
+      reason={LINK_PROBLEM.UNOPENABLE}
+      detail={message}
+      advice={null}
+      onRetry={onRetry || undefined}
+      actions={(
+        <Button variant={onRetry ? 'secondary' : 'primary'} onClick={onContinue}>
+          Continue to the application
+        </Button>
+      )}
+    />
   );
 }
 
