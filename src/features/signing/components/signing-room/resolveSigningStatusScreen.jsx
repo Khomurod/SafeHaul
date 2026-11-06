@@ -25,12 +25,14 @@ import {
  *  5. **Declined**, then **the consent**. ESIGN-8: UETA Sec. 5(b) and ESIGN Act
  *     Sec. 101(c) require the signer to agree to electronic records and
  *     signatures before the document is shown, not inline beside it.
+ *     `consentFocus` moves the focus to the consent's heading when Go back
+ *     brings it back in place of the declined screen.
  *
  * @returns {React.ReactElement|null} null when the document itself should render
  */
 export function resolveSigningStatusScreen({
     loading, linkProblem, companyName, onRetry,
-    request, success, declined, hasEsignConsent,
+    request, success, declined, hasEsignConsent, consentFocus = false,
     onReturnToDocuments, onAgree, onDecline, onGoBack,
 }) {
     if (loading) return <SigningLoadingScreen />;
@@ -53,6 +55,10 @@ export function resolveSigningStatusScreen({
         return <SigningAlreadySignedScreen signedAt={request.signedAt} onReturnToDocuments={onReturnToDocuments} />;
     }
     if (declined) return <SigningDeclinedScreen onGoBack={onGoBack} />;
-    if (!hasEsignConsent) return <EsignConsentScreen title={request?.title} onAgree={onAgree} onDecline={onDecline} />;
+    if (!hasEsignConsent) {
+        return (
+            <EsignConsentScreen title={request?.title} onAgree={onAgree} onDecline={onDecline} focusOnMount={consentFocus} />
+        );
+    }
     return null;
 }

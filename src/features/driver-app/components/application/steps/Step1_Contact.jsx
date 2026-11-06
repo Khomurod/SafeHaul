@@ -410,6 +410,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             <StepNavigation
                 onContinue={handleContinue}
                 onSaveDraft={onPartialSubmit}
+                answers={formData}
             />
         </div>
     );

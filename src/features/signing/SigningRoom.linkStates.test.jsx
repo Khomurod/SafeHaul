@@ -7,8 +7,12 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '@shared/components/feedback';
+import {
+    isRequestSigned,
+    setSigningReturnPath,
+} from '@features/driver-app/components/application/postApplyDocsStorage';
 
 const getEnvelopeFn = vi.fn();
 const fetchPublicCompanyName = vi.fn(async () => 'Acme Freight');
@@ -43,6 +47,7 @@ const heading = (name) => screen.findByRole('heading', { level: 1, name });
 beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal('close', vi.fn());
 });
@@ -143,7 +148,9 @@ describe('declining to sign electronically', () => {
     it('says what happened instead of trying to close the tab, and can go back', async () => {
         getEnvelopeFn.mockResolvedValueOnce({ data: { title: 'Artificial Lease', recipientName: 'Pat Example', status: 'sent', fields: [] } });
         renderRoom();
-        await heading('Electronic Signature Consent');
+        const consent = await heading('Electronic Signature Consent');
+        // Opened from the link, the consent leaves the focus where the browser put it.
+        expect(consent).not.toHaveFocus();
 
         fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
         expect(await heading('You did not agree to sign electronically')).toHaveFocus();
@@ -151,5 +158,59 @@ describe('declining to sign electronically', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
         await waitFor(() => expect(screen.getByRole('button', { name: /I Agree - Proceed to Sign/ })).toBeInTheDocument());
+        // Go back's button is gone: the consent's heading holds the focus, not `<body>`.
+        expect(screen.getByRole('heading', { level: 1, name: 'Electronic Signature Consent' })).toHaveFocus();
+    });
+});
+
+describe('a driver returning to the required documents', () => {
+    it('records a document the server reports signed as done for the list', async () => {
+        setSigningReturnPath('co1', 'req1', '/apply/acme/documents');
+        getEnvelopeFn.mockResolvedValueOnce({ data: { status: 'signed' } });
+        render(
+            <ToastProvider>
+                <MemoryRouter initialEntries={['/sign/co1/req1?token=link-token']}>
+                    <Routes>
+                        <Route path="/sign/:companyId/:requestId" element={<SigningRoom />} />
+                        <Route path="/apply/acme/documents" element={<p>Required documents</p>} />
+                    </Routes>
+                </MemoryRouter>
+            </ToastProvider>,
+        );
+        await heading('This document is already signed');
+        expect(isRequestSigned('co1', 'req1')).toBe(false);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Return to Required Documents' }));
+
+        expect(await screen.findByText('Required documents')).toBeInTheDocument();
+        expect(isRequestSigned('co1', 'req1')).toBe(true);
+    });
+});
+
+describe('a signing link that changes while the room is open', () => {
+    it('never lets the earlier link answer over the later one', async () => {
+        let refuseFirst;
+        getEnvelopeFn
+            .mockImplementationOnce(() => new Promise((resolve, reject) => { refuseFirst = reject; }))
+            .mockResolvedValueOnce({ data: { title: 'Artificial Lease', recipientName: 'Pat Example', status: 'sent', fields: [] } });
+        render(
+            <ToastProvider>
+                <MemoryRouter initialEntries={['/sign/co1/req1?token=old-token']}>
+                    <Link to="/sign/co1/req2?token=new-token">Open the newer link</Link>
+                    <Routes>
+                        <Route path="/sign/:companyId/:requestId" element={<SigningRoom />} />
+                    </Routes>
+                </MemoryRouter>
+            </ToastProvider>,
+        );
+        await waitFor(() => expect(getEnvelopeFn).toHaveBeenCalledTimes(1));
+
+        fireEvent.click(screen.getByRole('link', { name: 'Open the newer link' }));
+        await heading('Electronic Signature Consent');
+
+        refuseFirst(refusal('permission-denied', 'Invalid Access Token.'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(screen.getByRole('heading', { level: 1, name: 'Electronic Signature Consent' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'This link could not be opened' })).not.toBeInTheDocument();
     });
 });

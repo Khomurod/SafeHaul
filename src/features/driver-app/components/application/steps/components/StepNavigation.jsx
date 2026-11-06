@@ -21,7 +21,9 @@ import { FinishLaterNotice } from './FinishLaterNotice';
  * saved — `anotherDevice` a promise of whether another device can find the copy —
  * and null when it did not (it has said why itself). The notice sits in a polite
  * live region mounted with the footer, so it is announced when it appears, and it
- * stays until the driver leaves the step. Only the latest press may add the
+ * stays until the driver leaves the step or changes an answer (`answers`, the
+ * step's form data: nothing saves an edit until the next Continue or Finish
+ * later). Only the latest press, on the answers as they still are, may add the
  * another-device line.
  */
 export function StepNavigation({
@@ -34,10 +36,22 @@ export function StepNavigation({
     continueLoading = false,
     onSaveDraft,
     saveDraftLabel = 'Finish later',
+    answers,
 }) {
     const [finishLater, setFinishLater] = useState(null);
     const pressRef = useRef(0);
     useEffect(() => () => { pressRef.current = -1; }, []);
+
+    // An answer changed after the save: the notice would claim it is kept, and it
+    // is not until the next Continue or Finish later. It goes, and so does any
+    // confirmation still on its way for the answers as they were.
+    const answersRef = useRef(answers);
+    useEffect(() => {
+        if (answersRef.current === answers) return;
+        answersRef.current = answers;
+        pressRef.current += 1;
+        setFinishLater(null);
+    }, [answers]);
 
     const handleFinishLater = () => {
         const outcome = onSaveDraft();

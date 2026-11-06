@@ -134,6 +134,7 @@ const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialS
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onSaveDraft={onPartialSubmit}
+                answers={formData}
                 onContinue={handleContinue}
             />
         </div>

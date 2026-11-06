@@ -105,6 +105,23 @@ describe('Step 1 — the date of birth says what is wrong at the field', () => {
         expect(document.activeElement).toBe(document.getElementById('dob-month'));
     });
 
+    it('names the missing box of a date begun and not finished, not "required"', () => {
+        const onNavigate = renderPage({ dob: '' });
+        const [month, day, year] = dobBoxes();
+        fireEvent.change(month, { target: { value: '03' } });
+        fireEvent.change(day, { target: { value: '14' } });
+
+        pressContinue();
+
+        expect(screen.getByText('Enter the month, day and year.')).toHaveAttribute('role', 'alert');
+        expect(screen.queryByText('Date of birth is required.')).toBeNull();
+        expect(year).toHaveAttribute('aria-invalid', 'true');
+        expect(month).not.toHaveAttribute('aria-invalid');
+        expect(day).not.toHaveAttribute('aria-invalid');
+        expect(onNavigate).not.toHaveBeenCalled();
+        expect(showError).not.toHaveBeenCalled();
+    });
+
     it('refuses a required date that cannot be read, at the field', () => {
         const onNavigate = renderPage({ dob: 'not-a-date' });
 

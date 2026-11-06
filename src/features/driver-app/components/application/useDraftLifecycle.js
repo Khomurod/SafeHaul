@@ -27,18 +27,26 @@ export function storedFilePaths(formData) {
 
 const filled = (value) => typeof value === 'string' && value.trim() !== '';
 
+/** A phone the server can match: ten digits, after a leading US 1 (`contactMatches`). */
+function matchablePhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  const national = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  return national.length >= 10;
+}
+
 /**
  * Whether a saved copy of these answers can be found from another device: the
  * server matches a last name, date of birth and nine-digit SSN (the identity key it
- * builds from them, `buildIdentityKey`) plus an email or phone on record. The SSN
- * lives only in page state, so after a reload this is false even when an earlier
- * save left the key behind: it may say too little, never too much.
+ * builds from them, `buildIdentityKey`) plus an email or phone on record — a phone
+ * only with ten digits, as `contactMatches` (functions/shared/applicationDraft.js)
+ * requires. The SSN lives only in page state, so after a reload this is false even
+ * when an earlier save left the key behind: it may say too little, never too much.
  */
 export function canBeFoundElsewhere(formData) {
   const answers = formData || {};
   return filled(answers.lastName) && filled(answers.dob)
     && String(answers.ssn || '').replace(/\D/g, '').length === 9
-    && (filled(answers.email) || filled(answers.phone));
+    && (filled(answers.email) || matchablePhone(answers.phone));
 }
 
 export function useDraftLifecycle({

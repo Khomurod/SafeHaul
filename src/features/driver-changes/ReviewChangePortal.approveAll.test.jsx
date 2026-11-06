@@ -142,8 +142,25 @@ describe('Approve all', () => {
         fireEvent.click(approveAll());
         expect(submitted()).toHaveLength(1);
 
+        // What is on screen is what was sent: no decision changes while it is in flight.
+        for (const fieldName of ['First Name', 'City']) {
+            for (const button of within(group(fieldName)).getAllByRole('button')) expect(button).toBeDisabled();
+        }
+        fireEvent.click(within(group('City')).getByRole('button', { name: /^reject$/i }));
+        expect(within(group('City')).getByRole('button', { name: /^approve$/i })).toHaveAttribute('aria-pressed', 'true');
+
         finish({ data: { success: true, remaining: 0 } });
         expect(await screen.findByText('Thank you!')).toBeInTheDocument();
+    });
+
+    it('takes the decisions again once a failed send is answered', async () => {
+        serve([FIRST_NAME, CITY], callableError('internal', 'internal'));
+        await renderLoaded();
+        fireEvent.click(approveAll());
+
+        await screen.findByRole('button', { name: 'Try again' });
+        decide('City', 'Reject');
+        expect(within(group('City')).getByRole('button', { name: /^reject$/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('is not offered over a Reject or an Edit the driver chose, and returns once they are Approve again', async () => {

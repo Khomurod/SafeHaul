@@ -371,6 +371,54 @@ describe('SigningRoom', () => {
       expect(Date.parse(localStorage.getItem('signing_signed_v1:co1:req1'))).not.toBeNaN();
     });
   });
+
+  describe('a submission the server refuses', () => {
+    const refusal = (code, message) => Object.assign(new Error(message), { code: `functions/${code}` });
+
+    /** The load answers as set up; the submission (the call that sends values) is refused. */
+    function refuseSubmission(error) {
+      const load = getEnvelopeFn.getMockImplementation();
+      getEnvelopeFn.mockImplementation((args) => (args?.fieldValues ? Promise.reject(error) : load(args)));
+    }
+
+    async function fillAndSubmit() {
+      const { container } = await renderRoomPastConsent();
+      fireEvent.click(screen.getByRole('button', { name: /Tap to sign/i }));
+      await screen.findByRole('dialog', { name: /Draw your signature/i });
+      fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+      fireEvent.click(container.querySelector('[data-field-id="check1"] input'));
+      fireEvent.change(container.querySelector('[data-signer-input="date1"]'), { target: { value: '2026-10-15' } });
+      fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
+      fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/i })[0]);
+    }
+
+    it.each([
+      ['the link expired', refusal('deadline-exceeded', 'This signing link has expired. Please request a new one.'), 'This link has expired'],
+      ['the token was replaced or used', refusal('permission-denied', 'Unauthorized'), 'This link could not be opened'],
+      ['the document was already submitted', refusal('failed-precondition', 'This document has already been submitted or is no longer available.'), 'This link has already been used'],
+      ['the document is gone', refusal('not-found', 'Document not found'), 'This link is not valid'],
+    ])('leaves the form for the link screen when %s', async (_label, error, title) => {
+      refuseSubmission(error);
+      await fillAndSubmit();
+
+      expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Finish & Submit/i })).not.toBeInTheDocument();
+      expect(localStorage.getItem('signing_signed_v1:co1:req1')).toBeNull();
+    });
+
+    it.each([
+      ['a required field the server found empty', refusal('failed-precondition', 'Required fields missing: Initials')],
+      ['a connection that failed', new TypeError('Failed to fetch')],
+      ['a browser that stopped waiting', refusal('deadline-exceeded', '')],
+    ])('keeps the form and the answers for another try after %s', async (_label, error) => {
+      refuseSubmission(error);
+      await fillAndSubmit();
+
+      await waitFor(() => expect(getEnvelopeFn).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getAllByRole('button', { name: /Finish & Submit/i })[0]).not.toBeDisabled());
+      expect(screen.queryByRole('heading', { level: 1, name: /link/i })).not.toBeInTheDocument();
+    });
+  });
 });
 
 describe('SigningRoom — migrated shell presentation', () => {

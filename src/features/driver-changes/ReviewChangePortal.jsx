@@ -382,6 +382,9 @@ export function ReviewChangePortal() {
                                                     label: a.label,
                                                     icon: a.icon,
                                                     tone: a.tone,
+                                                    // What is being sent is what the page shows:
+                                                    // no decision changes until the send is answered.
+                                                    disabled: submitting,
                                                 }))}
                                         />
                                         {r.action === 'edit' && canEdit && (
@@ -390,6 +393,7 @@ export function ReviewChangePortal() {
                                                 value={r.value ?? ''}
                                                 onChange={(e) => setValue(c.fieldKey, e.target.value)}
                                                 aria-label={`Corrected value for ${fieldName}`}
+                                                disabled={submitting}
                                                 className="mt-3"
                                                 placeholder="Enter the correct value"
                                             />

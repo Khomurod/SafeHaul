@@ -80,6 +80,31 @@ describe('Finish later', () => {
         expect(screen.getByRole('status')).not.toHaveTextContent(ANOTHER_DEVICE);
     });
 
+    it('goes when an answer changes after the save, and its late confirmation does not bring it back', async () => {
+        const server = deferred();
+        const onSaveDraft = vi.fn(() => ({ saved: true, anotherDevice: server.promise }));
+        const answers = { firstName: 'Pat' };
+        const { rerender } = render(
+            <StepNavigation onBack={vi.fn()} onContinue={vi.fn()} onSaveDraft={onSaveDraft} answers={answers} />,
+        );
+
+        finishLater();
+        expect(screen.getByRole('status')).toHaveTextContent(SAME_DEVICE);
+
+        // The same answers again (any re-render of the step) keep it.
+        rerender(<StepNavigation onBack={vi.fn()} onContinue={vi.fn()} onSaveDraft={onSaveDraft} answers={answers} />);
+        expect(screen.getByRole('status')).toHaveTextContent(SAME_DEVICE);
+
+        // An edit is not saved until the next Continue or Finish later.
+        rerender(
+            <StepNavigation onBack={vi.fn()} onContinue={vi.fn()} onSaveDraft={onSaveDraft} answers={{ firstName: 'Pa' }} />,
+        );
+        expect(screen.getByRole('status')).toBeEmptyDOMElement();
+
+        await act(async () => { server.resolve(true); await server.promise; });
+        expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+
     it('says nothing about coming back when nothing was saved', () => {
         renderFooter(vi.fn(() => null));
 

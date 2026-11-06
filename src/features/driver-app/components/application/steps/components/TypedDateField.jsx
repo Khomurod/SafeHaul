@@ -67,7 +67,8 @@ function isoOf(parts) {
  * `error` is the page's own message about the date, such as a required date left
  * empty when the form was sent. It is shown and announced in the same place, and
  * gives way to the field's own message about a complete date that does not
- * exist, so the two never stack. Whichever is shown describes every box as well
+ * exist, or about a date begun and not finished (which marks only the missing
+ * box), so the two never stack. Whichever is shown describes every box as well
  * as the group, so a screen reader reads it on the box that has focus.
  *
  * Frozen like `DateTripletField`'s: the `${idPrefix}-month|day|year` element
@@ -131,7 +132,11 @@ export default function TypedDateField({
         }
     };
 
-    const showError = complete && problem;
+    // A date begun but not finished says which box is missing once the page has
+    // something to say about the date ("required" after Continue): more exact
+    // than the page's message about the date as a whole.
+    const started = PARTS.some(({ key }) => parts[key] !== '');
+    const showError = Boolean(problem) && (complete || (started && Boolean(error)));
     const message = showError ? problem.message : error;
     const describedBy = [helpText ? helpTextId : null, message ? errorId : null].filter(Boolean).join(' ') || undefined;
 

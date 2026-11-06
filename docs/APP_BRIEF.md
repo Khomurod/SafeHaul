@@ -118,8 +118,11 @@ newer link, already used, not valid, could not be opened, could not be checked),
 company by name when the page knows it, what to do, and Try again only when retrying
 can help. On `/sign` an already-signed document says so instead of asking for the
 e-signature consent again, Decline explains how to sign on paper (nothing is recorded),
-and the page says "You can close this tab" (no button that cannot close it). There is
-no "request a new link" button: the public profile carries no contact details.
+and the page says "You can close this tab" (no button that cannot close it). A
+submission refused because the link stopped working (expired, replaced, already
+submitted, gone) ends on the same screen; any other failure keeps the form. Back to
+a driver's required documents from "already signed" marks that document done. There
+is no "request a new link" button: the public profile carries no contact details.
 
 ### Company workspace (`/company/*`)
 
@@ -180,8 +183,10 @@ Drafts live in their own server-only collection (§5). **Finish later** (seven
 steps; formerly *Save as Draft*) makes the same save without moving on and says
 under the buttons how to return: open the link again on this device and browser;
 it names another device (same last name, date of birth, SSN and email or phone,
-within 30 days) only once the server has confirmed the copy and those facts are on
-the page (`FinishLaterNotice`).
+within 30 days; a phone only with ten digits, as the server matches) only once the
+server has confirmed the copy and those facts are on the page (`FinishLaterNotice`).
+The notice goes as soon as an answer changes: nothing saves the change until the
+next Continue or Finish later.
 
 **Returning applicants are offered their unfinished application.** A device
 holding its resume token restores silently. On another device the first Next
@@ -1083,8 +1088,9 @@ admin's edits become per-field `pending_changes`; the main document stays the
 The driver approves, rejects or corrects each, none preselected, or approves them
 all with **Approve all** (two or more changes, offered while none is marked Reject
 or Edit; the same single `submitChangeResolution` call as Submit, recorded all or
-nothing; if changes were proposed while the page was open, it then says so, with
-Review them — the server says only whether any remain, not how many),
+nothing, with every decision locked until it is answered; if changes were proposed
+while the page was open, it then says so, with Review them — the server says only
+whether any remain, not how many),
 through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
 emails it to the application's own `email`);

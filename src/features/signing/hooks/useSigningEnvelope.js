@@ -114,6 +114,24 @@ function refusedLink(err, companyId, requestId) {
     };
 }
 
+/** Who to ask about a link problem; a link that could not be checked asks nobody yet. */
+async function senderFor(problem, companyId) {
+    return problem.reason === LINK_PROBLEM.UNAVAILABLE ? null : fetchPublicCompanyName(companyId);
+}
+
+/**
+ * A refused submission that ends the visit: the link no longer works (wrong or
+ * replaced token, expired, the document gone or already submitted). A refusal
+ * of what was filled in, or a failure to reach the server, keeps the form for
+ * another try.
+ */
+export function isTerminalSubmitRefusal(err) {
+    const code = String(err?.code ?? '');
+    if (code === 'functions/permission-denied' || code === 'functions/not-found') return true;
+    const { reason } = linkProblemFromError(err);
+    return reason === LINK_PROBLEM.EXPIRED || reason === LINK_PROBLEM.REPLACED || reason === LINK_PROBLEM.USED;
+}
+
 export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     const [request, setRequest] = useState(null);
     const [fieldValues, setFieldValues] = useState({});
@@ -131,11 +149,18 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     const clockOffsetMs = useRef(0);
 
     useEffect(() => {
-        /** The screen names who to ask; a link that could not be checked asks nobody yet. */
+        // Another link opened in the same room (new ids or token) makes this
+        // load stale: nothing it learns may replace what the new one shows.
+        let current = true;
+        setLinkProblem(null);
+        setCompanyName(null);
+        setLoading(true);
+
+        /** The screen names who to ask, when the sender's public profile has a name. */
         async function showProblem(problem) {
-            if (problem.reason !== LINK_PROBLEM.UNAVAILABLE) {
-                setCompanyName(await fetchPublicCompanyName(companyId));
-            }
+            const name = await senderFor(problem, companyId);
+            if (!current) return;
+            setCompanyName(name);
             setLinkProblem(problem);
         }
 
@@ -143,7 +168,7 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
             if (!accessToken) {
                 // The link was cut short: the token is what makes it a link.
                 await showProblem({ reason: LINK_PROBLEM.NOT_FOUND });
-                setLoading(false);
+                if (current) setLoading(false);
                 return;
             }
 
@@ -164,6 +189,7 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
                     // The server stamps Date Signed in this zone, on its own clock.
                     timeZone: browserTimeZone(),
                 });
+                if (!current) return;
 
                 const data = result.data;
 
@@ -183,15 +209,17 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
                     setFieldValues(initializeFieldValues(data.fields, companyId, requestId));
                 }
             } catch (err) {
+                if (!current) return;
                 console.error("Load Error:", err);
                 const refused = refusedLink(err, companyId, requestId);
                 if (refused.signed) setRequest(refused.signed);
                 else await showProblem(refused.problem);
             } finally {
-                setLoading(false);
+                if (current) setLoading(false);
             }
         }
         load();
+        return () => { current = false; };
     }, [companyId, requestId, accessToken, attempt]);
 
     const retry = useCallback(() => {
@@ -199,6 +227,21 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
         setLoading(true);
         setAttempt((n) => n + 1);
     }, []);
+
+    /**
+     * The link stopped working while the signer filled the document in
+     * (`isTerminalSubmitRefusal`): the room leaves the form for the link screen,
+     * as if the link had been opened now.
+     */
+    const endWithRefusal = useCallback(async (err) => {
+        const refused = refusedLink(err, companyId, requestId);
+        if (refused.signed) {
+            setRequest(refused.signed);
+            return;
+        }
+        setCompanyName(await senderFor(refused.problem, companyId));
+        setLinkProblem(refused.problem);
+    }, [companyId, requestId]);
 
     /**
      * Bring the displayed Date Signed up to the server's current day, for the
@@ -220,6 +263,7 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     }, [request, fieldValues]);
 
     return {
-        request, fieldValues, setFieldValues, loading, linkProblem, companyName, retry, refreshSignedDate,
+        request, fieldValues, setFieldValues, loading, linkProblem, companyName, retry, endWithRefusal,
+        refreshSignedDate,
     };
 }

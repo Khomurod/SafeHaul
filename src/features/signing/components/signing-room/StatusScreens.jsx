@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { Icon, CheckCircle, ShieldCheck, FileText, FileCheck, Ban } from '@design-system/icons';
 import { Button, Card, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -193,10 +193,16 @@ export function SigningDeclinedScreen({ onGoBack }) {
 // UETA Sec. 5(b) and ESIGN Act Sec. 101(c) mandate that signers affirmatively agree to
 // conduct business electronically before they can be bound by electronic signatures.
 // The consent must be presented BEFORE the document is displayed (not inline).
-export function EsignConsentScreen({ title, onAgree, onDecline }) {
+export function EsignConsentScreen({ title, onAgree, onDecline, focusOnMount = false }) {
     const rawId = useId().replace(/:/g, '');
     const headingId = `esign-consent-heading-${rawId}`;
     const disclosureId = `esign-consent-disclosure-${rawId}`;
+    // Shown again by Go back, it replaces the button just pressed: the heading
+    // takes the focus so a keyboard or screen-reader user is not left on `<body>`.
+    const headingRef = useRef(null);
+    useEffect(() => {
+        if (focusOnMount) headingRef.current?.focus();
+    }, [focusOnMount]);
 
     return (
         <StatusPage labelledBy={headingId}>
@@ -204,7 +210,12 @@ export function EsignConsentScreen({ title, onAgree, onDecline }) {
                 <div className="mb-ds-5 flex items-center gap-ds-3">
                     <StatusMedallion tone="info"><Icon icon={ShieldCheck} /></StatusMedallion>
                     <div>
-                        <h1 id={headingId} className="text-ds-heading-sm font-bold text-ds-content">
+                        <h1
+                            id={headingId}
+                            ref={headingRef}
+                            tabIndex={focusOnMount ? -1 : undefined}
+                            className="text-ds-heading-sm font-bold text-ds-content"
+                        >
                             Electronic Signature Consent
                         </h1>
                         <p className="text-ds-sm text-ds-content-secondary">Required before signing</p>

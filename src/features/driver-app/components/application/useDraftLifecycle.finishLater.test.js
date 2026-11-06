@@ -135,6 +135,10 @@ describe('canBeFoundElsewhere', () => {
         expect(canBeFoundElsewhere(IDENTIFIED)).toBe(true);
         expect(canBeFoundElsewhere({ ...IDENTIFIED, email: '' })).toBe(true);
         expect(canBeFoundElsewhere({ ...IDENTIFIED, email: '', phone: ' ' })).toBe(false);
+        // A phone is matched on ten digits (a leading US 1 aside), so a short one is no way back.
+        expect(canBeFoundElsewhere({ ...IDENTIFIED, email: '', phone: '555-0101' })).toBe(false);
+        expect(canBeFoundElsewhere({ ...IDENTIFIED, email: '', phone: '(555) 010-1234' })).toBe(true);
+        expect(canBeFoundElsewhere({ ...IDENTIFIED, email: '', phone: '+1 555 010 1234' })).toBe(true);
         expect(canBeFoundElsewhere({ ...IDENTIFIED, lastName: '' })).toBe(false);
         expect(canBeFoundElsewhere({ ...IDENTIFIED, dob: '' })).toBe(false);
         expect(canBeFoundElsewhere({ ...IDENTIFIED, ssn: '123-45-678' })).toBe(false);

@@ -8,7 +8,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
 import { isCompanySignatureField, withoutCompanySignatureValues } from '@features/signing/utils/companySignature';
-import { useSigningEnvelope } from '@features/signing/hooks/useSigningEnvelope';
+import { isTerminalSubmitRefusal, useSigningEnvelope } from '@features/signing/hooks/useSigningEnvelope';
 import {
     sortFieldsForFlow,
     isFieldComplete,
@@ -24,7 +24,7 @@ import { SignatureSheet } from '@features/signing/components/SignatureSheet';
 // and passes them down.
 import { SigningDocumentView } from '@features/signing/components/signing-room/SigningDocumentView';
 import { resolveSigningStatusScreen } from '@features/signing/components/signing-room/resolveSigningStatusScreen';
-import { rememberSignedHere } from '@features/signing/utils/alreadySigned';
+import { isSignedStatus, rememberSignedHere } from '@features/signing/utils/alreadySigned';
 import { useSigningDraftWriter } from '@features/signing/hooks/useSigningDraftWriter';
 import { usePdfZoomGestures } from '@features/signing/hooks/usePdfZoomGestures';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -59,13 +59,22 @@ export default function SigningRoom() {
     // requests before navigating here. Recruiter-sent documents have none, so
     // their success screen only says the tab can be closed.
     const postApplyReturnPath = readSigningReturnPath(companyId, requestId);
-    const returnToDocuments = postApplyReturnPath ? () => navigate(postApplyReturnPath) : undefined;
 
     // Envelope loading + field-value initialization (draft merge, locked-field
     // seeding, E2E mock) live in useSigningEnvelope; so does why a link failed.
     const {
-        request, fieldValues, setFieldValues, loading, linkProblem, companyName, retry, refreshSignedDate,
+        request, fieldValues, setFieldValues, loading, linkProblem, companyName, retry, endWithRefusal,
+        refreshSignedDate,
     } = useSigningEnvelope({ companyId, requestId, accessToken });
+    // Back to the driver's list of required documents. A document the server
+    // reports signed is recorded as done for that list first, as a submission
+    // made here is, so the list does not show it as still to sign.
+    const returnToDocuments = postApplyReturnPath
+        ? () => {
+            if (isSignedStatus(request?.status)) markRequestSigned(companyId, requestId);
+            navigate(postApplyReturnPath);
+        }
+        : undefined;
     // The local draft: written once typing pauses, never with a drawn signature.
     const { save: saveDraft, clear: clearSavedDraft } = useSigningDraftWriter(companyId, requestId);
     // ESIGN-8 FIX: Track electronic consent before allowing signing.
@@ -75,6 +84,8 @@ export default function SigningRoom() {
     const [hasEsignConsent, setHasEsignConsent] = useState(false);
     // Decline ends the visit on a screen that says so; nothing is recorded.
     const [declined, setDeclined] = useState(false);
+    // Go back from the declined screen: the consent's heading then takes the focus.
+    const [consentFocus, setConsentFocus] = useState(false);
     // { fieldId, kind: 'signature' | 'initial' } while the drawing sheet is open
     const [activeSignature, setActiveSignature] = useState(null);
     const [submitting, setSubmitting] = useState(false);
@@ -291,7 +302,11 @@ export default function SigningRoom() {
 
         } catch (e) {
             console.error("Submission Error:", e);
-            showError(plainErrorMessage(e, 'Your document could not be submitted.', { viaLink: true }));
+            // The link stopped working while the document was filled in: the room
+            // says so on the link screen rather than leaving a form that cannot
+            // be sent. Anything else keeps the form and the answers for another try.
+            if (isTerminalSubmitRefusal(e)) await endWithRefusal(e);
+            else showError(plainErrorMessage(e, 'Your document could not be submitted.', { viaLink: true }));
         } finally {
             setSubmitting(false);
         }
@@ -301,11 +316,14 @@ export default function SigningRoom() {
     // ESIGN-8 consent (required before the document is shown), in that order.
     const statusScreen = resolveSigningStatusScreen({
         loading, linkProblem, companyName, onRetry: retry,
-        request, success, declined, hasEsignConsent,
+        request, success, declined, hasEsignConsent, consentFocus,
         onReturnToDocuments: returnToDocuments,
         onAgree: () => setHasEsignConsent(true),
         onDecline: () => setDeclined(true),
-        onGoBack: () => setDeclined(false),
+        onGoBack: () => {
+            setConsentFocus(true);
+            setDeclined(false);
+        },
     });
     if (statusScreen) return statusScreen;
 
