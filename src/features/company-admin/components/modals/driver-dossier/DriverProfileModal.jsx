@@ -187,6 +187,8 @@ export function DriverProfileModal({
                                     onLogged={handleCallLogged}
                                 />
                             )}
+                            companyId={companyId}
+                            canEdit={canEdit}
                         />
                     </div>
 

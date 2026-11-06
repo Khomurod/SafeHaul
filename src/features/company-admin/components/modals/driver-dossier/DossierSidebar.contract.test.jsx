@@ -225,6 +225,27 @@ describe('DossierSidebar contact actions', () => {
   });
 });
 
+describe('DossierSidebar key facts (what matters, seen at once)', () => {
+  it('shows the phone and email as text under Call and Email, with the day and the last call', () => {
+    renderSidebar({
+      appData: {
+        ...baseProps().appData,
+        createdAt: { toDate: () => new Date('2026-07-11T12:00:00Z') },
+        lastCallOutcome: 'No Answer',
+      },
+      collectionName: 'applications',
+    });
+    const valueOf = (label) => screen.getByText(label, { selector: 'dt' }).nextElementSibling;
+
+    expect(valueOf('Phone')).toHaveTextContent('(512) 555-1234');
+    expect(valueOf('Email')).toHaveTextContent('maria@example.com');
+    expect(valueOf('Applied')).toHaveTextContent(/2026/);
+    expect(valueOf('Last call')).toHaveTextContent('No Answer');
+    // Text, not a second dialler or mail link.
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+  });
+});
+
 describe('DossierSidebar — a referred driver', () => {
   afterEach(cleanup);
 

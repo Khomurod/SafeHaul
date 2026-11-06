@@ -4,6 +4,7 @@ import { Avatar, Button, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 import { dossierStatusLabel } from './dossierStatusLabel';
+import { DossierKeyFacts } from './DossierKeyFacts';
 
 /**
  * Driver identity block plus the dossier's section navigation.
@@ -38,6 +39,9 @@ import { dossierStatusLabel } from './dossierStatusLabel';
  * - Missing contact details render as inert text, never as a live
  *   `<a href="tel:">` with `pointer-events-none`, which stays in the tab order
  *   and announces as a link pointing nowhere.
+ * - Under Call and Email, the key facts (`DossierKeyFacts`): the phone and
+ *   email as text, Do not text beside the phone, the day the record came in and
+ *   the last call.
  */
 
 const NAV_ITEMS = [
@@ -76,6 +80,8 @@ export function DossierSidebar({
     onOpenRecord,
     // Beside Call: the dossier's Log call (`DossierLogCall`), or nothing.
     logCall = null,
+    companyId,
+    canEdit = false,
 }) {
     const isCompact = useCompactViewport();
     const linked = onOpenRecord ? linkedRecordOf(appData, collectionName) : null;
@@ -178,6 +184,8 @@ export function DossierSidebar({
                         </p>
                     )}
                 </div>
+
+                <DossierKeyFacts appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} />
             </div>
 
             {/* Navigation */}

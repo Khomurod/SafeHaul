@@ -34,6 +34,11 @@ vi.mock('@/context/DataContext', () => ({
   useData: () => ({ currentUserClaims: claims }),
 }));
 
+// The opt-out lookup is a callable; `DossierKeyFacts.test.jsx` covers it.
+vi.mock('./useDoNotText', () => ({
+  useDoNotText: () => ({ usable: true, checking: false, listed: false, markDoNotText: async () => ({ added: true }) }),
+}));
+
 // The tab bodies are exercised by their own contract tests; the shell's
 // dialog behaviour is what is under test here.
 vi.mock('./DossierContent', () => ({

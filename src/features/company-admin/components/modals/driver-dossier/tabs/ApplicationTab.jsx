@@ -301,7 +301,7 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
 
                     {/* 2. License Card (Col Span 6) */}
                     <div className="md:col-span-6">
-                        <LicenseCard appData={appData} fileUrls={fileUrls} filesPending={filesPending} />
+                        <LicenseCard appData={appData} fileUrls={fileUrls} filesPending={filesPending} isLead={collectionName === 'leads'} />
                     </div>
 
                     {/* 3. Stats / Summary (Col Span 12) */}
