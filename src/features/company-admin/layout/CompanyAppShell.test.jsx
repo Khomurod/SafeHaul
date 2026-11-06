@@ -1,7 +1,7 @@
 /**
  * The company shell opens the record the top bar asks for (a notification in
- * its bell), or a navigation names (Add lead, once the lead is saved), in the
- * driver dossier, over whichever page is showing, and closes it with the
+ * its bell, on the tab it names), or a navigation names (Add lead, once the lead
+ * is saved), in the driver dossier, over whichever page is showing, and closes it with the
  * dossier's own Close or when the page changes.
  *
  * All ids below are artificial.
@@ -22,12 +22,15 @@ vi.mock('./CompanySidebar', () => ({ CompanySidebar: () => null }));
 vi.mock('../components/FeatureDeactivationWarning', () => ({ FeatureDeactivationWarning: () => null }));
 vi.mock('./CompanyTopbar', () => ({
     CompanyTopbar: ({ onOpenRecord }) => (
-        <button type="button" onClick={() => onOpenRecord?.('app-7')}>Open a notification</button>
+        <>
+            <button type="button" onClick={() => onOpenRecord?.('app-7')}>Open a notification</button>
+            <button type="button" onClick={() => onOpenRecord?.('app-7', 'pev')}>Open a PEV notification</button>
+        </>
     ),
 }));
 vi.mock('../components/modals/driver-dossier/DriverProfileModal', () => ({
-    DriverProfileModal: ({ companyId, driverId, onClose }) => (
-        <div role="dialog" aria-label="Driver dossier" data-company={companyId} data-record={driverId}>
+    DriverProfileModal: ({ companyId, driverId, initialTab, onClose }) => (
+        <div role="dialog" aria-label="Driver dossier" data-company={companyId} data-record={driverId} data-tab={initialTab}>
             <button type="button" onClick={onClose}>Close dossier</button>
         </div>
     ),
@@ -80,6 +83,19 @@ describe('the record a notification names', () => {
         const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
         expect(dossier).toHaveAttribute('data-record', 'app-7');
         expect(dossier).toHaveAttribute('data-company', 'co-1');
+        // A notice about no tab in particular opens the dossier on its first.
+        expect(dossier).not.toHaveAttribute('data-tab');
+    });
+
+    it('opens on the tab the notification is about', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Open a PEV notification' }));
+
+        await screen.findByRole('button', { name: 'Close dossier' });
+        const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
+        expect(dossier).toHaveAttribute('data-record', 'app-7');
+        expect(dossier).toHaveAttribute('data-tab', 'pev');
     });
 
     it("closes with the dossier's own Close", async () => {
@@ -112,6 +128,7 @@ describe('the record a page sends the person on to', () => {
 
         await screen.findByRole('button', { name: 'Close dossier' });
         expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveAttribute('data-record', 'lead-9');
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).not.toHaveAttribute('data-tab');
     });
 
     it('opens once: the navigation forgets it and keeps the rest of its state', async () => {

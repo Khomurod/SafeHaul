@@ -24,7 +24,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * fact that Escape closes it (both asserted by
  * `e2e/company-candidate-table.spec.cjs`); the
  * `useApplicationView(companyId, driverId)` argument list;
- * the `'application'` initial tab and every tab state value; the
+ * the `'application'` initial tab (unless the opener names another as
+ * `initialTab`: a bell notice or a Needs attention row opens the tab it is
+ * about) and every tab state value; the
  * `deleteApplication({ companyId, applicationId, collectionName })` payload and
  * the `onDeleted()` → `onClose()` ordering after a successful delete; the
  * `company_admin`-of-this-company OR `super_admin` delete rule; and every
@@ -56,8 +58,9 @@ export function DriverProfileModal({
     isOpen,
     onClose,
     onDeleted,
+    initialTab,
 }) {
-    const [activeTab, setActiveTab] = useState('application');
+    const [activeTab, setActiveTab] = useState(initialTab || 'application');
     // The record shown: the one the page opened, or the one it links to.
     const [linked, setLinked] = useState(null);
     const recordId = linked?.from === driverId ? linked.id : driverId;

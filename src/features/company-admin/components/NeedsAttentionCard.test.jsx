@@ -48,8 +48,8 @@ vi.mock('@lib/firebase', () => ({
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 // The dossier has suites of its own; here it only says which record it opened.
 vi.mock('./modals/driver-dossier/DriverDossier', () => ({
-    DriverDossier: ({ driverId, companyId, onClose, onDeleted }) => (
-        <div role="dialog" aria-label={`Driver file ${driverId} of ${companyId}`}>
+    DriverDossier: ({ driverId, companyId, initialTab, onClose, onDeleted }) => (
+        <div role="dialog" aria-label={`Driver file ${driverId} of ${companyId}`} data-tab={initialTab}>
             <button type="button" onClick={onClose}>Close the driver file</button>
             <button type="button" onClick={onDeleted}>Delete the driver</button>
         </div>
@@ -182,7 +182,7 @@ describe('the rows', () => {
         expect(screen.queryByText('Nothing needs attention right now.')).toBeNull();
     });
 
-    it('names the hired drivers whose DQ documents expire, each opening the driver\'s file', async () => {
+    it('names the hired drivers whose DQ documents expire, each opening the driver\'s DQ file', async () => {
         fx.answer = withRows({
             dqExpiring: {
                 status: 'ok',
@@ -201,7 +201,8 @@ describe('the rows', () => {
         expect(screen.getByText('1 more')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Ann Driver' }));
-        expect(screen.getByRole('dialog', { name: 'Driver file app-2 of co-1' })).toBeInTheDocument();
+        // On the DQ File tab, where the dates are.
+        expect(screen.getByRole('dialog', { name: 'Driver file app-2 of co-1' })).toHaveAttribute('data-tab', 'dq');
         fireEvent.click(screen.getByRole('button', { name: 'Close the driver file' }));
         expect(screen.queryByRole('dialog')).toBeNull();
 

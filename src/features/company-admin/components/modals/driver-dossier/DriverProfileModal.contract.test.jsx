@@ -126,6 +126,16 @@ describe('DriverProfileModal open/close contract', () => {
     expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'application');
   });
 
+  // A bell notice or a Needs attention row opens the tab it is about.
+  it('opens on the tab its opener names, which the sidebar still moves', () => {
+    renderModal({ initialTab: 'pev' });
+    expect(screen.getByTestId('sidebar-active')).toHaveTextContent('pev');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'pev');
+
+    fireEvent.click(screen.getByText('go-documents'));
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'documents');
+  });
+
   it('keeps the active-tab state values the sidebar emits', () => {
     renderModal();
     fireEvent.click(screen.getByText('go-documents'));
