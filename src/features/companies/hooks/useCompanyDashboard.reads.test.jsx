@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
-const fx = vi.hoisted(() => ({ reads: [] }));
+const fx = vi.hoisted(() => ({ reads: [], listError: null, countError: null }));
 
 vi.mock('firebase/firestore', () => {
     const record = (kind) => (...args) => ({ kind, args });
@@ -30,10 +30,12 @@ vi.mock('firebase/firestore', () => {
         },
         getDocs: async (q) => {
             fx.reads.push({ kind: 'docs', path: q.path });
+            if (fx.listError) throw fx.listError;
             return { docs: [] };
         },
         getCountFromServer: async (q) => {
             fx.reads.push({ kind: 'count', path: q.path });
+            if (fx.countError) throw fx.countError;
             return { data: () => ({ count: 0 }) };
         },
     };
@@ -47,6 +49,9 @@ import { useCompanyDashboard } from './useCompanyDashboard';
 
 afterEach(() => {
     fx.reads = [];
+    fx.listError = null;
+    fx.countError = null;
+    vi.restoreAllMocks();
 });
 
 const pathsRead = () => [...new Set(fx.reads.map((read) => read.path))];
@@ -65,5 +70,40 @@ describe('a candidate list', () => {
         expect(pathsRead()).toEqual([own]);
         expect(result.current.error).toBe('');
         expect(result.current.listCountError).toBe('');
+    });
+});
+
+// The list once said "Missing Index: Please check the browser console…". The
+// person reads a plain sentence; the index's creation link stays in the console.
+describe('a candidate list that cannot be read', () => {
+    const missingIndex = () => Object.assign(
+        new Error('The query requires an index. You can create it here: https://console.firebase.google.com/example'),
+        { code: 'failed-precondition' },
+    );
+
+    it('says the list could not be loaded, in a plain sentence', async () => {
+        const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        fx.listError = missingIndex();
+        const { result } = renderHook(() => useCompanyDashboard('co-1', { initialTab: 'applications' }));
+
+        await waitFor(() => expect(result.current.error).not.toBe(''));
+        expect(result.current.error).toBe(
+            'The list could not be loaded. Please try again. If it keeps happening, contact support.',
+        );
+        expect(result.current.error).not.toMatch(/index|console/i);
+        expect(errors).toHaveBeenCalledWith('Dashboard fetch error:', fx.listError);
+        expect(warnings).toHaveBeenCalledWith('CLICK THIS LINK TO CREATE INDEX:', fx.listError);
+    });
+
+    it('says the total could not be counted, in a plain sentence', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        fx.countError = Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
+        const { result } = renderHook(() => useCompanyDashboard('co-1', { initialTab: 'applications' }));
+
+        await waitFor(() => expect(result.current.listCountError).not.toBe(''));
+        expect(result.current.listCountError).toBe(
+            'The total count could not be loaded. You do not have permission to do this. If you think you should, ask your company admin.',
+        );
     });
 });
