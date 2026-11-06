@@ -68,7 +68,7 @@ describe('CompanySidebar', () => {
         expect(screen.queryByRole('link', { name: 'E-Docs' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Import Leads' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
-        expect(screen.getByText('Team Member')).toBeInTheDocument();
+        expect(screen.getByText('Recruiter')).toBeInTheDocument();
     });
 
     it('has no Add lead or Import Leads item: the Leads page offers both', () => {

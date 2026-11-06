@@ -43,7 +43,7 @@ describe('PEVTab feature gate', () => {
     dataMock.value = { currentCompanyProfile: { features: { pev: false } } };
     renderTab();
 
-    expect(screen.getByText('PEV Module Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Previous Employment unavailable')).toBeInTheDocument();
     expect(screen.queryByText('Acme Freight')).toBeNull();
   });
 

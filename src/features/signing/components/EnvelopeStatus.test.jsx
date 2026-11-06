@@ -22,7 +22,7 @@ describe('EnvelopeStatusBadge', () => {
 
         expect(toneOf('Delivery Failed')).toBe('danger');
         expect(screen.getByText('Line unavailable (artificial)')).toBeInTheDocument();
-        expect(screen.queryByText('Sent')).toBeNull();
+        expect(screen.queryByText('Awaiting signature')).toBeNull();
     });
 
     it('says Signed for a signed document whose text failed', () => {
@@ -45,10 +45,10 @@ describe('EnvelopeStatusBadge', () => {
         expect(screen.queryByText('SMTP 550 rejected (artificial)')).toBeNull();
     });
 
-    it('shows a text skipped for an opted-out number as a note under Sent, not a failure', () => {
+    it('shows a text skipped for an opted-out number as a note under Awaiting signature, not a failure', () => {
         badgeOf({ status: 'sent', sendEmail: true, sendSms: true, emailStatus: 'sent', smsStatus: 'skipped', smsNote: OPTED_OUT });
 
-        expect(toneOf('Sent')).toBe('info');
+        expect(toneOf('Awaiting signature')).toBe('info');
         expect(screen.getByText(OPTED_OUT)).toBeInTheDocument();
         expect(screen.getByText(OPTED_OUT).className).not.toMatch(/danger/);
         expect(screen.queryByText('Delivery Failed')).toBeNull();

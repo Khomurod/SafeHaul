@@ -48,17 +48,17 @@ describe('EnvelopeHistory — Link expired', () => {
 
         const row = rowOf();
         expect(within(row).getByText('Link expired')).toBeInTheDocument();
-        expect(within(row).queryByText('Sent')).not.toBeInTheDocument();
+        expect(within(row).queryByText('Awaiting signature')).not.toBeInTheDocument();
         expect(within(row).queryByRole('button', { name: 'Link for Offer Letter' })).not.toBeInTheDocument();
         expect(within(row).getByRole('button', { name: 'Review details for Offer Letter' })).toBeInTheDocument();
     });
 
-    it('leaves a link that still works as Sent, with Copy link', () => {
+    it('leaves a link that still works as Awaiting signature, with Copy link', () => {
         renderHistory();
         emit([live()]);
 
         const row = rowOf();
-        expect(within(row).getByText('Sent')).toBeInTheDocument();
+        expect(within(row).getByText('Awaiting signature')).toBeInTheDocument();
         expect(within(row).queryByText('Link expired')).not.toBeInTheDocument();
         expect(within(row).getByRole('button', { name: 'Link for Offer Letter' })).toBeInTheDocument();
     });

@@ -16,7 +16,7 @@ import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 /**
  * Settings → Team: everyone who recruits for the company, on the page itself.
  * "Add person" opens a dialog (`createPortalUser`); each row copies the member's
- * recruiting link, sets their daily goals, or removes them (`deletePortalUser`).
+ * personal link, sets their daily goals, or removes them (`deletePortalUser`).
  * The roster comes from `listCompanyTeam` through `useTeamRoster`. Company
  * admins only.
  */
@@ -42,7 +42,7 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
         const link = `${base}/apply/${currentCompanyProfile.appSlug || companyId}?recruiter=${member.id}`;
         try {
             await navigator.clipboard.writeText(link);
-            showSuccess('Custom recruiter link copied!');
+            showSuccess('Personal link copied!');
         } catch {
             // Nothing reached the clipboard: give the link itself.
             showError(`Could not copy the link. Copy it by hand: ${link}`);

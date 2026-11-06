@@ -46,6 +46,15 @@ export const STATUS_FILTERS = Object.freeze([
 ]);
 
 /**
+ * What a stored status is called on screen: its filter's name ("Awaiting
+ * signature" for `sent`), or the value as stored when no filter names it.
+ */
+export function statusLabel(status) {
+    const option = STATUS_FILTERS.find((filter) => filter.value === status);
+    return option && status !== 'all' && status !== 'expired' ? option.label : status;
+}
+
+/**
  * Delivery filter options. The values are the exact stored `deliveryMethod`
  * values — `email`, `sms`, `both`, `copy` — plus the post-application value
  * the backend writes, so nothing already in Firestore becomes unfilterable.

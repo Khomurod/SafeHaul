@@ -7,7 +7,7 @@ import { MEMBER_STATUS, roleLabel, teamMemberName } from './teamMemberStatus';
  * The columns of the team table, one row per member as `listCompanyTeam`
  * resolves them. A record that is not simply healthy says so in words
  * (`MEMBER_STATUS`); the daily goals sit under the role. The row actions copy
- * the member's recruiting link, open their daily goals, and remove them — the
+ * the member's personal link, open their daily goals, and remove them — the
  * last never on the signed-in admin's own row.
  */
 export function teamColumns({ currentUserId, deletingId, onCopyLink, onEditGoals, onRemove }) {
@@ -75,7 +75,7 @@ export function teamColumns({ currentUserId, deletingId, onCopyLink, onEditGoals
                 const name = teamMemberName(member);
                 return (
                     <span className="flex items-center justify-end gap-ds-1">
-                        <IconButton label={`Copy recruiting link for ${name}`} variant="ghost" size="sm" onClick={() => onCopyLink(member)}>
+                        <IconButton label={`Copy personal link for ${name}`} variant="ghost" size="sm" onClick={() => onCopyLink(member)}>
                             <Icon icon={LinkIcon} />
                         </IconButton>
                         <IconButton label={`Daily goals for ${name}`} variant="ghost" size="sm" onClick={() => onEditGoals(member)}>

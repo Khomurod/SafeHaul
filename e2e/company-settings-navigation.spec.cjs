@@ -19,7 +19,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await openSettings(page);
 
     const company = page.getByRole('button', { name: 'Company profile', exact: true });
-    const application = page.getByRole('button', { name: 'Application form', exact: true });
+    const application = page.getByRole('button', { name: 'Application questions', exact: true });
 
     await expect(page.getByRole('button', { name: 'Overview', exact: true })).toHaveCount(0);
     await expect(company).toHaveAttribute('aria-current', 'page');
@@ -107,7 +107,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
 
     await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
     const sections = [
-      'Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
+      'Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
       'API keys', 'Facebook leads', 'Plan', 'My profile',
     ];
     for (const label of sections) {

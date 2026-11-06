@@ -229,10 +229,11 @@ export const CompanySidebar = ({
               <span className="text-ds-content font-medium truncate">
                 {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Company'}
               </span>
-              {/* Who you are in this company. Settings is the account section's
-                  own item, so the header does not link to it a second time. */}
+              {/* Who you are in this company, by the role's name (as Settings →
+                  Team names it). Settings is the account section's own item, so
+                  the header does not link to it a second time. */}
               <span className="text-ds-xs text-ds-content-muted truncate">
-                {isCompanyAdmin ? 'Company Admin' : 'Team Member'}
+                {isCompanyAdmin ? 'Company Admin' : 'Recruiter'}
               </span>
             </div>
           )}

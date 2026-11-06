@@ -78,7 +78,7 @@ describe('an application\'s signing documents', () => {
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.rows.map((row) => row.title)).toEqual(['Lease']);
-        expect(result.current.formsError).toBe('Could not load the company\'s post-application forms.');
+        expect(result.current.formsError).toBe('Could not load the company\'s after-application forms.');
     });
 
     it('reports a list that cannot be read, and stops listening when it closes', async () => {

@@ -227,7 +227,7 @@ describe('DocumentsManager views', () => {
 describe('DocumentsManager gating', () => {
     it('locks the workspace when E-Docs is disabled for the company', () => {
         renderManager({ currentCompanyProfile: { ...company, features: { eDocs: false } } });
-        expect(screen.queryByRole('heading', { level: 1, name: 'Documents' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'E-Docs' })).not.toBeInTheDocument();
     });
 
     /*
@@ -241,7 +241,7 @@ describe('DocumentsManager gating', () => {
      */
     it('survives E-Docs being switched off while the screen is open', () => {
         const { rerender } = renderManager();
-        expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeInTheDocument();
 
         useDataMock.mockReturnValue({
             currentCompanyProfile: { ...company, features: { eDocs: false } },
@@ -254,6 +254,6 @@ describe('DocumentsManager gating', () => {
         )).not.toThrow();
 
         expect(screen.getByRole('heading', { level: 2, name: 'E-Docs' })).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { level: 1, name: 'Documents' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'E-Docs' })).not.toBeInTheDocument();
     });
 });

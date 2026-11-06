@@ -106,13 +106,13 @@ function formItems(forms, read) {
         return [{
             id: 'forms',
             state: 'todo',
-            title: 'No post-application forms',
+            title: 'No after-application forms',
             text: 'Drivers are offered no forms to sign after they apply.',
             href: READINESS_LINKS.forms,
             linkLabel: 'Open after-application forms',
         }];
     }
-    if (!ok(read)) return [unknown('signatures', 'Post-application forms', READINESS_LINKS.templates, 'Open templates')];
+    if (!ok(read)) return [unknown('signatures', 'After-application forms', READINESS_LINKS.templates, 'Open templates')];
     const { missing, unsigned } = formProblems(forms, read.value || {});
     return [
         unsigned.length > 0 && {

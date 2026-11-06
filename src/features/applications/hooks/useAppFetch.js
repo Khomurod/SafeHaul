@@ -29,7 +29,7 @@ export function useAppFetch(companyId, applicationId) {
   const [filesPending, setFilesPending] = useState(false);
   const [currentStatus, setCurrentStatus] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
-  // The Assign To picker's team, each member keyed by the uid it saves.
+  // The Assigned to picker's team, each member keyed by the uid it saves.
   const { team: teamMembers } = useCompanyTeam(companyId, companyProfile);
 
   // A load for a record the dossier no longer shows changes nothing.

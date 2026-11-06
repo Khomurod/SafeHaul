@@ -43,7 +43,7 @@ beforeEach(resetHarness);
 describe('DocumentsManager header', () => {
     it('names the page Documents and states what it is for', () => {
         renderManager();
-        expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeInTheDocument();
         expect(
             screen.getByText(
                 'Create, send, track and manage documents requiring completion or signature.',
@@ -103,7 +103,7 @@ describe('DocumentsManager sent documents count', () => {
             documents: [sent('a'), sent('b', { status: 'signed' }), sent('c', { emailStatus: 'failed' })],
         };
         renderManager();
-        const header = screen.getByRole('heading', { level: 1, name: 'Documents' }).closest('header');
+        const header = screen.getByRole('heading', { level: 1, name: 'E-Docs' }).closest('header');
         // The region stays in place, empty, so a screen reader hears the count arrive.
         expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
 
@@ -125,7 +125,7 @@ describe('DocumentsManager sent documents count', () => {
         signingRequestsMock.current = { ...signingRequestsMock.current, documents: [], ...state };
         renderManager();
         fireEvent.click(tabs().sent);
-        const header = screen.getByRole('heading', { level: 1, name: 'Documents' }).closest('header');
+        const header = screen.getByRole('heading', { level: 1, name: 'E-Docs' }).closest('header');
         expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
     });
 });
@@ -200,7 +200,7 @@ describe('DocumentsManager New Document', () => {
         // The creator owns its own close control; invoke the handler it was given.
         React.act(() => { creatorProps.current.onClose(); });
 
-        expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'New Document' })).toBeInTheDocument();
     });
 

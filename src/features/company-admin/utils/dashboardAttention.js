@@ -46,13 +46,13 @@ const ROWS = Object.freeze([
         id: 'pevWaiting',
         label: 'PEV requests waiting for the employer',
         title: (n) => `${counted(n, 'PEV request is', 'PEV requests are')} waiting for the employer`,
-        text: 'Reminders go out on their own. Each driver’s PEV tab shows the request, and Record attempt logs a call or a fax.',
+        text: 'Reminders go out on their own. Each driver’s Previous Employment tab shows the request, and Record attempt logs a call or a fax.',
     },
     {
         id: 'pevNoResponse',
         label: 'PEV requests marked no response',
         title: (n) => `${counted(n, 'PEV request is', 'PEV requests are')} marked no response`,
-        text: 'The employer did not answer within 30 days. The record of attempts is in the driver’s DQ file, and a late answer can still be uploaded on the PEV tab.',
+        text: 'The employer did not answer within 30 days. The record of attempts is in the driver’s DQ file, and a late answer can still be uploaded on the Previous Employment tab.',
     },
     {
         id: 'pendingChanges',

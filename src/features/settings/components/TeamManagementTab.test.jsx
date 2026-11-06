@@ -308,18 +308,18 @@ describe('TeamManagementTab — never invents an Unknown member', () => {
 });
 
 describe('TeamManagementTab — row actions', () => {
-    it('copies the exact recruiting link (env base, trailing slash trimmed) and toasts', async () => {
+    it('copies the exact personal link (env base, trailing slash trimmed) and toasts', async () => {
         vi.stubEnv('VITE_DRIVER_APP_URL', 'https://drive.example.test/');
         await renderLoaded();
-        fireEvent.click(screen.getByRole('button', { name: 'Copy recruiting link for Artificial One' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Copy personal link for Artificial One' }));
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://drive.example.test/apply/artificial-co?recruiter=u1');
-        await waitFor(() => expect(fn.showSuccess).toHaveBeenCalledWith('Custom recruiter link copied!'));
+        await waitFor(() => expect(fn.showSuccess).toHaveBeenCalledWith('Personal link copied!'));
     });
 
     it('falls back to window origin and the company id when there is no slug', async () => {
         vi.stubEnv('VITE_DRIVER_APP_URL', '');
         await renderLoaded({ profile: { id: 'company-1' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Copy recruiting link for Artificial One' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Copy personal link for Artificial One' }));
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/apply/company-1?recruiter=u1`);
     });
 
@@ -327,7 +327,7 @@ describe('TeamManagementTab — row actions', () => {
         vi.stubEnv('VITE_DRIVER_APP_URL', 'https://drive.example.test');
         navigator.clipboard.writeText.mockRejectedValue(new Error('denied'));
         await renderLoaded();
-        fireEvent.click(screen.getByRole('button', { name: 'Copy recruiting link for Artificial One' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Copy personal link for Artificial One' }));
         await waitFor(() => expect(fn.showError).toHaveBeenCalledWith(
             'Could not copy the link. Copy it by hand: https://drive.example.test/apply/artificial-co?recruiter=u1',
         ));

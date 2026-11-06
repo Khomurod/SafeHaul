@@ -18,7 +18,8 @@ import {
  */
 const STATUS_PRESENTATION = {
     signed: { tone: 'success', label: 'Signed', icon: CheckCircle },
-    sent: { tone: 'info', label: 'Sent', icon: Clock },
+    // The name the overview, the filter and the dossier use; the stored value stays `sent`.
+    sent: { tone: 'info', label: 'Awaiting signature', icon: Clock },
     voided: { tone: 'danger', label: 'Voided', icon: Ban },
     pending_seal: { tone: 'warning', label: 'Sealing...', icon: Loader2, spin: true },
     error_sealing: { tone: 'danger', label: 'Seal Failed', icon: AlertCircle },

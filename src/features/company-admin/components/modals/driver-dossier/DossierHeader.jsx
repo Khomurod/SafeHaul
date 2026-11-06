@@ -55,7 +55,7 @@ function statusOptionsFor(currentStatus) {
  * Rules this header keeps:
  * - **The close button has an accessible name**: it is the only way out of a
  *   modal dialog.
- * - The Status and Assign To labels stay in the accessible name computation —
+ * - The Status and Assigned to labels stay in the accessible name computation —
  *   visually hidden on narrow headers, never `display:none`, which would leave
  *   both selects unlabelled on tablets and phones.
  * - The Download action has an explicit accessible name, not `title` alone.
@@ -178,7 +178,7 @@ export function DossierHeader({
                                 htmlFor={assignId}
                                 className="sr-only text-ds-xs font-semibold text-ds-content-secondary xl:not-sr-only"
                             >
-                                Assign To
+                                Assigned to
                             </label>
                             <Select
                                 id={assignId}

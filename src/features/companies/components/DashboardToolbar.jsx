@@ -8,7 +8,7 @@ import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions
 
 /**
  * The candidate/lead list toolbar: the list-page `ListToolbar` with this list's
- * segments, its "only mine" switch, its search, its four filters and the
+ * segments, its "Assigned to me" switch, its search, its four filters and the
  * assignment action. A list whose tab names its assignee (Assigned to me,
  * Unassigned) leaves the Assigned to filter out (`showAssigneeFilter`), and a
  * value it holds from another list is neither shown nor counted.
@@ -49,7 +49,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
     showMyAssignmentsToggle = false,
     myAssignmentsOnly = false,
     onToggleMyAssignments,
-    myAssignmentsLabel = 'Only mine',
+    myAssignmentsLabel = 'Assigned to me',
     showAssigneeFilter = true,
 }) {
     const [showFilters, setShowFilters] = useState(false);

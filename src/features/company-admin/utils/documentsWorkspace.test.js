@@ -20,6 +20,7 @@ import {
     searchTemplates,
     sentHeaderCount,
     sortTemplates,
+    statusLabel,
     summarizeDocuments,
     supportsDateFilter,
 } from './documentsWorkspace';
@@ -68,6 +69,20 @@ describe('status predicates', () => {
         expect(deliveryFailure(doc({ emailStatus: 'failed', emailError: 'SMTP 550', smsStatus: 'failed' })))
             .toEqual({ channel: 'Email', error: 'SMTP 550' });
         expect(deliveryFailure(doc({ status: 'sent', emailStatus: 'sent', smsStatus: 'sent' }))).toBeNull();
+    });
+});
+
+describe('statusLabel', () => {
+    it('calls a document still with its signer Awaiting signature, as the filter and the dossier do', () => {
+        expect(statusLabel('sent')).toBe('Awaiting signature');
+        expect(statusLabel('signed')).toBe('Signed');
+        expect(statusLabel('error_sealing')).toBe('Seal failed');
+    });
+
+    it('keeps a value no filter names as stored', () => {
+        expect(statusLabel('archived_by_admin')).toBe('archived_by_admin');
+        expect(statusLabel('all')).toBe('all');
+        expect(statusLabel('expired')).toBe('expired');
     });
 });
 

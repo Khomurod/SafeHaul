@@ -134,7 +134,7 @@ describe('explicit save', () => {
 
     it('announces the in-flight save', () => {
         renderPanel({ savingPostSubmitTemplates: true });
-        expect(screen.getByText('Saving post-application forms…')).toBeInTheDocument();
+        expect(screen.getByText('Saving after-application forms…')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Save forms/ })).toHaveAttribute('aria-busy', 'true');
     });
 

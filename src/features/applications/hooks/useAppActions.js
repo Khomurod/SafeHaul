@@ -33,7 +33,7 @@ export function useAppActions({
   onStatusUpdate
 }) {
   const { showSuccess, showError } = useToast();
-  // While a save of Assign To is open the picker shows the newest pick; once
+  // While a save of Assigned to is open the picker shows the newest pick; once
   // none is open it shows what the record holds. `latest` numbers the picks.
   const assignSaves = useRef({ open: 0, saved: '', latest: 0 });
 

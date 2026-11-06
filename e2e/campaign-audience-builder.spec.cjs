@@ -32,7 +32,7 @@ test.describe('Campaign audience builder slice', () => {
 
     // Every CRM filter is programmatically labelled.
     await expect(page.getByLabel('Source', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Owner', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Assigned to', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Exclude Previously Messaged')).toBeVisible();
     await expect(page.getByLabel('Limit Volume')).toBeVisible();
   });

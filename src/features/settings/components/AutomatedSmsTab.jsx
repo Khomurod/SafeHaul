@@ -140,7 +140,7 @@ export function AutomatedSmsTab({ companyId }) {
                         <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
                             {`{application link}`}
                         </code>{' '}
-                        for your application page with the recruiter&rsquo;s link.
+                        for your application page with the recruiter&rsquo;s personal link.
                     </>
                 )}
             >

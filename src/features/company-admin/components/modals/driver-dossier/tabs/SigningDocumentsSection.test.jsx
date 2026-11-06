@@ -215,9 +215,9 @@ describe('what the section lists', () => {
     });
 
     it('still lists the documents when the company\'s forms could not be read, and says so', () => {
-        withRows({ forms: [], formsError: 'Could not load the company\'s post-application forms.' });
+        withRows({ forms: [], formsError: 'Could not load the company\'s after-application forms.' });
         renderSection();
-        expect(screen.getByText('Could not load the company\'s post-application forms.')).toBeInTheDocument();
+        expect(screen.getByText('Could not load the company\'s after-application forms.')).toBeInTheDocument();
         expect(screen.getAllByRole('listitem')).toHaveLength(2);
     });
 });

@@ -69,7 +69,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                 if (current) setRecruitingCode(code);
             } catch (err) {
                 console.error("Error generating link:", err);
-                if (current) showError("Could not generate tracking link.");
+                if (current) showError("Could not generate your personal link.");
             } finally {
                 if (current) setLinkLoading(false);
             }
@@ -122,7 +122,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
             return;
         }
         setCopied(true);
-        showSuccess("Short link copied!");
+        showSuccess("Personal link copied!");
         setTimeout(() => setCopied(false), 2000);
     };
 
@@ -155,7 +155,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                                 id="personal-recruiting-link-title"
                                 className="text-ds-heading-sm font-bold mb-1 text-ds-status-info-fg"
                             >
-                                Your Short Recruiting Link
+                                Your personal link
                             </h2>
 
                             <p className="text-ds-sm text-ds-status-info-fg mb-4">

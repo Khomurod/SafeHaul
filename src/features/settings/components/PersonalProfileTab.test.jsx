@@ -161,7 +161,7 @@ describe('PersonalProfileTab compatibility slice', () => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
             `${window.location.origin}/apply/safehaul-logistics?r=${generatedCode}`,
         );
-        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Short link copied!'));
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Personal link copied!'));
         expect(generatedCode).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
     });
 
@@ -241,7 +241,7 @@ describe('PersonalProfileTab compatibility slice', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
         await waitFor(() => expect(toastMocks.showError)
             .toHaveBeenCalledWith('Could not copy the link. Select it and copy it yourself.'));
-        expect(toastMocks.showSuccess).not.toHaveBeenCalledWith('Short link copied!');
+        expect(toastMocks.showSuccess).not.toHaveBeenCalledWith('Personal link copied!');
     });
 
     it('preserves the recruiting-link generation error feedback', async () => {
@@ -260,7 +260,7 @@ describe('PersonalProfileTab compatibility slice', () => {
 
         await waitFor(() => {
             expect(toastMocks.showError)
-                .toHaveBeenCalledWith('Could not generate tracking link.');
+                .toHaveBeenCalledWith('Could not generate your personal link.');
         });
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         consoleError.mockRestore();

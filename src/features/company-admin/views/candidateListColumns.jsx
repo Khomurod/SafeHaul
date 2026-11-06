@@ -233,7 +233,7 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
         },
         ...(scope === 'my_leads' || scope === 'unassigned_leads' ? [] : [{
             key: 'assignee',
-            header: 'Recruiter',
+            header: 'Assigned to',
             width: 'sm',
             truncate: true,
             render: (item) => {

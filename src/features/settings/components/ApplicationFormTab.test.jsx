@@ -74,7 +74,7 @@ beforeEach(() => {
 describe('ApplicationFormTab', () => {
     it('is its own page with four tabs, Questions first, and nothing to save yet', () => {
         renderForm();
-        expect(screen.getByRole('heading', { level: 1, name: 'Application form' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Application questions' })).toBeInTheDocument();
         expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Questions', 'Rules', 'Agreements', 'Integrations']);
         expect(screen.getByRole('tab', { name: 'Questions' })).toHaveAttribute('aria-selected', 'true');
         expect(saveBar()).toBeNull();

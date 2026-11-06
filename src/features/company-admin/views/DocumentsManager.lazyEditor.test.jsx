@@ -36,7 +36,7 @@ beforeEach(resetHarness);
 describe('the document editor', () => {
     it('loads when a document is created, not with the workspace', async () => {
         renderManager();
-        expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeInTheDocument();
         expect(fx.loaded).toBe(false);
 
         openNewDocument();

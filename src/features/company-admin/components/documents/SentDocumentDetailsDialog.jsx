@@ -3,7 +3,7 @@ import { Icon, Ban, Copy, Download, Edit3, Hourglass, RefreshCw, Send, X } from 
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { formatTimestamp, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
+import { formatTimestamp, isLinkExpired, statusLabel } from '@features/company-admin/utils/documentsWorkspace';
 import { canRemindSigner, sharedByCopiedLink } from '@features/signing/utils/signerReminder';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
@@ -142,7 +142,7 @@ export function SentDocumentDetailsDialog({
                         <DetailRow label="Status">
                             {expired && !deliveryFailed
                                 ? <Badge tone="warning" icon={Hourglass}>Link expired</Badge>
-                                : <Badge tone={deliveryFailed || sealFailed ? 'danger' : 'neutral'}>{status}</Badge>}
+                                : <Badge tone={deliveryFailed || sealFailed ? 'danger' : 'neutral'}>{statusLabel(status)}</Badge>}
                         </DetailRow>
                         {skippedText && <DetailRow label="Text message">{skippedText}</DetailRow>}
                         {status === 'voided' && (document.voidedAt || document.voidedByName) && (

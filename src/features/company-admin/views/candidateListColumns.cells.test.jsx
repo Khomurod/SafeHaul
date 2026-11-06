@@ -78,7 +78,7 @@ describe('the Driver column', () => {
     });
 });
 
-describe('the Recruiter column', () => {
+describe('the Assigned to column', () => {
     it("shows the assignee's name from the company's team", () => {
         cell('assignee', { assignedTo: 'recruiter-1' });
 
