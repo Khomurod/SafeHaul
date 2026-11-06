@@ -178,6 +178,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                     throw new Error(
                         `The company was created, but its admin was not: ${plainErrorMessage(adminError, 'The admin account could not be created.')} `
                         + 'Correct the admin details and press Create Company again; only the admin will be added.',
+                        { cause: adminError },
                     );
                 }
             }
