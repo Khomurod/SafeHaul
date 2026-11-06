@@ -210,6 +210,34 @@ describe('DossierHeader permission gating', () => {
   });
 });
 
+describe('DossierHeader for a lead (a lead is not an application)', () => {
+  it("titles a lead's first tab Lead, deletes a lead, and offers no application PDF", () => {
+    const props = renderHeader({ collectionName: 'leads', canDelete: true });
+
+    expect(screen.getByRole('heading', { level: 3, name: 'Lead' })).toBeInTheDocument();
+    expect(screen.queryByText('Application Review')).toBeNull();
+    expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /delete application/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete lead' }));
+    expect(props.onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps every other tab's title", () => {
+    renderHeader({ collectionName: 'leads', activeTab: 'dq' });
+    expect(screen.getByText('Driver Qualification File')).toBeInTheDocument();
+  });
+
+  it.each([['applications'], [undefined]])(
+    'keeps the application wording for collection %s, the default before a record loads',
+    (collectionName) => {
+      renderHeader({ collectionName, canDelete: true });
+      expect(screen.getByRole('heading', { level: 3, name: 'Application Review' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
+    },
+  );
+});
+
 describe('DossierHeader actions', () => {
   it("leaves the download to the dossier's own handler", () => {
     const props = renderHeader();

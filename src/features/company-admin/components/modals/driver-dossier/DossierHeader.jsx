@@ -31,7 +31,8 @@ function statusOptionsFor(currentStatus) {
  * Presentation uses the approved `IconButton`, `Select` and `Badge`
  * primitives with `--ds-*` tokens.
  *
- * Frozen contracts: every per-tab title string, the application tab's
+ * Frozen contracts: every per-tab title string (a lead's first tab reads
+ * "Lead"), the application tab's
  * `Confirmation Number: <number>` (the number the driver was given, shown only
  * when the record on screen has one; the document id means nothing to the
  * team) and its `Loading...` placeholder while the record loads, the status
@@ -61,6 +62,11 @@ function statusOptionsFor(currentStatus) {
  *   shrinks and wraps: a `shrink-0` group never wraps and is clipped by the
  *   dialog panel's `overflow-hidden`, and a phone has no Escape key to close
  *   the dossier with.
+ * - **A lead is not an application** (`collectionName`, the collection
+ *   `useApplicationView` opened): its first tab is titled "Lead", its delete
+ *   reads "Delete lead", and it has no application PDF to download. Anything
+ *   else, an application or a record not yet loaded, keeps the application's
+ *   wording.
  */
 export function DossierHeader({
     activeTab,
@@ -76,14 +82,17 @@ export function DossierHeader({
     canDelete = false,
     onDelete,
     onDownload,
+    collectionName,
 }) {
     const rawId = useId().replace(/:/g, '');
     const statusId = `dossier-status-${rawId}`;
     const assignId = `dossier-assign-${rawId}`;
 
+    const isLead = collectionName === 'leads';
+
     const getTitle = () => {
         switch (activeTab) {
-            case 'application': return 'Application Review';
+            case 'application': return isLead ? 'Lead' : 'Application Review';
             case 'documents': return 'Documents to sign';
             case 'dq': return 'Driver Qualification File';
             case 'activity': return 'Activity Timeline';
@@ -182,18 +191,21 @@ export function DossierHeader({
                     </>
                 )}
 
-                <IconButton
-                    variant="ghost"
-                    label="Download application PDF"
-                    onClick={onDownload}
-                >
-                    <Icon icon={Download} size="xl" />
-                </IconButton>
+                {/* A lead has no application document; its files are in its DQ File. */}
+                {!isLead && (
+                    <IconButton
+                        variant="ghost"
+                        label="Download application PDF"
+                        onClick={onDownload}
+                    >
+                        <Icon icon={Download} size="xl" />
+                    </IconButton>
+                )}
 
                 {canDelete && (
                     <IconButton
                         variant="ghost"
-                        label="Delete application"
+                        label={isLead ? 'Delete lead' : 'Delete application'}
                         onClick={onDelete}
                     >
                         <Icon icon={Trash2} size="xl" className="text-ds-status-danger-fg" />

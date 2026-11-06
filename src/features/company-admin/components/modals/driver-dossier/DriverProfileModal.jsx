@@ -30,7 +30,7 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * `deleteApplication({ companyId, applicationId, collectionName })` payload and
  * the `onDeleted()` → `onClose()` ordering after a successful delete; the
  * `company_admin`-of-this-company OR `super_admin` delete rule; and every
- * confirmation string.
+ * confirmation string (an application's; a lead's names the lead).
  *
  * Rules this dialog keeps:
  * - It is the shared accessible `Modal`, which owns focus containment, focus
@@ -44,7 +44,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  *   strip, and the three-pane desktop layout from `sm` up; a fixed 280 px
  *   sidebar would leave about 90 px for the content at 412 px.
  * - Loading and error are announced: `role="status"` / `role="alert"`.
- * - The destructive confirmation opens with focus on Cancel.
+ * - The destructive confirmation opens with focus on Cancel, and names what
+ *   it deletes: a lead (`collectionName`, the collection the record was found
+ *   in), or an application.
  * - A lead and the application it became open each other here (the sidebar's
  *   "Open application" / "Open lead"): the dossier shows that record, on its
  *   first tab, until the page opens another.
@@ -113,6 +115,7 @@ export function DriverProfileModal({
         assignedTo,
         refreshRecord,
     } = useApplicationView(companyId, recordId);
+    const isLead = collectionName === 'leads';
 
     const handleCallLogged = () => {
         refreshRecord?.();
@@ -215,6 +218,7 @@ export function DriverProfileModal({
                                 canDelete={isCompanyAdmin}
                                 onDelete={() => setConfirmingDelete(true)}
                                 onDownload={handleDownloadPdf}
+                                collectionName={collectionName}
                             />
                         </div>
 
@@ -285,10 +289,12 @@ export function DriverProfileModal({
                                 {/* Same padding-sized tile, same two-pixel snap. */}
                                 <Icon icon={AlertTriangle} size="xl" />
                             </span>
-                            <h2 id="delete-app-title" className="text-ds-body-lg font-bold text-ds-content">Delete this application?</h2>
+                            <h2 id="delete-app-title" className="text-ds-body-lg font-bold text-ds-content">
+                                {isLead ? 'Delete this lead?' : 'Delete this application?'}
+                            </h2>
                         </div>
                         <p className="mb-ds-6 text-ds-sm text-ds-content-secondary">
-                            This permanently removes the application, its activity history, notes, and all
+                            This permanently removes the {isLead ? 'lead' : 'application'}, its activity history, notes, and all
                             uploaded documents. This cannot be undone.
                         </p>
                         <div className="flex flex-col justify-end gap-ds-3 sm:flex-row">

@@ -51,8 +51,9 @@ vi.mock('./DossierSidebar', () => ({
   ),
 }));
 vi.mock('./DossierHeader', () => ({
-  DossierHeader: ({ onClose, onDelete, canDelete }) => (
+  DossierHeader: ({ onClose, onDelete, canDelete, collectionName }) => (
     <div>
+      <span data-testid="header-collection">{collectionName}</span>
       <button type="button" onClick={onClose}>header-close</button>
       {canDelete && <button type="button" onClick={onDelete}>header-delete</button>}
     </div>
@@ -273,6 +274,23 @@ describe('DriverProfileModal delete permission and payload', () => {
     expect(screen.getByText(/This permanently removes the application, its activity history, notes, and all\s+uploaded documents\. This cannot be undone\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument();
+  });
+
+  it('asks about a lead as a lead', () => {
+    claims = { roles: { 'co-1': 'company_admin' } };
+    viewState = { ...baseView(), collectionName: 'leads' };
+    renderModal();
+    fireEvent.click(screen.getByText('header-delete'));
+
+    expect(screen.getByRole('dialog', { name: 'Delete this lead?' })).toBeInTheDocument();
+    expect(screen.getByText(/This permanently removes the lead, its activity history, notes, and all\s+uploaded documents\. This cannot be undone\./)).toBeInTheDocument();
+    expect(screen.queryByText('Delete this application?')).toBeNull();
+  });
+
+  it('hands the header the collection the record was found in', () => {
+    viewState = { ...baseView(), collectionName: 'leads' };
+    renderModal();
+    expect(screen.getByTestId('header-collection')).toHaveTextContent('leads');
   });
 
   it('sends the exact delete payload and then calls onDeleted before onClose', async () => {
