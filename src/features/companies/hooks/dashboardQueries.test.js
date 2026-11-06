@@ -36,7 +36,7 @@ const INDEXES = JSON.parse(readFileSync(resolve(process.cwd(), 'firestore.indexe
 
 const COLLECTION_BY_TAB = { applications: 'applications', company_leads: 'leads', my_leads: 'leads' };
 const SEGMENTS_BY_TAB = {
-    applications: ['all', 'new', 'hired', 'terminated', 'declined'],
+    applications: ['all', 'new', 'in_process', 'hired', 'terminated', 'declined'],
     company_leads: ['all', 'attempting', 'in_process', 'interested'],
     my_leads: ['all', 'attempting', 'in_process', 'interested'],
 };
@@ -232,6 +232,34 @@ describe('the State filter', () => {
         const constraints = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'all', filters: { state: '' } });
 
         expect(constraints.filter((c) => c.field === 'state')).toEqual([]);
+    });
+});
+
+describe('the In process segment', () => {
+    // Artificial records, all dated and assigned to the signed-in recruiter.
+    const stored = [
+        { id: 'attempt', status: 'Contact Attempt 1', state: 'Texas' },
+        { id: 'interested', status: 'Interested', state: 'TX' },
+        { id: 'in-process', status: 'In Process', state: 'texas' },
+        { id: 'older-stage', status: 'Offer Accepted', state: 'Illinois' },
+        { id: 'new', status: 'New Application', state: 'Texas' },
+        { id: 'hired', status: 'Approved', state: 'Texas' },
+        { id: 'closed', status: 'Disqualified', state: 'Texas' },
+    ].map((record) => ({ ...record, assignedTo: 'recruiter-1', createdAt: new Date('2026-10-01T15:00:00Z') }));
+    const found = (filters) => {
+        const constraints = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'in_process', filters });
+        return stored.filter((record) => matches(record, constraints)).map((record) => record.id);
+    };
+
+    it('lists the applications between first contact and a decision', () => {
+        expect(found({})).toEqual(['attempt', 'interested', 'in-process', 'older-stage']);
+    });
+
+    it('with a State, finds it by its name and its postal code, inside the 30 alternatives', () => {
+        const constraints = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'in_process', filters: { state: 'Texas' } });
+
+        expect(found({ state: 'Texas' })).toEqual(['attempt', 'interested']);
+        expect(alternatives(constraints)).toBe(24);
     });
 });
 

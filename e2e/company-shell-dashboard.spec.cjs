@@ -24,6 +24,9 @@ test.describe('Company workspace shell and dashboard', () => {
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await expect(page).toHaveURL(/\/company\/dashboard/);
     await expect(page.getByRole('button', { name: 'Hired: 2' })).toBeVisible();
+    // Nothing on the page is "today" any more, so the heading does not say it.
+    await expect(page.getByText(/^Here's what's happening at .+\.$/)).toBeVisible();
+    await expect(page.getByText(/^Here's what's happening at .* today\.$/)).toHaveCount(0);
     // The team leaderboard is gone; the call statistics stay for Super Admin → Analytics.
     await expect(page.getByRole('table')).toHaveCount(0);
     await expect(page.getByText(/leaderboard/i)).toHaveCount(0);

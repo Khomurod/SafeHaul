@@ -7,6 +7,7 @@ import {
     mergeSearchResults,
     leadStatusMatchesSegment,
     stateFilterValues,
+    stateValuesForSegment,
     dateFilterRange,
     sortByAddedDate,
     searchableTerm,
@@ -251,6 +252,41 @@ describe('stateFilterValues', () => {
         expect(stateFilterValues('Atlantis')).toEqual(['Atlantis']);
         expect(stateFilterValues('   ')).toEqual([]);
         expect(stateFilterValues(undefined)).toEqual([]);
+    });
+});
+
+describe('the State spellings beside a segment', () => {
+    it('keeps the name and the postal code first when it must keep fewer', () => {
+        expect(stateFilterValues('Texas', 2)).toEqual(['Texas', 'TX']);
+        expect(stateFilterValues('Texas', 3)).toEqual(['Texas', 'TX', 'TEXAS']);
+        expect(stateFilterValues('Nuevo León', 2)).toEqual(['Nuevo León', 'NUEVO LEÓN']);
+    });
+
+    it('keeps all seven beside every segment but In process, where twelve statuses leave room for two', () => {
+        const texas = stateFilterValues('Texas');
+        for (const pipelineSegment of ['all', 'new', 'hired', 'terminated', 'declined']) {
+            expect(stateValuesForSegment('Texas', { activeTab: 'applications', pipelineSegment })).toEqual(texas);
+        }
+        for (const pipelineSegment of ['all', 'attempting', 'in_process', 'interested']) {
+            expect(stateValuesForSegment('Texas', { activeTab: 'company_leads', pipelineSegment })).toEqual(texas);
+        }
+        expect(stateValuesForSegment('Texas', { activeTab: 'applications', pipelineSegment: 'in_process' })).toEqual(['Texas', 'TX']);
+    });
+
+    it('mirrors the In process query on the client: its stages, and the two State spellings', () => {
+        const records = [
+            { id: 'attempt', status: 'Contact Attempt 2', state: 'Texas' },
+            { id: 'legacy', status: 'Background Check', state: 'TX' },
+            { id: 'lower', status: 'In Process', state: 'texas' },
+            { id: 'new', status: 'New Application', state: 'Texas' },
+            { id: 'hired', status: 'Hired', state: 'Texas' },
+            { id: 'closed', status: 'Stale', state: 'Texas' },
+        ];
+        const ids = (filters) => applyClientSideFilters(records, { activeTab: 'applications', pipelineSegment: 'in_process', filters })
+            .map((record) => record.id);
+
+        expect(ids({})).toEqual(['attempt', 'legacy', 'lower']);
+        expect(ids({ state: 'Texas' })).toEqual(['attempt', 'legacy']);
     });
 });
 

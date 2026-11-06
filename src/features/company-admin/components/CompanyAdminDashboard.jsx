@@ -58,7 +58,7 @@ export function CompanyAdminDashboard() {
                 <Stack gap="lg">
                     <PageHeader
                         title={userName ? `Welcome back, ${userName}` : 'Welcome back'}
-                        description={`Here's what's happening at ${companyName} today.`}
+                        description={`Here's what's happening at ${companyName}.`}
                     />
 
                     <Section aria-label="Company activity summary">

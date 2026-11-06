@@ -32,7 +32,7 @@ import {
     recordMatchesSearch,
     applyClientSideFilters,
     mergeSearchResults,
-    stateFilterValues,
+    stateValuesForSegment,
     dateFilterRange,
     SEARCH_PLAN_LIMIT,
     PREFIX_END,
@@ -95,7 +95,7 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
 
     constraints.push(...pipelineConstraints({ activeTab, pipelineSegment }));
 
-    const states = stateFilterValues(filters.state);
+    const states = stateValuesForSegment(filters.state, { activeTab, pipelineSegment });
     if (states.length > 0) {
         constraints.push(where("state", "in", states));
     }

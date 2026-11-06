@@ -40,6 +40,7 @@ vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
 
 import { useCompanyDashboard } from './useCompanyDashboard';
+import { getStatusesForSegment } from '@shared/utils/applicationStatus';
 
 /** The list queries (the stats only count), by collection. */
 const listQueries = (collectionName) => fs.queries
@@ -59,6 +60,17 @@ describe('the list a candidate page opens on', () => {
         expect(listQueries('applications').map(statusesOf)).toEqual(
             listQueries('applications').map(() => ['Hired', 'Approved']),
         );
+    });
+
+    it('lists and counts the same In process applications', async () => {
+        renderHook(() => useCompanyDashboard('co-1', { initialSegment: 'in_process' }));
+
+        await waitFor(() => expect(listQueries('applications').length).toBeGreaterThan(0));
+        const counts = fs.queries.filter((q) => q.kind === 'count' && q.path === 'companies/co-1/applications');
+        const inProcess = getStatusesForSegment('in_process');
+        expect(inProcess).toContain('Contact Attempt 1');
+        expect([...listQueries('applications'), ...counts].map(statusesOf))
+            .toEqual([...listQueries('applications'), ...counts].map(() => inProcess));
     });
 
     it("asks first for the page's own tab", async () => {

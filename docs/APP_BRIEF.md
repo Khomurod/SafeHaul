@@ -1031,8 +1031,12 @@ stage takes its place under the stage's name (`New Lead` and `New Application` r
 New, `Approved` Hired, `Rejected` Declined), any other keeps its stored name.
 Legacy values stay stored and valid in the rules. Creation defaults differ: leads get `New Lead`,
 applications `New Application`. Application lists show one name per group
-(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Rules
-validate transitions and **cannot import JS**: a rename edits them too.
+(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Their **In
+process** tab, and the dashboard's count of it, is Contact Attempt 1–3, Interested,
+In Process and the older stages between them (`APPLICATION_IN_PROCESS_STATUSES`, Д14):
+not New, Hired, Terminated, Declined or the closed `Disqualified`, `Stale`,
+`Offer Declined`. Rules validate transitions and **cannot import JS**: a rename edits
+them too.
 
 **Tenant binding is immutable.** Rules require `companyId` to match the path on
 create and never change, so no record claims another company.
@@ -1557,6 +1561,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   Firestore sorts by it (newest first, or as its date header says): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
+- **In process with a State picked finds the state's name and postal code only**
+  ("Texas", "TX", the spellings an application stores): its twelve statuses leave
+  room for two State spellings in Firestore's 30 alternatives, so another casing a
+  record holds is not listed there (other segments find all seven).
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
   asks for. Older leads with `null` (imported) or none (Quick Add, Facebook)
   are not found there until Data cleanup's lead fields item runs (below).

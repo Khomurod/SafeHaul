@@ -54,6 +54,10 @@ describe('the list a candidate page opens on', () => {
         expect(openedWith('applications', { segment: 'hired' })).toEqual({ initialTab: 'applications', initialSegment: 'hired' });
     });
 
+    it('is the applications in process from the dashboard brief', () => {
+        expect(openedWith('applications', { segment: 'in_process' })).toEqual({ initialTab: 'applications', initialSegment: 'in_process' });
+    });
+
     it("is a leads segment on a leads list, in the list's own tab", () => {
         expect(openedWith('company_leads', { segment: 'attempting' })).toEqual({ initialTab: 'company_leads', initialSegment: 'attempting' });
     });

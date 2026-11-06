@@ -32,9 +32,9 @@ test.describe('Applications search and pipeline filters', () => {
   test('pipeline tabs render in order and filter by status vocabulary variants', async ({ page }) => {
     await openApplications(page);
 
-    // Tab order: All Applications, New, Hired, Terminated, Declined.
-    const tabs = page.locator('button', { hasText: /^(All Applications|New|Hired|Terminated|Declined)$/ });
-    await expect(tabs).toHaveText(['All Applications', 'New', 'Hired', 'Terminated', 'Declined']);
+    // Tab order: All Applications, New, In process, Hired, Terminated, Declined.
+    const tabs = page.locator('button', { hasText: /^(All Applications|New|In process|Hired|Terminated|Declined)$/ });
+    await expect(tabs).toHaveText(['All Applications', 'New', 'In process', 'Hired', 'Terminated', 'Declined']);
 
     // All: every fixture application (8), never leads.
     await expect(listCount(page, 8)).toBeVisible();
@@ -46,6 +46,13 @@ test.describe('Applications search and pipeline filters', () => {
     await expect(page.getByText('James McDonald')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toHaveCount(0);
     await expect(listCount(page, 2)).toBeVisible();
+
+    // In process: the contact attempts, Interested, In Process and the older stages between them.
+    await page.getByRole('button', { name: 'In process', exact: true }).click();
+    await expect(page.getByText('Henry Inprocess')).toBeVisible();
+    await expect(page.getByText('Maria Garcia')).toHaveCount(0);
+    await expect(page.getByText('Aisha Robinson')).toHaveCount(0);
+    await expect(listCount(page, 1)).toBeVisible();
 
     // Hired: 'Hired' + legacy 'Approved'.
     await page.getByRole('button', { name: 'Hired', exact: true }).click();

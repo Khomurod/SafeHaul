@@ -113,9 +113,11 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
             </BrowserRouter>
         );
 
-        // Dashboard should render the company name in the welcome text
+        // Dashboard should render the company name in the welcome text. Nothing on
+        // the page is "today" any more, so the heading does not say it.
         const welcomeText = screen.getByText(/Acme Trucking LLC/i);
-        expect(welcomeText).toBeInTheDocument();
+        expect(welcomeText).toHaveTextContent("Here's what's happening at Acme Trucking LLC.");
+        expect(welcomeText).not.toHaveTextContent(/today/i);
     });
 
     it('should handle missing company profile gracefully', () => {

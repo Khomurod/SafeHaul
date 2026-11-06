@@ -35,7 +35,7 @@ import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 /** Records on one page of the list. */
 const ITEMS_PER_PAGE = 20;
 
-/** applications: all | new | hired | terminated | declined — leads: all | attempting | in_process | interested */
+/** applications: all | new | in_process | hired | terminated | declined — leads: all | attempting | in_process | interested */
 export function useCompanyDashboard(companyId, { initialTab = 'applications', initialSegment = 'all' } = {}) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);

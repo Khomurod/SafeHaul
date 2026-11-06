@@ -16,7 +16,7 @@ import {
     normalizeSearchConfirmation,
     normalizeSearchApplicationId,
 } from '@shared/utils/searchNormalization';
-import { statusMatchesSegment } from '@shared/utils/applicationStatus';
+import { getStatusesForSegment, statusMatchesSegment } from '@shared/utils/applicationStatus';
 import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
 import { NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs } from '@shared/utils/northAmericanRegions';
 import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
@@ -211,11 +211,15 @@ const SHARED_REGION_CODES = (() => {
  * segment's `status in` (three at most) inside Firestore's 30 alternatives. A
  * name typed in mixed case ("tExAs") is not matched.
  *
+ * `limit` keeps at most that many, the name and the postal code first: the two
+ * spellings an application itself stores.
+ *
  * @param {unknown} value the picked region, e.g. `'Texas'`
+ * @param {number} [limit] the most spellings to return
  * @returns {string[]} e.g. `['Texas', 'TEXAS', 'texas', 'TX', 'tx', 'Tx', 'tX']`;
  *   a value that names no region is matched as it is
  */
-export function stateFilterValues(value) {
+export function stateFilterValues(value, limit = Infinity) {
     const text = String(value ?? '').trim();
     const name = toUsStateName(text) || REGION_BY_LOWER_NAME.get(text.toLowerCase()) || '';
     if (!name) return text ? [text] : [];
@@ -223,7 +227,27 @@ export function stateFilterValues(value) {
     const codes = code && !SHARED_REGION_CODES.has(code)
         ? [code, code.toLowerCase(), code[0] + code[1].toLowerCase(), code[0].toLowerCase() + code[1]]
         : [];
-    return [...new Set([name, name.toUpperCase(), name.toLowerCase(), ...codes])];
+    const all = [...new Set([name, name.toUpperCase(), name.toLowerCase(), ...codes])];
+    if (all.length <= limit) return all;
+    const first = [name, ...codes.slice(0, 1)];
+    return [...first, ...all.filter((spelling) => !first.includes(spelling))].slice(0, limit);
+}
+
+/** Firestore's limit on the alternatives one query expands into: each `in` value times each other's. */
+export const QUERY_ALTERNATIVES_LIMIT = 30;
+
+/**
+ * The State filter's spellings for a list beside its segment's `status in`: as
+ * many as Firestore's 30 alternatives leave room for. Every segment leaves all
+ * seven, but In process's twelve statuses leave two (the name and the postal
+ * code), so there a lower-case or other spelling a lead import kept is not found.
+ * The query and its client-side mirror both use it.
+ */
+export function stateValuesForSegment(state, { activeTab, pipelineSegment } = {}) {
+    const statuses = activeTab === 'applications'
+        ? getStatusesForSegment(pipelineSegment)
+        : LEAD_SEGMENT_STATUSES[pipelineSegment];
+    return stateFilterValues(state, Math.floor(QUERY_ALTERNATIVES_LIMIT / Math.max(1, statuses?.length || 1)));
 }
 
 /**
@@ -324,7 +348,7 @@ export function applyClientSideFilters(records, {
                 return false;
             }
         }
-        if (filters.state && !stateFilterValues(filters.state).includes(record.state)) {
+        if (filters.state && !stateValuesForSegment(filters.state, { activeTab, pipelineSegment }).includes(record.state)) {
             return false;
         }
         if (filters.driverType) {

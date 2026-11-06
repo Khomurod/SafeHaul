@@ -96,10 +96,12 @@ export function staleContactMeta(item) {
 }
 
 // Segment ids map to APPLICATION_STATUS_GROUPS in @shared/utils/applicationStatus
-// ('new' covers 'New' + 'New Application', 'hired' covers 'Hired' + 'Approved', ...).
+// ('new' covers 'New' + 'New Application', 'hired' covers 'Hired' + 'Approved', ...);
+// 'in_process' to its APPLICATION_IN_PROCESS_STATUSES, which the dashboard counts too.
 export const APPLICATION_PIPELINE_TABS = [
     { id: 'all', label: 'All Applications' },
     { id: 'new', label: 'New' },
+    { id: 'in_process', label: 'In process' },
     { id: 'hired', label: 'Hired' },
     { id: 'terminated', label: 'Terminated' },
     { id: 'declined', label: 'Declined' },
