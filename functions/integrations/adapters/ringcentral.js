@@ -5,6 +5,14 @@ const { isLikelyValidPhone, normalizePhoneForKeychain } = require('../../utils/p
 
 const SENT_SMS_PAGE_SIZE = 1000;
 
+/**
+ * What a log may say about a refused send: RingCentral's error code, else the
+ * HTTP status. Never its words, which name a bad parameter's value (the number texted).
+ */
+function errorCodeOf(error) {
+    return error?.response?.data?.errorCode || error?.response?.status || error?.code || 'error';
+}
+
 /** What a send keeps from RingCentral's answer: the message id and its first status. */
 function receiptOf(record) {
     return {
@@ -134,7 +142,7 @@ class RingCentralAdapter extends BaseAdapter {
                 const canFallback = fromNumber && fromNumber !== this.config.defaultPhoneNumber && isPermissionError;
 
                 if (canFallback) {
-                    console.warn(`[RC Adapter] Primary send failed (${primaryError.message}). Falling back to Default Line (${this.config.defaultPhoneNumber}).`);
+                    console.warn(`[RC Adapter] Primary send failed (${errorCodeOf(primaryError)}). Falling back to Default Line (${this.config.defaultPhoneNumber}).`);
 
                     try {
                         const fallbackPayload = {
@@ -148,7 +156,7 @@ class RingCentralAdapter extends BaseAdapter {
                         return receipt;
 
                     } catch (fallbackError) {
-                        console.error(`[RC Adapter] Fallback also failed: ${fallbackError.message}`);
+                        console.error(`[RC Adapter] Fallback also failed (${errorCodeOf(fallbackError)})`);
                         // Update error info to reflect the fallback failure, but keep context
                         throw this._normalizeError(fallbackError);
                     }
@@ -173,7 +181,7 @@ class RingCentralAdapter extends BaseAdapter {
         const errorCode = responseData?.errorCode || 'Unknown';
         const errorMsg = responseData?.message || error.message;
 
-        console.error("RingCentral Send Error:", JSON.stringify(responseData || error.message));
+        console.error(`RingCentral Send Error (${errorCodeOf(error)})`);
 
         let userFriendlyError = `RingCentral Error [${errorCode}]: ${errorMsg}`;
 

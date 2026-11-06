@@ -79,7 +79,11 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
     } catch (error) {
         // The code only: a mail server's reply, and Nodemailer's error built from it, can name the recipient.
         console.error(`[sendDynamicEmail] company ${companyId}: the email was not sent (${error?.code || error?.responseCode || 'error'})`);
-        throw new Error(`Failed to send email: ${error.message}`);
+        // The text is recorded where the team reads it; the codes go along, so a caller logs those instead.
+        throw Object.assign(new Error(`Failed to send email: ${error.message}`), {
+            ...(error?.code && { code: error.code }),
+            ...(error?.responseCode && { responseCode: error.responseCode }),
+        });
     }
 }
 

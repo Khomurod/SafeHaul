@@ -94,4 +94,17 @@ describe('onNewApplicationEmailConfirmation', () => {
     expect(logged).not.toContain('driver@example.com');
     errorSpy.mockRestore();
   });
+
+  it('logs the failure code sendDynamicEmail keeps on its error, so the log says why', async () => {
+    sendDynamicEmail.mockRejectedValue(Object.assign(
+      new Error('Failed to send email: Missing email configuration for company co1.'),
+      { code: 'not-configured' },
+    ));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await onNewApplicationEmailConfirmation(buildEvent());
+
+    expect(errorSpy.mock.calls.flat().map(String).join('\n')).toContain('(not-configured)');
+    errorSpy.mockRestore();
+  });
 });

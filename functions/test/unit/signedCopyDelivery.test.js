@@ -314,6 +314,24 @@ describe('sendSignedDocumentCopy — sending', () => {
         expect(record().signedCopy).not.toHaveProperty('error');
     });
 
+    it("logs a failed send by its code, never the address a mail server's reply names", async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockSend.mockRejectedValueOnce(Object.assign(
+            new Error(`Failed to send email: 550 5.1.1 <${DRIVER_EMAIL}>: Recipient address rejected`),
+            { code: 'EENVELOPE' },
+        ));
+
+        await expect(call('recruiter-1')).rejects.toMatchObject({ code: 'unavailable' });
+
+        const logged = errorSpy.mock.calls.flat().map(String).join('\n');
+        expect(logged).toContain(REQUEST);
+        expect(logged).toContain('EENVELOPE');
+        expect(logged).not.toContain(DRIVER_EMAIL);
+        // The team still reads the reason on the document.
+        expect(record().signedCopy.error).toContain('Recipient address rejected');
+        errorSpy.mockRestore();
+    });
+
     it('sends to the address on the document as it reads when claimed', async () => {
         mock.docs.set(REQUEST_PATH, signedRequest({ recipientEmail: '  Jane.Driver@Example.test ' }));
         await expect(call('recruiter-1')).resolves.toMatchObject({ sentTo: 'Jane.Driver@Example.test' });

@@ -298,7 +298,8 @@ async function runSendLoop({
                                 sessionId: sessionId
                             }, { merge: true })
                             .catch(e => {
-                                console.error(`[BatchWorker] Failed to update sms_sent_phones for lead ${leadId}:`, e.message);
+                                // The code only: a Firestore error can name the document, whose id is the number.
+                                console.error(`[BatchWorker] Failed to update sms_sent_phones for lead ${leadId} (${e?.code || 'error'})`);
                             });
                     }
                 } else if (success && config.method === 'email') {
@@ -315,7 +316,7 @@ async function runSendLoop({
                                 sessionId: sessionId
                             }, { merge: true })
                             .catch(e => {
-                                console.error(`[BatchWorker] Failed to update email_sent_addresses for lead ${leadId}:`, e.message);
+                                console.error(`[BatchWorker] Failed to update email_sent_addresses for lead ${leadId} (${e?.code || 'error'})`);
                             });
                     }
                 }

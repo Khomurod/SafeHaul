@@ -74,6 +74,19 @@ it('logs a failed email by its code, without the recipient the mail server names
     expect(logged()).not.toContain(ADDRESS);
 });
 
+it("throws an error that keeps the failure's code, so a caller can log it without the text", async () => {
+    const rejected = Object.assign(
+        new Error(`Can't send mail - all recipients were rejected: 550 5.1.1 <${ADDRESS}>: Recipient address rejected`),
+        { code: 'EENVELOPE', responseCode: 550 },
+    );
+    mockTransport.sendMail.mockImplementation(async () => { throw rejected; });
+    await expect(sendDynamicEmail('co-1', ADDRESS, 'Please sign', '<p>Sign here</p>'))
+        .rejects.toMatchObject({ message: expect.stringMatching(/^Failed to send email: /), code: 'EENVELOPE', responseCode: 550 });
+
+    smtpSettings.readSmtpSettings.mockImplementation(async () => ({ settings: null, companyName: 'Artificial Freight' }));
+    await expect(sendDynamicEmail('co-1', ADDRESS, 'Please sign', '<p>Sign here</p>')).rejects.toMatchObject({ code: 'not-configured' });
+});
+
 it('logs a company without email set up as such', async () => {
     smtpSettings.readSmtpSettings.mockImplementation(async () => ({ settings: null, companyName: 'Artificial Freight' }));
 

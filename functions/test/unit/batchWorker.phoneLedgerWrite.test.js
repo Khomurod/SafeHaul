@@ -89,8 +89,12 @@ const mockDb = {
                                 smsDocIds.push(id);
                                 return {
                                     id,
+                                    // A refusal that names the document, as Firestore's can: the id is the number.
                                     set: jest.fn(() => (mockLedger.fails
-                                        ? Promise.reject(new Error('unavailable'))
+                                        ? Promise.reject(Object.assign(
+                                            new Error(`14 UNAVAILABLE: write to companies/co1/sms_sent_phones/${id} failed`),
+                                            { code: 14 },
+                                        ))
                                         : Promise.resolve(true)))
                                 };
                             })
