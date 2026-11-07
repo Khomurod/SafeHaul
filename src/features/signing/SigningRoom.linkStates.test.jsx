@@ -65,7 +65,9 @@ describe('a signing link that does not open', () => {
         getEnvelopeFn.mockRejectedValueOnce(refusal('deadline-exceeded', 'This signing link has expired. Please request a new one.'));
         renderRoom();
 
-        expect(await heading('This link has expired')).toHaveFocus();
+        const expired = await heading('This link has expired');
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(expired).toHaveFocus());
         expect(screen.getByText(/ask Acme Freight for a new link/)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         expect(screen.queryByText('Access Denied')).not.toBeInTheDocument();
@@ -165,7 +167,8 @@ describe('declining to sign electronically', () => {
         expect(consent).not.toHaveFocus();
 
         fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
-        expect(await heading('You did not agree to sign electronically')).toHaveFocus();
+        const declined = await heading('You did not agree to sign electronically');
+        await waitFor(() => expect(declined).toHaveFocus());
         expect(screen.getByText(/You can close this tab\./)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Go back' }));

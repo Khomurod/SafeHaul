@@ -164,7 +164,9 @@ describe('VerificationPortal', () => {
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderPortal();
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'This link is not valid' })).toHaveFocus();
+        const invalid = await screen.findByRole('heading', { level: 1, name: 'This link is not valid' });
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(invalid).toHaveFocus());
         expect(screen.getByText(/ask the sender for a new one/)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         consoleError.mockRestore();

@@ -207,7 +207,9 @@ describe('ReviewChangePortal', () => {
         mockCallable.mockImplementationOnce(() => Promise.reject(callableError('failed-precondition', 'This review link has expired.')));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderPortal();
-        expect(await screen.findByRole('heading', { level: 1, name: 'This link has expired' })).toHaveFocus();
+        const expired = await screen.findByRole('heading', { level: 1, name: 'This link has expired' });
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(expired).toHaveFocus());
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         consoleError.mockRestore();
     });
