@@ -30,6 +30,8 @@ function exportFunctions(wanted) {
   if (wanted('notifySigner')) exports.notifySigner = require('./notifySigner').notifySigner;
   if (wanted('getPublicEnvelope')) exports.getPublicEnvelope = require('./publicSigning').getPublicEnvelope;
   if (wanted('submitPublicEnvelope')) exports.submitPublicEnvelope = require('./publicSigning').submitPublicEnvelope;
+  // "Ask <Company> for a new link" on a public link that no longer works: the company is told in its bell
+  if (wanted('requestNewLink')) exports.requestNewLink = require('./requestNewLink').requestNewLink;
   // ESIGN-9 FIX: Nightly cleanup of orphaned signature PNG files after sealing
   if (wanted('cleanupOrphanedSignatures')) exports.cleanupOrphanedSignatures = require('./digitalSealing').cleanupOrphanedSignatures;
   // FEAT-3: SMS notification for signing requests
