@@ -2,16 +2,16 @@
 // here is about navigation, the preserved delivery contract, the final summary
 // and the double-submit / close-during-send guards. All fixtures are artificial.
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SendTemplateWizard } from './SendTemplateWizard';
 
 const noop = () => {};
 
-const baseProps = () => ({
+// `useTemplateSendFlow`'s result, as the wizard receives it in `flow`.
+const baseFlow = () => ({
     selectedTemplate: { id: 'tpl-1', title: 'Artificial Offer Letter', fields: [{ id: 'f1' }, { id: 'f2' }] },
-    onClose: vi.fn(),
     manualName: '',
     setManualName: vi.fn(),
     manualEmail: '',
@@ -27,15 +27,17 @@ const baseProps = () => ({
     setPrefillValuesByGroupKey: noop,
     sending: false,
     executeTemplateSend: vi.fn(),
-    filteredDrivers: [],
+    drivers: [],
     searchQuery: '',
     setSearchQuery: vi.fn(),
     handleQuickSelect: vi.fn(),
 });
 
+/** `props` is the flow and `onClose` together, so each spy reads the same in every test. */
 const renderWizard = (overrides = {}) => {
-    const props = { ...baseProps(), ...overrides };
-    return { props, ...render(<SendTemplateWizard {...props} />) };
+    const { onClose = vi.fn(), ...flowOverrides } = overrides;
+    const flow = { ...baseFlow(), ...flowOverrides };
+    return { props: { ...flow, onClose }, ...render(<SendTemplateWizard flow={flow} onClose={onClose} />) };
 };
 
 /** Walk to the final step of a wizard rendered with a recipient name. */
@@ -101,7 +103,7 @@ describe('step 1 — recipient', () => {
     it('offers existing applicants and leads, each saying which it is, with the untouched quick-select callback', () => {
         const applicant = { id: 'app-1', collectionName: 'applications', firstName: 'Artificial', lastName: 'Applicant', email: 'app@example.invalid' };
         const lead = { id: 'lead-1', collectionName: 'leads', firstName: 'Artificial', lastName: 'Driver', email: 'lead@example.invalid' };
-        const { props } = renderWizard({ filteredDrivers: [applicant, lead] });
+        const { props } = renderWizard({ drivers: [applicant, lead] });
 
         expect(screen.getByText('Or choose an existing applicant or lead')).toBeInTheDocument();
         expect(screen.getByLabelText('Search applicants and leads')).toHaveAttribute('placeholder', 'Search applicants and leads...');
@@ -119,7 +121,7 @@ describe('step 1 — recipient', () => {
         const lead = { id: 'same-id', collectionName: 'leads', firstName: 'Artificial', lastName: 'Lead' };
         renderWizard({
             manualName: 'Artificial Applicant',
-            filteredDrivers: [applicant, lead],
+            drivers: [applicant, lead],
             linkedRecord: { collectionName: 'applications', id: 'same-id', name: 'Artificial Applicant', prefill: {} },
         });
 
@@ -133,13 +135,13 @@ describe('step 1 — recipient', () => {
     });
 
     it('says they are loading while they are', () => {
-        renderWizard({ leadsStatus: 'loading' });
+        renderWizard({ driversStatus: 'loading' });
         expect(screen.getByText('Loading applicants and leads…')).toHaveAttribute('role', 'status');
         expect(screen.queryByText('No applicants or leads found.')).not.toBeInTheDocument();
     });
 
     it('says when they could not be loaded, rather than that none match', () => {
-        renderWizard({ leadsStatus: 'failed' });
+        renderWizard({ driversStatus: 'failed' });
         expect(screen.getByRole('alert')).toHaveTextContent('Applicants and leads could not be loaded.');
         expect(screen.queryByText('No applicants or leads found.')).not.toBeInTheDocument();
     });
@@ -294,6 +296,12 @@ describe('accessibility', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
         expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('puts focus on the recipient name when it opens', async () => {
+        renderWizard();
+        const name = screen.getByLabelText(/Recipient name/);
+        await waitFor(() => expect(name).toHaveFocus());
     });
 
     it('marks the current step with aria-current', () => {

@@ -35,6 +35,7 @@ export const overviewProps = { current: null };
 export const sentProps = { current: null };
 export const libraryProps = { current: null };
 export const formsProps = { current: null };
+export const wizardProps = { current: null };
 export const firestoreMocks = {
     updateDoc: vi.fn(),
     deleteDoc: vi.fn(),
@@ -108,7 +109,10 @@ export const applicationFormsPanelMock = () => ({
     },
 });
 export const sendTemplateWizardMock = () => ({
-    SendTemplateWizard: () => <div data-testid="send-template-wizard">Send</div>,
+    SendTemplateWizard: (props) => {
+        wizardProps.current = props;
+        return <div data-testid="send-template-wizard">Send</div>;
+    },
 });
 export const feedbackMock = () => ({
     GlobalLoadingState: () => <div>Loading…</div>,
@@ -146,6 +150,7 @@ export function resetHarness() {
     sentProps.current = null;
     libraryProps.current = null;
     formsProps.current = null;
+    wizardProps.current = null;
     signingRequestsMock.current = { documents: [], isLoading: false, loadError: null, retry: vi.fn() };
 }
 

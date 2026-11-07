@@ -33,6 +33,7 @@ import {
     sentProps,
     libraryProps,
     formsProps,
+    wizardProps,
     firestoreMocks,
     signingRequestsMock,
     toastMocks,
@@ -254,19 +255,9 @@ describe('DocumentsManager view contracts', () => {
         renderManager();
         fireEvent.click(tabs().forms);
 
-        const expected = [
-            'templates',
-            'templatesLoading',
-            'postSubmitTemplateIds',
-            'postSubmitRequiredById',
-            'togglePostSubmitRequired',
-            'savingPostSubmitTemplates',
-            'handleSavePostSubmitTemplates',
-            'movePostSubmitTemplate',
-            'isTemplateEnabledPostSubmit',
-            'togglePostSubmitTemplate',
-        ];
-        expect(Object.keys(formsProps.current).sort()).toEqual([...expected].sort());
+        // The template list, and `usePostSubmitForms`'s result whole as `forms`.
+        expect(Object.keys(formsProps.current).sort()).toEqual(['forms', 'templates', 'templatesLoading']);
+        const { forms } = formsProps.current;
         for (const callback of [
             'togglePostSubmitRequired',
             'handleSavePostSubmitTemplates',
@@ -274,10 +265,11 @@ describe('DocumentsManager view contracts', () => {
             'isTemplateEnabledPostSubmit',
             'togglePostSubmitTemplate',
         ]) {
-            expect(typeof formsProps.current[callback]).toBe('function');
+            expect(typeof forms[callback]).toBe('function');
         }
-        expect(Array.isArray(formsProps.current.postSubmitTemplateIds)).toBe(true);
-        expect(formsProps.current.postSubmitRequiredById).toEqual({});
+        expect(Array.isArray(forms.postSubmitTemplateIds)).toBe(true);
+        expect(forms.postSubmitRequiredById).toEqual({});
+        expect(forms.savingPostSubmitTemplates).toBe(false);
     });
 
     it('reads legacy string and object post-application entries the same way', () => {
@@ -293,25 +285,54 @@ describe('DocumentsManager view contracts', () => {
         });
         fireEvent.click(tabs().forms);
 
-        expect(formsProps.current.postSubmitTemplateIds).toEqual([
+        expect(formsProps.current.forms.postSubmitTemplateIds).toEqual([
             'tpl-legacy-string',
             'tpl-optional',
             'tpl-required',
         ]);
         // Missing flag means REQUIRED — the backward-compatible default.
-        expect(formsProps.current.postSubmitRequiredById).toEqual({
+        expect(formsProps.current.forms.postSubmitRequiredById).toEqual({
             'tpl-legacy-string': true,
             'tpl-optional': false,
             'tpl-required': true,
         });
     });
 
+    it('hands the send wizard the template-send flow whole, and closes it when idle', async () => {
+        renderManager();
+        fireEvent.click(tabs().templates);
+        const template = { id: 'tpl-1', title: 'Artificial Offer Letter', fields: [] };
+        React.act(() => { libraryProps.current.onSend(template); });
+
+        // The picker's records have loaded (none here), so nothing is left in flight.
+        await waitFor(() => expect(wizardProps.current?.flow.driversStatus).toBe('ready'), { timeout: 5000 });
+        expect(screen.getByTestId('send-template-wizard')).toBeInTheDocument();
+        expect(Object.keys(wizardProps.current).sort()).toEqual(['flow', 'onClose']);
+        const { flow } = wizardProps.current;
+        expect(flow.selectedTemplate).toBe(template);
+        expect(flow).toMatchObject({
+            manualName: '', manualEmail: '', manualPhone: '', deliveryMethod: 'email',
+            sending: false, drivers: [], searchQuery: '', linkedRecord: null,
+        });
+        expect(flow.editablePrefillPartition).toEqual({ groups: [], plainFields: [] });
+        for (const callback of [
+            'setManualName', 'setManualEmail', 'setManualPhone', 'setDeliveryMethod',
+            'setPrefillValues', 'setPrefillValuesByGroupKey', 'setSearchQuery',
+            'handleQuickSelect', 'executeTemplateSend',
+        ]) {
+            expect(typeof flow[callback]).toBe('function');
+        }
+
+        React.act(() => { wizardProps.current.onClose(); });
+        await waitFor(() => expect(screen.queryByTestId('send-template-wizard')).not.toBeInTheDocument());
+    });
+
     it('never saves the post-application forms just because a toggle changed', () => {
         renderManager();
         fireEvent.click(tabs().forms);
-        React.act(() => { formsProps.current.togglePostSubmitTemplate('tpl-1'); });
-        React.act(() => { formsProps.current.togglePostSubmitRequired('tpl-1'); });
-        React.act(() => { formsProps.current.movePostSubmitTemplate('tpl-1', 'up'); });
+        React.act(() => { formsProps.current.forms.togglePostSubmitTemplate('tpl-1'); });
+        React.act(() => { formsProps.current.forms.togglePostSubmitRequired('tpl-1'); });
+        React.act(() => { formsProps.current.forms.movePostSubmitTemplate('tpl-1', 'up'); });
 
         expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
     });

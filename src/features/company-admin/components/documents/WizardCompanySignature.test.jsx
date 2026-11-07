@@ -30,28 +30,30 @@ const noop = () => {};
 function renderDetails(companySignature) {
     render(
         <SendTemplateWizard
-            selectedTemplate={{ id: 'tpl-1', title: 'Artificial Offer Letter', fields: companySignature.fields }}
+            flow={{
+                selectedTemplate: { id: 'tpl-1', title: 'Artificial Offer Letter', fields: companySignature.fields },
+                manualName: 'Artificial Person',
+                setManualName: noop,
+                manualEmail: '',
+                setManualEmail: noop,
+                manualPhone: '',
+                setManualPhone: noop,
+                deliveryMethod: 'email',
+                setDeliveryMethod: noop,
+                editablePrefillPartition: { groups: [], plainFields: [] },
+                prefillValues: {},
+                setPrefillValues: noop,
+                prefillValuesByGroupKey: {},
+                setPrefillValuesByGroupKey: noop,
+                companySignature,
+                sending: false,
+                executeTemplateSend: noop,
+                drivers: [],
+                searchQuery: '',
+                setSearchQuery: noop,
+                handleQuickSelect: noop,
+            }}
             onClose={noop}
-            manualName="Artificial Person"
-            setManualName={noop}
-            manualEmail=""
-            setManualEmail={noop}
-            manualPhone=""
-            setManualPhone={noop}
-            deliveryMethod="email"
-            setDeliveryMethod={noop}
-            editablePrefillPartition={{ groups: [], plainFields: [] }}
-            prefillValues={{}}
-            setPrefillValues={noop}
-            prefillValuesByGroupKey={{}}
-            setPrefillValuesByGroupKey={noop}
-            companySignature={companySignature}
-            sending={false}
-            executeTemplateSend={noop}
-            filteredDrivers={[]}
-            searchQuery=""
-            setSearchQuery={noop}
-            handleQuickSelect={noop}
         />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));

@@ -17,19 +17,20 @@ import { Stack } from '@/design-system/layouts';
  *  - deleting a template still prunes it immediately, in DocumentsManager.
  *
  * Presentation only: every callback argument shape is the pre-redesign one.
+ * `forms` is `usePostSubmitForms`'s result, whole; `templates` and
+ * `templatesLoading` come from the company's template list.
  */
-export function ApplicationFormsPanel({
-    templates,
-    templatesLoading,
-    postSubmitTemplateIds,
-    postSubmitRequiredById = {},
-    togglePostSubmitRequired,
-    savingPostSubmitTemplates,
-    handleSavePostSubmitTemplates,
-    movePostSubmitTemplate,
-    isTemplateEnabledPostSubmit,
-    togglePostSubmitTemplate,
-}) {
+export function ApplicationFormsPanel({ templates, templatesLoading, forms }) {
+    const {
+        postSubmitTemplateIds,
+        postSubmitRequiredById = {},
+        togglePostSubmitRequired,
+        savingPostSubmitTemplates,
+        handleSavePostSubmitTemplates,
+        movePostSubmitTemplate,
+        isTemplateEnabledPostSubmit,
+        togglePostSubmitTemplate,
+    } = forms;
     const rawId = useId().replace(/:/g, '');
     const enabledHeadingId = `application-forms-enabled-${rawId}`;
     const chooseHeadingId = `application-forms-choose-${rawId}`;

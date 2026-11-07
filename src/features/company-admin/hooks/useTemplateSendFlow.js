@@ -8,8 +8,9 @@
  * template keeps its own, and nothing is sent while one has no image),
  * and `executeTemplateSend` itself, which builds the signing request from the
  * template and sends it by email, SMS or copied link (`signingRequestWrite.js`
- * writes it). `views/DocumentsManager.jsx` wires the returned state into
- * `SendTemplateWizard` and the panels.
+ * writes it). `views/DocumentsManager.jsx` and the dossier's
+ * `DossierSendDocument.jsx` hand the returned object to `SendTemplateWizard`
+ * whole, as `flow`.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
