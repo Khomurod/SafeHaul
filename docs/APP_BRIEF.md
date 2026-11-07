@@ -535,8 +535,9 @@ only through the audited `getApplicationOriginalPdfUrl`.
 submitted application (§5). The review link is emailed by the server (**Email
 review link to driver**) or copied.
 
-**Company setup (dashboard).** For a company admin, read once when the dashboard
-opens: what is not set up, each linking to its page — company email not connected or
+**Company setup (dashboard).** For a company admin, read when the dashboard opens and
+kept two minutes for this sign-in and company (an answer with something not checked is
+not kept, and following one of its links forgets it): what is not set up, each linking to its page — company email not connected or
 not verified, no texting line, no contact email for PEV notices, no post-application
 form, a form whose company signature has no image or whose template was deleted (PEV
 copies are a hint). Ready, it is one line; others see nothing.
@@ -553,7 +554,8 @@ driver's file on its DQ File tab). Each row links to the page that shows those r
 of a feature that is off are left out. A failed count says "could not be checked";
 with nothing to show it is one calm line.
 
-**This month (dashboard).** For everyone, one line read once per visit, each number a
+**This month (dashboard).** For everyone, one line read when the dashboard opens and kept
+two minutes for this sign-in and company, as are the four counts; each number a
 server count of the list its link opens: applications added this month (`createdAt`), in
 process (the In process tab) and hired this month (`hiredAt`, whatever their status now),
 on the viewer's clock. Until a whole month of hire dates exists it says "hired since Nov 6"
@@ -620,7 +622,11 @@ plan (`planType`) as one line; there is no Plan section.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,
-website leads, health, releases, Maintenance (writes ask first).
+website leads, health, releases, Maintenance (writes ask first). The console reads
+every company once and shares it for two minutes (names, Features, Activity, Create);
+a feature switch, a company created or edited, or a refresh after a change reads it
+again. View applications lists a company's applications 20 at a time with a server
+count and Load more; its filter looks at the rows loaded.
 
 ---
 
@@ -1351,7 +1357,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 
 | Job | Cadence | What it does |
 |---|---|---|
-| `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed |
+| `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed; reads only `featureSchedules` |
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email, citing 49 CFR 391.23(c) and saying the record reached the DQ file only when it did): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
@@ -1413,7 +1419,7 @@ the daily count**; refusing is a recorded outcome.
   still on that attempt; then one bell notification of the outcome (§4) and, for a
   linked record, its DQ entry. Neither failing fails the seal.
 - **Team cache** — a membership write rewrites `companies/{id}.teamMembers` (uid, role, name by `nameFromProfile`
-  else `'Unknown'`, email). Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
+  else `'Unknown'`, email) when the list changed. Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
 - **Notifications** — a status change on an assigned application tells its assignee
   only (`recipientId`), else the team; an assignment tells the new owner
   (`onApplicationAssigned`, `onLeadAssigned`), unless the owner made it or a server step
@@ -1457,8 +1463,16 @@ A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
 writing. A worker sends **50 per batch**, re-checking the session: a cancel stops at once, and a batch starts no
 send after 4.5 min (the next carries on). One rule (`recentlyMessaged.js`) leaves out of count, preview
 and launch whom a same-channel campaign reached (its ledger; a call is not a
-message): **7 days** by default for uploads, none for CRM. Limit Volume
-keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
+message): **7 days** by default for uploads, none for CRM. With a window on, the
+Audience count reads every match, so it runs only on *Recalculate audience* (К5):
+after a filter, channel or list change it reads "Count not up to date" and Launch is
+blocked until recalculated. Without a window it is a cheap server count that follows
+the filters. Limit Volume keeps the newest N; the screen applies it to the counted
+audience, so typing it reads nothing. Whatever the screen showed, the launch
+re-gathers recipients and re-applies the window on the server, and the worker checks
+opt-outs before each send and never emails an import's placeholder address. The window
+is applied at launch, not again per recipient while a long campaign sends, and an
+unreadable ledger lets everyone through: at worst a repeat message, never past an opt-out. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; the team fills the company's by hand (§12).
@@ -1484,6 +1498,8 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   wizard and `extractApplicationReport` know what the company switched on; the
   server reads its own copy, never the client's. If a company setting has no
   effect on `/apply/:slug`, check the projection allowlist first.
+  `syncPublicProfile` writes only when the projection would change the profile
+  (`updatedAt` alone is no change).
 - **`application_drafts` holds two kinds of thing**, told apart by `origin`: a
   driver's unfinished application and a carrier's prepared one. The read cutoff,
   the locked-employer list and the invite token hang off that distinction;
@@ -1829,8 +1845,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   read state per person. Phone matching links the only lead with the number even when its
   email differs; older mixed-case lead emails match only after Data cleanup → Old lead
   fields. Remind's cooldown guards against mistakes, not a team member editing the
-  database; a reminder whose every send failed does not count. Company setup reads once
-  per dashboard visit.
+  database; a reminder whose every send failed does not count. Company setup is kept two
+  minutes, so a fix made by another route shows within two minutes.
 - **Batch 8 limits (2026-11):** the DQ deadline notice is for hired applications only
   (not leads), in the bell only (no email or text; the driver is not told); a record none
   of whose DQ files holds its `dqExpiresNext` gets none until that date is put right; a
