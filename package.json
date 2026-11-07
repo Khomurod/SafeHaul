@@ -96,7 +96,7 @@
     "fake-indexeddb": "^6.2.6",
     "firebase-tools": "^15.34.1",
     "globals": "^17.13.0",
-    "happy-dom": "^20.0.11",
+    "happy-dom": "^21.0.4",
     "playwright": "^1.59.1",
     "postcss": "^8.5.30",
     "storybook": "^10.5.5",
