@@ -124,10 +124,12 @@ submitted, gone) ends on the same screen; any other failure keeps the form. Back
 a driver's required documents from "already signed" marks that document done.
 Where a new link can help (expired, replaced, could not be opened) the screen offers
 **Ask <Company> for a new link** (`requestNewLink`, public, 10 an hour per address):
-it tells the team member who sent the link (else the team) in the bell, once per record
-a day and only while the document, verification or change is still waiting; it always
-answers the same, so it reveals nothing about a link, and the company sends the new
-link with the resend it already has. The page shows no company contact detail.
+it tells the team member who sent the link while on the team (else the team) in the
+bell, opening the application or lead it was sent from, once per record a day and only
+while the document, verification or change is still waiting; it always answers the
+same, so it reveals nothing about a link, and the company sends the new link with the
+resend it already has. Past the hourly limit the page says to try later, never that
+the company was told. The page shows no company contact detail.
 
 ### Company workspace (`/company/*`)
 
@@ -333,7 +335,8 @@ team, who is notified; a carrier-prepared application goes to its preparer (§5)
 Both link codes, `referralCode` and a recruiter's `recruiterCode`, are kept with the
 draft; whenever a saved application is restored (this device, the server copy, a
 continuation link, the identity match on another device), the codes in the address
-opened win over the saved ones (`adoptLinkCodes`).
+opened win over the saved ones (`adoptLinkCodes`), and a fresh start on the same page
+(a new application after submitting, or after a discard in another tab) keeps them.
 **A lead who applies is linked to the application** (`onApplicationSubmitted`,
 `shared/leadApplicationLink.js`): the company's lead with the same email (trimmed,
 lowercased, never a placeholder; leads keep `emailNormalized`), else the one lead with
@@ -1112,10 +1115,10 @@ whether any remain, not how many),
 through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
 emails it to the application's own `email`), which names the company. Each decision
-is bound to the value the page showed (`shown`): if the company proposed a new value
-after the page opened, nothing is recorded, the page reloads, keeps the choices for
-changes that did not move and asks to review the rest (an older page that sends no
-`shown` is decided as before);
+is bound to the value the page showed (`shown`), and is written only onto the change as
+it was read: if the company proposed a new value after the page opened, nothing is
+recorded, the page reloads, keeps the choices for changes that did not move and asks to
+review the rest (an older page that sends no `shown` is decided as before);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
 write `pending_changes`. *Edit Application* gives a box only to the fields on the
 server's allowlist (`functions/shared/applicationEditableFields.json`, read by both
