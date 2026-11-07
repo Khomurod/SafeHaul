@@ -51,6 +51,8 @@ jest.mock('../../firebaseAdmin', () => {
     return {
         db,
         admin: {
+            // The rebuild reads super admin from the Auth record (К4).
+            auth: () => ({ getUser: async () => ({ customClaims: { globalRole: 'super_admin' } }) }),
             firestore: Object.assign(() => db, {
                 FieldPath: { documentId: () => '__name__' },
                 FieldValue: { serverTimestamp: () => '__server_time__' },
