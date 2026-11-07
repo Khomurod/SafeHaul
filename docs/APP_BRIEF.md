@@ -1555,6 +1555,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 - **A hire date is never guessed.** `hiredAt` exists only where the server saw the
   status enter hired (from 2026-11-06, Д15). Older hires stay without one: no backfill,
   and no hire date read from `createdAt`, `updatedAt`, `statusChangedAt` or Activity.
+- **E2E test mode works only on the dev server the browser suites start.** A
+  production build ignores `VITE_E2E_TEST_MODE` and ships no fixture data or
+  harness (`src/lib/runtime/e2eMode.js`); fixture code follows the rule in its
+  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations).
 - **A masked SSN is `***-**-` and its last four digits everywhere** (screens,
   application and previous-employer PDFs, the company API); a value with fewer
   than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
