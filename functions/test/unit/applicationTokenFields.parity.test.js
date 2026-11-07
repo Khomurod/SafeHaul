@@ -1,18 +1,17 @@
 /**
- * PARITY with the browser. The application fields a document token may name
- * are listed twice: `APPLICATION_TOKEN_FIELDS` in `postApplicationEdocs.js`,
- * which fills a post-application document, and
- * `src/config/applicationTokenFields.json`, which fills a document sent from a
- * template to an applicant or lead (`src/features/signing/utils/recordPrefill.js`).
- * `functions/` is CommonJS and deployed on its own, so they cannot be one
- * module. If they drifted, one of the two could put a field on a sealed
+ * The application fields a document token may name are one list,
+ * `functions/shared/applicationTokenFields.json`: the server fills a
+ * post-application document from it (`APPLICATION_TOKEN_FIELDS`,
+ * `shared/postApplicationRequest.js`), and the site fills a document sent from
+ * a template to an applicant or lead from it
+ * (`src/features/signing/utils/recordPrefill.js`). If the server's builder
+ * filled a field outside the list, one of the two could put a field on a sealed
  * document that the other keeps off it, the SSN included.
  *
  * The server's list is read from what its prefill builder does, not from its
  * source text: an application that answers every field with its own name shows
  * which token each field fills. A token added to the builder outside the list
- * is caught the same way. The browser copy lives in `src/config/`, which runs
- * this lane on any change to it.
+ * is caught the same way.
  */
 jest.mock('firebase-functions/v2/https', () => ({
   onCall: jest.fn((optsOrFn, maybeFn) => (typeof maybeFn === 'function' ? maybeFn : optsOrFn)),
@@ -26,7 +25,7 @@ const { readFileSync } = require('fs');
 const { resolve } = require('path');
 const { __private } = require('../../postApplicationEdocs');
 
-const BROWSER_COPY = resolve(__dirname, '../../../src/config/applicationTokenFields.json');
+const SHARED_LIST = resolve(__dirname, '../../shared/applicationTokenFields.json');
 
 /** An application whose every field holds `<its own name>`. */
 const everyFieldNamed = new Proxy({}, {
@@ -44,16 +43,16 @@ function serverTokenFields() {
   return fields;
 }
 
-describe('application token fields: server and browser', () => {
-  it('fill the same tokens from the same application fields', () => {
-    const browser = JSON.parse(readFileSync(BROWSER_COPY, 'utf8'));
+describe('application token fields: the one list and the server', () => {
+  it('the server fills exactly the listed tokens from the listed fields', () => {
+    const listed = JSON.parse(readFileSync(SHARED_LIST, 'utf8'));
     const server = serverTokenFields();
     // The signer's number is the recipient's in the browser, which the wizard
     // takes from its own field; the server reads it from `phone` or `phoneNumber`.
     expect(server.phone).toBe('phone');
     delete server.phone;
 
-    expect(browser).toEqual(server);
+    expect(listed).toEqual(server);
   });
 
   it('never name the SSN, a signature, a consent or an id', () => {

@@ -1,9 +1,9 @@
 /**
  * What a document sent from a template takes from the applicant or lead it is
- * sent to: the listed fields only (`src/config/applicationTokenFields.json`,
- * the server's list for post-application documents; their parity test is
- * `functions/test/unit/applicationTokenFields.parity.test.js`), and the record
- * it is filed under. Every name and value is artificial.
+ * sent to: the listed fields only (`functions/shared/applicationTokenFields.json`,
+ * the server's list for post-application documents too; the server's use of it
+ * is held by `functions/test/unit/applicationTokenFields.parity.test.js`), and
+ * the record it is filed under. Every name and value is artificial.
  */
 import { describe, expect, it } from 'vitest';
 import { buildPrefillContext, resolveTemplateText } from './prefillEngine';

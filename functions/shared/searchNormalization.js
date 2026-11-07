@@ -9,8 +9,12 @@
  * shared test-vector suite in functions/shared/searchNormalization.vectors.json,
  * exercised by functions/test/unit/searchNormalization.test.js (this file) and
  * src/shared/utils/searchNormalization.test.js (the mirror). Change one copy
- * and the vector tests fail until the other matches.
+ * and the vector tests fail until the other matches; the body between the
+ * markers must stay byte-identical, which the mirror's test checks.
  */
+
+// --- body ---------------------------------------------------------------------
+// Identical to src/shared/utils/searchNormalization.js. Edit both, or the parity test fails.
 
 /** Lowercase, trim, and collapse internal whitespace. */
 function normalizeSearchText(value) {
@@ -86,6 +90,8 @@ function buildApplicationSearchFields({
         applicationIdNormalized: normalizeSearchApplicationId(applicationId),
     };
 }
+
+// --- exports -------------------------------------------------------------------
 
 module.exports = {
     normalizeSearchText,
