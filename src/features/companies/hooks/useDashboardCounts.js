@@ -7,6 +7,14 @@ import { applyClientSideFilters } from './dashboardSearch';
 import { loadDashboardStats } from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
+import { keptAnswer } from '@shared/utils/keptAnswer';
+
+const kept = keptAnswer();
+
+/** Forgets the kept counts, so the next dashboard counts again. */
+export function forgetDashboardCounts() {
+    kept.forget();
+}
 
 /**
  * The company dashboard's four counts — applications, company leads, the
@@ -14,6 +22,10 @@ import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
  * complete, else from count queries (`loadDashboardStats`). The dashboard shows
  * no list, so this reads no records; the candidate lists, which show no counts
  * of these, do not read them.
+ *
+ * The counts are kept for two minutes for this sign-in and company
+ * (`keptAnswer`), so going back to the dashboard soon after does not count
+ * again; a failed read is not kept, so Retry reads anew.
  *
  * `counts` is `null` until they are read for the current company, and stays
  * `null` after a failed first read (no 0 that was not read); `loading` is true
@@ -50,7 +62,7 @@ export function useDashboardCounts(companyId) {
         }
 
         try {
-            const next = await loadDashboardStats({ companyId });
+            const next = await kept.read(companyId, () => loadDashboardStats({ companyId }));
             if (version === versionRef.current) setAnswer({ companyId, counts: next });
         } catch (e) {
             if (version !== versionRef.current) return;

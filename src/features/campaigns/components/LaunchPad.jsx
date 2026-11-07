@@ -27,9 +27,36 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaun
     const confirmTitleId = `launchpad-confirm-title-${rawId}`;
     const confirmDescId = `launchpad-confirm-desc-${rawId}`;
 
+    const methodLabel = campaign.messageConfig?.method === 'email' ? 'Email' : 'SMS';
+    // The audience step counts for one channel (`countedFor`): a count made for
+    // the other leaves out the wrong recipients, so it is counted again first.
+    const countedFor = campaign.countedFor || null;
+    const countedLabel = countedFor?.method === 'email' ? 'Email' : 'SMS';
+    const countedForOtherChannel = Boolean(countedFor) && countedLabel !== methodLabel;
+
+    // Validation
+    const errors = [];
+    if (countedForOtherChannel) {
+        errors.push(`The audience was counted for ${countedLabel}. Open Audience to count it for ${methodLabel}.`);
+    }
+    // Not counted for its filters yet (the window's count waits for Recalculate):
+    // the number here would not be the audience. The launch checks everyone again.
+    if (countedFor?.needsRecount) {
+        errors.push('The audience is not counted for its current filters. Open Audience and press Recalculate audience.');
+    } else if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
+    if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
+        errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
+    }
+    if (!campaign.messageConfig?.message) errors.push("Message content is empty");
+
+    const isValid = errors.length === 0;
+
     const handleLaunch = async () => {
         if (!companyId) return showError("Company ID missing");
         if (launchLockRef.current || isLaunching) return;
+        // The draft can change under an open confirmation (another tab saves new
+        // filters): only what passes the pre-flight checks now is launched.
+        if (!isValid) return;
 
         launchLockRef.current = true;
         setIsLaunching(true);
@@ -86,25 +113,6 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaun
     };
 
 
-    const methodLabel = campaign.messageConfig?.method === 'email' ? 'Email' : 'SMS';
-    // The audience step counts for one channel (`countedFor`): a count made for
-    // the other leaves out the wrong recipients, so it is counted again first.
-    const countedFor = campaign.countedFor || null;
-    const countedLabel = countedFor?.method === 'email' ? 'Email' : 'SMS';
-    const countedForOtherChannel = Boolean(countedFor) && countedLabel !== methodLabel;
-
-    // Validation
-    const errors = [];
-    if (countedForOtherChannel) {
-        errors.push(`The audience was counted for ${countedLabel}. Open Audience to count it for ${methodLabel}.`);
-    }
-    if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
-    if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
-        errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
-    }
-    if (!campaign.messageConfig?.message) errors.push("Message content is empty");
-
-    const isValid = errors.length === 0;
 
     // Time Estimation (Sequential: 3s per lead)
     const estimatedMinutes = Math.ceil(((campaign.matchCount || 0) * 3) / 60);
@@ -203,6 +211,11 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaun
                             Send to <strong>{campaign.matchCount || 0}</strong> recipients via{' '}
                             <strong>{methodLabel}</strong>?
                         </p>
+                        {!isValid && (
+                            <Notice tone="danger" size="sm" announce="assertive" className="mb-ds-4">
+                                {errors[0]}
+                            </Notice>
+                        )}
                         <p className="mb-ds-4 rounded-ds-md bg-ds-surface-subtle p-ds-3 text-ds-xs text-ds-content-secondary line-clamp-4">
                             {previewMessage.slice(0, 280)}
                             {previewMessage.length > 280 ? '…' : ''}
@@ -219,6 +232,7 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaun
                                 variant="primary"
                                 fullWidth
                                 loading={isLaunching}
+                                disabled={!isValid}
                                 onClick={handleLaunch}
                             >
                                 Confirm Launch

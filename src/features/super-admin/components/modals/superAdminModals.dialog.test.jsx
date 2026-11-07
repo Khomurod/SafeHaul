@@ -15,6 +15,7 @@ import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const httpsCallable = vi.fn();
+// The applications the dialog's first page holds; every test's list fits in one page.
 const mockLoadApplications = vi.fn();
 const mockUpdateCompany = vi.fn(() => Promise.resolve());
 const mockUploadCompanyLogo = vi.fn(() => Promise.resolve('https://example.test/logo.png'));
@@ -34,7 +35,8 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@features/companies', () => ({ updateCompany: (...a) => mockUpdateCompany(...a) }));
 vi.mock('@features/applications/services/applicationService', () => ({
-  loadApplications: (...a) => mockLoadApplications(...a),
+  loadApplicationsPage: async (...a) => ({ applications: await mockLoadApplications(...a), next: null }),
+  countApplications: async () => 0,
 }));
 vi.mock('../users/EditUserNameForm', () => ({
   EditUserNameForm: () => <div data-testid="edit-user-name-form" />,
@@ -331,7 +333,7 @@ describe('EditCompanyModal — frozen save contract and duplicate-id defect', ()
 });
 
 describe('ViewCompanyAppsModal — frozen data contract', () => {
-  it('loads applications for the exact company id', async () => {
+  it('reads the first page of applications for the exact company id', async () => {
     render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
     await waitFor(() => expect(mockLoadApplications).toHaveBeenCalledWith('co-1'));
   });

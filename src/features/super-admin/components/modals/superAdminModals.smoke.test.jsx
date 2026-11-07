@@ -4,7 +4,7 @@ import { DeleteCompanyModal } from './DeleteCompanyModal';
 import { ViewCompanyAppsModal } from './ViewCompanyAppsModal';
 
 const mockDeleteCompany = vi.fn(() => Promise.resolve({ data: { success: true } }));
-const mockLoadApplications = vi.fn();
+const mockLoadApplicationsPage = vi.fn();
 
 vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(() => mockDeleteCompany),
@@ -15,7 +15,8 @@ vi.mock('@lib/firebase', () => ({
 }));
 
 vi.mock('@features/applications/services/applicationService', () => ({
-  loadApplications: (...args) => mockLoadApplications(...args),
+  loadApplicationsPage: (...args) => mockLoadApplicationsPage(...args),
+  countApplications: async () => 1,
 }));
 
 describe('Super-admin modals post-cleanup smoke', () => {
@@ -35,10 +36,11 @@ describe('Super-admin modals post-cleanup smoke', () => {
     expect(document.getElementById('delete-company-modal')).toBeTruthy();
   });
 
-  it('ViewCompanyAppsModal calls loadApplications for companyId', async () => {
-    mockLoadApplications.mockResolvedValue([
-      { id: 'app-1', firstName: 'Jane', lastName: 'Doe', status: 'new' },
-    ]);
+  it('ViewCompanyAppsModal reads the first page of applications for companyId', async () => {
+    mockLoadApplicationsPage.mockResolvedValue({
+      applications: [{ id: 'app-1', firstName: 'Jane', lastName: 'Doe', status: 'new' }],
+      next: null,
+    });
 
     render(
       <ViewCompanyAppsModal
@@ -49,7 +51,7 @@ describe('Super-admin modals post-cleanup smoke', () => {
     );
 
     await waitFor(() => {
-      expect(mockLoadApplications).toHaveBeenCalledWith('co-1');
+      expect(mockLoadApplicationsPage).toHaveBeenCalledWith('co-1');
     });
   });
 });

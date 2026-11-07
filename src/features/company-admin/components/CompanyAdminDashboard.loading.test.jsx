@@ -89,8 +89,10 @@ vi.mock('./HiringBrief', () => ({ HiringBrief: () => null }));
 import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';
 import { CompanyAdminDashboard } from './CompanyAdminDashboard';
+import { forgetDashboardCounts } from '@features/companies';
 
 afterEach(() => {
+    forgetDashboardCounts();
     Object.assign(fx, {
         reads: [],
         countsGate: null,

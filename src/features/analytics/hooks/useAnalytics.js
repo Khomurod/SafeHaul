@@ -2,6 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { db } from '@lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { loadCompanies } from '@features/companies/services/companyService';
 import { mockAnalyticsStats } from './analyticsMock';
 
 const CHICAGO_TZ = 'America/Chicago';
@@ -14,7 +15,9 @@ const CHICAGO_TZ = 'America/Chicago';
  * company's calls, each recruiter's calls and the last day in the period they
  * logged one (`lastActive`, a Chicago `YYYY-MM-DD`, the day's document id). A
  * read that fails sets `error` rather than leaving zeros to be shown;
- * `reload()` reads the same period again.
+ * `reload()` reads the same period again. The companies come from the read the
+ * Super Admin console's screens share (`loadCompanies`), so another period
+ * reads only the days.
  */
 export function useAnalytics() {
     const [loading, setLoading] = useState(true);
@@ -75,8 +78,8 @@ export function useAnalytics() {
                 if (dateRange === '90d') startDate.setDate(startDate.getDate() - 89);
                 const startKey = toChicagoDateKey(startDate);
 
-                // 2. Fetch all companies
-                const companiesSnap = await getDocs(collection(db, "companies"));
+                // 2. Every company, as the console read it
+                const companiesSnap = await loadCompanies();
 
                 if (!isMounted) return;
 

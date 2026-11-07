@@ -52,9 +52,12 @@ vi.mock('@lib/firebase', () => ({ db: {}, auth: { get currentUser() { return fx.
 vi.mock('@lib/runtime/e2eMode', () => ({ get isE2ETestMode() { return fx.e2e; } }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => fx.preferRollup }));
 
-import { useDashboardCounts } from './useDashboardCounts';
+import { forgetDashboardCounts, useDashboardCounts } from './useDashboardCounts';
+import { DASHBOARD_KEEP_MS } from '@shared/utils/keptAnswer';
 
 afterEach(() => {
+    forgetDashboardCounts();
+    vi.restoreAllMocks();
     Object.assign(fx, { reads: [], rollup: null, preferRollup: false, e2e: false, user: { uid: 'uid-1' }, countsFail: false, gate: null });
 });
 
@@ -193,5 +196,58 @@ describe('the dashboard counts', () => {
         await act(async () => { release(); });
         await waitFor(() => expect(result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
         expect(result.current.statsFetchError).toBe('');
+    });
+
+    it('are kept two minutes for this sign-in and company: the dashboard opened again soon after counts nothing', async () => {
+        const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const first = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(first.result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+        first.unmount();
+        expect(fx.reads).toHaveLength(4);
+
+        now.mockReturnValue(1_000_000 + DASHBOARD_KEEP_MS - 1);
+        const second = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(second.result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+        second.unmount();
+        expect(fx.reads).toHaveLength(4);
+
+        now.mockReturnValue(1_000_000 + DASHBOARD_KEEP_MS);
+        const third = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(fx.reads).toHaveLength(8));
+        await waitFor(() => expect(third.result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+    });
+
+    it('are counted anew for another company, and never show the kept company’s numbers', async () => {
+        const { result, rerender } = renderHook(({ companyId }) => useDashboardCounts(companyId), { initialProps: { companyId: 'co-1' } });
+        await waitFor(() => expect(result.current.counts?.applications).toBe(7));
+
+        rerender({ companyId: 'co-2' });
+        expect(result.current.counts).toBeNull();
+        await waitFor(() => expect(result.current.counts).toEqual({ applications: 2, companyLeads: 2, myLeads: 2, hired: 2 }));
+        expect(fx.reads.filter((read) => read.path.startsWith('companies/co-2'))).toHaveLength(4);
+    });
+
+    it('are counted anew after another sign-in, even of the same company', async () => {
+        const first = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(first.result.current.counts?.applications).toBe(7));
+        first.unmount();
+
+        fx.user = { uid: 'uid-2' };
+        const second = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(second.result.current.counts?.myLeads).toBe(7));
+        expect(fx.reads).toHaveLength(8);
+        expect(fx.reads).toContainEqual({ kind: 'count', path: 'companies/co-1/leads', constraints: [['assignedTo', '==', 'uid-2']] });
+    });
+
+    it('do not keep a failure: the dashboard opened again reads anew', async () => {
+        fx.countsFail = true;
+        const first = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(first.result.current.statsFetchError).toBe('Quota exceeded.'));
+        first.unmount();
+
+        fx.countsFail = false;
+        const second = renderHook(() => useDashboardCounts('co-1'));
+        await waitFor(() => expect(second.result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+        expect(fx.reads).toHaveLength(8);
     });
 });

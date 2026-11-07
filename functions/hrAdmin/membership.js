@@ -7,6 +7,7 @@ const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { admin, db } = require("./../firebaseAdmin");
 const { syncClaimsAndSessions } = require("./claims");
 const { nameFromProfile, emailFromProfile } = require("../shared/userIdentity");
+const { sameStoredValue } = require("../shared/unchangedWrite");
 
 /**
  * The saved team list for one company's memberships: one entry per membership,
@@ -72,12 +73,27 @@ exports.onMembershipWrite = onDocumentWritten({
     // Filter out undefined/null
     const validCompanyIds = Array.from(companyIdsToUpdate).filter(cid => cid);
 
+    // A company whose saved list already reads so is not written: the write
+    // would wake every open workspace's listener on the company and fire the
+    // company's triggers for nothing. A company that cannot be read is written.
     for (const cid of validCompanyIds) {
         try {
-            const teamSnap = await db.collection('memberships').where('companyId', '==', cid).get();
+            const companyRef = db.collection('companies').doc(cid);
+            const [teamSnap, companySnap] = await Promise.all([
+                db.collection('memberships').where('companyId', '==', cid).get(),
+                companyRef.get().catch((readError) => {
+                    console.warn(`Could not read company ${cid} before saving its team:`, readError.message || readError);
+                    return null;
+                }),
+            ]);
             const resolvedTeam = await teamOf(teamSnap.docs);
 
-            await db.collection('companies').doc(cid).update({
+            if (companySnap?.exists && sameStoredValue(companySnap.data()?.teamMembers, resolvedTeam)) {
+                console.log(`teamMembers cache for Company ${cid} already current (${resolvedTeam.length} members).`);
+                continue;
+            }
+
+            await companyRef.update({
                 teamMembers: resolvedTeam,
                 teamUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
             });

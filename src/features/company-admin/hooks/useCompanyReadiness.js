@@ -10,18 +10,31 @@
  * - the template of each enabled post-application form, one document each.
  *
  * Each read settles on its own, so one that fails is "not checked" and the rest
- * still show. `enabled` false reads nothing. E2E test mode never reads: it
- * shows a company with everything set up.
+ * still show. The answer is kept two minutes for this sign-in and company
+ * (`keptAnswer`), unless something in it could not be checked; following one of
+ * the card's links forgets it, so coming back after a fix checks again.
+ * `enabled` false reads nothing and shows nothing: who is an admin is decided on
+ * every render, never kept. E2E test mode never reads: it shows a company with
+ * everything set up.
  */
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
+import { keptAnswer } from '@shared/utils/keptAnswer';
 import { normalizePostApplicationTemplates } from '@features/driver-app/components/application/publicApplyHelpers';
 import { companyReadiness } from '../utils/companyReadiness';
 
 const READY = Object.freeze({ items: [], hints: [] });
+
+/** An answer with an item that could not be checked is not kept: the next visit checks again. */
+const kept = keptAnswer({ keep: (readiness) => readiness.items.every((item) => item.state !== 'unknown') });
+
+/** Forgets the kept answer, so the next dashboard checks again. */
+export function forgetCompanyReadiness() {
+    kept.forget();
+}
 
 async function settle(label, read) {
     try {
@@ -66,7 +79,7 @@ export function useCompanyReadiness({ companyId, enabled }) {
     useEffect(() => {
         if (!key || isE2ETestMode) return undefined;
         let current = true;
-        readReadiness(key).then((readiness) => {
+        kept.read(key, () => readReadiness(key)).then((readiness) => {
             if (current) setState({ key, readiness });
         });
         return () => { current = false; };

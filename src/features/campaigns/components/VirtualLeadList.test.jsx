@@ -68,7 +68,7 @@ describe('VirtualLeadList — remote fetching', () => {
             filters: {
                 leadType: 'applications',
                 excludeRecentDays: null, // 'off' maps to null
-                campaignLimit: 100, // parsed to a number
+                campaignLimit: null, // Limit Volume trims the rows shown instead
             },
             method: 'sms',
             pageSize: 50,
@@ -139,6 +139,24 @@ describe('VirtualLeadList — remote fetching', () => {
         expect(mockCallable.mock.calls[1][0].lastDocId).toBeNull();
         expect(await screen.findByText('Artificial L9')).toBeInTheDocument();
         await waitFor(() => expect(screen.queryByText('Artificial L1')).not.toBeInTheDocument());
+    });
+
+    it('trims the rows to Limit Volume without asking the server again', async () => {
+        const onLeadsChange = vi.fn();
+        mockCallable.mockResolvedValue(page([lead('l1'), lead('l2'), lead('l3')], null));
+        const filters = (campaignLimit) => ({ leadType: 'applications', excludeRecentDays: '7', campaignLimit });
+        const { rerender } = render(<VirtualLeadList companyId="co-1" filters={filters('')} onLeadsChange={onLeadsChange} />);
+        await screen.findByText('Artificial L3');
+
+        for (const typed of ['2', '20', '2']) {
+            rerender(<VirtualLeadList companyId="co-1" filters={filters(typed)} onLeadsChange={onLeadsChange} />);
+        }
+
+        await waitFor(() => expect(screen.queryByText('Artificial L3')).not.toBeInTheDocument());
+        expect(screen.getByText('Artificial L2')).toBeInTheDocument();
+        // The audience step subtracts an un-tick only for a lead it is shown.
+        expect(onLeadsChange).toHaveBeenLastCalledWith([lead('l1'), lead('l2')]);
+        expect(mockCallable).toHaveBeenCalledTimes(1);
     });
 
     it('guards against a concurrent fetch while one is in flight', async () => {
