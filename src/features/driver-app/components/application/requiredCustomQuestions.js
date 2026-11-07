@@ -24,17 +24,33 @@ export function isEmptyCustomAnswer(field, value) {
     return value === undefined || value === null || value === '' || isBlankText(value);
 }
 
-/** The first required question with no answer, or `null`. */
-export function firstUnansweredRequiredQuestion(questions, formData) {
+/** Every required question with no answer, with its place, in the order they are asked. */
+function unansweredRequired(questions, formData) {
     const list = Array.isArray(questions) ? questions : [];
-    for (let index = 0; index < list.length; index++) {
-        const field = list[index];
-        if (field?.required && isEmptyCustomAnswer(field, customAnswerOf(formData, field, index))) {
-            return field;
-        }
-    }
-    return null;
+    return list.flatMap((field, index) => (
+        field?.required && isEmptyCustomAnswer(field, customAnswerOf(formData, field, index)) ? [{ field, index }] : []
+    ));
 }
 
-/** The sentence a missing answer is refused with, on the page and before submitting. */
+/** The key of every required question with no answer, in the order they are asked. */
+export const unansweredRequiredQuestionKeys = (questions, formData) => unansweredRequired(questions, formData)
+    .map(({ field, index }) => customQuestionKey(field, index));
+
+/** The first required question with no answer, or `null`. */
+export const firstUnansweredRequiredQuestion = (questions, formData) => (
+    unansweredRequired(questions, formData)[0]?.field ?? null
+);
+
+/**
+ * The sentence the final pre-flight refuses a missing answer with, as a toast on
+ * whatever page Submit was pressed. The questions page says
+ * `unansweredQuestionMessage` under the question itself.
+ */
 export const requiredQuestionMessage = (field) => `Please answer required question: ${field.label || 'Additional question'}`;
+
+/** What the page says under a required question it refuses for having no answer. */
+export function unansweredQuestionMessage(field) {
+    if (field?.type === 'fileUpload') return 'Please upload a file.';
+    if (field?.type === 'checkboxes') return 'Please choose at least one.';
+    return 'Please answer this question.';
+}

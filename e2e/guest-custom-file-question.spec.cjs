@@ -85,7 +85,8 @@ test.describe('a custom file upload question', () => {
         await expect(failure).toContainText('Upload failed. Please try again.');
         await expect(page.getByText(/✓ Selected/)).toHaveCount(0);
         await page.getByRole('button', { name: 'Continue' }).click();
-        await expect(page.getByText('Please answer required question: Upload your resume')).toBeVisible();
+        // Said under the question, not in a toast.
+        await expect(page.getByText('Please upload a file.')).toBeVisible();
         await expectStep(page, 'Additional Questions');
     });
 });
