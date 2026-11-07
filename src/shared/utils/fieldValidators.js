@@ -1,4 +1,4 @@
-import { isValidEmail, isValidPhone, isValidSSN } from './validation';
+import { isValidEmail, isValidPhone } from './validation';
 
 /**
  * Field validator factories (C5).
@@ -42,16 +42,6 @@ export function phone(label = 'Phone', { isRequired = true } = {}) {
         const v = (value ?? '').toString().trim();
         if (!v) return isRequired ? `${label} is required.` : null;
         if (!isValidPhone(v)) return PHONE_RULE_MESSAGE;
-        return null;
-    };
-}
-
-/** SSN: required-or-optional plus format via isValidSSN. */
-export function ssn(label = 'SSN', { isRequired = true } = {}) {
-    return (value) => {
-        const v = (value ?? '').toString().trim();
-        if (!v) return isRequired ? `${label} is required.` : null;
-        if (!isValidSSN(v)) return 'SSN must be 9 digits (XXX-XX-XXXX).';
         return null;
     };
 }

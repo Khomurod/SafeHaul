@@ -487,5 +487,3 @@ export function clearApplicationDraft(slug) {
   if (!slug) return;
   localStorage.removeItem(draftKey(slug));
 }
-
-export const __private = { ENVELOPE_VERSION, NEVER_STORED, draftKey, discardKey };

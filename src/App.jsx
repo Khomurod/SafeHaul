@@ -53,9 +53,6 @@ export function AppRoutes() {
         {/* --- PUBLIC ROUTES (No Login Required) --- */}
         {/* P3-12 FIX: Redirect authenticated users away from login */}
         <Route path="/login" element={<AuthGuardedLogin />} />
-        {/* /join/:companyId route REMOVED — the underlying joinCompanyTeam
-            Cloud Function was disabled, so this link only produced permission
-            errors. Use the Super Admin "Create Portal User" flow instead. */}
 
         {/* Public feature routes */}
         {PUBLIC_FEATURE_ROUTE_MANIFEST.map((routeDef) => {

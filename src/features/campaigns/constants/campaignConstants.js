@@ -95,14 +95,6 @@ export function deliveryCheckMessage({ status, counts } = {}) {
     return { ok: false, text: 'RingCentral could not be reached to check delivery. Please try again later.' };
 }
 
-export const LAST_CALL_RESULTS = [
-    { id: 'no_answer', label: 'No Answer', value: 'No Answer' },
-    { id: 'left_voicemail', label: 'Left Voicemail', value: 'Left Voicemail' },
-    { id: 'busy', label: 'Busy', value: 'Busy' },
-    { id: 'wrong_number', label: 'Wrong Number', value: 'Wrong Number' },
-    { id: 'not_interested', label: 'Not Interested', value: 'Not Interested' }
-];
-
 /**
  * Bulk session lifecycle buckets.
  *

@@ -14,7 +14,7 @@
  *
  * ## Two things the measurement found
  *
- * **33 of these names are lucide compatibility aliases.** `AlertCircle` is the
+ * **36 of these names are lucide compatibility aliases.** `AlertCircle` is the
  * current `CircleAlert`, `Home` is `House`, `Filter` is `Funnel`,
  * `Loader2` is `LoaderCircle`. They still resolve, and the names below are the
  * ones this codebase actually writes, so those are the names the registry keeps
@@ -38,7 +38,7 @@ import {
     ArrowLeftRight as LucideArrowLeftRight, ArrowRight as LucideArrowRight,
     ArrowRightCircle as LucideArrowRightCircle, ArrowUp as LucideArrowUp,
     ArrowUpRight as LucideArrowUpRight, Ban as LucideBan, BarChart2 as LucideBarChart2,
-    BarChart3 as LucideBarChart3, Beaker as LucideBeaker, Bell as LucideBell,
+    BarChart3 as LucideBarChart3, Bell as LucideBell,
     BellPlus as LucideBellPlus, Blocks as LucideBlocks, Briefcase as LucideBriefcase,
     Building as LucideBuilding, Building2 as LucideBuilding2, Calendar as LucideCalendar,
     Check as LucideCheck, CheckCircle as LucideCheckCircle,
@@ -57,7 +57,7 @@ import {
     FileSignature as LucideFileSignature, FileSpreadsheet as LucideFileSpreadsheet,
     FileText as LucideFileText, Files as LucideFiles, Filter as LucideFilter,
     Fingerprint as LucideFingerprint, GitBranch as LucideGitBranch, Globe as LucideGlobe,
-    Grid as LucideGrid, GripVertical as LucideGripVertical, HardDrive as LucideHardDrive,
+    Grid as LucideGrid, GripVertical as LucideGripVertical,
     Hash as LucideHash, HelpCircle as LucideHelpCircle, History as LucideHistory,
     Home as LucideHome, Hourglass as LucideHourglass, Image as LucideImage,
     Inbox as LucideInbox, Info as LucideInfo, Key as LucideKey, KeyRound as LucideKeyRound,
@@ -67,7 +67,7 @@ import {
     ListChecks as LucideListChecks, Loader as LucideLoader, Loader2 as LucideLoader2,
     Lock as LucideLock, LogOut as LucideLogOut, Mail as LucideMail,
     MailWarning as LucideMailWarning, MapPin as LucideMapPin, Maximize2 as LucideMaximize2,
-    Medal as LucideMedal, Megaphone as LucideMegaphone, Menu as LucideMenu,
+    Megaphone as LucideMegaphone, Menu as LucideMenu,
     MessageSquare as LucideMessageSquare, MinusCircle as LucideMinusCircle,
     MoreHorizontal as LucideMoreHorizontal, MoreVertical as LucideMoreVertical,
     MousePointerSquareDashed as LucideMousePointerSquareDashed,
@@ -87,11 +87,11 @@ import {
     SlidersHorizontal as LucideSlidersHorizontal, Sparkles as LucideSparkles,
     Star as LucideStar, StickyNote as LucideStickyNote, Terminal as LucideTerminal,
     TestTube as LucideTestTube, ThumbsDown as LucideThumbsDown, Trash2 as LucideTrash2,
-    TrendingUp as LucideTrendingUp, Trophy as LucideTrophy, Truck as LucideTruck,
+    TrendingUp as LucideTrendingUp, Truck as LucideTruck,
     Type as LucideType, Undo2 as LucideUndo2, Unlock as LucideUnlock,
     Upload as LucideUpload, UploadCloud as LucideUploadCloud, User as LucideUser,
-    UserCircle as LucideUserCircle, UserPlus as LucideUserPlus, Users as LucideUsers,
-    Wand2 as LucideWand2, Wifi as LucideWifi, WifiOff as LucideWifiOff,
+    UserPlus as LucideUserPlus, Users as LucideUsers,
+    Wand2 as LucideWand2, WifiOff as LucideWifiOff,
     Wrench as LucideWrench, X as LucideX, XCircle as LucideXCircle, Zap as LucideZap,
     ZoomIn as LucideZoomIn, ZoomOut as LucideZoomOut,
 } from 'lucide-react';
@@ -119,7 +119,6 @@ export const ArrowUpRight = /* #__PURE__ */ glyph(LucideArrowUpRight, 'ArrowUpRi
 export const Ban = /* #__PURE__ */ glyph(LucideBan, 'Ban');
 export const BarChart2 = /* #__PURE__ */ glyph(LucideBarChart2, 'BarChart2');
 export const BarChart3 = /* #__PURE__ */ glyph(LucideBarChart3, 'BarChart3');
-export const Beaker = /* #__PURE__ */ glyph(LucideBeaker, 'Beaker');
 export const Bell = /* #__PURE__ */ glyph(LucideBell, 'Bell');
 export const BellPlus = /* #__PURE__ */ glyph(LucideBellPlus, 'BellPlus');
 export const Blocks = /* #__PURE__ */ glyph(LucideBlocks, 'Blocks');
@@ -167,7 +166,6 @@ export const GitBranch = /* #__PURE__ */ glyph(LucideGitBranch, 'GitBranch');
 export const Globe = /* #__PURE__ */ glyph(LucideGlobe, 'Globe');
 export const Grid = /* #__PURE__ */ glyph(LucideGrid, 'Grid');
 export const GripVertical = /* #__PURE__ */ glyph(LucideGripVertical, 'GripVertical');
-export const HardDrive = /* #__PURE__ */ glyph(LucideHardDrive, 'HardDrive');
 export const Hash = /* #__PURE__ */ glyph(LucideHash, 'Hash');
 export const HelpCircle = /* #__PURE__ */ glyph(LucideHelpCircle, 'HelpCircle');
 export const History = /* #__PURE__ */ glyph(LucideHistory, 'History');
@@ -194,7 +192,6 @@ export const Mail = /* #__PURE__ */ glyph(LucideMail, 'Mail');
 export const MailWarning = /* #__PURE__ */ glyph(LucideMailWarning, 'MailWarning');
 export const MapPin = /* #__PURE__ */ glyph(LucideMapPin, 'MapPin');
 export const Maximize2 = /* #__PURE__ */ glyph(LucideMaximize2, 'Maximize2');
-export const Medal = /* #__PURE__ */ glyph(LucideMedal, 'Medal');
 export const Megaphone = /* #__PURE__ */ glyph(LucideMegaphone, 'Megaphone');
 export const Menu = /* #__PURE__ */ glyph(LucideMenu, 'Menu');
 export const MessageSquare = /* #__PURE__ */ glyph(LucideMessageSquare, 'MessageSquare');
@@ -248,7 +245,6 @@ export const TestTube = /* #__PURE__ */ glyph(LucideTestTube, 'TestTube');
 export const ThumbsDown = /* #__PURE__ */ glyph(LucideThumbsDown, 'ThumbsDown');
 export const Trash2 = /* #__PURE__ */ glyph(LucideTrash2, 'Trash2');
 export const TrendingUp = /* #__PURE__ */ glyph(LucideTrendingUp, 'TrendingUp');
-export const Trophy = /* #__PURE__ */ glyph(LucideTrophy, 'Trophy');
 export const Truck = /* #__PURE__ */ glyph(LucideTruck, 'Truck');
 export const Type = /* #__PURE__ */ glyph(LucideType, 'Type');
 export const Undo2 = /* #__PURE__ */ glyph(LucideUndo2, 'Undo2');
@@ -256,11 +252,9 @@ export const Unlock = /* #__PURE__ */ glyph(LucideUnlock, 'Unlock');
 export const Upload = /* #__PURE__ */ glyph(LucideUpload, 'Upload');
 export const UploadCloud = /* #__PURE__ */ glyph(LucideUploadCloud, 'UploadCloud');
 export const User = /* #__PURE__ */ glyph(LucideUser, 'User');
-export const UserCircle = /* #__PURE__ */ glyph(LucideUserCircle, 'UserCircle');
 export const UserPlus = /* #__PURE__ */ glyph(LucideUserPlus, 'UserPlus');
 export const Users = /* #__PURE__ */ glyph(LucideUsers, 'Users');
 export const Wand2 = /* #__PURE__ */ glyph(LucideWand2, 'Wand2');
-export const Wifi = /* #__PURE__ */ glyph(LucideWifi, 'Wifi');
 export const WifiOff = /* #__PURE__ */ glyph(LucideWifiOff, 'WifiOff');
 export const Wrench = /* #__PURE__ */ glyph(LucideWrench, 'Wrench');
 export const X = /* #__PURE__ */ glyph(LucideX, 'X');
@@ -278,7 +272,7 @@ export const GLYPH_NAMES = /* #__PURE__ */ Object.freeze([
     'Activity', 'AlertCircle', 'AlertTriangle', 'AlignCenter', 'AlignCenterVertical',
     'AlignEndVertical', 'AlignJustify', 'AlignLeft', 'AlignRight', 'AlignStartVertical',
     'Archive', 'ArrowDown', 'ArrowLeft', 'ArrowLeftRight', 'ArrowRight', 'ArrowRightCircle',
-    'ArrowUp', 'ArrowUpRight', 'Ban', 'BarChart2', 'BarChart3', 'Beaker', 'Bell',
+    'ArrowUp', 'ArrowUpRight', 'Ban', 'BarChart2', 'BarChart3', 'Bell',
     'BellPlus', 'Blocks', 'Briefcase', 'Building', 'Building2', 'Calendar', 'Check',
     'CheckCircle', 'CheckCircle2', 'CheckSquare', 'ChevronDown', 'ChevronLeft',
     'ChevronRight', 'ChevronUp', 'ChevronsLeft', 'ChevronsRight', 'Circle', 'CircleDot',
@@ -286,10 +280,10 @@ export const GLYPH_NAMES = /* #__PURE__ */ Object.freeze([
     'Database', 'DatabaseZap', 'Download', 'Edit2', 'Edit3', 'Eraser', 'ExternalLink',
     'Eye', 'EyeOff', 'FileCheck', 'FilePlus2', 'FileSignature',
     'FileSpreadsheet', 'FileText', 'Files', 'Filter', 'Fingerprint', 'GitBranch', 'Globe',
-    'Grid', 'GripVertical', 'HardDrive', 'Hash', 'HelpCircle', 'History', 'Home',
+    'Grid', 'GripVertical', 'Hash', 'HelpCircle', 'History', 'Home',
     'Hourglass', 'Image', 'Inbox', 'Info', 'Key', 'KeyRound', 'Layers', 'LayoutDashboard',
     'LayoutGrid', 'LayoutTemplate', 'Link', 'Link2', 'List', 'ListChecks', 'Loader',
-    'Loader2', 'Lock', 'LogOut', 'Mail', 'MailWarning', 'MapPin', 'Maximize2', 'Medal',
+    'Loader2', 'Lock', 'LogOut', 'Mail', 'MailWarning', 'MapPin', 'Maximize2',
     'Megaphone', 'Menu', 'MessageSquare', 'MinusCircle', 'MoreHorizontal', 'MoreVertical',
     'MousePointerSquareDashed', 'MoveHorizontal', 'MoveVertical', 'Newspaper', 'Pause',
     'PauseCircle', 'PenTool', 'Pencil', 'PencilLine', 'Phone', 'Play', 'Plug', 'PlugZap',
@@ -297,8 +291,8 @@ export const GLYPH_NAMES = /* #__PURE__ */ Object.freeze([
     'Rocket', 'RotateCcw', 'Rows3', 'Ruler', 'Save', 'Scaling', 'ScrollText', 'Search',
     'Send', 'Server', 'ServerCog', 'Settings', 'Settings2', 'Share2', 'Shield',
     'ShieldAlert', 'ShieldCheck', 'ShieldOff', 'SlidersHorizontal', 'Sparkles', 'Star',
-    'StickyNote', 'Terminal', 'TestTube', 'ThumbsDown', 'Trash2', 'TrendingUp', 'Trophy',
-    'Truck', 'Type', 'Undo2', 'Unlock', 'Upload', 'UploadCloud', 'User', 'UserCircle',
-    'UserPlus', 'Users', 'Wand2', 'Wifi', 'WifiOff', 'Wrench', 'X', 'XCircle', 'Zap',
+    'StickyNote', 'Terminal', 'TestTube', 'ThumbsDown', 'Trash2', 'TrendingUp',
+    'Truck', 'Type', 'Undo2', 'Unlock', 'Upload', 'UploadCloud', 'User',
+    'UserPlus', 'Users', 'Wand2', 'WifiOff', 'Wrench', 'X', 'XCircle', 'Zap',
     'ZoomIn', 'ZoomOut',
 ]);

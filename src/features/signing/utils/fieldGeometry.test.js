@@ -15,10 +15,8 @@ import {
     fieldEdges,
     groupFieldsByPage,
     matchFieldSize,
-    removeFields,
     snapFieldPosition,
     toggleSelection,
-    updateFields,
 } from './fieldGeometry';
 
 const field = (id, overrides = {}) => ({
@@ -350,26 +348,5 @@ describe('page helpers', () => {
         expect(countFieldsByPage([field('a'), field('b'), field('c', { page: 2 })])).toEqual({ 1: 2, 2: 1 });
         expect(countFieldsByPage([])).toEqual({});
         expect(countFieldsByPage([null])).toEqual({});
-    });
-});
-
-describe('bulk update and remove', () => {
-    const fields = [field('a'), field('b'), field('c')];
-
-    it('patches only the selected fields and clamps the result', () => {
-        const next = updateFields(fields, ['a', 'c'], { x: 200 });
-        expect(next[0].x).toBe(80);
-        expect(next[1]).toBe(fields[1]);
-        expect(next[2].x).toBe(80);
-    });
-
-    it('accepts a patch function', () => {
-        const next = updateFields(fields, ['b'], (f) => ({ ...f, label: `${f.label}!` }));
-        expect(next[1].label).toBe('Field b!');
-    });
-
-    it('removes a set of fields', () => {
-        expect(removeFields(fields, ['a', 'c']).map((f) => f.id)).toEqual(['b']);
-        expect(removeFields(fields, [])).toHaveLength(3);
     });
 });

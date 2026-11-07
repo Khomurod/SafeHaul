@@ -6,12 +6,12 @@ import { callableErrorText, serverMessage } from './callableErrorText';
  * Client for the Telegram alert callables (Super Admin → System Health).
  *
  * The same backend guards as the other consoles, so the same client shape:
- * re-authentication detection and its cancellation type come from
- * `./environmentVault.js` rather than a copy. The bot token goes up once, in
- * `savePlatformAlertToken`, and no response ever brings it, or the chat id, back.
+ * cancellation detection comes from `./environmentVault.js` rather than a copy.
+ * The bot token goes up once, in `savePlatformAlertToken`, and no response ever
+ * brings it, or the chat id, back.
  */
 
-export { isReauthCancelled, isReauthRequired, ReauthCancelledError } from './environmentVault';
+export { isReauthCancelled } from './environmentVault';
 
 /** The server's own sentence where it wrote one for the operator, else the caller's. */
 export function describeAlertsError(error, fallback = 'That operation could not be completed.') {
