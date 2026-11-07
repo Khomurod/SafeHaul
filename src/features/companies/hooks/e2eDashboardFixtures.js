@@ -6,7 +6,9 @@
  * (dashboardSearch.js) the production query path uses.
  */
 
-const ts = (iso) => {
+// Marked free of side effects, so a production build, which never reads the
+// records, drops them.
+const ts = /* #__NO_SIDE_EFFECTS__ */ (iso) => {
     const seconds = Math.floor(new Date(iso).getTime() / 1000);
     return { seconds, toDate: () => new Date(seconds * 1000) };
 };

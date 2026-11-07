@@ -92,7 +92,8 @@ export function useTemplateSendFlow({
         const timer = setTimeout(async () => {
             try {
                 const { findPickerRecords, matchPickerRecords } = await loadPickerRecords();
-                const found = isE2EEdocMock
+                // `!PROD` keeps the fixture lead out of a production build (`isE2ETestMode`).
+                const found = !import.meta.env.PROD && isE2EEdocMock
                     ? matchPickerRecords(E2E_PICKER_RECORDS, term)
                     : await findPickerRecords(companyId, term);
                 if (!current) return;
@@ -177,7 +178,7 @@ export function useTemplateSendFlow({
 
         setSending(true);
         try {
-            if (isE2EEdocMock) {
+            if (!import.meta.env.PROD && isE2EEdocMock) {
                 setShowDriverPicker(false);
                 showSuccess('Document created! Email delivery in progress...');
                 navigate(`/sign/${currentCompanyProfile.id}/e2e-edoc-send-req?token=e2e-token&e2eSign=mock`);

@@ -86,7 +86,8 @@ export function RespondentSection({ formData, formErrors, updateField, updateSig
                     <span className="text-ds-status-danger-fg" aria-hidden="true"> *</span>
                     <span className="ds-visually-hidden"> required</span>
                 </span>
-                {isE2EVerifyMock && (
+                {/* `!PROD` keeps the test button out of a production build (`isE2ETestMode`). */}
+                {!import.meta.env.PROD && isE2EVerifyMock && (
                     <Button
                         type="button"
                         variant="secondary"

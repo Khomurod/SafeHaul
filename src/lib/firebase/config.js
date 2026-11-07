@@ -51,10 +51,12 @@ const isE2ETestMode = import.meta.env.VITE_E2E_TEST_MODE === '1';
 // never read or write production data. Deliberately gated on `!PROD` as well so a
 // real production build can never be talked into placeholder credentials.
 const forcePlaceholderForE2E = isE2ETestMode && !import.meta.env.PROD;
+// `!PROD` first, so a production build folds this to `false` and drops the
+// warning below.
 const canUsePlaceholderConfig =
-  (missingFirebaseKeys.length > 0 || forcePlaceholderForE2E) && !import.meta.env.PROD;
+  !import.meta.env.PROD && (missingFirebaseKeys.length > 0 || forcePlaceholderForE2E);
 
-const PLACEHOLDER_FIREBASE_CONFIG = Object.freeze({
+const PLACEHOLDER_FIREBASE_CONFIG = /* #__PURE__ */ Object.freeze({
   apiKey: 'AIzaSyE2EPlaceholderKey1234567890123',
   authDomain: 'safehaul-e2e.firebaseapp.com',
   projectId: 'safehaul-e2e',

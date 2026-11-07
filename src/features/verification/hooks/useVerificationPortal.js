@@ -68,7 +68,7 @@ function submitFailure(err) {
 export function useVerificationPortal(token) {
     const e2eVerifyMode = isE2ETestMode ? getE2EQueryParam('e2eVerify', '') : '';
     const isE2EVerifyMock = e2eVerifyMode === 'mock';
-    const isE2EVerifyScenario = E2E_VERIFY_SCENARIOS.has(e2eVerifyMode);
+    const isE2EVerifyScenario = isE2ETestMode && E2E_VERIFY_SCENARIOS.has(e2eVerifyMode);
 
     // Page state
     const [loading, setLoading] = useState(true);

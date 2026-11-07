@@ -169,7 +169,8 @@ export async function loadPublicApplyCompany({
           return;
         }
 
-        if (isE2ETestMode) {
+        // `!PROD` keeps the fixture company out of a production build (`isE2ETestMode`).
+        if (!import.meta.env.PROD && isE2ETestMode) {
           const mockCompany = buildE2EPublicProfile(slug);
           setCompany(mockCompany);
           sessionStorage.setItem('pending_application_company', mockCompany.id);
