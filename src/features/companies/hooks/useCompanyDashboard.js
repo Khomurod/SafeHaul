@@ -128,8 +128,10 @@ export function useCompanyDashboard(companyId, {
 
     // E2E fixture dataset: the placeholder Firebase project is unreachable in
     // E2E runs, so search/filters/tabs are exercised against in-memory records
-    // through the same pure helpers the live query path uses.
+    // through the same pure helpers the live query path uses. Only E2E mode
+    // calls it; `PROD` keeps the fixtures out of a production build.
     const e2eRecordsForTab = useCallback((tab) => {
+        if (import.meta.env.PROD) return [];
         const source = tab === 'applications' ? E2E_DASHBOARD_APPLICATIONS : E2E_DASHBOARD_LEADS;
         return source.map((record) => ({ ...record, companyId }));
     }, [companyId]);

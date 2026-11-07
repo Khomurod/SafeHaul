@@ -149,7 +149,8 @@ const outreachOf = (sessions) => sessions.reduce((acc, s) => acc + (s.progress?.
  * the numbers and totals over all 60, standing in for the server.
  */
 function useFixtureLists(mode) {
-    const all = useMemo(() => (mode ? e2eCampaignLists(mode) : null), [mode]);
+    // `!PROD` keeps the fixture lists out of a production build (`isE2ETestMode`).
+    const all = useMemo(() => (!import.meta.env.PROD && mode ? e2eCampaignLists(mode) : null), [mode]);
     const [shown, setShown] = useState({ drafts: CAMPAIGN_LIST_PAGE_SIZE, sessions: CAMPAIGN_LIST_PAGE_SIZE });
     if (!all) return null;
 

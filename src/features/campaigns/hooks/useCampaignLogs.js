@@ -46,7 +46,8 @@ function fixtureLogs(paged) {
 }
 
 function logSource(companyId, sessionId) {
-    if (isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock') {
+    // `!PROD` keeps the fixture rows out of a production build (`isE2ETestMode`).
+    if (!import.meta.env.PROD && isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock') {
         return fixtureLogs(getE2EQueryParam('e2eCampaignLogs', '') === 'paged');
     }
     return firestoreLogs(companyId, sessionId);

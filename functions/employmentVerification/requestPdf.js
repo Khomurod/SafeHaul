@@ -13,7 +13,7 @@
 
 const { CONTENT_WIDTH, DocumentBuilder, INK, MARGIN, TYPE, wrapText } = require('../shared/pdf/documentBuilder');
 const { embedSignature } = require('../shared/pdf/applicationAgreements');
-const { maskSsn } = require('../shared/pdf/applicationText');
+const { maskSsn } = require('../shared/maskSsn');
 const { snapshotCompanyDetails } = require('../shared/applicationDefinition');
 const { createHash } = require('crypto');
 const { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, applicantNameOf, releaseOf } = require('../shared/previousEmployerRelease');

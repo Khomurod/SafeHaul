@@ -267,6 +267,13 @@ download URL; views re-sign from `storagePath`, and the dossier and
 authorizes it) reuse a link 10 minutes. `not-found` says the file is gone; any
 other error offers a retry, the row still attached (gates key on presence).
 
+**The bucket's CORS lets browsers read files cross-origin.** pdf.js fetches a
+signed URL from the app's origin (signing room, envelope editor), which needs it.
+The live setting (read-only check, 2026-11-07) allows any origin with GET, PUT,
+POST, DELETE and HEAD; `cors.json` holds it, and `npm run storage:set-cors`
+applies it by hand (not CI). Narrowing it to the SafeHaul sites with GET and HEAD
+is a live security change that waits for the owner's approval.
+
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
 2026-10-02 hold only a filename). Every renderer (review, snapshot, PDF,
@@ -1548,6 +1555,19 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 - **A hire date is never guessed.** `hiredAt` exists only where the server saw the
   status enter hired (from 2026-11-06, Д15). Older hires stay without one: no backfill,
   and no hire date read from `createdAt`, `updatedAt`, `statusChangedAt` or Activity.
+- **E2E test mode works only on the dev server the browser suites start.** A
+  production build ignores `VITE_E2E_TEST_MODE` and ships no fixture data or
+  harness (`src/lib/runtime/e2eMode.js`); fixture code follows the rule in its
+  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations).
+- **A masked SSN is `***-**-` and its last four digits everywhere** (screens,
+  application and previous-employer PDFs, the company API); a value with fewer
+  than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
+  on `functions/shared/maskSsn.vectors.json`. The dossier's Full application
+  view still prints the SSN whole (no field marks it sensitive): a known gap
+  for the owner to decide.
+- **A screen offers to email a link only to an address the server would send
+  to:** `canEmailLinkTo` and Fix recipient use `isWellFormedEmail`, the server's
+  `isValidEmail` rule (`functions/shared/isValidEmail.vectors.json`).
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
   `onCancel`, so "start a new application" is never the cancel action: Start
   over is its own explicit destructive confirmation, and Escape at either stage
@@ -1725,7 +1745,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
 - **"Read the documents" reads only what the current browser holds.** A
   prepared application re-opened later names its documents, readable once
-  re-attached; files are not fetched back (that needs bucket CORS, not set).
+  re-attached; files are not fetched back from Storage.
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
   `true`, so opt-out), the driver pressed *Finish later* on page one before

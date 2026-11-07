@@ -241,6 +241,17 @@ describe('VOEPreviewModal SSN masking', () => {
     renderModal({ applicant: { ...APPLICANT, ssn: undefined } });
     expect(documentNode()).toHaveTextContent('REDACTED (ON FILE)');
   });
+
+  it('masks by the digits, so a stray space or separator never shifts the last four', () => {
+    renderModal({ applicant: { ...APPLICANT, ssn: '123-45-6789 ' } });
+    expect(documentNode()).toHaveTextContent('***-**-6789');
+  });
+
+  it('masks a value with fewer than four digits completely', () => {
+    renderModal({ applicant: { ...APPLICANT, ssn: 'Unknown' } });
+    expect(documentNode()).toHaveTextContent('***-**-****');
+    expect(documentNode()).not.toHaveTextContent('nown');
+  });
 });
 
 describe('VOEPreviewModal signature rules', () => {

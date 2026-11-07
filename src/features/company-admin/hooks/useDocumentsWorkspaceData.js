@@ -29,6 +29,8 @@ function everythingLoaded(documents) {
  */
 function useSentFixture(mode) {
     const all = useMemo(() => {
+        // `PROD` keeps the fixture rows out of a production build (`isE2ETestMode`).
+        if (import.meta.env.PROD) return null;
         if (mode === 'mock') return mockSigningRequests();
         if (mode === 'signedCopy') return mockSignedCopyRequests();
         if (mode === 'many') return manyMockSigningRequests();

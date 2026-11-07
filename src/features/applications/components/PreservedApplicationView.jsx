@@ -27,6 +27,7 @@ import { Icon as DsIcon, FileText, ShieldCheck, ShieldOff, ShieldAlert } from '@
 import { Badge, Button, Card, FieldDisplay } from '@/design-system/components';
 import { EmptyState } from '@/design-system/patterns';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '../services/openApplicationFile';
 
 /** A value the driver did not supply, said in words rather than left blank. */
@@ -40,19 +41,6 @@ function formatInstant(value) {
     return date.toLocaleString(undefined, {
         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
-}
-
-/**
- * Mask a Social Security Number to its last four digits.
- *
- * The record stores the number as truth; masking is a presentation decision, and
- * on screen the answer is always no. The full number appears only in the
- * authorized original PDF, whose every access is authorized and audited.
- */
-function maskSensitive(value) {
-    const digits = String(value ?? '').replace(/\D/g, '');
-    if (!digits) return value;
-    return `***-**-${digits.slice(-4)}`;
 }
 
 /**
@@ -92,8 +80,23 @@ function OpenUploadedFile({ storagePath }) {
     );
 }
 
+const SENSITIVE_UPLOAD = 'File uploaded';
+
+/**
+ * What a sensitive answer shows: an SSN masked to its last four digits, an upload
+ * (the Social Security Card) as "File uploaded", never its file name.
+ */
+function sensitiveAnswerText(answer) {
+    if (!answer.sensitive || answer.isMissing) return answer.value;
+    if (answer.isFile) return SENSITIVE_UPLOAD;
+    return maskSsn(answer.value) ?? answer.value;
+}
+
 function AnswerRow({ answer, openUploads }) {
-    const value = answer.sensitive && !answer.isMissing ? maskSensitive(answer.value) : answer.value;
+    // The record stores the number as truth; masking is a presentation decision,
+    // and on screen the answer is always no. The full number appears only in the
+    // authorized original PDF, whose every access is authorized and audited.
+    const value = sensitiveAnswerText(answer);
     const display = (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? NOT_PROVIDED_TONE : ''}`}>

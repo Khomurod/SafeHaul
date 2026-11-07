@@ -25,9 +25,11 @@ import { isE2ETestMode } from '@lib/runtime/e2eMode';
  * proven in a real browser and which is unreachable through the driver dossier
  * under `VITE_E2E_TEST_MODE=1`. See `src/app/e2e/VOEPreviewHarness.jsx`.
  *
- * Lazy, and only routed in test mode: a production build has no route to it.
+ * Lazy, and only routed in test mode: a production build has no route to it,
+ * and `!import.meta.env.PROD` keeps the harness file out of it as well
+ * (`isE2ETestMode` says why).
  */
-const VOEPreviewHarness = isE2ETestMode
+const VOEPreviewHarness = !import.meta.env.PROD && isE2ETestMode
   ? lazy(() => import('@app/e2e/VOEPreviewHarness'))
   : null;
 

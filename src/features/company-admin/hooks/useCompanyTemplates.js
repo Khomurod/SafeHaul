@@ -13,7 +13,8 @@ export function useCompanyTemplates({ companyId, isE2EEdocMock }) {
 
     useEffect(() => {
         if (!companyId) return;
-        if (isE2EEdocMock) {
+        // `!PROD` keeps the fixture template out of a production build (`isE2ETestMode`).
+        if (!import.meta.env.PROD && isE2EEdocMock) {
             setTemplates([
                 {
                     id: 'tpl_e2e_mock',

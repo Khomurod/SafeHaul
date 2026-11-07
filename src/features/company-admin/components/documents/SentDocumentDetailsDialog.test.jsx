@@ -500,6 +500,20 @@ describe('SentDocumentDetailsDialog — an open document whose send failed', () 
             expect(within(dialog).getByLabelText(/^Email/)).toHaveValue('not-an-email');
         });
 
+        // The server's sender refuses each of these (`functions/shared/isValidEmail.js`).
+        it.each(['pat@aol..com', 'josé@example.test', 'pat@ex_ample.test', 'pat@example.test.'])(
+            'asks again for %j, an address the server would not send to',
+            (email) => {
+                const { props } = openForm();
+                const dialog = screen.getByRole('dialog');
+                fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: email } });
+                fireEvent.click(within(dialog).getByRole('button', { name: 'Save and resend' }));
+
+                expect(props.onFixRecipient).not.toHaveBeenCalled();
+                expect(within(dialog).getByText('Enter a full email address, such as name@example.com, or send by SMS.')).toBeInTheDocument();
+            },
+        );
+
         it('does not check the email of a correction that sends by SMS only', () => {
             const { props } = openForm();
             const dialog = screen.getByRole('dialog');

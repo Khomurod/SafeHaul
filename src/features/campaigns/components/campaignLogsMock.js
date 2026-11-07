@@ -10,7 +10,7 @@
  */
 const E2E_SEED_NOW = { toDate: () => new Date() };
 
-export const E2E_SEED_LOGS = Array.from({ length: 12 }, (_, i) => ({
+export const E2E_SEED_LOGS = /* #__PURE__ */ Array.from({ length: 12 }, (_, i) => ({
     id: `e2e_log_${i}`,
     recipientName: `E2E Recipient ${i + 1}`,
     recipientIdentity: `555-01${String(i).padStart(2, '0')}`,

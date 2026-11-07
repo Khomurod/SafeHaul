@@ -5,7 +5,11 @@
 // applicant's display name and the scalar-answer rendering. Extracted
 // verbatim from `applicationDocument.js`; the rules that file states — a
 // blank answer prints as "Not provided", nothing is invented, no internal
-// identifier is printed — are enforced with this vocabulary.
+// identifier is printed — are enforced with this vocabulary. The SSN mask is
+// the server's one rule (`../maskSsn.js`), re-exported here for this module's
+// callers.
+
+const { maskSsn } = require('../maskSsn');
 
 /** Printed where a presented question was left blank. */
 const NOT_PROVIDED = 'Not provided';
@@ -70,19 +74,6 @@ function singularize(label) {
 /** "1 month" / "3 months", with a verb that agrees. */
 function pluralMonths(count) {
     return count === 1 ? '1 month is' : `${count} months are`;
-}
-
-/**
- * Mask a Social Security Number to its last four digits.
- *
- * Used everywhere the full number is not authorized. The masked form keeps the
- * last four because that is what a recruiter matches against, and reveals
- * nothing more.
- */
-function maskSsn(value) {
-    const digits = String(value ?? '').replace(/\D/g, '');
-    if (!digits) return null;
-    return `***-**-${digits.slice(-4)}`;
 }
 
 /**

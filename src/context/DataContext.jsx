@@ -97,7 +97,9 @@ export function DataProvider({ children, renderLoading }) {
   }, []);
 
   useEffect(() => {
-    if (isE2ETestMode) {
+    // The mock sign-in. `!PROD` keeps it, and the demo tenant's name, out of a
+    // production build (`isE2ETestMode`).
+    if (!import.meta.env.PROD && isE2ETestMode) {
       const e2eAuthMode = getE2EQueryParam('e2eAuth', 'none');
       // `?demo=marketing` renames the fixture tenant so landing-page
       // screenshots carry a plausible carrier rather than "E2E Logistics".

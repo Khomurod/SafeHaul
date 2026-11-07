@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, AlertCircle, glyphComponent } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf, signedDayOf } from '@shared/legal/previousEmployerRelease';
 
 /*
@@ -134,7 +135,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                     </div>
                     <div className="border-b border-voe-slate-200 pb-1">
                         <span className="text-[10px] uppercase text-voe-slate-500 block mb-0.5">Social Security Number</span>
-                        {applicant.ssn ? `***-**-${applicant.ssn.slice(-4)}` : 'REDACTED (ON FILE)'}
+                        {maskSsn(applicant.ssn) ?? 'REDACTED (ON FILE)'}
                     </div>
                     <div className="border-b border-voe-slate-200 pb-1">
                         <span className="text-[10px] uppercase text-voe-slate-500 block mb-0.5">Date of Birth</span>

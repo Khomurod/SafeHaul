@@ -1,7 +1,7 @@
 import React, { forwardRef, useId, useState } from 'react';
 import { FormField, Input, SegmentedControl } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { isValidEmail } from '@shared/utils/validation';
+import { isWellFormedEmail } from '@shared/utils/validation';
 
 /**
  * "Fix recipient and resend", inside a sent document's details dialog: the
@@ -12,7 +12,8 @@ import { isValidEmail } from '@shared/utils/validation';
  * It checks that something changed (an unchanged recipient has nothing to
  * correct, and Resend is what sends the link again to the same details) and,
  * when the link goes by email, that the address is a whole one: this form is
- * where a refused address is fixed. What else a correction needs (a name; a
+ * where a refused address is fixed, so it takes the server's own rule
+ * (`isWellFormedEmail`). What else a correction needs (a name; a
  * phone for SMS) is checked where Correct Document checks it, by the save the
  * dialog's caller makes (`correctRecipient`). The form has `noValidate`: the
  * browser's own bubbles would be a second, different rule.
@@ -80,7 +81,7 @@ export const FixRecipientForm = /* @__PURE__ */ forwardRef(function FixRecipient
             setMessage(UNCHANGED);
             return;
         }
-        if (next.deliveryMethod !== 'sms' && !isValidEmail(next.recipientEmail)) {
+        if (next.deliveryMethod !== 'sms' && !isWellFormedEmail(next.recipientEmail)) {
             setMessage(BAD_EMAIL);
             return;
         }
