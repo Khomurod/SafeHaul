@@ -52,6 +52,16 @@ describe('SchemaRenderer file display (CDL re-signed URL)', () => {
     });
 });
 
+describe('SchemaRenderer timestamp display', () => {
+    it('shows a stored timestamp in the app\'s one date style (K3)', () => {
+        const { getByText, queryByText } = render(
+            <SchemaField fieldKey="cdlExpiration" data={{ cdlExpiration: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 } }} />,
+        );
+        expect(getByText('Mar 7, 2026')).toBeInTheDocument();
+        expect(queryByText('3/7/2026')).toBeNull();
+    });
+});
+
 describe('SchemaRenderer signature display', () => {
     it('renders a data-URL signature as an image, not raw base64 text', () => {
         const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';

@@ -133,6 +133,17 @@ describe('CampaignDetails — rendering', () => {
         expect(screen.getByText(label).closest('.ds-badge')).toHaveAttribute('data-tone', tone);
     });
 
+    it('dates the campaign in the app\'s one date style, with its time (K3)', () => {
+        renderDetails(makeCampaign({
+            createdAt: { toDate: () => new Date('2026-03-07T12:00:00Z') },
+            updatedAt: { toDate: () => new Date('2026-03-08T12:00:00Z') },
+        }));
+        const created = screen.getByText('Created At', { selector: 'dt' }).closest('div');
+        expect(created).toHaveTextContent(/Mar 7, 2026, \d{2}:\d{2} (AM|PM)/);
+        expect(screen.getByText('Updated At', { selector: 'dt' }).closest('div')).toHaveTextContent(/Mar 8, 2026, /);
+        expect(screen.queryByText(/3\/7\/2026/)).not.toBeInTheDocument();
+    });
+
     it('falls back to the default message copy', () => {
         renderDetails(makeCampaign({ messageConfig: {} }));
         expect(screen.getByText('No message content defined.')).toBeInTheDocument();

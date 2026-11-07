@@ -195,6 +195,12 @@ describe('FeaturesView — schedule dialog (defects)', () => {
         expect(payload['featureSchedules.pev']).toMatch(/^2099-01-01T/);
     });
 
+    it('shows the scheduled switch-off in the app\'s one date style, with its time (K3)', () => {
+        renderView({ company: scheduled });
+        expect(screen.getByText(/^Jan 1, 2099, \d{2}:\d{2} (AM|PM)$/)).toBeInTheDocument();
+        expect(screen.queryByText(/1\/1\/99/)).not.toBeInTheDocument();
+    });
+
     it('names the cancel-schedule control, and still offers a new schedule beside it', () => {
         renderView({ company: scheduled });
         expect(

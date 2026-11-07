@@ -5,6 +5,7 @@ import { functions } from '@lib/firebase';
 import { Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { useToast } from '@shared/components/feedback';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * Agreements — the versioned legal authorizations the applicant reads and accepts.
@@ -29,7 +30,7 @@ const PLACEMENT = {
 function formatWhen(iso) {
     if (!iso) return 'date not recorded';
     const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? iso : formatDate(date, true);
 }
 
 function AgreementCard({ agreement, canPublish, busy, onPublish, onRevert }) {

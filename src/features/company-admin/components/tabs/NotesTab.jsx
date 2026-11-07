@@ -8,6 +8,7 @@ import { sanitizeUserContent } from '@shared/utils/sanitizeUserContent';
 import { Avatar, Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { EmptyState, ErrorState, LoadingState } from '@design-system/patterns';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * Internal notes for one application or lead, plus anonymised shared history from
@@ -244,9 +245,9 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                     <span className="flex items-center gap-1 text-ds-xs text-ds-content-secondary">
                         <Icon icon={Clock} size="xs" />
                         {note.createdAt?.seconds
-                            ? new Date(note.createdAt.seconds * 1000).toLocaleString()
-                            : new Date(note.createdAt).toLocaleString() !== 'Invalid Date'
-                                ? new Date(note.createdAt).toLocaleString()
+                            ? formatDate(new Date(note.createdAt.seconds * 1000), true)
+                            : !Number.isNaN(new Date(note.createdAt).getTime())
+                                ? formatDate(new Date(note.createdAt), true)
                                 : 'Just now'}
                     </span>
                 </div>

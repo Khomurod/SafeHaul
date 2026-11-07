@@ -357,6 +357,18 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
     expect(screen.getByText('--')).toBeInTheDocument();
   });
 
+  it('dates each application in the app\'s one date style (K3)', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Artificial', lastName: 'Driver', status: 'Hired', submittedAt: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 } },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const table = await screen.findByRole('table', { name: 'Driver applications for Artificial Freight Co' });
+    expect(within(table).getByText('Mar 7, 2026')).toBeInTheDocument();
+    expect(within(table).queryByText('3/7/2026')).not.toBeInTheDocument();
+  });
+
   it('shows the records in the shared table, one fact per column, with the name as row header', async () => {
     mockLoadApplications.mockResolvedValue([
       { id: 'a1', firstName: 'Artificial', lastName: 'Driver', email: 'd1@example.test', phone: '555-0111', status: 'Hired' },

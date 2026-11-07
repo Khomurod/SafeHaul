@@ -5,6 +5,7 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
 import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
 import { useCompanyApplicationPages } from '../../hooks/useCompanyApplicationPages';
+import { formatDate } from '@shared/utils/helpers';
 import { StatusBadge } from '@shared/components/badges';
 
 // --- SMART NAME RESOLVER ---
@@ -34,7 +35,7 @@ const getDriverPhone = (app) => app.phone || app.personalInfo?.phone || 'No Phon
 
 const getAppliedDate = (app) => {
   const seconds = app.submittedAt?.seconds || app.createdAt?.seconds;
-  return seconds ? new Date(seconds * 1000).toLocaleDateString() : '--';
+  return seconds ? formatDate(new Date(seconds * 1000)) : '--';
 };
 
 /** One fact per cell; the record id is the row header's quiet second line. */

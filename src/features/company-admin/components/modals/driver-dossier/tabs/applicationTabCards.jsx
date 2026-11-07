@@ -11,17 +11,16 @@
 import React, { useState } from 'react';
 import { Icon, User, MapPin, Phone, Mail, CreditCard, Truck, AlertTriangle, CheckCircle, Eye, EyeOff, PenTool } from '@design-system/icons';
 import { formatDate } from '@shared/utils/helpers';
-import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelpers';
 import { signedDayOf } from '@shared/legal/previousEmployerRelease';
 import { maskSsn } from '@shared/utils/maskSsn';
 import { Badge, Card, IconButton, Link, Notice } from '@/design-system/components';
 
-/** Safely convert Firestore Timestamps, ISO strings, or epoch values to a Date (or null). */
+/**
+ * A job's start or end in the app's one date style: a stored day reads
+ * "Mar 7, 2026", a stored month "Mar 2026", a timestamp its day.
+ */
 function formatTimelineDate(val) {
     if (!val) return '??';
-    const s = String(val).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return formatIsoDateUs(s);
-    if (/^\d{4}-\d{2}$/.test(s)) return formatMonthYearUs(s);
     return formatDate(val);
 }
 

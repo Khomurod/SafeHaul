@@ -209,6 +209,17 @@ describe('NotesTab — what a note is', () => {
         expect(within(note).queryByText('Call')).toBeNull();
     });
 
+    it('dates a note in the app\'s one date style, with its time (K3)', async () => {
+        fs.getDocs.mockResolvedValue(snap([
+            ['n1', { text: 'Dated note', author: 'Rita Recruiter', type: 'note', createdAt: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 } }],
+        ]));
+        renderNotes();
+
+        const note = (await screen.findByText('Dated note')).closest('article');
+        expect(note).toHaveTextContent(/Mar 7, 2026, \d{2}:\d{2} (AM|PM)/);
+        expect(note).not.toHaveTextContent('3/7/2026');
+    });
+
     // A call written as a note moves no stage, sets no callback and is not counted.
     it('does not suggest logging a call in a note', async () => {
         renderNotes();

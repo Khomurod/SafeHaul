@@ -7,6 +7,8 @@
  * moment and shows it.
  */
 
+import { formatDate } from '@shared/utils/helpers';
+
 /** The attempts a recruiter records, which are dated by their day alone. */
 const RECORDED_KINDS = new Set(['call', 'fax', 'note']);
 
@@ -18,5 +20,5 @@ const RECORDED_KINDS = new Set(['call', 'fax', 'note']);
 export function attemptWhen(entry, { withTime = true } = {}) {
     const at = new Date(entry?.timestamp);
     if (Number.isNaN(at.getTime())) return '';
-    return withTime && !RECORDED_KINDS.has(entry?.attempt) ? at.toLocaleString() : at.toLocaleDateString();
+    return formatDate(at, withTime && !RECORDED_KINDS.has(entry?.attempt));
 }
