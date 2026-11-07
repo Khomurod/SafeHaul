@@ -278,6 +278,25 @@ describe('useCampaignTargeting — a CRM audience', () => {
             expect(result.current.matchCount).toBe(42);
         });
 
+        it('counts again for another signed-in user, not for a new object of the same one', async () => {
+            const { result, rerender } = renderHook(({ user }) => useCampaignTargeting('co-1', WINDOW, user), {
+                initialProps: { user: USER },
+            });
+            await recount(result);
+            expect(result.current.needsRecount).toBe(false);
+
+            rerender({ user: { ...USER } });
+            await settle();
+            expect(result.current.needsRecount).toBe(false);
+            expect(result.current.matchCount).toBe(40);
+
+            rerender({ user: { uid: 'u2' } });
+            await settle();
+            expect(result.current.needsRecount).toBe(true);
+            expect(result.current.matchCount).toBe(0);
+            expect(getFilterCount).toHaveBeenCalledTimes(1);
+        });
+
         it('does nothing without a signed-in user or a company', async () => {
             const { result } = renderHook(() => useCampaignTargeting(null, WINDOW, USER));
             await recount(result);

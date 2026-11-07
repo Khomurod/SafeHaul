@@ -17,9 +17,12 @@ const windowOf = (filters) => {
     return setting && setting !== 'off' ? setting : null;
 };
 
-/** What a count depends on. Limit Volume and the un-ticks are not: they come off the answer. */
-const audienceKeyOf = (companyId, method, filters) => JSON.stringify([
-    companyId, method, filters.leadType, filters.status, filters.recruiterId,
+/**
+ * What a count depends on, and who asked (`my_leads` is the asker's own leads).
+ * Limit Volume and the un-ticks are not: they come off the answer.
+ */
+const audienceKeyOf = (companyId, method, filters, uid) => JSON.stringify([
+    companyId, uid, method, filters.leadType, filters.status, filters.recruiterId,
     filters.createdAfter, filters.notContactedSince, filters.lastCallOutcome, filters.segmentId,
     windowOf(filters),
 ]);
@@ -86,11 +89,12 @@ async function countAudience({ companyId, filters, method }) {
  * recipient again on the server.
  */
 export function useCampaignTargeting(companyId, filters, currentUser, method = 'sms') {
-    // Whether someone is signed in, not who: a new user object is not new filters.
+    // Who is signed in by uid, not the user object: a new object for the same
+    // user is not new filters, another user is (their own leads differ).
     const signedIn = Boolean(currentUser);
     const isImport = filters.leadType === 'import';
     const rows = isImport ? (filters.rawData ?? null) : null;
-    const key = audienceKeyOf(companyId, method, filters);
+    const key = audienceKeyOf(companyId, method, filters, currentUser?.uid ?? null);
     // An upload with no rows has nothing to look up, so it counts by itself.
     const onRequest = windowOf(filters) !== null && !(isImport && !rows?.length);
 

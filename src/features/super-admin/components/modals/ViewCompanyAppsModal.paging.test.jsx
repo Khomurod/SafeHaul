@@ -104,6 +104,16 @@ describe('the company applications list', () => {
         expect(rowCount()).toBe(10);
     });
 
+    it('says a search that finds nothing looked only at the applications read so far', async () => {
+        renderModal();
+        await screen.findByText('Showing 20 of 45 applications.');
+
+        fireEvent.change(screen.getByLabelText(/Filter applications/), { target: { value: 'nobody-by-this-name' } });
+
+        expect(screen.getByRole('heading', { name: 'No matches found.', level: 3 })).toBeInTheDocument();
+        expect(screen.getByText('Only the applications loaded so far were searched. Load more to search the rest.')).toBeInTheDocument();
+    });
+
     it('keeps the rows when the next page cannot be read, and reads it on the next press', async () => {
         renderModal();
         const more = await screen.findByRole('button', { name: 'Load more applications' });

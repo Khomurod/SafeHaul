@@ -219,6 +219,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
               icon={User}
               headingLevel={3}
               title={search ? "No matches found." : "No applications submitted yet."}
+              description={search && hasMore ? 'Only the applications loaded so far were searched. Load more to search the rest.' : undefined}
             />
           )}
 
