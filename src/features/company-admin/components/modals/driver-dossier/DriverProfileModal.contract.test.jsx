@@ -14,6 +14,7 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 const useApplicationViewSpy = vi.fn();
 const deleteApplicationSpy = vi.fn();
 const forgetDriverUploadFilingsSpy = vi.fn();
+const forgetSubmissionRecordsSpy = vi.fn();
 let claims = {};
 let viewState = {};
 let deleting = false;
@@ -27,6 +28,9 @@ vi.mock('@features/company-admin/hooks/useApplicationView', () => ({
 
 vi.mock('@features/company-admin/components/tabs/dqFileSync', () => ({
   forgetDriverUploadFilings: () => forgetDriverUploadFilingsSpy(),
+}));
+vi.mock('@features/applications/services/submissionRecordRead', () => ({
+  forgetSubmissionRecords: () => forgetSubmissionRecordsSpy(),
 }));
 
 vi.mock('@features/applications/hooks/useApplicationDelete', () => ({
@@ -162,14 +166,17 @@ describe('DriverProfileModal open/close contract', () => {
     expect(panel.scrollTop).toBe(0);
   });
 
-  // The DQ tab files a record's uploads once while the dossier is open.
-  it('forgets what it filed once it closes, and not before', () => {
+  // The DQ tab files a record's uploads, and the Application and DQ tabs read
+  // its submission record, once while the dossier is open.
+  it('forgets what it filed and read once it closes, and not before', () => {
     const { unmount } = renderModal();
     fireEvent.click(screen.getByText('go-documents'));
     expect(forgetDriverUploadFilingsSpy).not.toHaveBeenCalled();
+    expect(forgetSubmissionRecordsSpy).not.toHaveBeenCalled();
 
     unmount();
     expect(forgetDriverUploadFilingsSpy).toHaveBeenCalledTimes(1);
+    expect(forgetSubmissionRecordsSpy).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the active-tab state values the sidebar emits', () => {

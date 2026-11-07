@@ -13,6 +13,7 @@ import { useContactAttemptTexts } from './useContactAttemptTexts';
 import { savedTextNote } from './contactAttemptText';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { forgetDriverUploadFilings } from '@features/company-admin/components/tabs/dqFileSync';
+import { forgetSubmissionRecords } from '@features/applications/services/submissionRecordRead';
 
 /**
  * DriverProfileModal
@@ -82,7 +83,8 @@ import { forgetDriverUploadFilings } from '@features/company-admin/components/ta
  *   control that was pressed is gone.
  * - What the dossier does once a record while it is open is forgotten when it
  *   closes: the DQ tab's filing of the driver's uploads
- *   (`fileDriverUploadsOnce`).
+ *   (`fileDriverUploadsOnce`) and the frozen submission record the Application
+ *   and DQ tabs share (`readSubmissionRecord`).
  */
 export function DriverProfileModal({
     companyId,
@@ -124,8 +126,12 @@ export function DriverProfileModal({
     */
     const tabsIdBase = `dossier-${useId().replace(/:/g, '')}`;
     const isCompact = useCompactViewport();
-    // The next opening of the dossier files each record's uploads again.
-    useEffect(() => () => forgetDriverUploadFilings(), []);
+    // The next opening of the dossier files each record's uploads, and reads
+    // its submission record, again.
+    useEffect(() => () => {
+        forgetDriverUploadFilings();
+        forgetSubmissionRecords();
+    }, []);
 
     const { currentUserClaims } = useData();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
