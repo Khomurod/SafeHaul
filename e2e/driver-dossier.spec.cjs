@@ -17,6 +17,12 @@ const AxeBuilder = require('@axe-core/playwright').default;
  * cannot be exercised end-to-end. Those surfaces are covered by the focused
  * contract tests in `src/features/company-admin/components/modals/driver-dossier/`
  * and `src/features/company-admin/components/tabs/`.
+ *
+ * The last block opens a LOADED record instead: `?e2eDossier=loaded` serves one
+ * made-up applicant, whatever row opens it (`useAppFetch`,
+ * `e2eDossierFixture.js`), so the phone's compact header (Close first, the name
+ * on one line) is checked on a real name. Only the record is made up: every
+ * other read the tabs make still fails, as above.
  */
 
 const AUTH = '?e2eAuth=company_admin';
@@ -42,8 +48,8 @@ const ESSENTIAL_ACTIONS = [
   'Delete application',
 ];
 
-async function openList(page) {
-  await page.goto(`/company/drivers/applications${AUTH}`);
+async function openList(page, fixtures = '') {
+  await page.goto(`/company/drivers/applications${AUTH}${fixtures}`);
   await expect(page.getByRole('table', { name: 'Applications table' })).toBeVisible();
 }
 
@@ -364,5 +370,165 @@ test.describe('Driver Dossier on a real mobile device lane', () => {
     // The close action is the only exit on a device with no Escape key.
     await page.getByRole('button', { name: 'Close driver dossier' }).click();
     await expect(page.getByRole('dialog', DIALOG)).toHaveCount(0);
+  });
+});
+
+/** The made-up applicant `?e2eDossier=loaded` opens, whichever row is pressed. */
+const LOADED = '&e2eDossier=loaded';
+const LOADED_NAME = 'Maximiliano Alejandro Castellanos-Whitfield';
+
+async function openLoadedDossier(page) {
+  await openList(page, LOADED);
+  await openDossier(page);
+  const dialog = page.getByRole('dialog', DIALOG);
+  // The name is the record's, so the record has loaded.
+  await expect(dialog.getByRole('heading', { level: 2, name: LOADED_NAME })).toBeVisible();
+  return dialog;
+}
+
+/** The loaded Application tab, once on its summary (the preserved record's read fails here). */
+async function expectAccessibleSummary(page, dialog) {
+  await expect(dialog.getByRole('heading', { name: 'Clean Record' })).toBeVisible();
+  const scan = await new AxeBuilder({ page })
+    .include('[role="dialog"][aria-label="Driver dossier"]')
+    .analyze();
+  expect(scan.violations.map((v) => v.id)).toEqual([]);
+}
+
+/** Where the dossier's name, Close, status, section strip and tab panel are. */
+async function dossierLayout(page) {
+  return page.evaluate(() => {
+    const dlg = document.querySelector('[role="dialog"][aria-label="Driver dossier"]');
+    const box = (el) => {
+      const b = el.getBoundingClientRect();
+      return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, height: b.height };
+    };
+    const name = dlg.querySelector('h2');
+    const style = getComputedStyle(name);
+    const closes = dlg.querySelectorAll('[aria-label="Close driver dossier"]');
+    // In document order, which is the order Tab walks and a screen reader reads.
+    const first = dlg.querySelector('button, a[href], select, input, textarea, [role="tab"]');
+    const tablist = dlg.querySelector('[role="tablist"]');
+    // On a phone the status ends the name's row.
+    const status = name.parentElement.lastElementChild;
+    return {
+      dialog: box(dlg),
+      viewport: window.innerWidth,
+      closeCount: closes.length,
+      close: closes[0] ? box(closes[0]) : null,
+      firstControl: first && (first.getAttribute('aria-label') || first.textContent.trim()),
+      name: {
+        ...box(name),
+        text: name.textContent,
+        lineHeight: Number.parseFloat(style.lineHeight),
+        whiteSpace: style.whiteSpace,
+        textOverflow: style.textOverflow,
+        cut: name.scrollWidth > name.clientWidth,
+      },
+      status: { ...box(status), text: status.textContent.trim() },
+      tablist: box(tablist),
+      orientation: tablist.getAttribute('aria-orientation') ?? 'horizontal',
+      panel: box(dlg.querySelector('[role="tabpanel"]')),
+      deleteAction: box(dlg.querySelector('[aria-label="Delete application"]')),
+    };
+  });
+}
+
+test.describe('Driver Dossier on a loaded record', () => {
+  test.describe.configure({ timeout: 120_000 });
+
+  test('on a phone, Close comes first, the name keeps to one line and every section is in reach @mobile', async ({ page }, testInfo) => {
+    // The size the dossier is reviewed at; a device lane keeps its own.
+    if (!testInfo.project.name.startsWith('mobile')) await page.setViewportSize({ width: 412, height: 915 });
+    const dialog = await openLoadedDossier(page);
+    const layout = await dossierLayout(page);
+
+    // Close leads the top row, alone: the header gives its own up on a phone.
+    expect(layout.closeCount, 'one Close in the dossier').toBe(1);
+    expect(layout.firstControl, 'the first control in the dossier').toBe('Close driver dossier');
+    expect(layout.close.top - layout.dialog.top, 'Close at the top of the sheet').toBeLessThan(16);
+    expect(layout.close.left - layout.dialog.left, 'Close at the left of the sheet').toBeLessThan(16);
+
+    // The name follows on the same row, on one line: too long to fit, it is cut
+    // short with an ellipsis, never wrapped, and it is all still in the heading.
+    expect(layout.name.text).toBe(LOADED_NAME);
+    expect(layout.name.left).toBeGreaterThanOrEqual(layout.close.right);
+    expect(Math.abs((layout.name.top + layout.name.bottom) / 2 - (layout.close.top + layout.close.bottom) / 2),
+      'the name sits beside Close').toBeLessThan(4);
+    expect(layout.name.cut, 'the made-up name should not fit the row, or this proves nothing').toBe(true);
+    expect(layout.name.whiteSpace).toBe('nowrap');
+    expect(layout.name.textOverflow).toBe('ellipsis');
+    expect(layout.name.height, 'the name takes one line').toBeLessThan(layout.name.lineHeight * 1.5);
+
+    // The status ends the row, whole and on screen.
+    expect(layout.status.text).toBe('Contact Attempt 2');
+    expect(layout.status.left).toBeGreaterThanOrEqual(layout.name.right);
+    expect(layout.status.right).toBeLessThanOrEqual(layout.viewport);
+    expect(Math.abs((layout.status.top + layout.status.bottom) / 2 - (layout.close.top + layout.close.bottom) / 2))
+      .toBeLessThan(4);
+
+    // Then the section strip, then the tab panel: the one part that scrolls.
+    expect(layout.orientation).toBe('horizontal');
+    expect(layout.tablist.top).toBeGreaterThanOrEqual(layout.close.bottom);
+    expect(layout.panel.top).toBeGreaterThanOrEqual(layout.tablist.bottom - 1);
+    const scrolled = await dialog.getByRole('tabpanel').evaluate((panel) => {
+      panel.scrollTop = panel.scrollHeight;
+      return panel.scrollTop;
+    });
+    expect(scrolled, 'the loaded record is longer than the panel').toBeGreaterThan(0);
+    const afterScroll = await dossierLayout(page);
+    expect(afterScroll.close, 'Close stays put while the section scrolls').toEqual(layout.close);
+    expect(afterScroll.tablist, 'the strip stays put while the section scrolls').toEqual(layout.tablist);
+    await dialog.getByRole('tabpanel').evaluate((panel) => { panel.scrollTop = 0; });
+
+    await expectNoHorizontalOverflow(page, 'loaded, phone');
+    expect(await offscreenActions(page), 'essential action off-screen on a phone').toEqual([]);
+    expect(await undersizedText(page), 'text below 12px on a phone').toEqual([]);
+    await expectAccessibleSummary(page, dialog);
+
+    // Every section is a tap away and says which it is.
+    for (const [label, title] of SECTIONS) {
+      const tab = dialog.getByRole('tab', { name: new RegExp(`^${label}`) });
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+      await expect(dialog.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
+    }
+
+    await dialog.getByRole('button', { name: 'Close driver dossier' }).click();
+    await expect(page.getByRole('dialog', DIALOG)).toHaveCount(0);
+  });
+
+  test('on a desktop, the three panes and the header keep their places', async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name.startsWith('mobile'),
+      'Device-emulation lanes own their own viewport; this test sets one explicitly.',
+    );
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const dialog = await openLoadedDossier(page);
+    await expect(dialog.getByText('Confirmation Number: SAF-2026-MAXCW')).toBeVisible();
+    await expect(dialog.getByRole('heading', { level: 4, name: 'Personal Information' })).toBeVisible();
+    const layout = await dossierLayout(page);
+
+    // The sidebar holds the name, whole (it wraps there), above the vertical strip.
+    expect(layout.name.text).toBe(LOADED_NAME);
+    expect(layout.name.cut, 'the sidebar wraps the name rather than cutting it').toBe(false);
+    expect(layout.orientation).toBe('vertical');
+    expect(layout.name.right).toBeLessThanOrEqual(layout.tablist.right);
+    expect(layout.name.bottom).toBeLessThanOrEqual(layout.tablist.top);
+
+    // One Close, at the end of the section's header, over the panel on the right.
+    expect(layout.closeCount).toBe(1);
+    expect(layout.close.left).toBeGreaterThanOrEqual(layout.tablist.right);
+    expect(layout.close.left).toBeGreaterThan(layout.deleteAction.right);
+    expect(layout.close.bottom).toBeLessThanOrEqual(layout.panel.top + 1);
+
+    await expectNoHorizontalOverflow(page, 'loaded, desktop');
+    expect(await offscreenActions(page), 'essential action off-screen on a desktop').toEqual([]);
+    expect(await undersizedText(page), 'text below 12px on a desktop').toEqual([]);
+    await expectAccessibleSummary(page, dialog);
+
+    // Another section's data: the employers to verify.
+    await dialog.getByRole('tab', { name: /^Previous Employment/ }).click();
+    await expect(dialog.getByText('Lone Star Refrigerated Logistics Cooperative').first()).toBeVisible();
   });
 });
