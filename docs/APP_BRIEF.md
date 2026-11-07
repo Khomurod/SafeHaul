@@ -1177,6 +1177,15 @@ PEV record.
 
 ### Statuses and tenancy
 
+**One status colour map (К2).** Every screen that shows a recruiting status (the
+company's lists and dossier, Super Admin's search, driver database and a company's
+applications, the campaign audience preview) tones it through `getStatusTone`
+(`StatusBadge`): Hired, Approved, Qualified, Offer Accepted green; Declined, Rejected,
+Terminated, Disqualified, Offer Declined red; New, New Application, New Lead blue.
+Super Admin shows the stored text. A campaign's own status uses one map,
+`campaignStatusPresentation` (`campaignConstants.js`), on the card and the report: a
+failed campaign is red.
+
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
 `Terminated`, `Declined`), plus `Interested`. The dossier's status picker offers
@@ -1673,6 +1682,13 @@ Mandatory reading before any UI, styling, responsive or accessibility change:
 and [`src/design-system/README.md`](../src/design-system/README.md). The roadmap
 is authoritative for the rules, approved exceptions and open decisions; this is
 a summary.
+
+**Dates on screens read in one style (К3)** through `formatDate`
+(`src/shared/utils/helpers.js`): `Mar 7, 2026`; with a time `Mar 7, 2026, 02:30 PM`
+(minutes, no seconds); a stored month `Mar 2026`. Documents keep their own format: the
+application PDF, the preserved record and the driver's Review step (MM/DD/YYYY,
+mirrored by the server), the VOE document, signing pages and certificates, CSV exports,
+date inputs.
 
 Layering: the design system owns reusable appearance and interaction and must
 never know what a driver, lead or campaign is; feature folders own content,
