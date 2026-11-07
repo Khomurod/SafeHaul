@@ -140,7 +140,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     submissionStatus,
     setSubmissionStatus,
     showInfo,
-    setFormData,
+    setFormData, linkCodes,
     setCurrentStep,
     setIntakeMode,
   });
@@ -389,7 +389,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setSubmissionStatus,
     setSubmittedApplicationId,
     setSubmittedConfirmationNumber,
-    setFormData,
+    setFormData, linkCodes,
     setCurrentStep,
     draftIdRef, discardMarkRef, restoredFromDraftRef, forgetDraftOwnership,
     navigate,

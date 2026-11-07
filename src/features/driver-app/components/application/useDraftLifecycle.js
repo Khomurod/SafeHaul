@@ -14,7 +14,7 @@ import {
 import { canBeFoundElsewhere } from './resumeIdentity';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
-import { holdsLinkCodes } from './referralIntake';
+import { NO_LINK_CODES, holdsLinkCodes } from './referralIntake';
 
 /** The `storagePath` of every uploaded file among the answers, a custom question's included. */
 export function storedFilePaths(formData) {
@@ -30,9 +30,6 @@ export function storedFilePaths(formData) {
 // The facts another device is matched on (`resumeIdentity.js`), re-exported for
 // the callers and tests that knew the rule here.
 export { canBeFoundElsewhere };
-
-// One object, so a caller that names no codes does not give `applyRestoredDraft` a new dependency each render.
-const NO_LINK_CODES = Object.freeze({});
 
 export function useDraftLifecycle({
   slug,

@@ -230,6 +230,19 @@ describe('reconcileServerDraftOnLoad and the recruiter code', () => {
         expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
     });
 
+    it('stores the recruiter of the link clicked when the page already took it but the unsent copy has not', async () => {
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', lastName: 'Lee', recruiterCode: 'link-1' }, { lastStep: 3 });
+        const { latestDraftRef, land } = harness({
+            stepAtStart: 0,
+            recruiterCode: 'link-2',
+            serverFormData: { firstName: 'Marcus', recruiterCode: 'link-1' },
+        });
+        // The page adopted the link's code before the server copy answered.
+        latestDraftRef.current = { ...latestDraftRef.current, formData: { firstName: 'Marcus', lastName: 'Lee', recruiterCode: 'link-2' } };
+        await land(2);
+        expect(readApplicationDraft('reconcile-step-test')?.data).toMatchObject({ lastName: 'Lee', recruiterCode: 'link-2' });
+    });
+
     it('stores the recruiter of the link clicked in the local copy when there is no server copy', async () => {
         saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', recruiterCode: 'link-1' }, { lastStep: 3 });
         const { formUpdates, landNothing } = harness({ stepAtStart: 0, recruiterCode: 'link-2' });

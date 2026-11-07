@@ -34,6 +34,9 @@ export function recruiterCodeFrom(searchParams) {
   return RECRUITER_CODE.test(raw) ? raw : null;
 }
 
+/** No link codes, as one object, so a hook given none gains no new dependency each render. */
+export const NO_LINK_CODES = Object.freeze({});
+
 /** The codes the page address carries, as answers: only those present and well formed. */
 export function linkCodesFrom(searchParams) {
   const referralCode = referralCodeFrom(searchParams);

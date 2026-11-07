@@ -192,4 +192,30 @@ describe('a recruiter\'s personal link names the recruiter until the application
     await submit();
     expect(await submittedRecruiterCode()).toBe('link-2');
   });
+
+  it('names the recruiter in a new application started from the same link after submitting', async () => {
+    localStorage.setItem('draft_acme', JSON.stringify(SIGNED_DRAFT));
+    renderHandler('?r=link-1');
+    await chooseManualIntake();
+    await submit();
+    expect(await submittedRecruiterCode()).toBe('link-1');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a new application' }));
+    await screen.findByText('probe-submit');
+    expect((await finishLater()).data).toEqual({ recruiterCode: 'link-1' });
+  });
+
+  it('names the recruiter after a fresh start, when another tab discarded the saved application', async () => {
+    localStorage.setItem('draft_acme', JSON.stringify({ ...SIGNED_DRAFT, recruiterCode: 'link-1' }));
+    renderHandler('?r=link-1');
+    await chooseManualIntake();
+
+    // Another tab's Start Over: the mark appears and a `storage` event fires.
+    localStorage.removeItem('draft_acme');
+    localStorage.setItem('apply_discarded_acme', 'discard-1');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'apply_discarded_acme', newValue: 'discard-1' }));
+
+    await chooseManualIntake();
+    expect((await finishLater()).data).toEqual({ recruiterCode: 'link-1' });
+  });
 });

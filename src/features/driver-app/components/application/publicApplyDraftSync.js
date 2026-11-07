@@ -107,6 +107,7 @@ export function reconcileServerDraftOnLoad({
       }
 
       const guards = discardGuardsRef.current;
+      const storedLocal = invite?.foreignSlot ? null : readApplicationDraft(slug);
       // This used to be `{ ...prev, ...restored.formData }`, which made the server
       // copy win every field it held whether or not it was the newer one. That
       // destroyed the local backup with the very failure it exists to survive: a
@@ -136,7 +137,7 @@ export function reconcileServerDraftOnLoad({
          * no new writer is introduced to a slot whose naming and sequence rules
          * are as intricate as these.
          */
-        local: invite?.foreignSlot ? null : readApplicationDraft(slug),
+        local: storedLocal,
         server: restored,
         live: latestDraftRef.current.formData,
       });
@@ -193,11 +194,13 @@ export function reconcileServerDraftOnLoad({
             draftId: draftIdRef.current,
           });
         if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
-      } else if (!holdsLinkCodes(resolved.formData, linkCodes)) {
+      } else if (!holdsLinkCodes(storedLocal?.data, linkCodes)) {
         // Local won, so its sequences stay as they are; only a link code is new
         // work, written as an ordinary local save so the next sync sends it. Here
         // and not at the earlier local restore: the winner is decided by then, and
         // a copy marked unsynced before the decision would beat a newer server copy.
+        // Measured against the stored copy, not the merged answers: those already
+        // carry the codes the page adopted, which storage may not hold yet.
         const saved = saveApplicationDraft(slug, formData);
         if (saved.draftId) draftIdRef.current = saved.draftId;
       }
