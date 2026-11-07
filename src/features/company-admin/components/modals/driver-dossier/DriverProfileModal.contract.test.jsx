@@ -48,7 +48,7 @@ vi.mock('./DossierSidebar', () => ({
       <span data-testid="sidebar-active">{activeTab}</span>
       <span data-testid="sidebar-collection">{collectionName}</span>
       <button type="button" onClick={() => setActiveTab('documents')}>go-documents</button>
-      <button type="button" onClick={() => onOpenRecord('lead-4')}>open-linked</button>
+      <button type="button" onClick={() => onOpenRecord('lead-4', 'leads')}>open-linked</button>
     </div>
   ),
 }));
@@ -175,7 +175,13 @@ describe('DriverProfileModal data-hook contract', () => {
 
   it('calls useApplicationView with the company and the record', () => {
     renderModal();
-    expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123');
+    expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123', undefined, undefined);
+  });
+
+  // The list, the bell and Add lead know where the record is: a lead is one read.
+  it("hands useApplicationView the collection its opener names", () => {
+    renderModal({ collectionHint: 'leads' });
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'app-123', undefined, 'leads');
   });
 
   it('shows the linked lead or application in the same dossier, on its first tab, and deletes that one', async () => {
@@ -185,7 +191,7 @@ describe('DriverProfileModal data-hook contract', () => {
 
     fireEvent.click(screen.getByText('open-linked'));
 
-    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'lead-4');
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'lead-4', undefined, 'leads');
     expect(screen.getByTestId('content')).toHaveAttribute('data-record', 'lead-4');
     expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'application');
 
@@ -198,8 +204,8 @@ describe('DriverProfileModal data-hook contract', () => {
     }));
 
     // Opening another record from the page shows that record.
-    rerender(<DriverProfileModal companyId="co-1" driverId="app-777" isOpen onClose={vi.fn()} />);
-    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'app-777');
+    rerender(<DriverProfileModal companyId="co-1" driverId="app-777" collectionHint="applications" isOpen onClose={vi.fn()} />);
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'app-777', undefined, 'applications');
   });
 
   // DEFECT-FIX assertion (not a frozen contract): before the design-system

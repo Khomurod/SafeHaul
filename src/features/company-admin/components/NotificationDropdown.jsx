@@ -63,14 +63,17 @@ const openerOf = (notif, onOpenRecord, onOpenDocuments, onOpenAssignedLeads) => 
     if (notif.type === 'leads_assigned') return onOpenAssignedLeads || null;
     if (!notif.relatedId) return null;
     if (onOpenRecord && (notif.relatedType === 'application' || notif.relatedType === 'lead')) {
-        return () => onOpenRecord(notif.relatedId, DOSSIER_TAB_BY_TYPE[notif.type]);
+        const collection = notif.relatedType === 'lead' ? 'leads' : 'applications';
+        return () => onOpenRecord(notif.relatedId, DOSSIER_TAB_BY_TYPE[notif.type], collection);
     }
     return onOpenDocuments && notif.relatedType === 'signing_request' ? onOpenDocuments : null;
 };
 
 /**
- * `onOpenRecord(id, tab)` opens a record's dossier, on `tab` when the notice is
- * about one (else undefined: the first tab); the shell renders it.
+ * `onOpenRecord(id, tab, collection)` opens a record's dossier, on `tab` when the
+ * notice is about one (else undefined: the first tab), looking for it first in
+ * `collection` (`'applications'` or `'leads'`, from the notice's type); the shell
+ * renders it.
  * `onOpenDocuments()` opens E-Docs; `onOpenAssignedLeads()` the Leads list's
  * Assigned to me tab.
  */

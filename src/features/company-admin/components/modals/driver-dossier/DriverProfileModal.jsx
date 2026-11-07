@@ -25,7 +25,8 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * Frozen contracts: the dialog's accessible name **"Driver dossier"** and the
  * fact that Escape closes it (both asserted by
  * `e2e/company-candidate-table.spec.cjs`); the
- * `useApplicationView(companyId, driverId)` argument list;
+ * `useApplicationView(companyId, driverId, undefined, collectionHint)` argument
+ * list;
  * the `'application'` initial tab and every tab state value; the
  * `deleteApplication({ companyId, applicationId, collectionName })` payload and
  * the `onDeleted()` → `onClose()` ordering after a successful delete; the
@@ -61,6 +62,10 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A lead and the application it became open each other here (the sidebar's
  *   "Open application" / "Open lead"): the dossier shows that record, on its
  *   first tab, until the page opens another.
+ * - An opener that knows the record's collection names it (`collectionHint`,
+ *   `'applications'` or `'leads'`), and so does the sidebar's link, so a lead is
+ *   found in one read (`useAppFetch`); without one, applications are looked in
+ *   first.
  * - It opens on the `'application'` tab unless the opener names another as
  *   `initialTab` (a bell notice or a Needs attention row opens the tab it is
  *   about).
@@ -82,13 +87,17 @@ export function DriverProfileModal({
     onClose,
     onDeleted,
     initialTab,
+    collectionHint,
 }) {
     const [activeTab, setActiveTab] = useState(initialTab || 'application');
-    // The record shown: the one the page opened, or the one it links to.
+    // The record shown: the one the page opened, or the one it links to, with
+    // the collection each is known to be in.
     const [linked, setLinked] = useState(null);
-    const recordId = linked?.from === driverId ? linked.id : driverId;
-    const openLinkedRecord = (id) => {
-        setLinked({ from: driverId, id });
+    const showsLinked = linked?.from === driverId;
+    const recordId = showsLinked ? linked.id : driverId;
+    const recordCollectionHint = showsLinked ? linked.collection : collectionHint;
+    const openLinkedRecord = (id, collection) => {
+        setLinked({ from: driverId, id, collection });
         setActiveTab('application');
     };
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -132,7 +141,7 @@ export function DriverProfileModal({
         teamMembers,
         assignedTo,
         refreshRecord,
-    } = useApplicationView(companyId, recordId);
+    } = useApplicationView(companyId, recordId, undefined, recordCollectionHint);
     const isLead = collectionName === 'leads';
     // What moving to a Contact Attempt stage does: the text the server sends.
     const textOutlookFor = useContactAttemptTexts({

@@ -220,7 +220,7 @@ describe('QuickAddLeadPage — duplicate submission (defect 3)', () => {
         await waitFor(() => expect(fsMocks.addDoc).toHaveBeenCalledTimes(2));
         expect(navigateMock).toHaveBeenCalledWith(
             '/company/drivers/leads/company',
-            { state: { openRecordId: 'artificial-lead-1' } },
+            { state: { openRecordId: 'artificial-lead-1', openRecordCollection: 'leads' } },
         );
     });
 });

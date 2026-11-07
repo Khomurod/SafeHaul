@@ -20,7 +20,18 @@ const simpleRetry = async (fn, retries = 3, delay = 1000) => {
   }
 };
 
-export function useAppFetch(companyId, applicationId) {
+/**
+ * Where the record is looked for, in order. An opener that knows the record's
+ * collection names it (`collectionHint`: a list, a bell notice, the linked lead
+ * or application), so a lead is one read; the other collection is still looked
+ * in when the record is not there. With no hint, or an unknown one, applications
+ * first, then leads.
+ */
+function lookupOrder(collectionHint) {
+  return collectionHint === 'leads' ? ['leads', 'applications'] : ['applications', 'leads'];
+}
+
+export function useAppFetch(companyId, applicationId, collectionHint) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [appData, setAppData] = useState(null);
@@ -63,7 +74,8 @@ export function useAppFetch(companyId, applicationId) {
     try {
       // The company profile and the record at the same time: neither needs
       // the other. getCompanyProfile answers null rather than throw.
-      let coll = 'applications';
+      const [firstColl, otherColl] = lookupOrder(collectionHint);
+      let coll = firstColl;
       let docRef = doc(db, "companies", companyId, coll, applicationId);
       const [companyProf, firstSnap] = await Promise.all([
         getCompanyProfile(companyId),
@@ -74,7 +86,7 @@ export function useAppFetch(companyId, applicationId) {
 
       let docSnap = firstSnap;
       if (!docSnap.exists()) {
-        coll = 'leads';
+        coll = otherColl;
         docRef = doc(db, "companies", companyId, coll, applicationId);
         docSnap = await simpleRetry(() => getDoc(docRef));
         if (!current()) return;
@@ -166,7 +178,7 @@ export function useAppFetch(companyId, applicationId) {
     } finally {
       if (current()) setLoading(false);
     }
-  }, [companyId, applicationId]);
+  }, [companyId, applicationId, collectionHint]);
 
   useEffect(() => {
     loadApplication();
@@ -176,6 +188,9 @@ export function useAppFetch(companyId, applicationId) {
    * The record read again after a change made from the dossier (a logged call),
    * so its stage and last call show. Quiet: no loading state, and the files stay
    * as they were signed. A read for a record no longer shown changes nothing.
+   * One read when asked, not a listener on the record: a listener would pay a
+   * read for every write to the record while the dossier is open (its own stage
+   * and assignee changes, the server's DQ date), and make the dossier live.
    */
   const refreshRecord = useCallback(async () => {
     if (!companyId || !applicationId) return;

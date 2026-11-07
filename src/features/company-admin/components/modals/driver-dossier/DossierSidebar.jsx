@@ -56,15 +56,15 @@ import { DOSSIER_SECTIONS, sectionTitle } from './dossierSections';
 /**
  * The record a lead and the application it became name in each other, set by
  * the server when the lead's driver applied (`functions/shared/leadApplicationLink.js`),
- * or null. An application holds its own id as `applicationId`: only a lead's
- * names another record.
+ * with the collection it is in, or null. An application holds its own id as
+ * `applicationId`: only a lead's names another record.
  */
 function linkedRecordOf(appData, collectionName) {
     if (collectionName === 'leads' && appData?.applicationId) {
-        return { id: appData.applicationId, text: 'Applied', action: 'Open application' };
+        return { id: appData.applicationId, collection: 'applications', text: 'Applied', action: 'Open application' };
     }
     if (collectionName === 'applications' && appData?.fromLeadId) {
-        return { id: appData.fromLeadId, text: 'From a lead', action: 'Open lead' };
+        return { id: appData.fromLeadId, collection: 'leads', text: 'From a lead', action: 'Open lead' };
     }
     return null;
 }
@@ -87,7 +87,7 @@ function RecordLinks({ appData, collectionName, onOpenRecord }) {
             {linked && (
                 <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
                     {linked.text} ·{' '}
-                    <Button variant="link" size="sm" onClick={() => onOpenRecord(linked.id)}>
+                    <Button variant="link" size="sm" onClick={() => onOpenRecord(linked.id, linked.collection)}>
                         {linked.action}
                     </Button>
                 </p>
