@@ -4,7 +4,8 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("./firebaseAdmin");
-const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
+// `joi` loads only when a call needs it, not on every cold start of this file's functions.
+const schemas = () => require('./shared/schema');
 const { assertCompanyAccess, assertCompanyAdminStrict } = require('./shared/companyAccess');
 const { assertSuperAdminAuth } = require('./shared/superAdmin');
 const { escapeHtml, plainGuestText } = require('./shared/plainText');
@@ -39,7 +40,7 @@ exports.deleteCompany = onCall({
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
 
     // INPUT VALIDATION
-    const { error, value } = deleteCompanySchema.validate(request.data);
+    const { error, value } = schemas().deleteCompanySchema.validate(request.data);
     if (error) throw new HttpsError('invalid-argument', error.message);
     const { companyId } = value;
 
@@ -119,7 +120,7 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
 
     // INPUT VALIDATION
-    const { error, value } = sendEmailSchema.validate(request.data);
+    const { error, value } = schemas().sendEmailSchema.validate(request.data);
     if (error) throw new HttpsError('invalid-argument', error.message);
     const { companyId, recipientEmail, triggerType, placeholders } = value;
 

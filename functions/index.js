@@ -11,7 +11,7 @@ const functionTarget = process.env.FUNCTION_TARGET || '';
 
 function exportFunctions(wanted) {
   // Bulk Actions (Resilient session-based)
-  // Note: pause/resume/cancel moved to frontend direct Firestore writes
+  // Pause, resume and cancel are callables too (CampaignDetails).
   if (wanted('initBulkSession')) exports.initBulkSession = require('./bulkActions').initBulkSession;
   if (wanted('processBulkBatch')) exports.processBulkBatch = require('./bulkActions').processBulkBatch;
   if (wanted('retryFailedAttempts')) exports.retryFailedAttempts = require('./bulkActions').retryFailedAttempts;
@@ -176,8 +176,6 @@ function exportFunctions(wanted) {
   // Hourly reconciler: rewrites public profiles left behind by a change to the
   // projection itself, which the onWrite trigger alone can never reach.
   if (wanted('reconcilePublicProfilesSchedule')) exports.reconcilePublicProfilesSchedule = require('./companyAdmin').reconcilePublicProfilesSchedule;
-
-  // 9. Scheduled Jobs (Removed)
 
   // 10. Integrations
 
