@@ -172,7 +172,7 @@ describe('Add lead — preserved contracts', () => {
 
         await waitFor(() => expect(toastMocks.showSuccess)
             .toHaveBeenCalledWith('Lead added successfully!'));
-        expect(navigateMock).toHaveBeenCalledWith(COMPANY_LEADS, { state: { openRecordId: 'artificial-lead-1' } });
+        expect(navigateMock).toHaveBeenCalledWith(COMPANY_LEADS, { state: { openRecordId: 'artificial-lead-1', openRecordCollection: 'leads' } });
     });
 
     it.each(['recruiter', 'hr_user'])("assigns a %s's lead to them and opens it on My Leads", async (role) => {
@@ -182,7 +182,7 @@ describe('Add lead — preserved contracts', () => {
         submit();
 
         await waitFor(() => expect(navigateMock)
-            .toHaveBeenCalledWith(MY_LEADS, { state: { openRecordId: 'artificial-lead-1' } }));
+            .toHaveBeenCalledWith(MY_LEADS, { state: { openRecordId: 'artificial-lead-1', openRecordCollection: 'leads' } }));
         expect(fsMocks.addDoc.mock.calls[0][1]).toMatchObject({
             assignedTo: UID,
             assignedToName: 'Artificial Recruiter',
@@ -213,7 +213,7 @@ describe('Add lead — preserved contracts', () => {
         submit();
 
         await waitFor(() => expect(navigateMock)
-            .toHaveBeenCalledWith(COMPANY_LEADS, { state: { openRecordId: 'artificial-lead-1' } }));
+            .toHaveBeenCalledWith(COMPANY_LEADS, { state: { openRecordId: 'artificial-lead-1', openRecordCollection: 'leads' } }));
         expect(fsMocks.addDoc.mock.calls[0][1]).toMatchObject({ assignedTo: '', assignedToName: '' });
     });
 

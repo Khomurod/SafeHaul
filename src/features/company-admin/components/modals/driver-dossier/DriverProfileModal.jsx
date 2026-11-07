@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useApplicationView } from '@features/company-admin/hooks/useApplicationView';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { useData } from '@/context/DataContext';
@@ -12,6 +12,8 @@ import { useCompactViewport } from './useCompactViewport';
 import { useContactAttemptTexts } from './useContactAttemptTexts';
 import { savedTextNote } from './contactAttemptText';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { forgetDriverUploadFilings } from '@features/company-admin/components/tabs/dqFileSync';
+import { forgetSubmissionRecords } from '@features/applications/services/submissionRecordRead';
 
 /**
  * DriverProfileModal
@@ -25,7 +27,8 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * Frozen contracts: the dialog's accessible name **"Driver dossier"** and the
  * fact that Escape closes it (both asserted by
  * `e2e/company-candidate-table.spec.cjs`); the
- * `useApplicationView(companyId, driverId)` argument list;
+ * `useApplicationView(companyId, driverId, undefined, collectionHint)` argument
+ * list;
  * the `'application'` initial tab and every tab state value; the
  * `deleteApplication({ companyId, applicationId, collectionName })` payload and
  * the `onDeleted()` → `onClose()` ordering after a successful delete; the
@@ -61,6 +64,10 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A lead and the application it became open each other here (the sidebar's
  *   "Open application" / "Open lead"): the dossier shows that record, on its
  *   first tab, until the page opens another.
+ * - An opener that knows the record's collection names it (`collectionHint`,
+ *   `'applications'` or `'leads'`), and so does the sidebar's link, so a lead is
+ *   found in one read (`useAppFetch`); without one, applications are looked in
+ *   first.
  * - It opens on the `'application'` tab unless the opener names another as
  *   `initialTab` (a bell notice or a Needs attention row opens the tab it is
  *   about).
@@ -74,6 +81,10 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A tab may open another (`onOpenTab`: the DQ file's employers open Previous
  *   Employment). The panel then starts at its top and takes the focus, as the
  *   control that was pressed is gone.
+ * - What the dossier does once a record while it is open is forgotten when it
+ *   closes: the DQ tab's filing of the driver's uploads
+ *   (`fileDriverUploadsOnce`) and the frozen submission record the Application
+ *   and DQ tabs share (`readSubmissionRecord`).
  */
 export function DriverProfileModal({
     companyId,
@@ -82,13 +93,17 @@ export function DriverProfileModal({
     onClose,
     onDeleted,
     initialTab,
+    collectionHint,
 }) {
     const [activeTab, setActiveTab] = useState(initialTab || 'application');
-    // The record shown: the one the page opened, or the one it links to.
+    // The record shown: the one the page opened, or the one it links to, with
+    // the collection each is known to be in.
     const [linked, setLinked] = useState(null);
-    const recordId = linked?.from === driverId ? linked.id : driverId;
-    const openLinkedRecord = (id) => {
-        setLinked({ from: driverId, id });
+    const showsLinked = linked?.from === driverId;
+    const recordId = showsLinked ? linked.id : driverId;
+    const recordCollectionHint = showsLinked ? linked.collection : collectionHint;
+    const openLinkedRecord = (id, collection) => {
+        setLinked({ from: driverId, id, collection });
         setActiveTab('application');
     };
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -111,6 +126,12 @@ export function DriverProfileModal({
     */
     const tabsIdBase = `dossier-${useId().replace(/:/g, '')}`;
     const isCompact = useCompactViewport();
+    // The next opening of the dossier files each record's uploads, and reads
+    // its submission record, again.
+    useEffect(() => () => {
+        forgetDriverUploadFilings();
+        forgetSubmissionRecords();
+    }, []);
 
     const { currentUserClaims } = useData();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
@@ -132,7 +153,7 @@ export function DriverProfileModal({
         teamMembers,
         assignedTo,
         refreshRecord,
-    } = useApplicationView(companyId, recordId);
+    } = useApplicationView(companyId, recordId, undefined, recordCollectionHint);
     const isLead = collectionName === 'leads';
     // What moving to a Contact Attempt stage does: the text the server sends.
     const textOutlookFor = useContactAttemptTexts({

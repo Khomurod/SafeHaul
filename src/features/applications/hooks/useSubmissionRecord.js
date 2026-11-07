@@ -22,11 +22,16 @@
 // ---------------
 // Sequence 1 is the ORIGINAL submission, forever. Re-submissions add siblings
 // rather than overwriting, so "the original" always resolves here.
+//
+// ONE READ WHILE THE DOSSIER IS OPEN
+// ----------------------------------
+// The record is read through `readSubmissionRecord`, which keeps a found record
+// until the dossier closes and shares it with the DQ row's consents: returning
+// to the tab reads nothing. A missing record or a failed read is read again.
 
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@lib/firebase';
 import { presentSubmission } from '@features/applications/services/submissionPresenter';
+import { readSubmissionRecord } from '@features/applications/services/submissionRecordRead';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** The original submission is always sequence 1. */
@@ -65,18 +70,16 @@ export function useSubmissionRecord(companyId, applicationId) {
 
         (async () => {
             try {
-                const ref = doc(
-                    db,
-                    'companies', companyId,
-                    'applications', applicationId,
-                    'submission', ORIGINAL_SNAPSHOT_ID
-                );
-                const snap = await getDoc(ref);
+                const stored = await readSubmissionRecord({
+                    companyId,
+                    applicationId,
+                    snapshotId: ORIGINAL_SNAPSHOT_ID,
+                });
                 if (!active) return;
                 // A missing document is not an error: it means the application
                 // predates snapshots. presentSubmission turns that into the
                 // honest historical notice.
-                setRecord(presentSubmission(snap.exists() ? snap.data() : null));
+                setRecord(presentSubmission(stored));
             } catch (err) {
                 if (!active) return;
                 // A failed read must never look like a preserved record. Present

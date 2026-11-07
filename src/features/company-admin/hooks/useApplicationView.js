@@ -11,9 +11,10 @@ import { buildDqChecklist } from '../utils/dqChecklist';
 import { todayUtc } from '../utils/dqExpiry';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
-export function useApplicationView(companyId, applicationId, onStatusUpdate) {
+/** `collectionHint`: the record's collection when the opener knows it (`useAppFetch`). */
+export function useApplicationView(companyId, applicationId, onStatusUpdate, collectionHint) {
     const { showError } = useToast();
-    const details = useApplicationDetails(companyId, applicationId, onStatusUpdate);
+    const details = useApplicationDetails(companyId, applicationId, onStatusUpdate, collectionHint);
 
     const { appData, collectionName } = details;
 

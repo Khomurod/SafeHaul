@@ -93,7 +93,12 @@ export const applicationPdfServiceMock = () => ({
 });
 export const userServiceMock = () => ({ getPortalUser: (...a) => getPortalUser(...a) });
 export const applicationFileLinkMock = () => ({ signedApplicationFileUrl: (...a) => signedFileUrl(...a) });
-export const dqFileSyncMock = () => ({ fileDriverUploads: (...a) => fileDriverUploads(...a) });
+// The tab files through `fileDriverUploadsOnce`; here every opening asks, so each
+// suite sees the call it makes (`dqFileSync.test.js` proves the once).
+export const dqFileSyncMock = () => ({
+    fileDriverUploads: (...a) => fileDriverUploads(...a),
+    fileDriverUploadsOnce: (...a) => fileDriverUploads(...a),
+});
 
 // --- helpers and fixtures, verbatim ----------------------------------------
 

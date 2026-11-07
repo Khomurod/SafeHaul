@@ -1,7 +1,8 @@
 /**
  * A notification in the bell opens the record it is about: one naming an
  * application or a lead asks for that record's dossier, on the tab the notice is
- * about (a document, a PEV, a DQ deadline), and closes the panel,
+ * about (a document, a PEV, a DQ deadline), looking first in the collection its
+ * type names, and closes the panel,
  * one naming a signing request opens E-Docs, an import's Leads Assigned (no
  * record, read by its type) opens the reader's Assigned to me list, and
  * opening one marks it read. One about no record is plain text.
@@ -72,7 +73,7 @@ describe('a notification in the bell', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /Status Updated/ }));
 
-        expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined);
+        expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined, 'applications');
         expect(hook.markAsRead).toHaveBeenCalledWith('n-1');
         expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
         // Where the dossier will return focus when it closes.
@@ -84,7 +85,7 @@ describe('a notification in the bell', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /Lead Assigned/ }));
 
-        expect(onOpenRecord).toHaveBeenCalledWith('lead-3', undefined);
+        expect(onOpenRecord).toHaveBeenCalledWith('lead-3', undefined, 'leads');
         expect(hook.markAsRead).not.toHaveBeenCalled();
     });
 
@@ -94,7 +95,7 @@ describe('a notification in the bell', () => {
         screen.getByRole('button', { name: /Status Updated/ }).focus();
         await userEvent.keyboard('{Enter}');
 
-        expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined);
+        expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined, 'applications');
     });
 
     it('is plain text when it is about no record, so no control does nothing', async () => {
@@ -140,7 +141,7 @@ describe('a notification in the bell', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /Application Assigned/ }));
 
-        expect(onOpenRecord).toHaveBeenCalledWith('app-9', undefined);
+        expect(onOpenRecord).toHaveBeenCalledWith('app-9', undefined, 'applications');
         expect(hook.markAsRead).toHaveBeenCalledWith('n-5');
     });
 
@@ -203,7 +204,7 @@ describe('a notification in the bell', () => {
         await userEvent.click(expired);
 
         // On the DQ File tab, where the date is.
-        expect(onOpenRecord).toHaveBeenCalledWith('app-8', 'dq');
+        expect(onOpenRecord).toHaveBeenCalledWith('app-8', 'dq', 'applications');
         expect(hook.markAsRead).toHaveBeenCalledWith('dq_expired_app-8_2026-11-20');
     });
 
@@ -225,7 +226,7 @@ describe('a notification in the bell', () => {
 
         await userEvent.click(screen.getByRole('button', { name: new RegExp(notice.title) }));
 
-        expect(onOpenRecord).toHaveBeenCalledWith('app-4', tab);
+        expect(onOpenRecord).toHaveBeenCalledWith('app-4', tab, 'applications');
     });
 
     it("opens a lead's PEV answer on its Previous Employment tab", async () => {
@@ -236,7 +237,7 @@ describe('a notification in the bell', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /Verification answered/ }));
 
-        expect(onOpenRecord).toHaveBeenCalledWith('lead-4', 'pev');
+        expect(onOpenRecord).toHaveBeenCalledWith('lead-4', 'pev', 'leads');
     });
 
     it('still opens the record when marking it read fails', async () => {
@@ -245,7 +246,7 @@ describe('a notification in the bell', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /Status Updated/ }));
 
-        expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined);
+        expect(onOpenRecord).toHaveBeenCalledWith('app-7', undefined, 'applications');
     });
 });
 

@@ -4,7 +4,7 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { db } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { getCompanyProfile } from '@features/companies';
-import { reusableApplicationFileUrl } from '@features/applications/services/applicationFileLink';
+import { reusableApplicationFileUrls } from '@features/applications/services/applicationFileLink';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { e2eLoadedDossierRecord } from './e2eDossierFixture';
@@ -20,7 +20,24 @@ const simpleRetry = async (fn, retries = 3, delay = 1000) => {
   }
 };
 
-export function useAppFetch(companyId, applicationId) {
+/** The driver uploads the dossier shows, signed when the record opens. */
+const FILE_FIELDS = [
+  'cdl-front', 'cdl-back', 'ssc-upload', 'medical-card-upload', 'twic-card-upload',
+  'mvr-consent-upload', 'drug-test-consent-upload', 'mvr-upload',
+];
+
+/**
+ * Where the record is looked for, in order. An opener that knows the record's
+ * collection names it (`collectionHint`: a list, a bell notice, the linked lead
+ * or application), so a lead is one read; the other collection is still looked
+ * in when the record is not there. With no hint, or an unknown one, applications
+ * first, then leads.
+ */
+function lookupOrder(collectionHint) {
+  return collectionHint === 'leads' ? ['leads', 'applications'] : ['applications', 'leads'];
+}
+
+export function useAppFetch(companyId, applicationId, collectionHint) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [appData, setAppData] = useState(null);
@@ -63,7 +80,8 @@ export function useAppFetch(companyId, applicationId) {
     try {
       // The company profile and the record at the same time: neither needs
       // the other. getCompanyProfile answers null rather than throw.
-      let coll = 'applications';
+      const [firstColl, otherColl] = lookupOrder(collectionHint);
+      let coll = firstColl;
       let docRef = doc(db, "companies", companyId, coll, applicationId);
       const [companyProf, firstSnap] = await Promise.all([
         getCompanyProfile(companyId),
@@ -74,7 +92,7 @@ export function useAppFetch(companyId, applicationId) {
 
       let docSnap = firstSnap;
       if (!docSnap.exists()) {
-        coll = 'leads';
+        coll = otherColl;
         docRef = doc(db, "companies", companyId, coll, applicationId);
         docSnap = await simpleRetry(() => getDoc(docRef));
         if (!current()) return;
@@ -87,6 +105,11 @@ export function useAppFetch(companyId, applicationId) {
         setCurrentStatus(data.status || 'New Application');
         setAssignedTo(data.assignedTo || '');
 
+        // Its driver uploads are signed together, in one call, by the path each
+        // is stored at (`reusableApplicationFileUrls`).
+        const serverLinks = reusableApplicationFileUrls(FILE_FIELDS
+          .map((field) => data[field]?.storagePath)
+          .filter((path) => typeof path === 'string' && path.includes('guest_uploads')));
         const getUrl = async (fileData) => {
           if (!fileData) return null;
           try {
@@ -100,7 +123,7 @@ export function useAppFetch(companyId, applicationId) {
               // client SDK / stored url only if that fails.
               if (fileData.storagePath.includes('guest_uploads')) {
                 try {
-                  return await reusableApplicationFileUrl(fileData.storagePath);
+                  return await serverLinks[fileData.storagePath];
                 } catch (resignErr) {
                   console.warn(`[useAppFetch] Server re-sign failed for ${fileData.storagePath}. Falling back to client SDK.`, resignErr.message);
                 }
@@ -131,29 +154,15 @@ export function useAppFetch(companyId, applicationId) {
         };
 
         // The record shows now; its files are signed behind it (one callable
-        // each), and the tabs that draw them wait on `filesPending`.
+        // for all of them), and the tabs that draw them wait on `filesPending`.
         setFileUrls({});
         setFilesPending(true);
         setLoading(false);
 
-        const [cdl, cdlBack, ssc, medical, twic, mvrConsent, drugTestConsent, mvr] = await Promise.all([
-          getUrl(data['cdl-front']), getUrl(data['cdl-back']), getUrl(data['ssc-upload']),
-          getUrl(data['medical-card-upload']), getUrl(data['twic-card-upload']),
-          getUrl(data['mvr-consent-upload']), getUrl(data['drug-test-consent-upload']),
-          getUrl(data['mvr-upload'])
-        ]);
+        const urls = await Promise.all(FILE_FIELDS.map((field) => getUrl(data[field])));
         if (!current()) return;
 
-        setFileUrls({
-          'cdl-front': cdl,
-          'cdl-back': cdlBack,
-          'ssc-upload': ssc,
-          'medical-card-upload': medical,
-          'twic-card-upload': twic,
-          'mvr-consent-upload': mvrConsent,
-          'drug-test-consent-upload': drugTestConsent,
-          'mvr-upload': mvr
-        });
+        setFileUrls(Object.fromEntries(FILE_FIELDS.map((field, i) => [field, urls[i]])));
         setFilesPending(false);
 
       } else {
@@ -166,7 +175,7 @@ export function useAppFetch(companyId, applicationId) {
     } finally {
       if (current()) setLoading(false);
     }
-  }, [companyId, applicationId]);
+  }, [companyId, applicationId, collectionHint]);
 
   useEffect(() => {
     loadApplication();
@@ -176,6 +185,9 @@ export function useAppFetch(companyId, applicationId) {
    * The record read again after a change made from the dossier (a logged call),
    * so its stage and last call show. Quiet: no loading state, and the files stay
    * as they were signed. A read for a record no longer shown changes nothing.
+   * One read when asked, not a listener on the record: a listener would pay a
+   * read for every write to the record while the dossier is open (its own stage
+   * and assignee changes, the server's DQ date), and make the dossier live.
    */
   const refreshRecord = useCallback(async () => {
     if (!companyId || !applicationId) return;

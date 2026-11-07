@@ -66,6 +66,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     }, []);
 
     // Local State
+    // The open record, `{ id, collectionHint }`: the collection the list read it
+    // from, as `useCompanyDashboard` chooses it, so the dossier reads it there first.
     const [selectedApp, setSelectedApp] = useState(null);
     const [callModalData, setCallModalData] = useState(null);
     const [assigningLeads, setAssigningLeads] = useState([]);
@@ -77,6 +79,11 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const sort = useMemo(() => ({ key: 'addedDate', direction: dateOrder }), [dateOrder]);
     const handleSortChange = useCallback(({ direction }) => setDateOrder(direction), [setDateOrder]);
     const { setFilters, refreshData, nextPage, prevPage, setSearchQuery, setPipelineSegment } = dashboard;
+    const listCollection = dashboard.activeTab === 'applications' ? 'applications' : 'leads';
+    const openRow = useCallback(
+        (item) => setSelectedApp({ id: item.id, collectionHint: listCollection }),
+        [listCollection],
+    );
 
     // Force hook to respect the scope prop
     useEffect(() => {
@@ -164,6 +171,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 key={selectedApp.id}
                 companyId={companyId}
                 driverId={selectedApp.id}
+                collectionHint={selectedApp.collectionHint}
                 isOpen={true}
                 onClose={() => setSelectedApp(null)}
                 onDeleted={() => dashboard.refreshData()}
@@ -302,7 +310,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                             sort={sort}
                             onSortChange={handleSortChange}
                             getRowLabel={dossierRowLabel}
-                            onRowActivate={setSelectedApp}
+                            onRowActivate={openRow}
                             isLoading={dashboard.loading}
                             loadingLabel={`Loading ${getPageTitle().toLowerCase()}`}
                             empty={emptyState}

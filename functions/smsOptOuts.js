@@ -1,13 +1,14 @@
 /**
  * A company's SMS opt-out list, kept by its team in Settings → Text messages:
- * list it, add a number, remove one.
+ * list it, add a number, remove one; and whether one number is on it, which the
+ * driver dossier asks when it opens.
  *
  * `companies/{companyId}/blacklist/{E.164}` is the list every automatic text
  * checks (`isBlacklisted` in `blacklist.js`, through `shared/smsPermission.js`),
  * and campaigns check it before an email too. No Firestore rule names it, so a
  * client reaches it only through these callables.
  *
- * - List and add: any member of the company's team
+ * - List, check and add: any member of the company's team
  *   (`assertCompanyAccessForRequest`), because honouring a STOP must be easy.
  * - Remove: Company Admins only (`assertCompanyAdminStrict`). Only the company's
  *   entry goes; the global `blacklist` is never touched here. There is no
@@ -114,6 +115,26 @@ exports.listSmsOptOuts = onCall({ cors: true }, async (request) => {
     // An entry with no date is counted but cannot be ordered, so it is not listed.
     const total = Math.max(counted.data().count, entries.length);
     return { entries, total, limit: LIST_LIMIT, hasMore: total > entries.length };
+});
+
+/**
+ * Whether one number is on the company's list (`{ listed }`), from one read of
+ * its entry: the dossier asks this rather than loading the list, so a number
+ * older than the newest the list shows is found too.
+ */
+exports.checkSmsOptOut = onCall({ cors: true }, async (request) => {
+    signedIn(request);
+    const companyId = companyIdOf(request);
+    await assertCompanyAccessForRequest(request, companyId, 'checkSmsOptOut');
+    const phone = phoneOf(request);
+
+    let entry;
+    try {
+        entry = await listOf(companyId).doc(phone).get();
+    } catch (error) {
+        throw storeFailure('checkSmsOptOut', companyId, error, 'The number could not be checked. Try again.');
+    }
+    return { listed: entry.exists === true };
 });
 
 exports.addSmsOptOut = onCall({ cors: true }, async (request) => {

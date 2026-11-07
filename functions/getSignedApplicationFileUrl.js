@@ -17,26 +17,30 @@
  *  - Requires authentication
  *  - Validates the path is companies/{companyId}/(applications|autofill)/guest_uploads/...
  *  - Verifies the caller may access {companyId}
+ *
+ * `getSignedApplicationFileUrls` signs a record's files in one call, each one
+ * exactly as `getSignedApplicationFileUrl` signs it (`signApplicationFile`): the
+ * same path rule, the same access check, the same one-hour link, and a file the
+ * single call would refuse is refused alone, with the single call's code and
+ * message. The single call stays: the Production site and Open file call it.
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { logger } = require("firebase-functions");
 const { assertCompanyAccessForRequest } = require("./shared/companyAccess");
 const { signReadUrl } = require("./shared/signReadUrl");
 
-exports.getSignedApplicationFileUrl = onCall({ cors: true }, async (request) => {
-    // 1. Auth check
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'Login required.');
-    }
+/** The most files one `getSignedApplicationFileUrls` call signs: the eight driver uploads the dossier shows (`useAppFetch.js`). */
+const MAX_FILES_PER_CALL = 8;
 
-    const { storagePath } = request.data || {};
-
+/**
+ * The company a driver-upload path belongs to.
+ * Must be: companies/{companyId}/(applications|autofill)/guest_uploads/...
+ */
+function guestUploadCompanyId(storagePath) {
     if (!storagePath || typeof storagePath !== 'string') {
         throw new HttpsError('invalid-argument', 'Missing or invalid storagePath.');
     }
-
-    // 2. Security: validate the path structure
-    //    Must be: companies/{companyId}/(applications|autofill)/guest_uploads/...
     const pathParts = storagePath.split('/');
     const isGuestUploadPath =
         pathParts[0] === 'companies' &&
@@ -49,13 +53,79 @@ exports.getSignedApplicationFileUrl = onCall({ cors: true }, async (request) => 
             'Invalid storage path format. Expected: companies/{companyId}/(applications|autofill)/guest_uploads/...',
         );
     }
+    return pathParts[1];
+}
 
-    const companyId = pathParts[1];
+/**
+ * One file: the path checked, then the caller's access to its company
+ * (`checkAccess`, which throws when refused), then a link valid for one hour.
+ * Throws the HttpsError the caller answers with.
+ */
+async function signApplicationFile(storagePath, checkAccess, label) {
+    const companyId = guestUploadCompanyId(storagePath);
+    await checkAccess(companyId);
+    return signReadUrl(storagePath, { label });
+}
 
-    // 3. Security: verify caller belongs to the company (or is a super admin)
-    await assertCompanyAccessForRequest(request, companyId, 'getSignedApplicationFileUrl');
-
-    // 4. A link valid for one hour
-    const url = await signReadUrl(storagePath, { label: 'getSignedApplicationFileUrl' });
+exports.getSignedApplicationFileUrl = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login required.');
+    }
+    const { storagePath } = request.data || {};
+    const label = 'getSignedApplicationFileUrl';
+    const url = await signApplicationFile(
+        storagePath,
+        (companyId) => assertCompanyAccessForRequest(request, companyId, label),
+        label,
+    );
     return { success: true, url };
+});
+
+/** What a refused file answers: the single call's code and message. */
+function refusalOf(err, storagePath) {
+    if (err instanceof HttpsError) return { code: err.code, message: err.message };
+    // The single call's `onCall` answers any other failure as `internal`.
+    logger.error('[getSignedApplicationFileUrls] Unexpected failure for one file:', storagePath, err);
+    return { code: 'internal', message: 'INTERNAL' };
+}
+
+/**
+ * Takes `{ storagePaths }`, 1 to 8 strings, and answers
+ * `{ success: true, results: { [storagePath]: { url } | { error: { code, message } } } }`,
+ * one entry per distinct path. The caller's access to each company named is
+ * checked once in this call, as the single call checks it; nothing is kept
+ * after the call.
+ */
+exports.getSignedApplicationFileUrls = onCall({ cors: true }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Login required.');
+    }
+    const { storagePaths } = request.data || {};
+    if (
+        !Array.isArray(storagePaths)
+        || storagePaths.length === 0
+        || storagePaths.length > MAX_FILES_PER_CALL
+        || !storagePaths.every((path) => typeof path === 'string' && path)
+    ) {
+        throw new HttpsError('invalid-argument', `storagePaths must list 1 to ${MAX_FILES_PER_CALL} file paths.`);
+    }
+
+    const label = 'getSignedApplicationFileUrls';
+    const accessChecks = new Map();
+    const checkAccess = (companyId) => {
+        if (!accessChecks.has(companyId)) {
+            accessChecks.set(companyId, assertCompanyAccessForRequest(request, companyId, label));
+        }
+        return accessChecks.get(companyId);
+    };
+
+    const results = {};
+    await Promise.all([...new Set(storagePaths)].map(async (storagePath) => {
+        try {
+            results[storagePath] = { url: await signApplicationFile(storagePath, checkAccess, label) };
+        } catch (err) {
+            results[storagePath] = { error: refusalOf(err, storagePath) };
+        }
+    }));
+    return { success: true, results };
 });

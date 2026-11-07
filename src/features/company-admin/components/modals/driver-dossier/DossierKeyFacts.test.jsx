@@ -3,8 +3,9 @@
  * text, the day the record came in, the last call, and the number put on the
  * company's SMS opt-out list from beside the phone.
  *
- * The opt-out list is reached through the two callables Settings uses
- * (`listSmsOptOuts`, `addSmsOptOut`), mocked here at `httpsCallable`; nothing
+ * The dossier asks whether its one number is on the list (`checkSmsOptOut`) and
+ * adds it with the callable Settings uses (`addSmsOptOut`); it never loads the
+ * list (`listSmsOptOuts`). They are mocked here at `httpsCallable`; nothing
  * talks to a server or an SMS provider. All numbers and names are artificial.
  */
 import React from 'react';
@@ -12,6 +13,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const calls = vi.hoisted(() => ({
+    checkSmsOptOut: vi.fn(),
     listSmsOptOuts: vi.fn(),
     addSmsOptOut: vi.fn(),
     removeSmsOptOut: vi.fn(),
@@ -30,9 +32,8 @@ const COMPANY = 'artificial-company-1';
 const at = (iso) => ({ toDate: () => new Date(iso), toMillis: () => new Date(iso).getTime() });
 /** The day as the viewer's own clock shows it, so the tests hold in any time zone. */
 const dayOf = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-const listed = (phones) => ({
-    data: { entries: phones.map((phone) => ({ phone, reason: 'Replied STOP', source: 'team' })), total: phones.length, hasMore: false },
-});
+/** The server's answer for one number. */
+const checked = (listed) => ({ data: { listed } });
 const refusal = (code, message) => Object.assign(new Error(message), { code: `functions/${code}` });
 
 const lead = (overrides = {}) => ({
@@ -46,7 +47,7 @@ const lead = (overrides = {}) => ({
 
 beforeEach(() => {
     vi.resetAllMocks();
-    calls.listSmsOptOuts.mockImplementation(async () => listed(['+15550009999']));
+    calls.checkSmsOptOut.mockImplementation(async () => checked(false));
     calls.addSmsOptOut.mockImplementation(async ({ phone }) => ({
         data: { added: true, entry: { phone: '+15550102030', reason: 'Asked not to be texted', source: 'team', input: phone } },
     }));
@@ -110,31 +111,53 @@ describe('what matters, as text', () => {
         renderFacts({ appData: lead({ phone: '', email: undefined }) });
         expect(screen.queryByText('Phone', { selector: 'dt' })).toBeNull();
         expect(screen.queryByText('Email', { selector: 'dt' })).toBeNull();
-        expect(calls.listSmsOptOuts).not.toHaveBeenCalled();
+        expect(calls.checkSmsOptOut).not.toHaveBeenCalled();
     });
 });
 
 describe('Do not text', () => {
-    it('matches the list by number, whatever its format, and reads Texts off with no action', async () => {
-        calls.listSmsOptOuts.mockImplementation(async () => listed(['+15550102030']));
+    it('asks about its one number, never for the list, and reads Texts off with no action', async () => {
+        calls.checkSmsOptOut.mockImplementation(async () => checked(true));
         renderFacts();
 
         expect(await screen.findByText('Texts off')).toBeInTheDocument();
-        expect(calls.listSmsOptOuts).toHaveBeenCalledWith({ companyId: COMPANY });
+        expect(calls.checkSmsOptOut).toHaveBeenCalledWith({ companyId: COMPANY, phone: '(555) 010-2030' });
+        expect(calls.listSmsOptOuts).not.toHaveBeenCalled();
         expect(screen.queryByRole('button', { name: /Do not text/ })).toBeNull();
         expect(optOutKeyOf('+1 (555) 010-2030')).toBe(optOutKeyOf('5550102030'));
         expect(optOutKeyOf('555-0102')).toBe('');
     });
 
-    it('offers nothing until the list is known', async () => {
+    it('offers nothing until the server has answered for the number', async () => {
         let answer;
-        calls.listSmsOptOuts.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+        calls.checkSmsOptOut.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
         renderFacts();
 
         expect(screen.queryByRole('button', { name: /Do not text/ })).toBeNull();
         expect(screen.queryByText('Texts off')).toBeNull();
-        await act(async () => answer(listed([])));
-        expect(screen.getByRole('button', { name: 'Do not text (555) 010-2030' })).toBeInTheDocument();
+        await act(async () => answer(checked(false)));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Do not text (555) 010-2030' })).toBeInTheDocument());
+        expect(screen.queryByText('Texts off')).toBeNull();
+    });
+
+    it.each([
+        ['number', { appData: lead({ phone: '(555) 010-4050' }) }, { companyId: COMPANY, phone: '(555) 010-4050' }],
+        ['company', { companyId: 'artificial-company-2' }, { companyId: 'artificial-company-2', phone: '(555) 010-2030' }],
+    ])('drops an answer that arrives after the %s changed', async (_what, change, askedNext) => {
+        const answers = [];
+        calls.checkSmsOptOut.mockImplementation(() => new Promise((resolve) => { answers.push(resolve); }));
+        const { rerender } = renderFacts();
+        rerender(<DossierKeyFacts appData={lead()} collectionName="leads" companyId={COMPANY} canEdit {...change} />);
+        await waitFor(() => expect(calls.checkSmsOptOut).toHaveBeenLastCalledWith(askedNext));
+        const shown = `Do not text ${askedNext.phone}`;
+
+        await act(async () => answers[1](checked(false)));
+        await waitFor(() => expect(screen.getByRole('button', { name: shown })).toBeInTheDocument());
+        // The first question's answer, for what the dossier no longer shows, changes nothing.
+        await act(async () => answers[0](checked(true)));
+        expect(screen.getByRole('button', { name: shown })).toBeInTheDocument();
+        expect(screen.queryByText('Texts off')).toBeNull();
+        expect(answers).toHaveLength(2);
     });
 
     it('asks first, and adds nothing when the question is cancelled', async () => {
@@ -178,7 +201,7 @@ describe('Do not text', () => {
         expect(screen.getByText('Texts off')).toBeInTheDocument();
     });
 
-    it('says so when the number was already listed beyond what the list showed', async () => {
+    it('says so when the number turns out to be listed already', async () => {
         calls.addSmsOptOut.mockImplementation(async () => ({ data: { added: false, entry: { phone: '+15550102030' } } }));
         renderFacts();
         fireEvent.click(await screen.findByRole('button', { name: 'Do not text (555) 010-2030' }));
@@ -200,24 +223,29 @@ describe('Do not text', () => {
         expect(toast.showSuccess).not.toHaveBeenCalled();
     });
 
-    it('still offers the action when the list cannot be read: adding says whether it was there', async () => {
-        calls.listSmsOptOuts.mockImplementation(async () => { throw refusal('internal', 'boom'); });
+    it('still offers the action when the number cannot be checked: adding says whether it was there', async () => {
+        calls.checkSmsOptOut.mockImplementation(async () => { throw refusal('internal', 'boom'); });
+        calls.addSmsOptOut.mockImplementation(async () => ({ data: { added: false, entry: { phone: '+15550102030' } } }));
         renderFacts();
-        expect(await screen.findByRole('button', { name: 'Do not text (555) 010-2030' })).toBeInTheDocument();
+        fireEvent.click(await screen.findByRole('button', { name: 'Do not text (555) 010-2030' }));
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Do not text' }));
+
+        await waitFor(() => expect(screen.getByText('Texts off')).toBeInTheDocument());
+        expect(toast.showSuccess).toHaveBeenCalledWith('(555) 010-2030 was already on the list.');
     });
 
     it('shows Texts off to someone who cannot edit', async () => {
-        calls.listSmsOptOuts.mockImplementation(async () => listed(['+15550102030']));
+        calls.checkSmsOptOut.mockImplementation(async () => checked(true));
         renderFacts({ canEdit: false });
         expect(await screen.findByText('Texts off')).toBeInTheDocument();
     });
 
     it('offers someone who cannot edit no action for a number not on the list', async () => {
         let answer;
-        calls.listSmsOptOuts.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+        calls.checkSmsOptOut.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
         renderFacts({ canEdit: false });
-        // Once the list has answered, so the absence below is not just "still checking".
-        await act(async () => answer(listed([])));
+        // Once the server has answered, so the absence below is not just "still checking".
+        await act(async () => answer(checked(false)));
         expect(factValue('Phone')).toHaveTextContent(/^\(555\) 010-2030$/);
         expect(screen.queryByRole('button', { name: /Do not text/ })).toBeNull();
     });
@@ -225,6 +253,7 @@ describe('Do not text', () => {
     it('asks the server nothing without a company or a usable number', () => {
         renderFacts({ companyId: undefined });
         renderFacts({ appData: lead({ phone: '555-0102' }) });
+        expect(calls.checkSmsOptOut).not.toHaveBeenCalled();
         expect(calls.listSmsOptOuts).not.toHaveBeenCalled();
         expect(screen.queryByRole('button', { name: /Do not text/ })).toBeNull();
     });

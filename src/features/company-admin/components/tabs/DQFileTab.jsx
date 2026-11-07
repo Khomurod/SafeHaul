@@ -22,7 +22,7 @@ import {
 } from '@features/applications/services/openApplicationFile';
 import { DATED_FILE_TYPES, DQ_FILE_TYPES } from '../../utils/dqFileTypes';
 import { calendarDay } from '../../utils/dqExpiry';
-import { fileDriverUploads } from './dqFileSync';
+import { fileDriverUploadsOnce } from './dqFileSync';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
@@ -61,8 +61,9 @@ import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
  *
  * A synced record (`isSynced`) files the application's own upload, and only the
  * server writes one (`functions/shared/dqUploads.js`): when the application
- * arrives or an upload changes, and when this tab opens (`fileDriverUploads`),
- * for any upload no record holds. Deleting one leaves the file, and keeps the
+ * arrives or an upload changes, and when this tab first opens in a dossier
+ * opening (`fileDriverUploadsOnce`; again after a failed filing), for any upload
+ * no record holds. Deleting one leaves the file, and keeps the
  * record unlisted with `removedAt`, so it is not filed again; a new upload of
  * that type clears the mark. A driver's upload opens from a link signed when it
  * is pressed; the `url` it was copied with lived minutes.
@@ -208,13 +209,14 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   };
 
   // The list shows at once; the server files the uploads no record holds yet,
-  // and the list is read again when it filed any.
+  // once a record while the dossier is open, and the list is read again when it
+  // filed any.
   useEffect(() => {
     let current = true;
     // Another record's entries are not this one's checklist.
     setLoaded(false);
     loadFiles();
-    fileDriverUploads({ companyId, collectionName, applicationId }).then(
+    fileDriverUploadsOnce({ companyId, collectionName, applicationId }).then(
       (filed) => { if (current && filed > 0) loadFiles(); },
       (err) => {
         console.error("Could not file the driver's uploads:", err);

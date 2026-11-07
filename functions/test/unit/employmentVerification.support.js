@@ -432,7 +432,11 @@ function resetPevState() {
   uploadedObjects.clear();
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
-  mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
+  // As the real check does, it hands back the company it read.
+  mockAssertCompanyAccessForRequest.mockImplementation(async (_request, companyId) => ({
+    exists: companyDocs.has(companyId),
+    data: () => companyDocs.get(companyId),
+  }));
 
   companyDocs.set('co-1', {
     companyName: 'SafeHaul Carrier',

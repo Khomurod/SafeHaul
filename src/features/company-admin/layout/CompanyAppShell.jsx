@@ -22,10 +22,11 @@ export const CompanyAppShell = () => {
     // The company's document, watched: its feature switches and whether it was turned off.
     const deactivated = useLiveCompany();
     const [isNavigationOpen, setIsNavigationOpen] = useState(false);
-    // The record open over the page, `{ id, tab }`: `tab` is the dossier tab a
-    // notification is about, else the dossier opens on its first.
+    // The record open over the page, `{ id, tab, collection }`: `tab` is the
+    // dossier tab a notification is about, else the dossier opens on its first;
+    // `collection` the one the opener knows the record is in, if it does.
     const [openRecord, setOpenRecord] = useState(null);
-    const openRecordOn = useCallback((id, tab) => setOpenRecord(id ? { id, tab } : null), []);
+    const openRecordOn = useCallback((id, tab, collection) => setOpenRecord(id ? { id, tab, collection } : null), []);
     const [isNavigationExpanded, setIsNavigationExpanded] = useState(() => {
         const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
         return stored ? stored === 'expanded' : true;
@@ -44,15 +45,17 @@ export const CompanyAppShell = () => {
     }, [location.pathname]);
 
     // A page that sends the person on to a record names it in the navigation's
-    // state (`openRecordId`: Add lead, once the lead is saved), and it opens here
-    // over the page it lands on. Once: the state is dropped, so a reload or a Back
-    // to that page does not open it again.
+    // state (`openRecordId`, with `openRecordCollection` when it knows it: Add
+    // lead, once the lead is saved), and it opens here over the page it lands on.
+    // Once: the state is dropped, so a reload or a Back to that page does not open
+    // it again.
     useEffect(() => {
         const recordId = location.state?.openRecordId;
         if (!recordId) return;
-        setOpenRecord({ id: recordId });
+        setOpenRecord({ id: recordId, collection: location.state.openRecordCollection });
         const state = { ...location.state };
         delete state.openRecordId;
+        delete state.openRecordCollection;
         navigate(
             { pathname: location.pathname, search: location.search, hash: location.hash },
             { replace: true, state },
@@ -99,6 +102,7 @@ export const CompanyAppShell = () => {
                     companyId={currentCompanyProfile.id}
                     driverId={openRecord.id}
                     initialTab={openRecord.tab}
+                    collectionHint={openRecord.collection}
                     isOpen
                     onClose={() => setOpenRecord(null)}
                     onDeleted={() => setOpenRecord(null)}

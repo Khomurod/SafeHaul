@@ -1,12 +1,11 @@
 import React, { useId, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@lib/firebase';
 import { Button } from '@/design-system/components';
 import { AgreementRow } from '@features/applications/components/PreservedApplicationView';
 import {
   isPreservedSnapshot,
   toDisplayAgreements,
 } from '@features/applications/services/submissionPresenter';
+import { readSubmissionRecord } from '@features/applications/services/submissionRecordRead';
 
 /**
  * The applicant's consents, one by one, on the DQ row of the preserved
@@ -21,7 +20,10 @@ import {
  * Read when the recruiter opens the list, then kept: one read, and none on a
  * visit to the DQ tab for any other file. The record holds the whole
  * application, so reading it whenever the tab opens would cost that on every
- * visit. A failed read is read again on the next opening.
+ * visit. It comes through `readSubmissionRecord`, so the record the
+ * Application tab already read is not read again, and showing the list again
+ * after a return to the tab reads nothing while the dossier is open. A failed
+ * read is read again on the next opening.
  *
  * The PDF is still reached only through the row's audited download; this adds
  * no link to it and never regenerates it.
@@ -37,8 +39,7 @@ const MESSAGES = {
 };
 
 async function readConsents({ companyId, applicationId, snapshotId }) {
-  const snap = await getDoc(doc(db, 'companies', companyId, 'applications', applicationId, 'submission', snapshotId));
-  const snapshot = snap.exists() ? snap.data() : null;
+  const snapshot = await readSubmissionRecord({ companyId, applicationId, snapshotId });
   if (!isPreservedSnapshot(snapshot)) return { status: 'missing', agreements: [] };
   const agreements = toDisplayAgreements(snapshot);
   return { status: agreements.length > 0 ? 'ready' : 'empty', agreements };

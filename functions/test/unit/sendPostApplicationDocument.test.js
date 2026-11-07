@@ -32,6 +32,7 @@ jest.mock('firebase-functions/v2/firestore', () => ({
 // A small document store, read and written by path. A stored timestamp is
 // `{ ms }`, and reads back with the `toMillis` a Firestore Timestamp has.
 const mockDocs = new Map();
+const mockReads = [];
 function mockRevive(data) {
     if (typeof data?.expiresAt?.ms !== 'number') return data;
     const { ms } = data.expiresAt;
@@ -60,7 +61,10 @@ function mockRef(path) {
         path,
         id: path.split('/').pop(),
         collection: (name) => ({ doc: (id) => mockRef(`${path}/${name}/${id}`) }),
-        get: async () => mockSnapshot(path),
+        get: async () => {
+            mockReads.push(path);
+            return mockSnapshot(path);
+        },
         set: async (data) => mockDocs.set(path, structuredClone(data)),
         update: async (data) => mockUpdate(path, data),
     };
@@ -182,7 +186,9 @@ beforeEach(() => {
     mockDocs.clear();
     mockSendEmail.mockResolvedValue(undefined);
     mockSendSms.mockResolvedValue(undefined);
-    assertCompanyAccessForRequest.mockResolvedValue(undefined);
+    mockReads.length = 0;
+    // As the real check does, it hands back the company it read.
+    assertCompanyAccessForRequest.mockImplementation(async () => mockSnapshot(COMPANY));
     checkRateLimit.mockResolvedValue(true);
     assertCompanyAcceptingIntake.mockResolvedValue({ companyName: 'Demo Logistics', isActive: true });
 });
@@ -446,6 +452,23 @@ describe('who may send what', () => {
         await expect(send()).rejects.toMatchObject({ code: 'permission-denied' });
         expect(assertCompanyAccessForRequest).toHaveBeenCalledWith(expect.anything(), 'co-1', 'sendPostApplicationDocument');
         expectNothingWritten(before);
+    });
+
+    it('takes the company the access check read, and does not read it again', async () => {
+        seed();
+        await expect(send()).resolves.toMatchObject({ outcome: 'sent' });
+        expect(mockReads).not.toContain(COMPANY);
+        expect(mockReads).toContain(APPLICATION);
+    });
+
+    it('reads the company itself when a super admin\'s check could not, and still checks the list', async () => {
+        seed();
+        assertCompanyAccessForRequest.mockResolvedValue(undefined);
+        await expect(send()).resolves.toMatchObject({ outcome: 'sent' });
+        expect(mockReads).toContain(COMPANY);
+
+        seed({ forms: [{ templateId: 'tpl-2', enabled: true }] });
+        await expect(send()).rejects.toMatchObject({ code: 'failed-precondition' });
     });
 
     it('sends only a form in the company\'s post-application list', async () => {

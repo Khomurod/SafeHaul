@@ -25,12 +25,20 @@ vi.mock('./CompanyTopbar', () => ({
         <>
             <button type="button" onClick={() => onOpenRecord?.('app-7')}>Open a notification</button>
             <button type="button" onClick={() => onOpenRecord?.('app-7', 'pev')}>Open a PEV notification</button>
+            <button type="button" onClick={() => onOpenRecord?.('lead-3', undefined, 'leads')}>Open a lead notification</button>
         </>
     ),
 }));
 vi.mock('../components/modals/driver-dossier/DriverProfileModal', () => ({
-    DriverProfileModal: ({ companyId, driverId, initialTab, onClose }) => (
-        <div role="dialog" aria-label="Driver dossier" data-company={companyId} data-record={driverId} data-tab={initialTab}>
+    DriverProfileModal: ({ companyId, driverId, initialTab, collectionHint, onClose }) => (
+        <div
+            role="dialog"
+            aria-label="Driver dossier"
+            data-company={companyId}
+            data-record={driverId}
+            data-tab={initialTab}
+            data-collection={collectionHint}
+        >
             <button type="button" onClick={onClose}>Close dossier</button>
         </div>
     ),
@@ -45,7 +53,7 @@ function Dashboard() {
             <button type="button" onClick={() => navigate('/company/other')}>Go elsewhere</button>
             <button
                 type="button"
-                onClick={() => navigate('/company/leads', { state: { openRecordId: 'lead-9', segment: 'new' } })}
+                onClick={() => navigate('/company/leads', { state: { openRecordId: 'lead-9', openRecordCollection: 'leads', segment: 'new' } })}
             >
                 Save a lead
             </button>
@@ -85,6 +93,18 @@ describe('the record a notification names', () => {
         expect(dossier).toHaveAttribute('data-company', 'co-1');
         // A notice about no tab in particular opens the dossier on its first.
         expect(dossier).not.toHaveAttribute('data-tab');
+        expect(dossier).not.toHaveAttribute('data-collection');
+    });
+
+    it('looks for the record first where the notification says it is', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Open a lead notification' }));
+
+        await screen.findByRole('button', { name: 'Close dossier' });
+        const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
+        expect(dossier).toHaveAttribute('data-record', 'lead-3');
+        expect(dossier).toHaveAttribute('data-collection', 'leads');
     });
 
     it('opens on the tab the notification is about', async () => {
@@ -128,6 +148,7 @@ describe('the record a page sends the person on to', () => {
 
         await screen.findByRole('button', { name: 'Close dossier' });
         expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveAttribute('data-record', 'lead-9');
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveAttribute('data-collection', 'leads');
         expect(screen.getByRole('dialog', { name: 'Driver dossier' })).not.toHaveAttribute('data-tab');
     });
 

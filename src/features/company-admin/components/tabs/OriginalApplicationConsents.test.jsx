@@ -22,6 +22,7 @@ vi.mock('@features/applications/services/applicationFileLink', async () => (awai
 
 import { DQFileTab } from './DQFileTab';
 import { OriginalApplicationConsents } from './OriginalApplicationConsents';
+import { forgetSubmissionRecords, readSubmissionRecord } from '@features/applications/services/submissionRecordRead';
 import {
     makeRenderDq,
     resetHarness,
@@ -97,6 +98,8 @@ async function renderPreservedRow() {
 
 beforeEach(() => {
     resetHarness();
+    // A dossier closes between tests: each reads its own record.
+    forgetSubmissionRecords();
     fs.getDoc.mockResolvedValue(record(SNAPSHOT));
 });
 
@@ -144,6 +147,44 @@ describe('DQFileTab — the consents on the preserved original', () => {
 
         expect(screen.getByRole('list', { name: 'Consents in this submission' })).toBeInTheDocument();
         expect(fs.getDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads nothing when the list is shown again after a return to the tab', async () => {
+        const { unmount } = await renderPreservedRow();
+        fireEvent.click(showConsents());
+        await screen.findByRole('list', { name: 'Consents in this submission' });
+        unmount();
+
+        await renderPreservedRow();
+        fireEvent.click(showConsents());
+
+        expect(await screen.findByRole('list', { name: 'Consents in this submission' })).toBeInTheDocument();
+        expect(fs.getDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads nothing when the Application tab already read the record', async () => {
+        // As `useSubmissionRecord` reads the original when the dossier opens on it.
+        await readSubmissionRecord({ companyId: 'co-1', applicationId: 'app-1', snapshotId: 'v1' });
+        await renderPreservedRow();
+
+        fireEvent.click(showConsents());
+
+        expect(await screen.findByRole('list', { name: 'Consents in this submission' })).toBeInTheDocument();
+        expect(fs.getDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads the record anew in a new opening of the dossier', async () => {
+        const { unmount } = await renderPreservedRow();
+        fireEvent.click(showConsents());
+        await screen.findByRole('list', { name: 'Consents in this submission' });
+        unmount();
+
+        forgetSubmissionRecords();
+        await renderPreservedRow();
+        fireEvent.click(showConsents());
+
+        expect(await screen.findByRole('list', { name: 'Consents in this submission' })).toBeInTheDocument();
+        expect(fs.getDoc).toHaveBeenCalledTimes(2);
     });
 
     it('keeps the PDF on the audited download and adds no other way to it', async () => {

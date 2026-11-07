@@ -50,7 +50,7 @@ import { leadsListPath } from './leadsListPath';
  *
  * Saving and Cancel return to the person's leads list (`leadsListPath`); once
  * saved, the new lead's dossier opens over it (the company shell opens the
- * `openRecordId` the navigation names).
+ * `openRecordId` the navigation names, a lead: `openRecordCollection`).
  */
 const REQUIRED_FIELDS = [
     { name: 'firstName', label: 'First Name' },
@@ -153,7 +153,7 @@ export const QuickAddLeadPage = () => {
 
             const added = await addDoc(collection(db, 'companies', companyId, 'leads'), leadData);
             showSuccess('Lead added successfully!');
-            navigate(listPath, { state: { openRecordId: added.id } });
+            navigate(listPath, { state: { openRecordId: added.id, openRecordCollection: 'leads' } });
         } catch (err) {
             console.error('Error adding lead:', err);
             showError('Failed to add lead. Please try again.');

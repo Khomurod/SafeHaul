@@ -285,7 +285,7 @@ describe('DossierSidebar — a lead and the application it became', () => {
 
     expect(screen.getByText(/^Applied/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open application' }));
-    expect(onOpenRecord).toHaveBeenCalledWith('app-9');
+    expect(onOpenRecord).toHaveBeenCalledWith('app-9', 'applications');
   });
 
   it('an application from a lead opens the lead', () => {
@@ -298,7 +298,7 @@ describe('DossierSidebar — a lead and the application it became', () => {
 
     expect(screen.getByText(/^From a lead/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open lead' }));
-    expect(onOpenRecord).toHaveBeenCalledWith('lead-4');
+    expect(onOpenRecord).toHaveBeenCalledWith('lead-4', 'leads');
   });
 
   it("says nothing for an application's own applicationId, or a record with no link", () => {

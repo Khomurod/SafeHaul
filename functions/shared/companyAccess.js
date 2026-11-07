@@ -37,6 +37,31 @@ async function assertCompanyActive(companyId) {
 }
 
 /**
+ * Starts reading the company document before the caller's claims load, so an
+ * access check costs one round trip, not two. It is read again on every call:
+ * nothing about roles, claims or the company is kept between requests. A failed
+ * read is observed at once, so it is never an unhandled rejection; it surfaces
+ * where the read is awaited.
+ */
+function startCompanyRead(companyId) {
+    const read = (async () => db.collection('companies').doc(companyId).get())();
+    read.catch(() => {});
+    return read;
+}
+
+/**
+ * A super admin passes whatever the company read says, deactivated or
+ * unreadable: the snapshot when it was read, else undefined.
+ */
+async function companyForSuperAdmin(companyRead) {
+    try {
+        return await companyRead;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
  * Strict company-access assertion used by callable functions that take `companyId`.
  * Access is granted when the user is:
  *  - super_admin (custom claims), even for a deactivated company
@@ -44,6 +69,9 @@ async function assertCompanyActive(companyId) {
  *  - present in companies/{companyId}/team/{uid}
  *  - owner/creator of the company doc
  * and, but for a super admin, the company is not deactivated.
+ *
+ * Resolves to the company's DocumentSnapshot it read, so a callable need not
+ * read it again; undefined for a super admin when the company could not be read.
  */
 async function assertCompanyAccess(userId, companyId) {
     if (!userId) {
@@ -53,6 +81,7 @@ async function assertCompanyAccess(userId, companyId) {
         throw new HttpsError('invalid-argument', 'companyId is required.');
     }
 
+    const companyRead = startCompanyRead(companyId);
     let claims = {};
     try {
         const userRecord = await admin.auth().getUser(userId);
@@ -61,10 +90,11 @@ async function assertCompanyAccess(userId, companyId) {
         console.warn(`[assertCompanyAccess] Unable to load custom claims for ${userId}: ${err?.message || err}`);
     }
     const roles = claims.roles || {};
-    if (isSuperAdminClaims(claims)) return;
+    if (isSuperAdminClaims(claims)) return companyForSuperAdmin(companyRead);
     if (isCompanyTeamRole(roles[companyId])) {
-        await assertCompanyActive(companyId);
-        return;
+        const companySnap = await companyRead;
+        refuseIfDeactivated(companySnap.exists ? companySnap.data() : null);
+        return companySnap;
     }
 
     const [memberSnap, membershipSnap, companySnap] = await Promise.all([
@@ -74,7 +104,7 @@ async function assertCompanyAccess(userId, companyId) {
             .where('companyId', '==', companyId)
             .limit(1)
             .get(),
-        db.collection('companies').doc(companyId).get(),
+        companyRead,
     ]);
 
     const teamRole = memberSnap.exists ? memberSnap.data()?.role : null;
@@ -87,7 +117,7 @@ async function assertCompanyAccess(userId, companyId) {
 
     if (isCompanyTeamRole(teamRole) || isCompanyTeamRole(membershipRole) || isOwner) {
         refuseIfDeactivated(companyData);
-        return;
+        return companySnap;
     }
 
     throw new HttpsError('permission-denied', 'You do not have access to this company.');
@@ -100,7 +130,8 @@ function isAdminRole(role) {
 /**
  * Strict admin assertion for sensitive configuration and outbound actions.
  * Unlike general access checks, this does NOT allow generic team membership.
- * A deactivated company is refused, but for a super admin.
+ * A deactivated company is refused, but for a super admin. Resolves as
+ * `assertCompanyAccess` does.
  */
 async function assertCompanyAdminStrict(userId, companyId) {
     if (!userId) {
@@ -110,6 +141,7 @@ async function assertCompanyAdminStrict(userId, companyId) {
         throw new HttpsError('invalid-argument', 'companyId is required.');
     }
 
+    const companyRead = startCompanyRead(companyId);
     let claims = {};
     try {
         const userRecord = await admin.auth().getUser(userId);
@@ -118,10 +150,11 @@ async function assertCompanyAdminStrict(userId, companyId) {
         console.warn(`[assertCompanyAdminStrict] Unable to load custom claims for ${userId}: ${err?.message || err}`);
     }
     const roles = claims.roles || {};
-    if (isSuperAdminClaims(claims)) return;
+    if (isSuperAdminClaims(claims)) return companyForSuperAdmin(companyRead);
     if (isAdminRole(roles[companyId])) {
-        await assertCompanyActive(companyId);
-        return;
+        const companySnap = await companyRead;
+        refuseIfDeactivated(companySnap.exists ? companySnap.data() : null);
+        return companySnap;
     }
 
     const [membershipSnap, companySnap] = await Promise.all([
@@ -130,7 +163,7 @@ async function assertCompanyAdminStrict(userId, companyId) {
             .where('companyId', '==', companyId)
             .limit(1)
             .get(),
-        db.collection('companies').doc(companyId).get(),
+        companyRead,
     ]);
 
     const companyData = companySnap.exists ? companySnap.data() : {};
@@ -138,7 +171,7 @@ async function assertCompanyAdminStrict(userId, companyId) {
     if (isAdminRole(membershipRole)
         || companyData.ownerId === userId || companyData.createdBy === userId || companyData.adminId === userId) {
         refuseIfDeactivated(companyData);
-        return;
+        return companySnap;
     }
 
     throw new HttpsError('permission-denied', 'Company admin access required.');
@@ -147,6 +180,7 @@ async function assertCompanyAdminStrict(userId, companyId) {
 /**
  * Helper wrapper for callable handlers. Converts unexpected auth errors to
  * a safe internal error while preserving explicit permission-denied results.
+ * Resolves as `assertCompanyAccess` does.
  */
 async function assertCompanyAccessForRequest(request, companyId, logLabel = 'company-access') {
     if (!request?.auth?.uid) {
@@ -154,7 +188,7 @@ async function assertCompanyAccessForRequest(request, companyId, logLabel = 'com
     }
 
     try {
-        await assertCompanyAccess(request.auth.uid, companyId);
+        return await assertCompanyAccess(request.auth.uid, companyId);
     } catch (err) {
         if (isPermissionDeniedError(err)) throw err;
         console.warn(`[${logLabel}] Auth check failed:`, err?.message || err);

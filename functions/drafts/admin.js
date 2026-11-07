@@ -57,11 +57,13 @@ const EDITABLE = new Set(EDITABLE_FIELDS);
  *
  * Identity details from the company document; questions, settings and rules
  * from its public projection, which is what the wizard renders. The same two
- * sources, in the same order, `submitGuestApplication` reads.
+ * sources, in the same order, `submitGuestApplication` reads. The company
+ * document is the one the admin check read; a super admin's check may hand back
+ * none, and then it is read here.
  */
-async function companyAsTheWizardSawIt(companyId) {
+async function companyAsTheWizardSawIt(companyId, checkedCompany) {
     const [companySnap, publicSnap] = await Promise.all([
-        db.collection('companies').doc(companyId).get(),
+        checkedCompany || db.collection('companies').doc(companyId).get(),
         db.collection('public_profiles').doc(companyId).get(),
     ]);
     const company = companySnap.exists ? companySnap.data() || {} : {};
@@ -92,9 +94,9 @@ function editableAnswers(formData) {
  * company's form as the wizard showed it, whether this draft is the admin's to
  * edit at all, and its record of edits so far.
  */
-async function adminView(companyId, doc) {
+async function adminView(companyId, doc, checkedCompany) {
     const data = doc.data() || {};
-    const company = await companyAsTheWizardSawIt(companyId);
+    const company = await companyAsTheWizardSawIt(companyId, checkedCompany);
     return {
         ...prepared.toCompanySummary(doc),
         record: buildDraftRecord({ company, formData: data.formData }),
@@ -113,7 +115,7 @@ async function adminView(companyId, doc) {
 
 /** Any unfinished application in full, for a Company Admin; see `adminView`. */
 exports.getApplicationDraft = onCall({ cors: true }, async (request) => {
-    const { uid, companyId, applicantKey } = await authorize(request, 'draft_admin_view', VIEW_LIMIT);
+    const { uid, companyId, applicantKey, companySnap } = await authorize(request, 'draft_admin_view', VIEW_LIMIT);
 
     const doc = await draft.draftsCollection(companyId).doc(applicantKey).get();
     if (!doc.exists) throw new HttpsError('not-found', NOT_FOUND);
@@ -126,7 +128,7 @@ exports.getApplicationDraft = onCall({ cors: true }, async (request) => {
         console.error(`[getApplicationDraft] Could not record the view of ${companyId}/${applicantKey} by ${uid}: ${error?.message || 'unknown'}`);
     }
 
-    return adminView(companyId, doc);
+    return adminView(companyId, doc, companySnap);
 });
 
 /**
@@ -189,7 +191,7 @@ function undoesALock(lockedEmployers, before, after) {
  * Answers with the draft's view, as `getApplicationDraft` does.
  */
 exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
-    const { uid, companyId, applicantKey } = await authorize(request, 'draft_admin_edit', EDIT_LIMIT);
+    const { uid, companyId, applicantKey, companySnap } = await authorize(request, 'draft_admin_edit', EDIT_LIMIT);
     const { changes, base } = editRequest(request.data);
 
     const ref = draft.draftsCollection(companyId).doc(applicantKey);
@@ -259,7 +261,7 @@ exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
 
     const doc = await ref.get();
     if (!doc.exists) throw new HttpsError('not-found', NOT_FOUND);
-    return { ...(await adminView(companyId, doc)), changed: outcome.changed, revision: outcome.revision };
+    return { ...(await adminView(companyId, doc, companySnap)), changed: outcome.changed, revision: outcome.revision };
 });
 
 exports.__private = { EDIT_LIMIT, NOT_FOUND, VIEW_LIMIT };
