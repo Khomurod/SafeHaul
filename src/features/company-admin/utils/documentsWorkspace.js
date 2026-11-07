@@ -8,13 +8,8 @@
  * cannot support.
  */
 
-const toMillis = (value) => {
-    if (!value) return null;
-    if (typeof value.toMillis === 'function') return value.toMillis();
-    if (typeof value.seconds === 'number') return value.seconds * 1000;
-    if (value instanceof Date) return value.getTime();
-    return null;
-};
+import { millisOf as toMillis } from '@shared/utils/millisOf';
+import { formatDate } from '@shared/utils/helpers';
 
 const normalize = (value) => (value === null || value === undefined ? '' : String(value));
 
@@ -319,11 +314,11 @@ export function isTemplateDuplicable(template) {
     );
 }
 
-/** Human-readable timestamp, or an em dash when the value is unusable. */
+/** The day a timestamp names ("Oct 23, 2026", the app's one date style), or an em dash when it is unusable. */
 export function formatTimestamp(value) {
     const millis = toMillis(value);
     if (millis === null) return '—';
-    return new Date(millis).toLocaleDateString();
+    return formatDate(new Date(millis));
 }
 
 /** "Oct 23, 2026", the date a request was sent (the history table's Date sent), or null without one. */

@@ -44,6 +44,17 @@ describe('CampaignCard', () => {
         expect(screen.queryByText('Progress')).not.toBeInTheDocument();
     });
 
+    it('dates the card in the app\'s one date style (K3)', () => {
+        render(<CampaignCard campaign={draft({ updatedAt: { toDate: () => new Date('2026-03-07T12:00:00Z') } })} />);
+        expect(screen.getByText('Mar 7, 2026')).toBeInTheDocument();
+        expect(screen.queryByText('3/7/2026')).not.toBeInTheDocument();
+    });
+
+    it('says Just now while the update time is pending', () => {
+        render(<CampaignCard campaign={draft({ updatedAt: { toDate: () => null } })} />);
+        expect(screen.getByText('Just now')).toBeInTheDocument();
+    });
+
     it('defaults method to SMS and leads to 0 when missing', () => {
         render(<CampaignCard campaign={{ id: '1', name: 'C', status: 'draft' }} />);
         expect(screen.getByText('0 leads')).toBeInTheDocument();
@@ -55,9 +66,12 @@ describe('CampaignCard', () => {
         ['draft', 'Draft', 'neutral'],
         ['completed', 'Completed', 'info'],
         ['scheduled', 'Scheduled', 'warning'],
-        ['queued', 'Queued', 'neutral'],
+        ['queued', 'Queued', 'accent'],
+        ['paused', 'Paused', 'warning'],
         ['cancelled', 'Cancelled', 'neutral'],
-        ['failed', 'Failed', 'neutral'],
+        // K2: a failed campaign reads as a failure, as it does in its report.
+        ['failed', 'Failed', 'danger'],
+        ['mystery', 'Mystery', 'neutral'],
     ])('presents %s as label "%s" with tone %s', (status, label, tone) => {
         render(<CampaignCard campaign={{ id: '1', name: 'C', status }} />);
         const badge = screen.getByText(label);

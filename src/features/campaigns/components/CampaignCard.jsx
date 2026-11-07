@@ -1,31 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon, Calendar, Users, MessageSquare, ChevronRight, MoreVertical, Trash2, Ban } from '@design-system/icons';
 import { Badge, Card, IconButton } from '@/design-system/components';
-import { isCancellableSessionStatus } from '../constants/campaignConstants';
-
-/**
- * Feature-owned domain → visual mapping for a campaign/session status.
- *
- * The design system only knows generic Badge tones; the campaigns feature owns
- * which status maps to which tone and label. Tones preserve the previous
- * appearance: active=success (emerald), completed=info (blue), scheduled=warning
- * (amber), and everything else (draft/queued/paused/cancelled/failed/unknown)
- * uses the neutral slate treatment the old default branch produced.
- */
-const STATUS_TONE = {
-    active: 'success',
-    completed: 'info',
-    scheduled: 'warning',
-    draft: 'neutral',
-};
-
-function statusPresentation(status) {
-    const tone = STATUS_TONE[status] || 'neutral';
-    const label = typeof status === 'string' && status.length > 0
-        ? status.charAt(0).toUpperCase() + status.slice(1)
-        : 'Unknown';
-    return { tone, label };
-}
+import { campaignStatusPresentation, isCancellableSessionStatus } from '../constants/campaignConstants';
+import { formatDate } from '@shared/utils/helpers';
 
 /** `onClick` opens the campaign: a draft in its editor, a sent or live one in its report. */
 export function CampaignCard({ campaign, onClick, onDelete, onCancel }) {
@@ -49,7 +26,8 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel }) {
         };
     }, []);
 
-    const { tone, label } = statusPresentation(campaign.status);
+    // The same status map as the campaign report (`campaignConstants`).
+    const { tone, label } = campaignStatusPresentation(campaign.status);
     const method = (campaign.messageConfig?.method || 'SMS');
 
     return (
@@ -162,7 +140,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel }) {
             <div className="mt-ds-4 flex items-center justify-between gap-ds-2 text-ds-xs font-bold uppercase tracking-wide">
                 <span className="flex items-center gap-ds-1 text-ds-content-muted">
                     <Icon icon={Calendar} size="xs" />
-                    {campaign.updatedAt?.toDate() ? new Date(campaign.updatedAt.toDate()).toLocaleDateString() : 'Just now'}
+                    {campaign.updatedAt?.toDate() ? formatDate(campaign.updatedAt.toDate()) : 'Just now'}
                 </span>
 
                 <button

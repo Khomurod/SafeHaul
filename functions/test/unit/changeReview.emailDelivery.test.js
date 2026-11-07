@@ -22,7 +22,7 @@ jest.mock('firebase-functions', () => ({
     },
 }));
 let mockTokenSeq = 0;
-jest.mock('uuid', () => ({ v4: () => `0f6c1d2e-review-token-${++mockTokenSeq}` }));
+jest.mock('../../shared/randomId', () => ({ randomId: () => `0f6c1d2e-review-token-${++mockTokenSeq}` }));
 const mockAssertAdmin = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({ assertCompanyAdminStrict: (...a) => mockAssertAdmin(...a) }));
 const mockRateLimit = jest.fn();

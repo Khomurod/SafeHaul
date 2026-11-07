@@ -357,6 +357,18 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
     expect(screen.getByText('--')).toBeInTheDocument();
   });
 
+  it('dates each application in the app\'s one date style (K3)', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Artificial', lastName: 'Driver', status: 'Hired', submittedAt: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 } },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const table = await screen.findByRole('table', { name: 'Driver applications for Artificial Freight Co' });
+    expect(within(table).getByText('Mar 7, 2026')).toBeInTheDocument();
+    expect(within(table).queryByText('3/7/2026')).not.toBeInTheDocument();
+  });
+
   it('shows the records in the shared table, one fact per column, with the name as row header', async () => {
     mockLoadApplications.mockResolvedValue([
       { id: 'a1', firstName: 'Artificial', lastName: 'Driver', email: 'd1@example.test', phone: '555-0111', status: 'Hired' },
@@ -383,6 +395,23 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
 
     expect(await screen.findByText('Hired')).toBeInTheDocument();
     expect(screen.getByText('New Application')).toBeInTheDocument();
+  });
+
+  it('tones each status as the company workspace does: Hired green, Rejected red (K2)', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Alpha', lastName: 'Driver', status: 'Hired' },
+      { id: 'a2', firstName: 'Beta', lastName: 'Driver', status: 'Rejected' },
+      { id: 'a3', firstName: 'Gamma', lastName: 'Driver' },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const hired = (await screen.findByText('Hired')).closest('.ds-badge');
+    expect(hired).toHaveAttribute('data-tone', 'success');
+    expect(screen.getByText('Rejected').closest('.ds-badge')).toHaveAttribute('data-tone', 'danger');
+    expect(screen.getByText('New Application').closest('.ds-badge')).toHaveAttribute('data-tone', 'info');
+    // The text carries the meaning; the shared badge adds a decorative icon.
+    expect(hired.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('filters across name, email and status', async () => {

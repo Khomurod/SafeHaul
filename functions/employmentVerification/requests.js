@@ -20,7 +20,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
 const { sendDynamicEmail } = require("../emailService");
 const { assertCompanyAccessForRequest } = require("../shared/companyAccess");
-const { v4: uuidv4 } = require("uuid");
+const { randomId } = require('../shared/randomId');
 const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
 const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
@@ -192,7 +192,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         });
 
         // Generate unique token
-        const token = uuidv4();
+        const token = randomId();
         const now = admin.firestore.Timestamp.now();
         const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + (30 * 24 * 60 * 60 * 1000)); // 30 days
         const deadlineDate = new Date(expiresAt.toMillis()).toISOString().split('T')[0];
@@ -203,7 +203,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // The request document: the applicant's signed release, for the email and the record.
         const row = stamped[target.index] || {};
         const resolvedEmployerName = employerName || employerNameOf(row) || 'Former Employer';
-        const requestId = uuidv4();
+        const requestId = randomId();
         const employerRelease = await employerReleaseOf(appRef, application, resolvedEmployerName);
         const requestPdf = await storeRequestPdf({
             path: requestPdfPath({

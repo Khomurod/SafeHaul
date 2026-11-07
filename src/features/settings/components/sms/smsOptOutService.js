@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { serverMessageOf } from '@shared/utils/callableErrors';
 
 /**
  * The three callables behind Settings → Text messages → Opted-out numbers
@@ -49,7 +50,8 @@ const PLAIN = {
  * sentence. `denied` words a refusal for an action only some may take (removal).
  */
 export function optOutErrorMessage(error, fallback, denied) {
-    if (error?.code === 'functions/invalid-argument' && error?.message) return error.message;
+    const said = error?.code === 'functions/invalid-argument' ? serverMessageOf(error) : null;
+    if (said) return said;
     if (error?.code === 'functions/permission-denied' && denied) return denied;
     return PLAIN[error?.code] || fallback;
 }

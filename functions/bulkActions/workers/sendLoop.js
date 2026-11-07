@@ -14,7 +14,7 @@
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
 const { agreedToSms } = require("../../shared/smsPermission");
-const { normalizePhone } = require("../../utils/phoneUtils");
+const { toE164Us } = require("../../utils/phoneUtils");
 const { pauseBeforeNextSend, SEND_WINDOW_MS } = require("./sendPacing");
 const BaseAdapter = require("../../integrations/adapters/BaseAdapter");
 const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
@@ -150,7 +150,7 @@ async function runSendLoop({
                         // number. For SMS the number is the address, so a missing
                         // or unusable one is refused here; an email to someone
                         // without a usable number has no opt-out to look up.
-                        const blacklisted = (config.method === 'sms' || normalizePhone(phone))
+                        const blacklisted = (config.method === 'sms' || toE164Us(phone))
                             ? await isBlacklisted(companyId, phone)
                             : false;
 
@@ -292,7 +292,7 @@ async function runSendLoop({
                 // mirrors the SMS ledger so `sessionController` can skip recently
                 // contacted addresses in BOTH channels.
                 if (success && config.method === 'sms') {
-                    const normPhone = normalizePhone(recipientIdentity);
+                    const normPhone = toE164Us(recipientIdentity);
                     if (normPhone) {
                         db.collection('companies').doc(companyId)
                             .collection('sms_sent_phones').doc(normPhone)

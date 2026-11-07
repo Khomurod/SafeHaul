@@ -26,10 +26,6 @@ const LABEL_BY_FIELD_ID = new Map(
     STANDARD_SECTIONS.flatMap((section) => section.fields.map((field) => [field.id, field.label])),
 );
 
-const EDITABLE_FIELD_LABELS = Object.freeze(
-    Object.fromEntries(EDITABLE_FIELD_KEYS.map((key) => [key, LABEL_BY_FIELD_ID.get(key) || null])),
-);
-
 function isEditableField(key) {
     return EDITABLE_FIELD_KEYS.includes(key);
 }
@@ -56,7 +52,6 @@ function valuesEqual(a, b) {
 }
 
 module.exports = {
-    EDITABLE_FIELD_LABELS,
     EDITABLE_FIELD_KEYS,
     isEditableField,
     fieldLabel,

@@ -65,31 +65,9 @@ export function DossierSendDocument({ company, record }) {
             {/* Wired as E-Docs wires it (`views/DocumentsManager.jsx`). */}
             {flow.showDriverPicker && (
                 <SendTemplateWizard
-                    selectedTemplate={flow.selectedTemplate}
+                    flow={flow}
                     // Closing mid-send is blocked, as in E-Docs.
                     onClose={() => { if (!flow.sending) flow.setShowDriverPicker(false); }}
-                    manualName={flow.manualName}
-                    setManualName={flow.setManualName}
-                    manualEmail={flow.manualEmail}
-                    setManualEmail={flow.setManualEmail}
-                    manualPhone={flow.manualPhone}
-                    setManualPhone={flow.setManualPhone}
-                    deliveryMethod={flow.deliveryMethod}
-                    setDeliveryMethod={flow.setDeliveryMethod}
-                    editablePrefillPartition={flow.editablePrefillPartition}
-                    prefillValues={flow.prefillValues}
-                    setPrefillValues={flow.setPrefillValues}
-                    prefillValuesByGroupKey={flow.prefillValuesByGroupKey}
-                    setPrefillValuesByGroupKey={flow.setPrefillValuesByGroupKey}
-                    companySignature={flow.companySignature}
-                    sending={flow.sending}
-                    executeTemplateSend={flow.executeTemplateSend}
-                    filteredDrivers={flow.drivers}
-                    leadsStatus={flow.driversStatus}
-                    searchQuery={flow.searchQuery}
-                    setSearchQuery={flow.setSearchQuery}
-                    handleQuickSelect={flow.handleQuickSelect}
-                    linkedRecord={flow.linkedRecord}
                 />
             )}
         </>

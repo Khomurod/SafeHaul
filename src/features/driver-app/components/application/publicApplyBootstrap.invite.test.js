@@ -130,8 +130,7 @@ describe('opening an application a carrier prepared', () => {
         // The invite branch returns straight out of `loadPublicApplyCompany`, so a
         // company set *after* it is a company never set at all — and the wizard
         // dereferences `company.companyName` on the very next render. Every real
-        // carrier-sent link opened on nothing; the E2E branch happens to set the
-        // company before calling the helper, which is why no browser test saw it.
+        // carrier-sent link opened on nothing.
         expect(args.setCompany).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'co-1', companyName: 'Blue Line Freight' }),
         );

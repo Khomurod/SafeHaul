@@ -7,21 +7,16 @@ import { callableErrorText } from './callableErrorText';
  *
  * Mirrors `./environmentVault.js` deliberately: the two consoles share the same
  * backend guards, the same recent-authentication contract and the same audit
- * trail, so they share the same client shape too. Re-authentication detection
- * and the cancellation type are imported from there rather than reimplemented,
- * because two divergent copies of that logic is how one of them ends up
- * reporting a cancelled mutation as a completed one.
+ * trail, so they share the same client shape too. Cancellation detection is
+ * re-exported from there rather than reimplemented, because two divergent
+ * copies of that logic is how one of them ends up reporting a cancelled
+ * mutation as a completed one.
  *
  * A revealed credential is returned to the caller and nowhere else. Nothing in
  * this module caches, memoises or persists a value.
  */
 
-export {
-    ReauthCancelledError,
-    isReauthCancelled,
-    isReauthRequired,
-    reauthenticateWithPassword,
-} from './environmentVault';
+export { isReauthCancelled } from './environmentVault';
 
 /**
  * User-facing text for a callable failure.

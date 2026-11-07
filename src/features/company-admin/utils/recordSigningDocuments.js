@@ -15,16 +15,10 @@
  */
 import { hasDeliveryFailure, isLinkExpired } from './documentsWorkspace';
 import { canRemindSigner } from '@features/signing/utils/signerReminder';
+import { serverMessageOf } from '@shared/utils/callableErrors';
+import { millisOf } from '@shared/utils/millisOf';
 
 export { isLinkExpired };
-
-const millisOf = (value) => {
-    if (!value) return null;
-    if (typeof value.toMillis === 'function') return value.toMillis();
-    if (typeof value.seconds === 'number') return value.seconds * 1000;
-    if (value instanceof Date) return value.getTime();
-    return null;
-};
 
 const statusOf = (request) => String(request?.status || '').trim().toLowerCase();
 
@@ -156,12 +150,17 @@ export function sendResultMessage(data) {
     return { tone: 'success', text: `Sent to the driver ${CHANNEL_WORDS[channel]}.` };
 }
 
-/** Why a press of Send to driver sent nothing. A refusal carries the server's own reason. */
+/** Refusals of Send to driver whose sentence the server writes for the person. */
+const SEND_EXPLAINED = new Set(['failed-precondition', 'aborted', 'not-found']);
+
+/**
+ * Why a press of Send to driver sent nothing. A refusal carries the server's own
+ * reason; a bare code (`serverMessageOf`) is no reason.
+ */
 export function sendErrorMessage(error) {
     const code = String(error?.code || '').replace(/^functions\//, '');
-    if ((code === 'failed-precondition' || code === 'aborted' || code === 'not-found') && error?.message) {
-        return error.message;
-    }
+    const said = SEND_EXPLAINED.has(code) ? serverMessageOf(error) : null;
+    if (said) return said;
     if (code === 'permission-denied') return 'You do not have access to send documents for this company.';
     return 'Could not send the form. Please try again.';
 }

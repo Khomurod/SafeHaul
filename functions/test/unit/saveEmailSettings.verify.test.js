@@ -74,9 +74,11 @@ describe('saveEmailSettings verifies what it saves', () => {
         mockVerify.mockResolvedValue(true);
         const result = await save({ ...FORM, smtpPass: 'artificial-password' });
 
-        expect(mockTransportOptions[0]).toMatchObject({
+        // Exactly the connection a send makes (`smtpTransportOptions`), but the socket's limit.
+        expect(mockTransportOptions[0]).toEqual({
             host: 'smtp.example.com',
             port: 587,
+            secure: false,
             auth: { user: 'hiring@example.com', pass: 'artificial-password' },
             // The save waits on the check, so no stage of it may outlast the function.
             connectionTimeout: 10000,

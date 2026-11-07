@@ -14,7 +14,7 @@ jest.mock('firebase-functions', () => require('./employmentVerification.support'
 jest.mock('../../emailService', () => require('./employmentVerification.support').emailServiceMock());
 jest.mock('../../shared/rateLimiter', () => require('./employmentVerification.support').rateLimiterMock());
 jest.mock('../../shared/companyAccess', () => require('./employmentVerification.support').companyAccessMock());
-jest.mock('uuid', () => require('./employmentVerification.support').uuidMock());
+jest.mock('../../shared/randomId', () => require('./employmentVerification.support').randomIdMock());
 jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support').firebaseAdminMock());
 
 const {

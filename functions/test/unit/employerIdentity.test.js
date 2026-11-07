@@ -24,7 +24,7 @@ const {
     MAX_EMPLOYERS, resolveEmployerTarget, withEmployerIds,
 } = require('../../shared/employerIdentity');
 const {
-    describeEmployerEdit, reconcileEmployerEdit, removesVerifiedEmployer,
+    describeEmployerEdit, reconcileEmployerEdit,
 } = require('../../shared/employerEdits');
 
 const COMPLETED = Object.freeze({
@@ -154,7 +154,6 @@ describe('editing an employer that has verification activity', () => {
             twoEmployers(),
         );
 
-        expect(removesVerifiedEmployer(removed)).toBe(true);
         expect(describeEmployerEdit(removed)).toContain('ABC Trucking (verification: Completed)');
         // And the sentence says what did NOT happen, because the PEV record itself
         // lives on `verification_requests` and is never deleted here.
@@ -164,7 +163,6 @@ describe('editing an employer that has verification activity', () => {
     it('has nothing to say when nothing was removed', () => {
         const { removed } = reconcileEmployerEdit(twoEmployers(), twoEmployers());
         expect(describeEmployerEdit(removed)).toBeNull();
-        expect(removesVerifiedEmployer(removed)).toBe(false);
     });
 });
 

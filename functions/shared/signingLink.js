@@ -14,13 +14,13 @@
  */
 const { randomUUID } = require('crypto');
 const { admin } = require('../firebaseAdmin');
-const { normalizePhone } = require('./normalizePhone');
+const { toE164Us } = require('./toE164Us');
 
 // A replaced or newly sent link has the seven days a new request gets.
 const LINK_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
 const emailOf = (data) => (typeof data?.recipientEmail === 'string' ? data.recipientEmail.trim().toLowerCase() : '');
-const phoneOf = (data) => normalizePhone(data?.recipientPhone)
+const phoneOf = (data) => toE164Us(data?.recipientPhone)
     || (typeof data?.recipientPhone === 'string' ? data.recipientPhone.replace(/\D/g, '') : '');
 const emailsLink = (data) => data.sendEmail !== false && Boolean(emailOf(data));
 const textsLink = (data) => Boolean(data.sendSms) && Boolean(phoneOf(data));

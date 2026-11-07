@@ -16,6 +16,9 @@ and the design-system documents, stated as they apply today.
 | `design-system-docs-2026-10-02.md` | The design-system roadmap and `src/design-system/README.md` in full, before they were condensed, with the roadmap's dated update log |
 | `source-size-refactor/` | The finished 2026-08 source-size campaign: its plan and its tracker |
 | `code-notes-2026-10.md` | The dated history notes from code comments, verbatim by file |
+| `product-improvements/` | The finished 2026-10 product-improvement plan: audit, tracker and verification notes |
+| `product-simplification/` | The finished 2026-11 simplification plan (У1–У8): audit and tracker |
+| `design-landing-2026-11.md` | The removed landing page's sections of `DESIGN.md`: motion, figures, FAQ, screenshot exhibits |
 
 When you condense an instruction file, move the history here verbatim rather
 than deleting it, and add a row to the table above.

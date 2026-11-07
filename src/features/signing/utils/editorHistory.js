@@ -59,18 +59,6 @@ export function canRedo(history) {
     return Boolean(history) && history.index < (history.entries?.length ?? 0) - 1;
 }
 
-/** Human-readable label of the change undo would reverse, for announcements. */
-export function undoLabel(history) {
-    if (!canUndo(history)) return '';
-    return history.entries[history.index]?.label || '';
-}
-
-/** Human-readable label of the change redo would reapply. */
-export function redoLabel(history) {
-    if (!canRedo(history)) return '';
-    return history.entries[history.index + 1]?.label || '';
-}
-
 /**
  * Record a new state.
  *

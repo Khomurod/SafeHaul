@@ -11,31 +11,16 @@
  * a new one.
  */
 
-/** The server's `normalizeName`: case, accents and anything but a-z removed. */
-function normalizeName(value) {
-  return String(value || '').normalize('NFKD').toLowerCase().replace(/[^a-z]/g, '');
-}
-
-/** The server's `normalizeDob`: `YYYY-MM-DD`, or empty when it is not a date. */
-function normalizeDob(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim());
-  return match ? `${match[1]}-${match[2]}-${match[3]}` : '';
-}
-
-/** Ten national digits, a leading US 1 aside, as the server compares phones. */
-function nationalDigits(value) {
-  const digits = String(value || '').replace(/\D/g, '');
-  return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-}
+import { nationalDigits, normalizeDob, normalizeName, normalizeSsn } from '@shared/utils/applicantIdentity';
 
 /**
  * The facts another device is matched on, as one comparable value, or null when
  * they are not all there. Reads `lastName`, `dob`, `ssn`, `email` and `phone`,
  * which the answers and the save payload both carry under those names. The name
- * and the date are normalized as the server's `buildIdentityKey` does
- * (functions/shared/applicationDraft.js): a last name with no letter a-z, such
- * as one written only in another script, gives the server no identity key, so it
- * gives none here either.
+ * and the date are normalized as the server's `buildIdentityKey` does, by the
+ * same functions (`applicantIdentity.js`, mirrored from functions/shared): a
+ * last name with no letter a-z, such as one written only in another script,
+ * gives the server no identity key, so it gives none here either.
  *
  * @param {object} answers
  * @returns {string|null}
@@ -44,7 +29,7 @@ export function resumeIdentityOf(answers) {
   const facts = answers || {};
   const lastName = normalizeName(facts.lastName);
   const dob = normalizeDob(facts.dob);
-  const ssn = String(facts.ssn || '').replace(/\D/g, '');
+  const ssn = normalizeSsn(facts.ssn);
   const email = String(facts.email || '').trim().toLowerCase();
   const phone = nationalDigits(facts.phone);
   const matchablePhone = phone.length >= 10 ? phone : '';

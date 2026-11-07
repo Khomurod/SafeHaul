@@ -68,10 +68,9 @@ const {
     MAX_LOCKED_EMPLOYERS, employerSignature, normalizeLockedEmployers,
     reconcileLockedEmployers,
 } = require('./applicationLockedFields');
+const { trimTo } = require('./plainText');
 
-function text(value, max = 120) {
-    return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
+const text = (value, max = 120) => trimTo(value, max);
 
 /** True when this stored draft is one a carrier prepared. */
 function isCompanyPrepared(data) {

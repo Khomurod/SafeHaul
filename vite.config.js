@@ -130,8 +130,7 @@ export default defineConfig({
       'firebase/auth',
       'firebase/firestore',
       'firebase/functions',
-      'firebase/storage',
-      'firebase/app-check'
+      'firebase/storage'
     ],
     // exceljs and papaparse are imported only by the bulk-import Web Worker,
     // which the start-up dependency scan does not crawl. Without them here, the

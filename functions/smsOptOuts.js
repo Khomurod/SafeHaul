@@ -22,7 +22,8 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin, db } = require('./firebaseAdmin');
 const { assertCompanyAccessForRequest, assertCompanyAdminStrict } = require('./shared/companyAccess');
-const { normalizePhone } = require('./shared/normalizePhone');
+const { toE164Us } = require('./shared/toE164Us');
+const { millisOf } = require('./shared/millisOf');
 
 /** The most entries one list shows, newest first; the total is counted. */
 const LIST_LIMIT = 300;
@@ -61,7 +62,7 @@ function companyIdOf(request) {
 
 function phoneOf(request) {
     const raw = request.data?.phone;
-    const phone = typeof raw === 'string' && raw.length <= 40 ? normalizePhone(raw) : null;
+    const phone = typeof raw === 'string' && raw.length <= 40 ? toE164Us(raw) : null;
     if (!phone || phone.length > MAX_E164_LENGTH) {
         throw new HttpsError('invalid-argument', 'Enter the phone number with its area code, such as (555) 123-4567.');
     }
@@ -71,12 +72,6 @@ function phoneOf(request) {
 function reasonOf(value) {
     const reason = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, MAX_REASON_LENGTH) : '';
     return reason || DEFAULT_REASON;
-}
-
-function millisOf(value) {
-    if (value && typeof value.toMillis === 'function') return value.toMillis();
-    if (value instanceof Date) return value.getTime();
-    return null;
 }
 
 /**

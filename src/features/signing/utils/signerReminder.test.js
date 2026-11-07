@@ -91,4 +91,12 @@ describe('what a press of Remind says', () => {
             .toBe('Could not send the reminder. Please try again.');
         expect(reminderErrorMessage(undefined)).toBe('Could not send the reminder. Please try again.');
     });
+
+    it('never shows a bare code as the reason: the server did not answer (a function not yet deployed)', () => {
+        for (const message of ['not-found', 'NOT_FOUND', 'failed-precondition', 'aborted']) {
+            const code = `functions/${message.toLowerCase().replace(/_/g, '-')}`;
+            expect(reminderErrorMessage(Object.assign(new Error(message), { code })))
+                .toBe('Could not send the reminder. Please try again.');
+        }
+    });
 });

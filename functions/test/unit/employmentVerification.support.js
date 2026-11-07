@@ -361,7 +361,7 @@ const companyAccessMock = () => ({
   assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccessForRequest(...args),
 });
 
-const uuidMock = () => ({ v4: jest.fn(() => 'pev-token-123456') });
+const randomIdMock = () => ({ randomId: jest.fn(() => 'pev-token-123456') });
 
 /** PDF generation is not what these suites are about, and it is not free. */
 const pdfLibMock = () => ({
@@ -469,7 +469,7 @@ module.exports = {
   pdfLibMock,
   rateLimiterMock,
   schedulerMock,
-  uuidMock,
+  randomIdMock,
   resetPevState,
   failNextStorageSave,
   failNextDqFiling,

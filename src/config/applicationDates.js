@@ -3,7 +3,7 @@
 // ESM mirror of `functions/shared/applicationDates.js` — the one place the
 // application's date shapes are parsed and judged. See that file for why. The body
 // between the markers is byte-identical to the server copy;
-// `applicationRules.parity.test.js` fails if the two drift.
+// `src/config/applicationRules.test.js` fails if the two drift.
 
 // --- body ---------------------------------------------------------------------
 // Identical to functions/shared/applicationDates.js. Edit both, or the parity test fails.

@@ -140,17 +140,11 @@ async function testEmailCredentials(smtpConfig) {
             return { success: false, error: `Invalid SMTP port. Allowed ports: ${ALLOWED_PORTS.join(', ')}.` };
         }
 
-        // Bounded at every stage: a save waits on this check (saveEmailSettings).
+        // The connection every send makes (`smtpTransportOptions`), bounded at every
+        // stage; its socket is given 20 s, not a send's 30, because a save waits on
+        // this check (saveEmailSettings).
         const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: port,
-            secure: port === 465,
-            auth: {
-                user: smtpUser,
-                pass: smtpPass,
-            },
-            connectionTimeout: 10000,
-            greetingTimeout: 10000,
+            ...smtpTransportOptions({ host: smtpHost, port, user: smtpUser, pass: smtpPass }),
             socketTimeout: 20000,
         });
 

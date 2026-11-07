@@ -22,6 +22,7 @@
 const { CAPABILITIES } = require('../registry/capabilities');
 const { TASK_TYPES, PRIVACY, defineTask } = require('./contract');
 const { runAiTask } = require('../router/router');
+const { trimTo } = require('../../shared/plainText');
 
 const MAX_ITEMS = 25;
 const MAX_TEXT = 200;
@@ -96,9 +97,7 @@ const MVR_PROMPT = [
 ].join(' ');
 
 /** Trim to a string, bounded, or ''. */
-function text(value, max = MAX_TEXT) {
-    return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
+const text = (value, max = MAX_TEXT) => trimTo(value, max);
 
 /**
  * A two-digit year in the nearer century: a birth year of '88 is 1988, while an

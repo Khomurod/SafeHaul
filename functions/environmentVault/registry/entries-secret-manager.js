@@ -89,7 +89,6 @@ const SECRET_MANAGER_ENTRIES = [
             'functions/atsContactSms.js',
             'functions/notifySignerSMS.js',
             'functions/driverSync.js',
-            'functions/migrateEmailSettings.js',
         ],
     },
     {

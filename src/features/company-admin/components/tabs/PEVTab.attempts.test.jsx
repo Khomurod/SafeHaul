@@ -158,6 +158,17 @@ describe('Record attempt', () => {
 
     await waitFor(() => expect(screen.getByText('The attempt could not be recorded. Please try again.')).toBeInTheDocument());
   });
+
+  it('never shows a bare code as the reason, as when the function is not on the server yet', async () => {
+    fnMocks.callable.mockRejectedValue(Object.assign(new Error('not-found'), { code: 'functions/not-found' }));
+    renderTab({ employers: [legacyRow({ status: 'Sent', history: [] })] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record attempt for Legacy Hauling' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Record attempt' }));
+
+    await waitFor(() => expect(screen.getByText('The attempt could not be recorded. Please try again.')).toBeInTheDocument());
+    expect(screen.queryByText('not-found')).toBeNull();
+  });
 });
 
 describe('the history dialog', () => {
@@ -167,8 +178,8 @@ describe('the history dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /View History/i }));
     const dialog = screen.getByRole('dialog', { name: 'Verification History' });
     expect(within(dialog).getByText('Left a voicemail with HR')).toBeInTheDocument();
-    const day = new Date('2026-10-05T12:00:00.000Z').toLocaleDateString();
-    expect(within(dialog).getByText(`${day} · recorded by Rita Recruiter`)).toBeInTheDocument();
+    // Stored at 12:00 UTC of the day given; shown as that day in the app's one date style (K3).
+    expect(within(dialog).getByText('Oct 5, 2026 · recorded by Rita Recruiter')).toBeInTheDocument();
   });
 
   it('opens day 30\'s record of attempts from the no-response entry, signed on the press', async () => {

@@ -20,6 +20,7 @@
  */
 
 const { db } = require('../firebaseAdmin');
+const { millisOf: toMillis } = require('../shared/millisOf');
 const {
     AVAILABILITY,
     CATEGORIES,
@@ -223,13 +224,6 @@ function buildCompanyRow({
         lastUpdated,
         updatedBy,
     };
-}
-
-function toMillis(timestamp) {
-    if (!timestamp) return null;
-    if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
-    if (timestamp instanceof Date) return timestamp.getTime();
-    return null;
 }
 
 /** Company id from a `companies/{id}/...` document reference. */

@@ -36,6 +36,7 @@ const { CAPABILITIES } = require('../registry/capabilities');
 const { TASK_TYPES, PRIVACY, defineTask } = require('./contract');
 const { runAiTask } = require('../router/router');
 const { looseDateToIso, normalizeViolations, normalizePspOutput } = require('./reportExtraction');
+const { trimTo } = require('../../shared/plainText');
 
 /** The documents this task knows how to be given. Any subset, in any combination. */
 const DOCUMENT_KINDS = Object.freeze(['cdl', 'medical', 'psp', 'mvr']);
@@ -142,9 +143,7 @@ const DOCUMENT_PROMPT = [
     'Report only what is printed. Never infer employment dates from inspection dates. Leave anything missing empty.',
 ].join(' ');
 
-function text(value, max = 200) {
-    return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
+const text = (value, max = 200) => trimTo(value, max);
 
 /**
  * The labelled document handed to the model, and which documents it had to cut.

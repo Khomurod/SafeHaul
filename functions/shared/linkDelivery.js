@@ -36,6 +36,7 @@ const { checkRateLimit } = require('./rateLimiter');
 const { isValidEmail } = require('./isValidEmail');
 const { isPlaceholderEmail } = require('./placeholderDomains');
 const { escapeHtml } = require('./plainText');
+const { millisOf } = require('./millisOf');
 
 /** An email claimed this recently, being sent or sent, refuses another for the same record. */
 const DELIVERY_COOLDOWN_MS = 60 * 1000;
@@ -135,12 +136,6 @@ function deliveryClaim({ uid, to, now }) {
         sentAt: null,
         failedAt: null,
     };
-}
-
-function millisOf(value) {
-    if (typeof value?.toMillis === 'function') return value.toMillis();
-    if (value instanceof Date) return value.getTime();
-    return null;
 }
 
 /** An email being sent, or sent, less than the cooldown ago: another press is refused. */

@@ -4,7 +4,7 @@
 // Application Rules, evaluated identically in the wizard, the browser's final
 // pre-flight and `submitGuestApplication`. See the server copy for the full
 // rationale. The body between the markers is byte-identical to it;
-// `applicationRules.parity.test.js` fails if the two drift.
+// `applicationRules.test.js` fails if the two drift.
 
 import STANDARD_SECTIONS from '../../functions/shared/applicationSections.json';
 import CATALOG from '../../functions/shared/applicationRulesCatalog.json';

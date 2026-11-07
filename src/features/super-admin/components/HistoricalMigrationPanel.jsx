@@ -71,7 +71,7 @@ function PanelHeading() {
                     Unfinished drafts and already-preserved records are left untouched.
                 </p>
             </div>
-            <Badge tone="warning">Temporary</Badge>
+            <Badge>Records repair</Badge>
         </div>
     );
 }

@@ -11,6 +11,7 @@ import { presentSubmission } from '@features/applications/services/submissionPre
 import { describeApplicant, describeUnfinishedRow } from './unfinishedRowActions';
 import { UnfinishedApplicationEditor } from './UnfinishedApplicationEditor';
 import { changedSectionTitles } from './unfinishedEditorModel';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * An unfinished application the driver has written, for a Company Admin to read
@@ -184,11 +185,11 @@ export function UnfinishedApplicationReview({ companyId, entry, onExit, startEdi
                             <FieldDisplay label="Status">{row.statusLabel}</FieldDisplay>
                             <FieldDisplay label="Reached">{row.progressLabel}</FieldDisplay>
                             <FieldDisplay label="Last activity">
-                                {summary.updatedAt ? new Date(summary.updatedAt).toLocaleString() : 'Unknown'}
+                                {summary.updatedAt ? formatDate(new Date(summary.updatedAt), true) : 'Unknown'}
                             </FieldDisplay>
                             {summary.companyEditedAt && (
                                 <FieldDisplay label="Last edited by your company">
-                                    {new Date(summary.companyEditedAt).toLocaleString()}
+                                    {formatDate(new Date(summary.companyEditedAt), true)}
                                 </FieldDisplay>
                             )}
                         </div>

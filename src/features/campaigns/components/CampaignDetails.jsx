@@ -7,31 +7,9 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, IconButton, Notice } from '@/design-system/components';
-import { deliveryCheckMessage } from '../constants/campaignConstants';
+import { campaignStatusPresentation, deliveryCheckMessage } from '../constants/campaignConstants';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
-
-// Feature-owned domain → visual mapping (design system only knows generic tones).
-// Tones preserve the previous appearance: active=success, completed=info,
-// scheduled/paused=warning (amber/orange), queued=accent, failed=danger,
-// draft/cancelled/unknown=neutral.
-const STATUS_TONE = {
-    active: 'success',
-    draft: 'neutral',
-    completed: 'info',
-    scheduled: 'warning',
-    queued: 'accent',
-    failed: 'danger',
-    paused: 'warning',
-    cancelled: 'neutral',
-};
-
-function statusPresentation(status) {
-    const tone = STATUS_TONE[status] || 'neutral';
-    const label = typeof status === 'string' && status.length > 0
-        ? status.charAt(0).toUpperCase() + status.slice(1)
-        : 'Unknown';
-    return { tone, label };
-}
+import { formatDate } from '@shared/utils/helpers';
 
 /*
  * `icon: Glyph`, not `icon: Icon`. The contract's own component is called
@@ -100,10 +78,11 @@ export function CampaignDetails({ campaign, onClose }) {
         );
     }
 
-    const formatDate = (timestamp) => {
+    // The app's one date style ("Mar 7, 2026, 02:30 PM"), with the time.
+    const formatWhen = (timestamp) => {
         if (!timestamp) return 'N/A';
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        return date.toLocaleString();
+        return formatDate(date, true);
     };
 
     /**
@@ -213,7 +192,7 @@ export function CampaignDetails({ campaign, onClose }) {
     const isActive = ['active', 'queued', 'scheduled'].includes(campaign.status);
     const isPaused = campaign.status === 'paused';
     const canCheckDelivery = String(campaign.messageConfig?.method || '').toLowerCase() === 'sms' && campaign.progress?.processedCount > 0;
-    const { tone, label } = statusPresentation(campaign.status);
+    const { tone, label } = campaignStatusPresentation(campaign.status);
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-ds-surface-subtle">
@@ -228,7 +207,7 @@ export function CampaignDetails({ campaign, onClose }) {
                         <div className="mt-ds-1 flex flex-wrap items-center gap-ds-2">
                             <Badge tone={tone}>{label}</Badge>
                             <span className="flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-muted">
-                                <Icon icon={Clock} size="xs" /> {formatDate(campaign.createdAt)}
+                                <Icon icon={Clock} size="xs" /> {formatWhen(campaign.createdAt)}
                             </span>
                         </div>
                     </div>
@@ -362,16 +341,16 @@ export function CampaignDetails({ campaign, onClose }) {
                             </div>
                             <div className="min-w-0">
                                 <dt className="mb-ds-1 text-ds-xs font-bold uppercase text-ds-content-muted">Created At</dt>
-                                <dd className="text-ds-content-secondary">{formatDate(campaign.createdAt)}</dd>
+                                <dd className="text-ds-content-secondary">{formatWhen(campaign.createdAt)}</dd>
                             </div>
                             <div className="min-w-0">
                                 <dt className="mb-ds-1 text-ds-xs font-bold uppercase text-ds-content-muted">Updated At</dt>
-                                <dd className="text-ds-content-secondary">{formatDate(campaign.updatedAt)}</dd>
+                                <dd className="text-ds-content-secondary">{formatWhen(campaign.updatedAt)}</dd>
                             </div>
                             {campaign.scheduledFor && (
                                 <div className="min-w-0">
                                     <dt className="mb-ds-1 text-ds-xs font-bold uppercase text-ds-content-muted">Scheduled For</dt>
-                                    <dd className="text-ds-content-secondary">{formatDate(campaign.scheduledFor)}</dd>
+                                    <dd className="text-ds-content-secondary">{formatWhen(campaign.scheduledFor)}</dd>
                                 </div>
                             )}
                         </dl>

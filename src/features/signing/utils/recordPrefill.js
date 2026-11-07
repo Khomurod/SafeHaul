@@ -2,10 +2,9 @@
  * A document sent from a template to an applicant or lead the recruiter picked:
  * the record it is filed under and what it fills.
  *
- * It fills only the listed fields (`src/config/applicationTokenFields.json`, the
- * same list the server fills a post-application document from,
- * `APPLICATION_TOKEN_FIELDS` in `functions/postApplicationEdocs.js`; a parity
- * test holds them together). A sealed document is read by the whole team, so
+ * It fills only the listed fields (`functions/shared/applicationTokenFields.json`,
+ * the one list the server fills a post-application document from too,
+ * `APPLICATION_TOKEN_FIELDS` in `functions/shared/postApplicationRequest.js`). A sealed document is read by the whole team, so
  * the SSN, the signature, consents, ids, links and uploads never fill one. The
  * email is the recipient field's, which the recruiter may correct; so are the
  * name and phone (`buildPrefillContext`).
@@ -16,7 +15,7 @@
  * link holds only while the recipient is still that record: a recruiter who
  * types another name is sending to someone else.
  */
-import APPLICATION_TOKEN_FIELDS from '@/config/applicationTokenFields.json';
+import APPLICATION_TOKEN_FIELDS from '../../../../functions/shared/applicationTokenFields.json';
 
 const LINK_FIELDS = Object.freeze({ applications: 'sourceApplicationId', leads: 'sourceLeadId' });
 const KINDS = Object.freeze({ applications: 'Applicant', leads: 'Lead' });

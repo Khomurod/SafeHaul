@@ -10,12 +10,7 @@ import { callableErrorText } from './callableErrorText';
  * environment vault for the same reason as `./aiIntegrations.js`.
  */
 
-export {
-    ReauthCancelledError,
-    isReauthCancelled,
-    isReauthRequired,
-    reauthenticateWithPassword,
-} from './environmentVault';
+export { isReauthCancelled } from './environmentVault';
 
 export function describeBlogError(error, fallback = 'That operation could not be completed.') {
     return callableErrorText(error, fallback, {

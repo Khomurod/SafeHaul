@@ -289,6 +289,19 @@ describe('ApplicationTab employment summary', () => {
     expect(screen.getByText(/Present/)).toBeInTheDocument();
   });
 
+  it('dates the timeline in the app\'s one date style (K3), a stored month as its month', () => {
+    renderTab({
+      ...APP,
+      employers: [
+        { companyName: 'Day Co', startDate: '2026-03-07', endDate: '2026-04-30' },
+        { companyName: 'Month Co', startDate: '2024-03', endDate: '2025-11' },
+      ],
+    });
+    expect(screen.getByText('Mar 7, 2026 – Apr 30, 2026')).toBeInTheDocument();
+    expect(screen.getByText('Mar 2024 – Nov 2025')).toBeInTheDocument();
+    expect(screen.queryByText(/3\/7\/2026|03\/2024/)).not.toBeInTheDocument();
+  });
+
   it('shows the contact permission as text, never colour alone', () => {
     renderTab({ ...APP, employers: [{ companyName: 'A', mayContact: 'yes' }, { companyName: 'B', mayContact: 'no' }] });
     expect(screen.getByText('OK to Contact')).toBeInTheDocument();

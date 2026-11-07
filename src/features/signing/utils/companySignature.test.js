@@ -1,5 +1,6 @@
 // The company signature: the image a company places on a template or a
 // document, which the signer sees fixed and never fills. All data artificial.
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import {
     COMPANY_SIGNATURE_MAX_BYTES,
@@ -41,6 +42,17 @@ describe('companySignatureStoragePath', () => {
             .toBe('secure_documents/co-1/originals/company-signatures/a1b2.png');
         expect(companySignatureStoragePath('co-1', image('image/jpeg'), 'c3d4'))
             .toBe('secure_documents/co-1/originals/company-signatures/c3d4.jpg');
+    });
+
+    it("is a path the server draws from: its folder is the server's, for this company only", () => {
+        // `functions/shared/companySignature.js` is pure; the sealed PDF and the
+        // signing room use only an image in the folder it names.
+        const server = createRequire(import.meta.url)('../../../../functions/shared/companySignature.js');
+        for (const type of ['image/png', 'image/jpeg']) {
+            const path = companySignatureStoragePath('co-1', image(type), 'a1b2');
+            expect(server.companySignatureImagePath('co-1', { companySignaturePath: path })).toBe(path);
+            expect(server.companySignatureImagePath('co-2', { companySignaturePath: path })).toBeNull();
+        }
     });
 });
 

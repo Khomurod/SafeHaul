@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 
+import { formatDate } from '@shared/utils/helpers';
 import { SentDocumentDetailsDialog } from './SentDocumentDetailsDialog';
 
 const SECRET_TOKEN = 'artificial-secret-signing-token';
@@ -58,8 +59,20 @@ describe('SentDocumentDetailsDialog — content', () => {
         expect(within(dialog).getByText('pat@example.test')).toBeInTheDocument();
         expect(within(dialog).getByText('555-0142')).toBeInTheDocument();
         expect(within(dialog).getByText('Email + SMS')).toBeInTheDocument();
-        expect(within(dialog).getByText(new Date(1700000000 * 1000).toLocaleDateString())).toBeInTheDocument();
+        expect(within(dialog).getByText(formatDate(new Date(1700000000 * 1000)))).toBeInTheDocument();
         expect(within(dialog).getByText('Awaiting signature')).toBeInTheDocument();
+    });
+
+    it('shows the sent and expiry days in the app\'s one date style (K3)', () => {
+        // Midday UTC, so the day is the same in every US time zone.
+        renderDialog(makeDoc({
+            createdAt: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 },
+            expiresAt: { seconds: Date.UTC(2099, 0, 15, 12) / 1000 },
+        }));
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText('Sent', { selector: 'dt' }).closest('div')).toHaveTextContent('Mar 7, 2026');
+        expect(within(dialog).getByText('Expires', { selector: 'dt' }).closest('div')).toHaveTextContent('Jan 15, 2099');
+        expect(within(dialog).queryByText('3/7/2026')).not.toBeInTheDocument();
     });
 
     it('uses the Untitled fallback and em dashes for missing values', () => {
@@ -212,7 +225,7 @@ describe('SentDocumentDetailsDialog — a link that ran out, and Remind', () => 
         expect(statusRow(dialog)).toHaveTextContent('Link expired');
         const notice = within(dialog).getByRole('status');
         expect(notice).toHaveTextContent('Link expired');
-        expect(notice).toHaveTextContent(`stopped working on ${new Date(EXPIRED_AT.seconds * 1000).toLocaleDateString()}`);
+        expect(notice).toHaveTextContent(`stopped working on ${formatDate(new Date(EXPIRED_AT.seconds * 1000))}`);
         expect(notice).toHaveTextContent('Remind sends it again with seven more days.');
     });
 
@@ -269,7 +282,7 @@ describe('SentDocumentDetailsDialog — a link that ran out, and Remind', () => 
     it('shows how many reminders went, and when the last did', () => {
         renderDialog(makeDoc({ sendEmail: true, reminders: { count: 2, lastAt: { seconds: 1700500000 }, lastBy: 'user-1' } }));
         const row = within(screen.getByRole('dialog')).getByText('Reminders').closest('div');
-        expect(row).toHaveTextContent(`2 sent, the last on ${new Date(1700500000 * 1000).toLocaleDateString()}`);
+        expect(row).toHaveTextContent(`2 sent, the last on ${formatDate(new Date(1700500000 * 1000))}`);
     });
 
     it('shows no reminders row before the first', () => {
@@ -581,7 +594,7 @@ describe('SentDocumentDetailsDialog — who voided it', () => {
         renderDialog(makeDoc({ status: 'voided', voidedAt: { seconds: 1700500000 }, voidedBy: 'user-1', voidedByName: 'Dana Admin' }));
         // The row's label, not the status badge, which reads Voided too.
         const row = within(screen.getByRole('dialog')).getByText('Voided', { selector: 'dt' }).closest('div');
-        expect(row).toHaveTextContent(`${new Date(1700500000 * 1000).toLocaleDateString()} by Dana Admin`);
+        expect(row).toHaveTextContent(`${formatDate(new Date(1700500000 * 1000))} by Dana Admin`);
     });
 
     it('keeps the delivery error a voided document recorded', () => {

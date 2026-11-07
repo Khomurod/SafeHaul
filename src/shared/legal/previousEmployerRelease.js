@@ -2,8 +2,10 @@
  * What the applicant signed about their previous employers, and whether a given
  * application carries it — the browser's copy of
  * `functions/shared/previousEmployerRelease.js` (CommonJS cannot be imported
- * here). `previousEmployerRelease.parity.test.js` holds the two copies, and the
- * consent step's own wording, equal.
+ * here). The wording, the date it shipped from and the notes are read from one
+ * file, `functions/shared/previousEmployerRelease.json`;
+ * `previousEmployerRelease.parity.test.js` holds the two copies' decisions, and
+ * the consent step's own wording, equal.
  *
  * The VOE document prints this wording above the applicant's signature, as the
  * request PDF the server attaches does: a signature may only appear under text
@@ -11,18 +13,13 @@
  * predates the wording.
  */
 
-export const RELEASE_PARAGRAPHS = Object.freeze([
-    'I authorize you to make such investigations and inquiries of my personal, employment, financial or medical history and other related matters as may be necessary in arriving at an employment decision. (Generally, inquiries regarding medical history will be made only if and after a conditional offer of employment has been extended.) I hereby release employers, schools, health care providers and other persons from all liability in responding to inquiries and releasing information in connection with my application.',
-    'I understand that information I provide regarding current and/or previous employers may be used, and those employer(s) will be contacted, for the purpose of investigating my safety performance history as required by 49 CFR 391.23(d) and (e). I understand that I have the right to:',
-]);
+import RELEASE from '../../../functions/shared/previousEmployerRelease.json';
 
-export const RELEASE_RIGHTS = Object.freeze([
-    'Review information provided by previous employers;',
-    'Have errors in the information corrected by previous employers and for those previous employers to re-send the corrected information to the prospective employer; and',
-    'Have a rebuttal statement attached to the alleged erroneous information, if the previous employer(s) and I cannot agree on the accuracy of the information.',
-]);
+export const RELEASE_PARAGRAPHS = Object.freeze([...RELEASE.paragraphs]);
 
-export const RELEASE_WORDING_SINCE = Date.parse('2026-01-23T00:00:00Z');
+export const RELEASE_RIGHTS = Object.freeze([...RELEASE.rights]);
+
+export const RELEASE_WORDING_SINCE = Date.parse(RELEASE.wordingSince);
 
 const TYPED_PREFIX = 'TEXT_SIGNATURE:';
 
@@ -93,10 +90,4 @@ export function releaseOf(application) {
 }
 
 /** Why no signed release is shown, for each status that has none. */
-export const RELEASE_NOTES = Object.freeze({
-    unsigned: 'The application on file carries no applicant signature, so no signed release is attached.',
-    undated: 'The application on file does not record when it was signed: the wording it was signed under '
-        + 'cannot be confirmed, so no signed release is reproduced here.',
-    'predates-wording': 'This application was signed before the release to previous employers was part of '
-        + 'the application, so no signed release is reproduced here.',
-});
+export const RELEASE_NOTES = Object.freeze({ ...RELEASE.notes });

@@ -104,25 +104,10 @@ function replaceTokens(template, context) {
  * team reads it, so the SSN, the signature, the consents, ids, links and file
  * paths never become tokens; `{{ssn}}` resolves to nothing, like any unknown
  * token. Covers every binding the editor offers (`shared/edocFieldSemantics.js`).
+ * The list is `applicationTokenFields.json`, which the site's template prefill
+ * (`src/features/signing/utils/recordPrefill.js`) reads too.
  */
-const APPLICATION_TOKEN_FIELDS = Object.freeze({
-  first_name: 'firstName',
-  middle_name: 'middleName',
-  last_name: 'lastName',
-  suffix: 'suffix',
-  email: 'email',
-  address: 'street',
-  street: 'street',
-  city: 'city',
-  state: 'state',
-  zip: 'zip',
-  dob: 'dob',
-  cdl_number: 'cdlNumber',
-  cdl_state: 'cdlState',
-  cdl_class: 'cdlClass',
-  cdl_expiration: 'cdlExpiration',
-  med_card_expiration: 'medCardExpiration',
-});
+const APPLICATION_TOKEN_FIELDS = Object.freeze({ ...require('./applicationTokenFields.json') });
 
 const scalarText = (value) => (
   typeof value === 'string' || typeof value === 'number' ? String(value).trim() : ''

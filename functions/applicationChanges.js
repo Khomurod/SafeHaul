@@ -32,7 +32,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
-const { v4: uuidv4 } = require("uuid");
+const { randomId } = require('./shared/randomId');
 const { admin, db } = require("./firebaseAdmin");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
 const { checkRateLimit } = require("./shared/rateLimiter");
@@ -251,7 +251,7 @@ exports.createChangeReview = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
         ? await prepareReviewDelivery({ request, companyId, applicationId, collectionName, application: data })
         : null;
 
-    const token = uuidv4();
+    const token = randomId();
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + REVIEW_TTL_MS);
     const applicantName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Driver';

@@ -11,6 +11,7 @@ import {
     describeVerdict,
     runPublished,
 } from './blogRunPresentation';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * Publication runs: what happened to every due slot, stage by stage.
@@ -157,7 +158,7 @@ export function BlogRunLedger({ runs, loading, error, truncated, unavailable, re
                                     )}
                                     {run.at && (
                                         <p className="mt-1 text-ds-xs text-ds-content-secondary">
-                                            {new Date(run.at).toLocaleString()}
+                                            {formatDate(new Date(run.at), true)}
                                         </p>
                                     )}
                                 </li>

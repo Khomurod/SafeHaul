@@ -4,10 +4,11 @@ import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { Icon, Zap, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { forgetCompanies } from '@features/companies/services/companyService';
+import { formatDate } from '@shared/utils/helpers';
 import { Button, DataTable, IconButton, Switch } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
-import { COMPANY_FEATURES, isFeatureOn } from '../config/features';
+import { COMPANY_FEATURES, isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * One company's features: a switch for each, a scheduled switch-off, and the
@@ -216,7 +217,7 @@ export function FeaturesView({ company, onChanged }) {
                             <>
                                 <span className="flex items-center gap-1 rounded-ds-sm bg-ds-status-warning-bg px-1.5 py-1 text-ds-xs text-ds-status-warning-fg">
                                     <Icon icon={Clock} size="xs" />
-                                    {new Date(schedule).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                    {formatDate(schedule, true)}
                                     <IconButton
                                         label={`Cancel scheduled deactivation of ${f.label} for ${company.companyName}`}
                                         variant="ghost"

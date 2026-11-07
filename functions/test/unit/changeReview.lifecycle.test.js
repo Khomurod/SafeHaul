@@ -13,7 +13,7 @@ jest.mock('firebase-functions/v2/https', () => ({
 }));
 jest.mock('firebase-functions', () => ({ logger: { info: jest.fn(), warn: jest.fn() } }));
 let mockTokenSeq = 0;
-jest.mock('uuid', () => ({ v4: () => `tok-${++mockTokenSeq}` }));
+jest.mock('../../shared/randomId', () => ({ randomId: () => `tok-${++mockTokenSeq}` }));
 jest.mock('../../shared/companyAccess', () => ({ assertCompanyAdminStrict: jest.fn(async () => {}) }));
 jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: jest.fn(async () => true) }));
 

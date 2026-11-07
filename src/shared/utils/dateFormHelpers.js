@@ -25,16 +25,6 @@ export function parseIsoDateParts(iso) {
 }
 
 /**
- * @param {string} iso
- * @returns {string} M/D/YYYY for display (no zero-padding on month/day for readability)
- */
-export function formatIsoDateUs(iso) {
-    const p = parseIsoDateParts(iso);
-    if (!p) return iso || '';
-    return `${p.month}/${p.day}/${p.year}`;
-}
-
-/**
  * @param {number} y
  * @param {number} m 1-12
  * @param {number} d
@@ -73,13 +63,6 @@ export function parseMonthYear(value) {
 export function formatMonthYearIso(year, month) {
     if (!year || !month) return '';
     return `${year}-${String(month).padStart(2, '0')}`;
-}
-
-/** Display MM/YYYY */
-export function formatMonthYearUs(isoOrLegacy) {
-    const { year, month } = parseMonthYear(isoOrLegacy);
-    if (!year || !month) return isoOrLegacy || '';
-    return `${String(month).padStart(2, '0')}/${year}`;
 }
 
 /** Age in full years from YYYY-MM-DD */

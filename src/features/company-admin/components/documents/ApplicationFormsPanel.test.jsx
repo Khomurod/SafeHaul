@@ -12,6 +12,7 @@ const templates = [
     { id: 'tpl-c', title: 'W-9' },
 ];
 
+// `forms` is `usePostSubmitForms`'s result; the template list arrives beside it.
 const baseProps = () => ({
     templates,
     templatesLoading: false,
@@ -27,7 +28,11 @@ const baseProps = () => ({
 
 const renderPanel = (overrides = {}) => {
     const props = { ...baseProps(), ...overrides };
-    return { props, ...render(<ApplicationFormsPanel {...props} />) };
+    const { templates: list, templatesLoading, ...forms } = props;
+    return {
+        props,
+        ...render(<ApplicationFormsPanel templates={list} templatesLoading={templatesLoading} forms={forms} />),
+    };
 };
 
 beforeEach(() => vi.clearAllMocks());

@@ -105,7 +105,8 @@ describe('PEVTab employer opened the link', () => {
   it('shows the date the server recorded the first open', () => {
     const openedAt = '2026-07-02T15:00:00.000Z';
     renderTab({ employers: [{ companyName: 'A', verification: { status: 'Sent', openedAt, history: [] } }] });
-    expect(screen.getByText(`Employer opened the link (${new Date(openedAt).toLocaleDateString()})`)).toBeInTheDocument();
+    // The app's one date style (K3), not 7/2/2026.
+    expect(screen.getByText('Employer opened the link (Jul 2, 2026)')).toBeInTheDocument();
   });
 
   it('says nothing before the employer opens it', () => {

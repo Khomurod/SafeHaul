@@ -178,12 +178,6 @@
     }
 }
 
-@media (max-width: 480px) {
-
-    .hero-buttons .btn {
-        width: 100%;
-    }
-}
 
 /* At full measure an article carries its revision block in the right margin. */
 @media (min-width: 1200px) {

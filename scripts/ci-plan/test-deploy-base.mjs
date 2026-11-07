@@ -7,6 +7,7 @@
  */
 
 import { chooseDeployBase, readLastDeployedSha } from '../resolve-deploy-base.mjs';
+import { createGithubApi, GITHUB_API_VERSION } from '../lib/githubApi.mjs';
 import { assert, workflow } from './test-support.mjs';
 
 console.log('\nF. Incremental deploy base');
@@ -134,6 +135,55 @@ const deploymentApi = (deployments, statuses) => async (path) => {
 {
     const sha = await readLastDeployedSha(deploymentApi([], {}));
     assert('F9. reports nothing when no release was ever confirmed', sha === null);
+}
+
+/* -- the one GitHub client every release script uses ---------------------- */
+// `scripts/lib/githubApi.mjs`. A fake `fetch` records each request; nothing is
+// sent to GitHub.
+{
+    const sent = [];
+    const answer = (status, text) => async (url, init) => {
+        sent.push({ url, ...init });
+        return { ok: status >= 200 && status < 300, status, text: async () => text };
+    };
+    const repo = { token: 'artificial-token', repository: 'owner/repo' };
+
+    const read = await createGithubApi({ ...repo, fetchImpl: answer(200, '[{"id":1}]') })('/deployments?environment=testing');
+    const get = sent[0];
+    assert('F12. a read names the repository, pins the API version and sends no body',
+        get.url === 'https://api.github.com/repos/owner/repo/deployments?environment=testing'
+            && get.method === 'GET' && get.body === undefined
+            && get.headers.Authorization === 'Bearer artificial-token'
+            && get.headers.Accept === 'application/vnd.github+json'
+            && get.headers['X-GitHub-Api-Version'] === GITHUB_API_VERSION && GITHUB_API_VERSION === '2022-11-28'
+            && !('Content-Type' in get.headers)
+            && Array.isArray(read) && read[0].id === 1,
+        JSON.stringify(get));
+
+    sent.length = 0;
+    const written = await createGithubApi({ ...repo, fetchImpl: answer(201, '') })('/deployments/7/statuses', {
+        method: 'POST', body: { state: 'success', log_url: undefined }, accept: 'application/vnd.github.flash-preview+json',
+    });
+    const post = sent[0];
+    assert('F13. a write sends its body as JSON, with the Accept it asks for',
+        post.method === 'POST' && post.body === '{"state":"success"}'
+            && post.headers['Content-Type'] === 'application/json'
+            && post.headers.Accept === 'application/vnd.github.flash-preview+json'
+            && written === null,
+        JSON.stringify(post));
+
+    let refusal = null;
+    try {
+        await createGithubApi({ ...repo, fetchImpl: answer(422, `{"message":"Validation Failed"}${'x'.repeat(500)}`) })(
+            '/deployments', { method: 'POST', body: {} });
+    } catch (error) {
+        refusal = error.message;
+    }
+    assert('F14. a refusal names the call and quotes the start of the answer',
+        typeof refusal === 'string'
+            && refusal.startsWith('GitHub API POST /deployments -> 422: {"message":"Validation Failed"}')
+            && refusal.length < 460 && !refusal.includes('artificial-token'),
+        refusal);
 }
 
 /* -- and the workflow has to actually use it ------------------------------- */

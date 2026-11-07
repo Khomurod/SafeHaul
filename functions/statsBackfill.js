@@ -1,94 +1,33 @@
-// functions/statsBackfill.js
-// CALL-3 FIX: Create the backfillCompanyStats and backfillAllStats Cloud Functions
-// that StatsBackfillPanel.jsx calls. These were referenced in the UI but never implemented.
-//
-// These functions process ALL historical activity_logs and activities documents
-// and rebuild stats_daily from scratch using the same processStatsUpdate logic
-// defined in statsAggregator.js.
+/**
+ * Rebuilding Super Admin → Analytics' call statistics (`stats_daily`) from the
+ * calls themselves: `backfillCompanyStats` (one company) and `backfillAllStats`
+ * (every company), from the Stats backfill panel. Super admin only, a few runs an
+ * hour per person, and a dry run unless asked otherwise.
+ *
+ * A run reads every log under the company's applications and leads, in
+ * `activity_logs` and in the older `activities` (historical records), with a
+ * paged collection-group read. It counts them with the same rules as the live
+ * trigger (`shared/callStats.js`, used by `statsAggregator.js`) and, in a live
+ * run, overwrites each day that has a call with that day's counts. A day with
+ * no call left in the logs keeps whatever it held; the trigger's
+ * `processed_signals` markers are not touched.
+ */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
 const { isSuperAdminClaims } = require("./shared/superAdmin");
+const { addCallToDayStats, chicagoDayKey, emptyDayStats } = require("./shared/callStats");
 
-const CONTACT_OUTCOMES = new Set(['interested', 'callback', 'not_qualified', 'not_interested', 'hired_elsewhere']);
 const COLLECTION_GROUP_PAGE_SIZE = 1000;
 
 /**
  * Build stats for a single day's activities.
  */
 function buildDayStats(activities) {
-    const stats = {
-        totalDials: 0,
-        connected: 0,
-        interested: 0,
-        voicemail: 0,
-        callback: 0,
-        notInterested: 0,
-        hiredElsewhere: 0,
-        notQualified: 0,
-        wrongNumber: 0,
-        byUser: {},
-    };
-
-    for (const doc of activities) {
-        const data = doc.data();
-        const isCall = data.action === 'Call Logged' || (data.type === 'call' && !data.action);
-        if (!isCall) continue;
-
-        const userId = data.performedBy || 'unknown';
-        const outcome = data.outcome || 'other';
-        const isContact = CONTACT_OUTCOMES.has(outcome);
-
-        stats.totalDials++;
-        if (isContact) stats.connected++;
-
-        switch (outcome) {
-            case 'interested': stats.interested++; break;
-            case 'callback': stats.callback++; break;
-            case 'not_interested': stats.notInterested++; break;
-            case 'hired_elsewhere': stats.hiredElsewhere++; break;
-            case 'not_qualified': stats.notQualified++; break;
-            case 'wrong_number': stats.wrongNumber++; break;
-            case 'voicemail': case 'no_answer': stats.voicemail++; break;
-            default: break;
-        }
-
-        if (!stats.byUser[userId]) {
-            stats.byUser[userId] = {
-                name: data.performedByName || 'Unknown',
-                dials: 0, connected: 0, interested: 0, voicemail: 0,
-                callback: 0, notInterested: 0, hiredElsewhere: 0,
-                notQualified: 0, wrongNumber: 0,
-            };
-        }
-        const u = stats.byUser[userId];
-        u.dials++;
-        if (isContact) u.connected++;
-        switch (outcome) {
-            case 'interested': u.interested++; break;
-            case 'callback': u.callback++; break;
-            case 'not_interested': u.notInterested++; break;
-            case 'hired_elsewhere': u.hiredElsewhere++; break;
-            case 'not_qualified': u.notQualified++; break;
-            case 'wrong_number': u.wrongNumber++; break;
-            case 'voicemail': case 'no_answer': u.voicemail++; break;
-            default: break;
-        }
-    }
-
+    const stats = emptyDayStats();
+    for (const doc of activities) addCallToDayStats(stats, doc.data());
     return stats;
-}
-
-function toDateKey(ts) {
-    let d;
-    if (ts && typeof ts.toDate === 'function') d = ts.toDate();
-    else if (ts instanceof Date) d = ts;
-    else d = new Date();
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Chicago',
-        year: 'numeric', month: '2-digit', day: '2-digit'
-    }).format(d);
 }
 
 function isCompanyLeadActivityPath(path, companyId) {
@@ -133,7 +72,7 @@ async function accumulateByDayFromCollectionGroup(companyId, collectionName, byD
 
         for (const d of snap.docs) {
             if (!isCompanyLeadActivityPath(d.ref.path, companyId)) continue;
-            const dk = toDateKey(d.data().timestamp);
+            const dk = chicagoDayKey(d.data().timestamp, 'Backfill');
             if (!byDay[dk]) byDay[dk] = [];
             byDay[dk].push(d);
             total++;
@@ -194,19 +133,22 @@ async function processCompany(companyId, dryRun) {
 }
 
 /**
- * Backfill stats for a single company (super-admin only).
+ * Super admins only, read from the Auth record on every call rather than from
+ * the token: a super admin whose role was removed is refused at once (К4).
  */
+async function assertFreshSuperAdmin(request) {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
+    const userRecord = await admin.auth().getUser(request.auth.uid);
+    if (!isSuperAdminClaims(userRecord.customClaims || {})) {
+        throw new HttpsError('permission-denied', 'Super admin access required.');
+    }
+}
+
+/** Backfill stats for a single company (super-admin only). */
 exports.backfillCompanyStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '512MiB' },
     async (request) => {
-        if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-        // Only super admins can run backfills
-        const userRecord = await admin.auth().getUser(request.auth.uid);
-        const claims = userRecord.customClaims || {};
-        if (!isSuperAdminClaims(claims)) {
-            throw new HttpsError('permission-denied', 'Super admin access required.');
-        }
+        await assertFreshSuperAdmin(request);
 
         const { companyId, dryRun = true } = request.data || {};
         if (!companyId) throw new HttpsError('invalid-argument', 'companyId is required.');
@@ -228,14 +170,7 @@ exports.backfillCompanyStats = onCall(
 exports.backfillAllStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '1GiB' },
     async (request) => {
-        if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-        // Only super admins can run bulk backfills
-        const userRecord = await admin.auth().getUser(request.auth.uid);
-        const claims = userRecord.customClaims || {};
-        if (!isSuperAdminClaims(claims)) {
-            throw new HttpsError('permission-denied', 'Super admin access required.');
-        }
+        await assertFreshSuperAdmin(request);
 
         const { dryRun = true } = request.data || {};
 

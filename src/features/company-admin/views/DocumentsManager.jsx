@@ -26,6 +26,7 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 // The editor (the PDF workbench with pdf.js, and the AI field assistant) loads
 // when a document is created or edited, not with the workspace's lists.
@@ -97,48 +98,13 @@ export default function DocumentsManager() {
     // The template-send flow (wizard state, the applicant and lead picker,
     // prefill, executeTemplateSend) and the post-application forms configuration
     // each moved to a feature hook, called here so every piece of state keeps
-    // exactly the lifetime it had when it was declared inline.
-    const {
-        showDriverPicker,
-        setShowDriverPicker,
-        selectedTemplate,
-        drivers,
-        driversStatus,
-        searchQuery,
-        setSearchQuery,
-        sending,
-        manualName,
-        setManualName,
-        manualEmail,
-        setManualEmail,
-        manualPhone,
-        setManualPhone,
-        deliveryMethod,
-        setDeliveryMethod,
-        prefillValues,
-        setPrefillValues,
-        prefillValuesByGroupKey,
-        setPrefillValuesByGroupKey,
-        editablePrefillPartition,
-        companySignature,
-        linkedRecord,
-        handleUseTemplate,
-        handleQuickSelect,
-        executeTemplateSend,
-    } = useTemplateSendFlow({ currentCompanyProfile, isE2EEdocMock, navigate, setActiveTab, showSuccess, showError, showWarning });
+    // exactly the lifetime it had when it was declared inline. Each result goes
+    // to its component whole (`flow`, `forms`).
+    const sendFlow = useTemplateSendFlow({ currentCompanyProfile, isE2EEdocMock, navigate, setActiveTab, showSuccess, showError, showWarning });
 
-    const {
-        postSubmitTemplateIds,
-        setPostSubmitTemplateIds,
-        postSubmitRequiredById,
-        savingPostSubmitTemplates,
-        buildPostSubmitConfig,
-        isTemplateEnabledPostSubmit,
-        togglePostSubmitTemplate,
-        movePostSubmitTemplate,
-        togglePostSubmitRequired,
-        handleSavePostSubmitTemplates,
-    } = usePostSubmitForms({ currentCompanyProfile, templates, showSuccess, showError });
+    const forms = usePostSubmitForms({ currentCompanyProfile, templates, showSuccess, showError });
+    // What the template delete flow below reads and prunes.
+    const { postSubmitTemplateIds, setPostSubmitTemplateIds, postSubmitRequiredById, buildPostSubmitConfig } = forms;
 
     // PHASE 4: Handle "Correct" action from EnvelopeHistory
     const handleCorrect = (docItem) => {
@@ -288,7 +254,7 @@ export default function DocumentsManager() {
     // count when a profile arrives with E-Docs off after the first paint, and
     // React throws ("Rendered fewer hooks than expected") instead of showing the
     // lock. The views test flips the flag on a mounted screen.
-    if (currentCompanyProfile?.features?.eDocs === false) {
+    if (!isFeatureOn(currentCompanyProfile, 'eDocs')) {
         return <FeatureLockedModal featureName="E-Docs" onClose={() => navigate('/company/dashboard')} />;
     }
 
@@ -403,7 +369,7 @@ export default function DocumentsManager() {
                                 setSearch={setTemplateSearch}
                                 sort={templateSort}
                                 setSort={setTemplateSort}
-                                onSend={handleUseTemplate}
+                                onSend={sendFlow.handleUseTemplate}
                                 onEdit={handleEditTemplate}
                                 onDuplicate={handleDuplicateTemplate}
                                 onConfigure={handleConfigureTemplate}
@@ -417,14 +383,7 @@ export default function DocumentsManager() {
                             <ApplicationFormsPanel
                                 templates={templates}
                                 templatesLoading={templatesLoading}
-                                postSubmitTemplateIds={postSubmitTemplateIds}
-                                postSubmitRequiredById={postSubmitRequiredById}
-                                togglePostSubmitRequired={togglePostSubmitRequired}
-                                savingPostSubmitTemplates={savingPostSubmitTemplates}
-                                handleSavePostSubmitTemplates={handleSavePostSubmitTemplates}
-                                movePostSubmitTemplate={movePostSubmitTemplate}
-                                isTemplateEnabledPostSubmit={isTemplateEnabledPostSubmit}
-                                togglePostSubmitTemplate={togglePostSubmitTemplate}
+                                forms={forms}
                             />
                         )}
                     </TabPanel>
@@ -443,34 +402,12 @@ export default function DocumentsManager() {
 
             {/* Guided three-step send. Every write, callable, message and
                 navigation inside `executeTemplateSend` is unchanged. */}
-            {showDriverPicker && (
+            {sendFlow.showDriverPicker && (
                 <SendTemplateWizard
-                    selectedTemplate={selectedTemplate}
+                    flow={sendFlow}
                     // Closing mid-send is blocked so an in-flight write cannot be
                     // hidden behind a dismissed dialog.
-                    onClose={() => { if (!sending) setShowDriverPicker(false); }}
-                    manualName={manualName}
-                    setManualName={setManualName}
-                    manualEmail={manualEmail}
-                    setManualEmail={setManualEmail}
-                    manualPhone={manualPhone}
-                    setManualPhone={setManualPhone}
-                    deliveryMethod={deliveryMethod}
-                    setDeliveryMethod={setDeliveryMethod}
-                    editablePrefillPartition={editablePrefillPartition}
-                    prefillValues={prefillValues}
-                    setPrefillValues={setPrefillValues}
-                    prefillValuesByGroupKey={prefillValuesByGroupKey}
-                    setPrefillValuesByGroupKey={setPrefillValuesByGroupKey}
-                    companySignature={companySignature}
-                    sending={sending}
-                    executeTemplateSend={executeTemplateSend}
-                    filteredDrivers={drivers}
-                    leadsStatus={driversStatus}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    handleQuickSelect={handleQuickSelect}
-                    linkedRecord={linkedRecord}
+                    onClose={() => { if (!sendFlow.sending) sendFlow.setShowDriverPicker(false); }}
                 />
             )}
 

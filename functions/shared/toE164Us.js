@@ -1,5 +1,6 @@
-// functions/shared/normalizePhone.js
-// M6 FIX: Shared utility to normalize phone numbers to E.164 US format.
+// functions/shared/toE164Us.js
+// Shared utility to write a US phone number in E.164 (+1XXXXXXXXXX). Named for
+// what it returns: the site's `normalizePhone` gives national digits instead.
 // Ensures consistent storage so blacklist lookups work regardless of input format.
 
 /**
@@ -8,7 +9,7 @@
  * @param {string|null} phone - Raw phone string
  * @returns {string|null} - E.164 normalized phone or null if invalid
  */
-function normalizePhone(phone) {
+function toE164Us(phone) {
     if (!phone || typeof phone !== 'string') return null;
 
     // Strip everything except digits and leading +
@@ -35,4 +36,4 @@ function normalizePhone(phone) {
     return null;
 }
 
-module.exports = { normalizePhone };
+module.exports = { toE164Us };

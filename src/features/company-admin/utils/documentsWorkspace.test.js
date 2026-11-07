@@ -333,6 +333,11 @@ describe('formatTimestamp', () => {
         expect(formatTimestamp(undefined)).toBe('—');
         expect(formatTimestamp({})).toBe('—');
     });
+
+    it('shows the day in the app\'s one date style (K3)', () => {
+        expect(formatTimestamp({ seconds: Date.UTC(2026, 2, 7, 12) / 1000 })).toBe('Mar 7, 2026');
+        expect(formatTimestamp(new Date(Date.UTC(2026, 2, 7, 12)))).toBe('Mar 7, 2026');
+    });
 });
 
 describe('sentHeaderCount', () => {

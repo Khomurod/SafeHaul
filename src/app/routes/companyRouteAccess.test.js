@@ -19,6 +19,14 @@ describe('canOfferCompanyRoute', () => {
     expect(canOfferCompanyRoute(importLeads, { ...admin, features: { importLeads: false } })).toBe(false);
   });
 
+  it('reads a feature by its default: one off by default needs an explicit true', () => {
+    // No page sits behind such a feature today; Facebook leads (`callTracking`) is one.
+    const behindFacebookLeads = { id: 'facebook', adminOnly: false, featureFlag: 'callTracking' };
+    expect(canOfferCompanyRoute(behindFacebookLeads, { ...admin, features: {} })).toBe(false);
+    expect(canOfferCompanyRoute(behindFacebookLeads, { ...admin, features: undefined })).toBe(false);
+    expect(canOfferCompanyRoute(behindFacebookLeads, { ...admin, features: { callTracking: true } })).toBe(true);
+  });
+
   it('needs both: Import Leads is never offered to a recruiter', () => {
     expect(canOfferCompanyRoute(companyRoute('importLeads'), { ...recruiter, features: { importLeads: true } })).toBe(false);
   });

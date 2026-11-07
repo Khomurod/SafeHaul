@@ -14,10 +14,8 @@
  */
 
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { admin, db } = require('./firebaseAdmin');
-const { assertSuperAdminAuth } = require('./shared/superAdmin');
 const { HIRED_STATUSES, isHiredStatus } = require('./shared/applicationStatus');
 const { entersHiredStatus, recordHireDate } = require('./shared/hireDate');
 
@@ -168,23 +166,6 @@ async function recountCompanyDashboard(companyId) {
   );
   return { applicationsTotal, leadsTotal, hiredTotal };
 }
-
-/**
- * Super-admin: recompute exact counts from Firestore and set internal_stats/dashboard.
- */
-exports.reconcileCompanyDashboardStats = onCall(
-  { cors: true, region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' },
-  async (request) => {
-    assertSuperAdminAuth(request.auth, 'Super admin only.');
-
-    const companyId = request.data?.companyId;
-    if (!companyId || typeof companyId !== 'string') {
-      throw new HttpsError('invalid-argument', 'companyId is required.');
-    }
-
-    return { success: true, ...(await recountCompanyDashboard(companyId)) };
-  },
-);
 
 /** Companies recounted at once: three count queries each. */
 const RECOUNT_PARALLEL = 10;

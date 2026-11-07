@@ -366,15 +366,6 @@ function visibleFields(definition) {
         .filter((f) => !f.hidden);
 }
 
-/** Look up a field's presentation label by id, across all sections. */
-function findFieldLabel(definition, fieldId) {
-    for (const section of definition?.sections || []) {
-        const match = section.fields.find((f) => f.id === fieldId);
-        if (match) return match.label;
-    }
-    return null;
-}
-
 module.exports = {
     GATE_ALIASES,
     GATE_DEFAULT_HIDDEN,
@@ -382,7 +373,6 @@ module.exports = {
     STANDARD_SECTIONS,
     buildApplicationDefinition,
     canonicalize,
-    findFieldLabel,
     hashDefinition,
     normalizeCustomQuestion,
     resolveGate,

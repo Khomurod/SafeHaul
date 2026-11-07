@@ -1,9 +1,9 @@
-const { normalizePhoneForKeychain, normalizePhone, isLikelyValidPhone } = require('../../utils/phoneUtils');
+const { normalizePhoneForKeychain, toE164Us, isLikelyValidPhone } = require('../../utils/phoneUtils');
 
 describe('phoneUtils exports', () => {
-  it('re-exports normalizePhone from shared module', () => {
-    expect(typeof normalizePhone).toBe('function');
-    expect(normalizePhone('(555) 123-4567')).toBe('+15551234567');
+  it('re-exports toE164Us from shared module', () => {
+    expect(typeof toE164Us).toBe('function');
+    expect(toE164Us('(555) 123-4567')).toBe('+15551234567');
   });
 });
 
@@ -17,9 +17,9 @@ describe('normalizePhoneForKeychain', () => {
       .forEach((written) => expect(normalizePhoneForKeychain(written)).toBe('+15551234567'));
   });
 
-  it('reads a number without + the way the shared normalizePhone does', () => {
+  it('reads a number without + the way the shared toE164Us does', () => {
     ['(555) 123-4567', '15551234567', '442079460958']
-      .forEach((written) => expect(normalizePhoneForKeychain(written)).toBe(normalizePhone(written)));
+      .forEach((written) => expect(normalizePhoneForKeychain(written)).toBe(toE164Us(written)));
   });
 
   it('keeps a number written with + as written, so a stored line key reads the same', () => {

@@ -175,7 +175,8 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 | Subcollection | Access |
 |---------------|--------|
 | `dq_files`, `general_documents` | read: team, super, or owner fields on doc · write: team, super |
-| `internal_notes`, `activity_logs`, `activities` | read/write: team, super |
+| `internal_notes`, `activity_logs` | read/write: team, super |
+| `activities` (legacy log, kept for reading) | read: team, super; write: none |
 | `pending_changes/{fieldKey}` | read: team, super · **write: denied**. Company-proposed edits awaiting driver approval; written only by the `proposeApplicationChanges` / `submitChangeResolution` callables |
 | `submission/{version}` | read: team, super, owner · **write: denied**. The frozen snapshot of exactly what the driver saw, answered and accepted. Server-only (Admin SDK) — this denial is what makes it immutable rather than merely intended to be |
 

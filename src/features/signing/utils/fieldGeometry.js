@@ -288,22 +288,6 @@ export function allPages(total) {
     return Array.from({ length: count }, (_, index) => index + 1);
 }
 
-/** Apply one geometry patch to a set of fields, clamping each result. */
-export function updateFields(fields = [], ids = [], patch) {
-    const selected = new Set(ids);
-    return (Array.isArray(fields) ? fields : []).map((field) => {
-        if (!field || !selected.has(field.id)) return field;
-        const next = typeof patch === 'function' ? patch(field) : { ...field, ...patch };
-        return clampFieldToPage(next);
-    });
-}
-
-/** Remove a set of fields. Used by multi-field delete, which must be undoable. */
-export function removeFields(fields = [], ids = []) {
-    const selected = new Set(ids);
-    return (Array.isArray(fields) ? fields : []).filter((field) => field && !selected.has(field.id));
-}
-
 /** Fields grouped by page, in page order, for the placed-fields list. */
 export function groupFieldsByPage(fields = []) {
     const byPage = new Map();

@@ -28,7 +28,7 @@
 // MIRRORED, DELIBERATELY. `src/config/applicationRules.js` is the browser copy:
 // the body between the `--- body ---` and `--- exports ---` markers is
 // byte-identical, only the module syntax differs, and
-// `applicationRules.parity.test.js` fails if the two bodies drift by a single
+// `src/config/applicationRules.test.js` fails if the two bodies drift by a single
 // character. The shared vectors in `applicationRules.vectors.json` drive both
 // suites as well.
 //

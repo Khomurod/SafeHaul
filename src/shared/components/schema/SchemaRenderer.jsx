@@ -20,6 +20,7 @@ import {
 } from '@design-system/components';
 import { domIdSegment } from '@shared/utils/domId';
 import { maskSsn } from '@shared/utils/maskSsn';
+import { formatDate } from '@shared/utils/helpers';
 import { isEditableInPlace, normalizeOption } from './schemaOptions';
 import { SchemaEditCheckbox, SchemaEditSelect } from './SchemaEditControls';
 
@@ -218,7 +219,7 @@ function formatDisplayValue(value, definition, fileUrls = {}, filesPending = fal
         }
         // Firestore timestamp objects
         if (value.seconds) {
-            return new Date(value.seconds * 1000).toLocaleDateString();
+            return formatDate(new Date(value.seconds * 1000));
         }
         return <span className="italic text-ds-content-muted">-</span>;
     }

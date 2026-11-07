@@ -1046,7 +1046,7 @@ already on record — what `InviteLinkPanel` tells recruiters.
 **A device holding the draft's resume token is asked nothing**
 (`reconcileServerDraftOnLoad`); another applicant's token is not enough, and
 their local copy is withheld as on `opened`. **While identity is pending nothing
-else is restored:** one shared decision (production and E2E) gates
+else is restored:** one decision, in the one start-up sequence E2E mode shares, gates
 `loadPublicApplyCompany`'s local-draft restore (a stranger's answers would be
 autosaved here) and post-apply restore (its success screen would cover the
 check), and clears the stale post-apply session; a failed link touches neither.
@@ -1177,6 +1177,15 @@ PEV record.
 
 ### Statuses and tenancy
 
+**One status colour map (К2).** Every screen that shows a recruiting status (the
+company's lists and dossier, Super Admin's search, driver database and a company's
+applications, the campaign audience preview) tones it through `getStatusTone`
+(`StatusBadge`): Hired, Approved, Qualified, Offer Accepted green; Declined, Rejected,
+Terminated, Disqualified, Offer Declined red; New, New Application, New Lead blue.
+Super Admin shows the stored text. A campaign's own status uses one map,
+`campaignStatusPresentation` (`campaignConstants.js`), on the card and the report: a
+failed campaign is red.
+
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
 `Terminated`, `Declined`), plus `Interested`. The dossier's status picker offers
@@ -1285,7 +1294,8 @@ only**.
 `callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
 an explicit `false` disables — except `callTracking` (labelled **Facebook leads**;
 the stored key keeps its old name), which is **opt-in**: Settings → Facebook leads
-shows only where a super admin set it `true`, since Facebook capture is off. `features` is stripped from the public profile
+shows only where a super admin set it `true`, since Facebook capture is off. Screens and routes read a flag only
+through `isFeatureOn` (`src/shared/utils/companyFeatures.js`), which knows each key's default. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
 [`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
 `planType`, `appSlug`, `isActive` or `status`. An open company workspace follows its
@@ -1328,6 +1338,15 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
   on both or one AI entry point reads a credential the other cannot. Super Admin
   → AI Integrations → **Check credential access** asks both, names the account
   in use, and reports a missing secret apart from an unreadable one.
+- **SMS settings are one rule** (`integrations/controllers/config/smsSettingsAccess.js`,
+  owner decision К1): saving and verifying the provider, adding, removing, testing and
+  verifying a line, line assignments and the test text all use `assertCompanyAdminStrict`:
+  a Company Admin by their claims or a membership, the company's owner (`ownerId`,
+  `createdBy`, `adminId`) or a super admin; a deactivated company refused, but for a super
+  admin; never a recruiter or HR user. Claims are read from the Auth record on each call,
+  never from the token, so a removed role is refused at once (К4). The Settings screens and
+  the `integrations` documents stay Company Admin only, so an owner without that role
+  reaches these only through the callables.
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
@@ -1403,8 +1422,10 @@ the daily count**; refusing is a recorded outcome.
   not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
   tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`, which only Super
-  Admin → Analytics reads (Maintenance rebuilds it; the company dashboard shows no call
-  statistics); application and
+  Admin → Analytics reads (Maintenance rebuilds it with the trigger's own counting,
+  `functions/shared/callStats.js`, counting the legacy `activities` log too, which the
+  rules keep readable and closed to writes; a rebuild overwrites each day that has a call
+  and leaves other days as they were; the company dashboard shows no call statistics); application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
@@ -1590,7 +1611,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 - **E2E test mode works only on the dev server the browser suites start.** A
   production build ignores `VITE_E2E_TEST_MODE` and ships no fixture data or
   harness (`src/lib/runtime/e2eMode.js`); fixture code follows the rule in its
-  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations).
+  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations). The
+  application page starts up through one sequence in both (`loadPublicApplyCompany`):
+  E2E mode only takes the company from a fixture, so the browser suites run the real
+  restore and discard guards.
 - **A masked SSN is `***-**-` and its last four digits everywhere** (screens,
   application and previous-employer PDFs, the company API); a value with fewer
   than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
@@ -1660,6 +1684,13 @@ Mandatory reading before any UI, styling, responsive or accessibility change:
 and [`src/design-system/README.md`](../src/design-system/README.md). The roadmap
 is authoritative for the rules, approved exceptions and open decisions; this is
 a summary.
+
+**Dates on screens read in one style (К3)** through `formatDate`
+(`src/shared/utils/helpers.js`): `Mar 7, 2026`; with a time `Mar 7, 2026, 02:30 PM`
+(minutes, no seconds); a stored month `Mar 2026`. Documents keep their own format: the
+application PDF, the preserved record and the driver's Review step (MM/DD/YYYY,
+mirrored by the server), the VOE document, signing pages and certificates, CSV exports,
+date inputs.
 
 Layering: the design system owns reusable appearance and interaction and must
 never know what a driver, lead or campaign is; feature folders own content,
@@ -1924,8 +1955,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
   **seven-day cooldown**; security fixes are not delayed.
 - **One-time backfill callables are still exported** (`backfillPublicProfiles`,
-  `migrateEmailSettings`, `backfillApplicationSearchFields`, stats backfills):
-  Super Admin maintenance tools, not dead code; check before removing one.
+  stats backfills): Super Admin maintenance tools, not dead code; check before
+  removing one. Data cleanup's SMTP copies and search fields items replaced
+  `migrateEmailSettings` and `backfillApplicationSearchFields`, retired with
+  `reconcileCompanyDashboardStats` (the daily recount does its work).
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
   application search fields, SMTP password copies outside `email_config`, DQ
@@ -1942,7 +1975,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 `npm test` (Vitest) · `npm run test:coverage` (ratchet gate) ·
 `npm run test:e2e` (Playwright) · `npm run test:rules` · `npm run typecheck` ·
 `npm run storybook` / `npm run test:stories`. CI also runs
-`check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
+`node scripts/check-callable-contract.mjs`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
 `check:table-layout`, `check:visual-contract`,
 `test:visual`, `test:secret-scan`, and a secret scan

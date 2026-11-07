@@ -5,7 +5,7 @@ jest.mock('firebase-functions/v2/https', () => ({
   },
 }));
 jest.mock('firebase-functions', () => ({ logger: { info: jest.fn(), warn: jest.fn() } }));
-jest.mock('uuid', () => ({ v4: () => 'tok-123' }));
+jest.mock('../../shared/randomId', () => ({ randomId: () => 'tok-123' }));
 
 const mockAssert = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({ assertCompanyAdminStrict: (...a) => mockAssert(...a) }));

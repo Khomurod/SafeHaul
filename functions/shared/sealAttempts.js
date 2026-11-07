@@ -14,6 +14,8 @@
  * sealed, and only then may it be sealed again.
  */
 
+const { millisOf } = require('./millisOf');
+
 const SEAL_STUCK_AFTER_MS = 10 * 60 * 1000;
 
 /** How many times the request was sealed again: the entries of `sealAttempts`. */
@@ -25,12 +27,6 @@ function sealAttemptCount(request) {
 function asksForSeal(before, after) {
     if (after?.status !== 'pending_seal') return false;
     return before?.status !== 'pending_seal' || sealAttemptCount(after) > sealAttemptCount(before);
-}
-
-function millisOf(value) {
-    if (value && typeof value.toMillis === 'function') return value.toMillis();
-    if (value instanceof Date) return value.getTime();
-    return null;
 }
 
 /** When the latest attempt to seal began: the signing or the newest retry; null when unknown. */

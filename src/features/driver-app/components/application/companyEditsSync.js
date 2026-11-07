@@ -28,8 +28,6 @@ export {
     COMPANY_NOTICE_KEY,
     COMPANY_REVISION_KEY,
     companyRevisionIn,
-    restoredWithRevision,
-    saveOnTheWire,
     withoutCompanyKeys,
 } from './companyEditsWire';
 

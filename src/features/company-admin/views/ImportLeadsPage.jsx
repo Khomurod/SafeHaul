@@ -10,6 +10,7 @@ import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { leadsListPath } from './leadsListPath';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * Company "Import Leads" page, reached from the Leads page's header
@@ -46,7 +47,7 @@ export const ImportLeadsPage = () => {
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
     const returnToLeads = () => navigate(leadsListPath(isCompanyAdmin));
 
-    if (currentCompanyProfile?.features?.importLeads === false) {
+    if (!isFeatureOn(currentCompanyProfile, 'importLeads')) {
         return <FeatureLockedModal featureName="Import Leads" onClose={returnToLeads} />;
     }
 

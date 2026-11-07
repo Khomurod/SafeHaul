@@ -33,6 +33,13 @@ describe('StatusBadge', () => {
         expect(container.querySelector('.ds-badge')).toHaveAttribute('data-tone', tone);
     });
 
+    it('reads a status stored as something other than text as neutral, without throwing', () => {
+        for (const stored of [5, true, { label: 'Hired' }]) {
+            expect(getStatusTone(stored)).toBe('neutral');
+            expect(() => getStatusIcon(stored)).not.toThrow();
+        }
+    });
+
     it('reads an unrecognised status as neutral, not as new', () => {
         // Neutral is the honest answer. Defaulting an unknown status to `info`
         // would render it identically to a genuinely new record and quietly
@@ -57,6 +64,40 @@ describe('StatusBadge', () => {
         ['Attempted Contact', 'accent'],
         ['Archived', 'neutral'],
     ])('resolves the free-form status %s to %s', (status, tone) => {
+        expect(getStatusTone(status)).toBe(tone);
+    });
+
+    /**
+     * K2: one status → tone map for every screen that shows a recruiting
+     * status — the company workspace, Super Admin's lists and the campaign
+     * audience preview. Hired reads green (`success`); a closed-out driver reads
+     * as `danger`. Every stored value is listed, so a regex edit that moves one
+     * shows up here.
+     */
+    it.each([
+        ['New', 'info'],
+        ['New Application', 'info'],
+        ['New Lead', 'info'],
+        ['Contact Attempt 1', 'neutral'],
+        ['Contact Attempt 2', 'neutral'],
+        ['Contact Attempt 3', 'neutral'],
+        ['In Process', 'neutral'],
+        ['Interested', 'neutral'],
+        ['Hired', 'success'],
+        ['Approved', 'success'],
+        ['Qualified', 'success'],
+        ['Offer Accepted', 'success'],
+        ['Terminated', 'danger'],
+        ['Declined', 'danger'],
+        ['Rejected', 'danger'],
+        ['Offer Declined', 'danger'],
+        ['Background Check', 'accent'],
+        ['In Review', 'accent'],
+        ['Contacted', 'accent'],
+        ['Attempted', 'accent'],
+        ['Hold', 'warning'],
+        ['Stale', 'neutral'],
+    ])('tones the stored status %s as %s', (status, tone) => {
         expect(getStatusTone(status)).toBe(tone);
     });
 

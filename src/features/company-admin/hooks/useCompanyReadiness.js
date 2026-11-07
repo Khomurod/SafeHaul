@@ -25,6 +25,7 @@ import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import { keptAnswer } from '@shared/utils/keptAnswer';
 import { normalizePostApplicationTemplates } from '@features/driver-app/components/application/publicApplyHelpers';
 import { companyReadiness } from '../utils/companyReadiness';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 const READY = Object.freeze({ items: [], hints: [] });
 
@@ -49,7 +50,7 @@ async function settle(label, read) {
 const dataOf = (snap, missing) => (snap.exists() ? snap.data() : missing);
 
 async function readFormTemplates(companyId, company) {
-    if (company.status !== 'ok' || company.value?.features?.eDocs === false) return { status: 'ok', value: {} };
+    if (company.status !== 'ok' || !isFeatureOn(company.value, 'eDocs')) return { status: 'ok', value: {} };
     const forms = normalizePostApplicationTemplates(company.value?.postApplicationTemplates);
     return settle('the forms\' templates', async () => Object.fromEntries(await Promise.all(forms.map(async (form) => [
         form.templateId,

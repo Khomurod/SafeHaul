@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { required, email, phone, ssn } from './fieldValidators';
+import { required, email, phone } from './fieldValidators';
 
 describe('fieldValidators (C5)', () => {
     it('required flags empty / whitespace and passes non-empty', () => {
@@ -32,11 +32,5 @@ describe('fieldValidators (C5)', () => {
         // More than ten digits is not "at least 10", which the message used to say.
         expect(v('+52 55 1234 5678')).toBe('Enter a 10-digit US phone number.');
         expect(v('25551234567')).toBe('Enter a 10-digit US phone number.');
-    });
-
-    it('ssn validates 9 digits', () => {
-        const v = ssn('SSN');
-        expect(v('123-45-678')).toMatch(/9 digits/i);
-        expect(v('123-45-6789')).toBeNull();
     });
 });

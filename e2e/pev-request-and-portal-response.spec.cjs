@@ -25,7 +25,16 @@ test.describe('PEV portal response UX', () => {
     await yes.focus();
     await expect(yes).toBeFocused();
 
-    const focusPresentation = await group.locator('label', { hasText: 'Yes' }).first().evaluate((el) => {
+    // The design-system `Radio` draws its ring on the control itself, under
+    // `:focus-visible`, so reach it the way a keyboard user does: the arrow keys
+    // move and select within the question.
+    await page.keyboard.press('ArrowRight');
+    await expect(group.getByRole('radio', { name: 'No / No Record Found' })).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(yes).toBeFocused();
+    await expect(yes).toBeChecked();
+
+    const focusPresentation = await yes.evaluate((el) => {
       const s = getComputedStyle(el);
       return { boxShadow: s.boxShadow, outline: s.outlineStyle };
     });

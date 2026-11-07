@@ -218,6 +218,14 @@ describe('what a press of Send to driver says', () => {
         expect(sendErrorMessage(Object.assign(new Error('internal'), { code: 'functions/internal' })))
             .toBe('Could not send the form. Please try again.');
     });
+
+    it('never shows a bare code as the reason: the server did not answer (a function not yet deployed)', () => {
+        for (const message of ['not-found', 'NOT_FOUND', 'failed-precondition', 'aborted']) {
+            const code = `functions/${message.toLowerCase().replace(/_/g, '-')}`;
+            expect(sendErrorMessage(Object.assign(new Error(message), { code })))
+                .toBe('Could not send the form. Please try again.');
+        }
+    });
 });
 
 describe('the next link to run out', () => {

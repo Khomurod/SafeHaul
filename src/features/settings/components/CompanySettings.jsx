@@ -18,7 +18,7 @@ import { ButtonLink, SectionNavigation } from '@/design-system/components';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
-import { isFeatureOn } from '@features/super-admin/config/features';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * The sections, grouped. Every id is also its `?section=` value, so a link to a

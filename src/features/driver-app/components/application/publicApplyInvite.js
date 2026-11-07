@@ -304,8 +304,8 @@ export function adoptOpenedApplication({
 /**
  * What the rest of the page load may still do, once an invitation did not open.
  *
- * Both callers of `openPreparedApplication` in `publicApplyBootstrap` continue past
- * it — restoring a submission and restoring this browser's local draft — and
+ * The company load in `publicApplyBootstrap` continues past `openPreparedApplication`
+ * — restoring a submission and restoring this browser's local draft — and
  * `requires_identity` is a live invitation waiting on one question, so neither step
  * is harmless there:
  *
@@ -319,9 +319,6 @@ export function adoptOpenedApplication({
  *    see them, and still in `formData` when the claim succeeds: the adopt spread
  *    keeps every key the target application does not itself have, and autosave
  *    then writes them onto it.
- *
- * One decision, read by both branches, so the E2E path cannot drift from the
- * production one — the file already records a bug that hid in exactly that gap.
  *
  * Every other non-opening outcome is a link that FAILED, and both steps stay: a
  * dead link must not cost the driver their own submission screen or their own

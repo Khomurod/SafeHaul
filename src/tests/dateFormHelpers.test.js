@@ -3,10 +3,8 @@ import {
     daysInMonth,
     parseIsoDateParts,
     buildIsoDate,
-    formatIsoDateUs,
     parseMonthYear,
     formatMonthYearIso,
-    formatMonthYearUs,
     ageFromIsoDate,
 } from '../shared/utils/dateFormHelpers';
 
@@ -27,10 +25,6 @@ describe('dateFormHelpers', () => {
         expect(buildIsoDate(2023, 2, 31)).toBe('2023-02-28');
     });
 
-    it('formatIsoDateUs renders US-style', () => {
-        expect(formatIsoDateUs('1990-01-08')).toBe('1/8/1990');
-    });
-
     it('parseMonthYear accepts YYYY-MM and legacy mm/yyyy', () => {
         expect(parseMonthYear('2021-03')).toEqual({ year: 2021, month: 3 });
         expect(parseMonthYear('11/2019')).toEqual({ year: 2019, month: 11 });
@@ -39,9 +33,8 @@ describe('dateFormHelpers', () => {
         expect(parseMonthYear('')).toEqual({ year: '', month: '' });
     });
 
-    it('formatMonthYearIso and formatMonthYearUs round-trip', () => {
+    it('formatMonthYearIso builds YYYY-MM', () => {
         expect(formatMonthYearIso(2018, 7)).toBe('2018-07');
-        expect(formatMonthYearUs('2018-07')).toBe('07/2018');
     });
 
     it('ageFromIsoDate computes full years', () => {

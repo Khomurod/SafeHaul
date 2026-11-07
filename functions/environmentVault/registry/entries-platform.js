@@ -125,7 +125,7 @@ const OPS_ENTRIES = [
     ['GITHUB_PUSH_BEFORE', 'Push before-SHA', 'Previous head of the pushed branch, supplied by GitHub Actions.', ['scripts/deploy-functions-incremental.mjs', '.github/workflows/main.yml']],
     ['GITHUB_SHA', 'Workflow commit SHA', 'Commit the workflow run is building, supplied by GitHub Actions.', ['scripts/deploy-functions-incremental.mjs', '.github/workflows/main.yml']],
     ['RULES_STRESS_LOOPS', 'Rules stress loop count', 'Number of times the Firestore/Storage rules suite repeats in the emulator flake guard.', ['scripts/run-rules-stress.mjs', '.github/workflows/main.yml']],
-    ['FIRESTORE_EMULATOR_HOST', 'Firestore emulator host', 'Host:port the rules suite points the Firestore SDK at.', ['scripts/run-rules-stress.mjs', 'src/tests/firestore.rules.security.test.js']],
+    ['FIRESTORE_EMULATOR_HOST', 'Firestore emulator host', 'Host:port the rules suite points the Firestore SDK at.', ['scripts/run-rules-stress.mjs', 'src/tests/firestoreRules.support.js']],
     ['FIREBASE_STORAGE_EMULATOR_HOST', 'Storage emulator host', 'Host:port the rules suite points the Storage SDK at.', ['scripts/run-rules-stress.mjs', 'src/tests/storage.rules.security.test.js']],
     ['PW_CHROMIUM_EXECUTABLE', 'Playwright Chromium path', 'Absolute path to a system Chromium for the Playwright chromium lanes.', ['playwright.config.cjs']],
     ['CI', 'CI flag', 'Set by GitHub Actions. Switches Playwright to one worker with retries and forbids test.only.', ['playwright.config.cjs']],

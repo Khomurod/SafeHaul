@@ -10,7 +10,7 @@ import { useSmsOptOuts } from './useSmsOptOuts';
 const NUMBER_HINT = 'Add a number when the driver replied STOP or asked not to be texted.';
 const AREA_CODE = 'Enter the phone number with its area code, such as (555) 123-4567.';
 
-/** The server's rule (`normalizePhone`), so a number it would refuse is caught here first. */
+/** The server's rule (`toE164Us`), so a number it would refuse is caught here first. */
 function looksLikeNumber(value) {
     const digits = value.replace(/\D/g, '');
     return digits.length >= 10 && digits.length <= 15;

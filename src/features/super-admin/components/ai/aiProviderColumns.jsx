@@ -23,6 +23,7 @@ import {
     describeProbe,
     describeProbeDetail,
 } from './aiTelemetryPresentation';
+import { formatDate } from '@shared/utils/helpers';
 
 export function buildProviderColumns({
     busyId,
@@ -182,7 +183,7 @@ export function buildProviderColumns({
                                     </span>
                                 )}
                                 <span className="text-ds-xs text-ds-content-secondary">
-                                    {provider.lastTest.at ? new Date(provider.lastTest.at).toLocaleString() : ''}
+                                    {provider.lastTest.at ? formatDate(new Date(provider.lastTest.at), true) : ''}
                                 </span>
                             </>
                         )}

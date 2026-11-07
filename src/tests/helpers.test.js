@@ -36,13 +36,6 @@ describe('Utility Helpers', () => {
         it('returns partial numbers as digits', () => {
             expect(normalizePhone('555-12')).toBe('55512');
         });
-
-        // D5: validation.js must re-export this exact canonical implementation,
-        // not a second drift-prone copy.
-        it('is the same function re-exported from validation.js', async () => {
-            const { normalizePhone: validationNormalizePhone } = await import('../shared/utils/validation');
-            expect(validationNormalizePhone).toBe(normalizePhone);
-        });
     });
 
     // --- 2. Phone Formatting Tests ---

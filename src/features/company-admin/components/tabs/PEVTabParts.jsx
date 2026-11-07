@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon, Briefcase, FileText, CheckCircle2, AlertTriangle, Clock, ShieldCheck, Send, ExternalLink, Plus, RefreshCcw, X } from '@design-system/icons';
-import { getFieldValue } from '@shared/utils/helpers';
+import { formatDate, getFieldValue } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '@features/applications/services/openApplicationFile';
@@ -94,7 +94,7 @@ export function PEVEmployerCard({
                                     )}
                                     {vStatus.openedAt && (
                                         <span className="flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-secondary">
-                                            <Icon icon={ExternalLink} size="xs" /> Employer opened the link ({new Date(vStatus.openedAt).toLocaleDateString()})
+                                            <Icon icon={ExternalLink} size="xs" /> Employer opened the link ({formatDate(new Date(vStatus.openedAt))})
                                         </span>
                                     )}
                                     {vStatus.respondentName && (
