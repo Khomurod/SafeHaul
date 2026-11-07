@@ -105,7 +105,7 @@ Features are set one company at a time, on its screen; nothing writes a feature 
 [`functions/featureScheduler.js`](../functions/featureScheduler.js) — `enforceFeatureSchedules`:
 
 - **Schedule:** every 15 minutes (`us-central1`)
-- Scans **all** `companies` documents
+- Scans **all** `companies` documents, reading only their `featureSchedules`
 - For each `featureSchedules.{key}` where datetime `<= now`:
   - Sets `features.{key}` → `false`
   - Sets `featureSchedules.{key}` → `null`

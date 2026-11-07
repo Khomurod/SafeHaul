@@ -3,6 +3,7 @@ import { db } from '@lib/firebase';
 import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { Icon, Zap, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { forgetCompanies } from '@features/companies/services/companyService';
 import { Button, DataTable, IconButton, Switch } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
@@ -45,11 +46,15 @@ export function FeaturesView({ company, onChanged }) {
     const [alertStats, setAlertStats] = useState([]);
     const [statsLoading, setStatsLoading] = useState(false);
 
-    /** Writes `fields` to the company; true when saved, and the company is read again. */
+    /**
+     * Writes `fields` to the company; true when saved, and the company is read
+     * again, as is every company the next time Features opens.
+     */
     const write = async (fields) => {
         setWrittenOver(company);
         try {
             await updateDoc(doc(db, "companies", company.id), fields);
+            forgetCompanies();
             onChanged();
             return true;
         } catch (e) {

@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fx = vi.hoisted(() => ({ statsReads: [], companiesError: null, companiesReads: 0 }));
 
-vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, auth: {} }));
 vi.mock('firebase/firestore', () => ({
     collection: (_db, ...path) => ({ path: path.join('/') }),
     where: (field, op, value) => ({ field, op, value }),
@@ -37,6 +37,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import { useAnalytics } from './useAnalytics';
+import { forgetCompanies } from '@features/companies/services/companyService';
 
 /** A stats_daily snapshot of `[dateKey, data]` pairs. */
 const days = (...entries) => ({
@@ -44,6 +45,7 @@ const days = (...entries) => ({
 });
 
 beforeEach(() => {
+    forgetCompanies();
     fx.statsReads = [];
     fx.companiesError = null;
     fx.companiesReads = 0;
@@ -161,5 +163,19 @@ describe('useAnalytics — only figures stats_daily holds (defects)', () => {
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.error).toBeNull();
         expect(fx.companiesReads).toBe(2);
+    });
+
+    it('reads the companies once: another period reads only their days', async () => {
+        const { result } = renderHook(() => useAnalytics());
+        for (const read of await bothStatsReads()) read.resolve(days());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        fx.statsReads = [];
+        act(() => result.current.setDateRange('30d'));
+        for (const read of await bothStatsReads()) read.resolve(days());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        expect(result.current.error).toBeNull();
+        expect(fx.companiesReads).toBe(1);
     });
 });

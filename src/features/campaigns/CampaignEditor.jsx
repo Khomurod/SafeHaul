@@ -183,7 +183,8 @@ export function CampaignEditor({ companyId, campaignId, isNew = false, onClose, 
             // Guard against no-op updates to avoid render loops from effect-driven callbacks.
             if (prev.filters === newFilters && (prev.matchCount || 0) === (count || 0)
                 && prev.countedFor?.method === countedFor?.method
-                && prev.countedFor?.alreadyMessaged === countedFor?.alreadyMessaged) {
+                && prev.countedFor?.alreadyMessaged === countedFor?.alreadyMessaged
+                && prev.countedFor?.needsRecount === countedFor?.needsRecount) {
                 return prev;
             }
             return { ...prev, filters: newFilters, matchCount: count, countedFor };

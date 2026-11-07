@@ -3,6 +3,10 @@
 // upload screen's "Exclude Previously Messaged" select shows "Last 7 Days"
 // until the recruiter picks another window, so a list whose filters carry no
 // window is counted with those 7 days, as the launch is.
+//
+// With a window on, the count reads every matching record and its ledger entry
+// (owner decision K5): it runs on Recalculate audience (`recount`), never after
+// a filter change, and until then says it is not up to date (`needsRecount`).
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,6 +28,11 @@ const UPLOAD_OFF = { ...UPLOAD, excludeRecentDays: 'off' };
 
 // The count waits 500 ms after the last change before it asks the server.
 const settle = () => act(() => vi.advanceTimersByTimeAsync(500));
+// Recalculate audience, and its answer.
+const recount = async (result) => {
+    act(() => { result.current.recount(); });
+    await settle();
+};
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -36,10 +45,17 @@ afterEach(() => {
 });
 
 describe('useCampaignTargeting — an uploaded list', () => {
-    it('counts with the 7-day window the screen shows when none was picked', async () => {
+    it('waits for Recalculate, then counts with the 7-day window the screen shows when none was picked', async () => {
         const { result } = renderHook(() => useCampaignTargeting('co-1', UPLOAD, USER));
         await settle();
 
+        expect(checkImportPhones).not.toHaveBeenCalled();
+        expect(result.current.needsRecount).toBe(true);
+        expect(result.current.matchCount).toBe(0);
+
+        await recount(result);
+
+        expect(result.current.needsRecount).toBe(false);
         expect(result.current.matchCount).toBe(1);
         expect(checkImportPhones).toHaveBeenCalledWith(expect.objectContaining({ excludeRecentDays: '7' }));
         expect([...result.current.alreadyMessagedKeys]).toEqual(['import_0']);
@@ -47,8 +63,8 @@ describe('useCampaignTargeting — an uploaded list', () => {
     });
 
     it('asks about each row by its preview key, for the campaign\'s channel', async () => {
-        renderHook(() => useCampaignTargeting('co-1', UPLOAD, USER, 'email'));
-        await settle();
+        const { result } = renderHook(() => useCampaignTargeting('co-1', UPLOAD, USER, 'email'));
+        await recount(result);
 
         expect(checkImportPhones).toHaveBeenCalledWith({
             companyId: 'co-1',
@@ -61,15 +77,33 @@ describe('useCampaignTargeting — an uploaded list', () => {
         });
     });
 
-    it('counts again when the channel changes', async () => {
-        const { rerender } = renderHook(({ method }) => useCampaignTargeting('co-1', UPLOAD, USER, method), {
+    it('is out of date again when the channel changes, until Recalculate', async () => {
+        const { result, rerender } = renderHook(({ method }) => useCampaignTargeting('co-1', UPLOAD, USER, method), {
             initialProps: { method: 'sms' },
         });
-        await settle();
+        await recount(result);
         rerender({ method: 'email' });
         await settle();
 
+        expect(result.current.needsRecount).toBe(true);
+        expect([...result.current.alreadyMessagedKeys]).toEqual([]);
+        expect(checkImportPhones).toHaveBeenCalledTimes(1);
+
+        await recount(result);
         expect(checkImportPhones.mock.calls.map(([args]) => args.method)).toEqual(['sms', 'email']);
+    });
+
+    it('is out of date when another list is loaded: the old keys name other rows', async () => {
+        const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+            initialProps: { filters: UPLOAD },
+        });
+        await recount(result);
+        rerender({ filters: { ...UPLOAD, rawData: [...ROWS] } });
+        await settle();
+
+        expect(result.current.needsRecount).toBe(true);
+        expect([...result.current.alreadyMessagedKeys]).toEqual([]);
+        expect(checkImportPhones).toHaveBeenCalledTimes(1);
     });
 
     it('counts every row when the recruiter turned the window off', async () => {
@@ -77,6 +111,17 @@ describe('useCampaignTargeting — an uploaded list', () => {
         await settle();
 
         expect(result.current.matchCount).toBe(2);
+        expect(result.current.needsRecount).toBe(false);
+        expect(checkImportPhones).not.toHaveBeenCalled();
+    });
+
+    it('counts an empty list by itself: there is nothing to look up', async () => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', { leadType: 'import', rawData: [] }, USER));
+        await settle();
+
+        expect(result.current.needsRecount).toBe(false);
+        expect(result.current.matchCount).toBe(0);
+        expect(result.current.error).toBe(ERROR_MESSAGES.ZERO_RESULTS);
         expect(checkImportPhones).not.toHaveBeenCalled();
     });
 
@@ -86,7 +131,8 @@ describe('useCampaignTargeting — an uploaded list', () => {
         const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
             initialProps: { filters: UPLOAD },
         });
-        await settle(); // the 7-day check is now in flight
+        await recount(result); // the 7-day check is now in flight
+        expect(result.current.isLoading).toBe(true);
 
         rerender({ filters: UPLOAD_OFF });
         await settle();
@@ -103,6 +149,7 @@ describe('useCampaignTargeting — an uploaded list', () => {
 
 describe('useCampaignTargeting — a CRM audience', () => {
     const CRM = { leadType: 'leads', status: ['new'] };
+    const WINDOW = { ...CRM, excludeRecentDays: '30' };
 
     it('counts for the campaign\'s channel and says how many were already messaged', async () => {
         getFilterCount.mockResolvedValue({ data: { count: 40, alreadyMessaged: 2 } });
@@ -112,6 +159,21 @@ describe('useCampaignTargeting — a CRM audience', () => {
         expect(getFilterCount).toHaveBeenCalledWith(expect.objectContaining({ companyId: 'co-1', method: 'email' }));
         expect(result.current.matchCount).toBe(40);
         expect(result.current.alreadyMessaged).toBe(2);
+        expect(result.current.needsRecount).toBe(false);
+    });
+
+    it('counts again by itself after a filter change when no window is on', async () => {
+        getFilterCount.mockResolvedValue({ data: { count: 40 } });
+        const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+            initialProps: { filters: CRM },
+        });
+        await settle();
+        getFilterCount.mockResolvedValue({ data: { count: 12 } });
+        rerender({ filters: { ...CRM, status: ['new', 'hired'] } });
+        await settle();
+
+        expect(getFilterCount).toHaveBeenCalledTimes(2);
+        expect(result.current.matchCount).toBe(12);
     });
 
     it('says the count failed, rather than that nobody matches, and counts again on retry', async () => {
@@ -130,5 +192,158 @@ describe('useCampaignTargeting — a CRM audience', () => {
         expect(getFilterCount).toHaveBeenCalledTimes(2);
         expect(result.current.error).toBeNull();
         expect(result.current.matchCount).toBe(42);
+    });
+
+    describe('with an exclusion window', () => {
+        beforeEach(() => {
+            getFilterCount.mockResolvedValue({ data: { count: 40, alreadyMessaged: 3 } });
+        });
+
+        it('counts nothing until Recalculate, and then the whole audience with the window', async () => {
+            const { result } = renderHook(() => useCampaignTargeting('co-1', WINDOW, USER));
+            await settle();
+
+            expect(getFilterCount).not.toHaveBeenCalled();
+            expect(result.current.needsRecount).toBe(true);
+            expect(result.current.isLoading).toBe(false);
+
+            await recount(result);
+
+            expect(getFilterCount).toHaveBeenCalledTimes(1);
+            expect(getFilterCount.mock.calls[0][0].filters).toEqual(expect.objectContaining({
+                excludeRecentDays: '30',
+                campaignLimit: null,
+            }));
+            expect(result.current.needsRecount).toBe(false);
+            expect(result.current.matchCount).toBe(40);
+            expect(result.current.alreadyMessaged).toBe(3);
+        });
+
+        it('marks the count out of date after a filter change, and asks the server nothing', async () => {
+            const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+                initialProps: { filters: WINDOW },
+            });
+            await recount(result);
+
+            for (const filters of [
+                { ...WINDOW, status: ['new', 'hired'] },
+                { ...WINDOW, status: ['new', 'hired'], recruiterId: 'r1' },
+                { ...WINDOW, excludeRecentDays: 'forever' },
+            ]) {
+                rerender({ filters });
+                await settle();
+                expect(result.current.needsRecount).toBe(true);
+                expect(result.current.matchCount).toBe(0);
+                expect(result.current.alreadyMessaged).toBe(0);
+            }
+            expect(getFilterCount).toHaveBeenCalledTimes(1);
+
+            // Back to the filters it counted: that count holds again.
+            rerender({ filters: WINDOW });
+            await settle();
+            expect(result.current.needsRecount).toBe(false);
+            expect(result.current.matchCount).toBe(40);
+            expect(getFilterCount).toHaveBeenCalledTimes(1);
+        });
+
+        it('drops an answer for filters changed while it was on its way', async () => {
+            let answer;
+            getFilterCount.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+            const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+                initialProps: { filters: WINDOW },
+            });
+            await recount(result);
+            rerender({ filters: { ...WINDOW, recruiterId: 'r1' } });
+            await act(async () => { answer({ data: { count: 40 } }); });
+
+            expect(result.current.needsRecount).toBe(true);
+            expect(result.current.matchCount).toBe(0);
+            expect(result.current.isLoading).toBe(false);
+        });
+
+        it('says a failed count failed, and Try again counts again', async () => {
+            getFilterCount.mockRejectedValue(new Error('internal'));
+            vi.spyOn(console, 'error').mockImplementation(() => {});
+            const { result } = renderHook(() => useCampaignTargeting('co-1', WINDOW, USER));
+            await recount(result);
+
+            expect(result.current.error).toBe(ERROR_MESSAGES.COUNT_FAILED);
+            expect(result.current.needsRecount).toBe(false);
+
+            getFilterCount.mockResolvedValue({ data: { count: 42 } });
+            act(() => { result.current.retry(); });
+            await settle();
+
+            expect(getFilterCount).toHaveBeenCalledTimes(2);
+            expect(result.current.matchCount).toBe(42);
+        });
+
+        it('does nothing without a signed-in user or a company', async () => {
+            const { result } = renderHook(() => useCampaignTargeting(null, WINDOW, USER));
+            await recount(result);
+
+            expect(getFilterCount).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('useCampaignTargeting — Limit Volume', () => {
+    const CRM = { leadType: 'leads', status: ['new'] };
+    const withLimit = (campaignLimit, extra = {}) => ({ ...CRM, ...extra, campaignLimit });
+
+    beforeEach(() => {
+        getFilterCount.mockResolvedValue({ data: { count: 40, alreadyMessaged: 2 } });
+    });
+
+    it('asks the server for the whole audience and trims it in the browser', async () => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', withLimit('25'), USER));
+        await settle();
+
+        expect(getFilterCount.mock.calls[0][0].filters.campaignLimit).toBeNull();
+        expect(result.current.matchCount).toBe(25);
+        expect(result.current.alreadyMessaged).toBe(2);
+    });
+
+    it.each([
+        ['empty', ''],
+        ['zero', '0'],
+        ['not a number', 'abc'],
+        ['negative', '-5'],
+        ['larger than the audience', '500'],
+    ])('keeps the whole audience when the limit is %s, as the launch does', async (_label, campaignLimit) => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', withLimit(campaignLimit), USER));
+        await settle();
+
+        expect(result.current.matchCount).toBe(40);
+    });
+
+    it.each([
+        ['without an exclusion window', {}],
+        ['with an exclusion window', { excludeRecentDays: '30' }],
+    ])('does not count again while the limit is typed, %s', async (_label, extra) => {
+        const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+            initialProps: { filters: withLimit('', extra) },
+        });
+        await settle();
+        if (result.current.needsRecount) await recount(result);
+        const counted = getFilterCount.mock.calls.length;
+        expect(counted).toBe(1);
+        expect(result.current.matchCount).toBe(40);
+
+        for (const typed of ['1', '15', '150', '15', '1']) {
+            rerender({ filters: withLimit(typed, extra) });
+            await settle();
+        }
+
+        expect(getFilterCount).toHaveBeenCalledTimes(counted);
+        expect(result.current.needsRecount).toBe(false);
+        expect(result.current.matchCount).toBe(1);
+    });
+
+    it('leaves an uploaded list whole: the launch keeps every row it does not leave out', async () => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', { ...UPLOAD_OFF, campaignLimit: '1' }, USER));
+        await settle();
+
+        expect(result.current.matchCount).toBe(2);
     });
 });

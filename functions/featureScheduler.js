@@ -5,9 +5,10 @@ exports.enforceFeatureSchedules = onSchedule({ schedule: "every 15 minutes", tim
     const db = getFirestore();
     const now = new Date();
 
-    // We fetch all companies and check their schedules in memory since it's a manageable size.
-    // If companies scaled significantly, we'd add an index or separate collection.
-    const companiesSnapshot = await db.collection("companies").get();
+    // Every company's schedules, checked in memory since it's a manageable size.
+    // Only `featureSchedules` is read: the run needs nothing else of a company,
+    // and a company document carries its team, questions and settings.
+    const companiesSnapshot = await db.collection("companies").select("featureSchedules").get();
 
     let processedCount = 0;
 

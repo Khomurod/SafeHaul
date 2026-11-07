@@ -14,7 +14,7 @@ import {
     startAfter
 } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { loadCompanies } from '@features/companies/services/companyService';
+import { forgetCompanies, loadCompanies } from '@features/companies/services/companyService';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { mockCompanies, mockDriverRecords, mockUsers } from '../components/companiesMock';
 import { USERS_PAGE_SIZE, usersPageQuery, withMemberships } from './superAdminUsers';
@@ -135,6 +135,7 @@ export function useSuperAdminData() {
                 // Every company, for the names and the membership picker: the
                 // table above is a page of 20, and the 21st company was missing
                 // from both ("Unknown Company", and no way to add anyone to it).
+                // One read the console's other screens share (`loadCompanies`).
                 safeFetch(loadCompanies(), "All Companies"),
                 safeFetch(getDocs(usersQuery), "Users"),
                 safeFetch(getDocs(leadsQuery), "Leads"),
@@ -485,6 +486,12 @@ export function useSuperAdminData() {
         return () => clearTimeout(timer);
     }, [searchQuery, loadRecentData, performClientSearch]);
 
+    // After a change made here, every company is read again too, not the shared copy.
+    const refreshData = useCallback(() => {
+        forgetCompanies();
+        return loadRecentData();
+    }, [loadRecentData]);
+
     // --- RETURN (Preserving Interface) ---
     return {
         companyList,
@@ -509,6 +516,6 @@ export function useSuperAdminData() {
             applications: allApplications
         },
         totalSearchResults: companyList.length + userList.length + allApplications.length,
-        refreshData: loadRecentData
+        refreshData
     };
 }

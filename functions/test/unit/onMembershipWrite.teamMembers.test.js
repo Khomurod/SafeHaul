@@ -27,6 +27,7 @@ const mockUserSet = jest.fn();
 const mockUserGet = jest.fn();
 const mockGetAll = jest.fn();
 const mockCompanyUpdate = jest.fn();
+const mockCompanyGet = jest.fn();
 const mockGetUser = jest.fn();
 
 /** `users/{uid}` as the Admin SDK answers it: absent unless the fixture holds it. */
@@ -53,8 +54,8 @@ jest.mock('../../firebaseAdmin', () => ({
         return {
           doc: (cid) => ({
             update: (...a) => mockCompanyUpdate(cid, ...a),
-            // Every company here is active.
-            get: async () => ({ exists: false }),
+            // Every company here is active; by default none has a saved list.
+            get: () => mockCompanyGet(cid),
           }),
         };
       }
@@ -99,6 +100,7 @@ beforeEach(() => {
   mockSetCustomUserClaims.mockResolvedValue();
   mockUserSet.mockResolvedValue();
   mockCompanyUpdate.mockResolvedValue();
+  mockCompanyGet.mockImplementation(async () => ({ exists: false }));
   mockUserGet.mockImplementation(async (uid) => mockProfileSnap(uid));
   mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => mockProfileSnap(ref.id)));
   mockState.memberships = [];
@@ -237,6 +239,70 @@ describe('onMembershipWrite — the saved team list names members by the shared 
       expect(mockUserSet).toHaveBeenCalledWith('u1', { companyIds: ['co-a'] }, { merge: true });
     } finally {
       consoleError.mockRestore();
+    }
+  });
+});
+
+describe('onMembershipWrite — a team list that already reads so is not written again', () => {
+  const ANN = { userId: 'u1', role: 'recruiter', name: 'Ann Artificial', email: 'ann@example.com' };
+  /** `companies/{cid}` holding `data`. */
+  const companyHolding = (data) => mockCompanyGet.mockImplementation(async () => ({ exists: true, data: () => data }));
+
+  beforeEach(() => {
+    mockState.memberships = [{ userId: 'u1', companyId: 'co-a', role: 'recruiter' }];
+    mockState.profiles = { u1: { name: 'Ann Artificial', email: 'ann@example.com' } };
+  });
+
+  it('leaves the company alone when its saved list is the same team', async () => {
+    companyHolding({ companyName: 'Artificial Freight', teamMembers: [{ ...ANN }] });
+
+    await joinCoA('u1');
+
+    expect(mockCompanyUpdate).not.toHaveBeenCalled();
+  });
+
+  it('writes the list when a member changed', async () => {
+    companyHolding({ teamMembers: [{ ...ANN, role: 'hr_user' }] });
+
+    await joinCoA('u1');
+
+    expect(writtenTeam()).toStrictEqual([ANN]);
+  });
+
+  it('writes the list the first time, when the company has none', async () => {
+    companyHolding({ companyName: 'Artificial Freight' });
+
+    await joinCoA('u1');
+
+    expect(writtenTeam()).toStrictEqual([ANN]);
+  });
+
+  it('reads a member without a userId as it was saved, without the field', async () => {
+    mockState.memberships = [{ companyId: 'co-a', role: 'recruiter' }, { userId: 'u1', companyId: 'co-a', role: 'recruiter' }];
+    // ignoreUndefinedProperties: the saved entry has no userId at all.
+    companyHolding({ teamMembers: [{ role: 'recruiter', name: 'Unknown', email: '' }, { ...ANN }] });
+
+    await joinCoA('u1');
+
+    expect(mockCompanyUpdate).not.toHaveBeenCalled();
+  });
+
+  it('still writes the list when the company cannot be read first', async () => {
+    // The claims read the company first; it fails only once they and the
+    // user's companyIds are written, when the team list is saved.
+    let unreadable = false;
+    mockUserSet.mockImplementation(async () => { unreadable = true; });
+    mockCompanyGet.mockImplementation(async () => {
+      if (unreadable) throw new Error('firestore unavailable');
+      return { exists: false };
+    });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      await fire({ userId: 'u1', companyId: 'co-a', role: 'recruiter' }, { userId: 'u1', companyId: 'co-a', role: 'hr_user' });
+      expect(writtenTeam()).toStrictEqual([ANN]);
+    } finally {
+      warn.mockRestore();
     }
   });
 });

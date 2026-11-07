@@ -13,6 +13,7 @@ const { buildPublicProfileDto } = require('./shared/publicProfileDto');
 const { reconcilePublicProfilesToCompletion } = require('./shared/publicProfileSync');
 const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
 const { isPlaceholderEmail } = require('./shared/placeholderDomains');
+const { mergeWouldChange } = require('./shared/unchangedWrite');
 
 /**
  * Where the reconciler records how far it got.
@@ -302,24 +303,39 @@ exports.reconcilePublicProfilesSchedule = onSchedule({
  * Trigger: onWrite /companies/{companyId}
  * Description: Copies ONLY safe public data to a separate collection for public read access.
  * This prevents exposing sensitive company data (revenue, internal notes, quotas) to the public.
+ * A company write that changes nothing the profile holds (its team list, a
+ * setting the profile does not carry) leaves the profile alone: rewriting it
+ * would only move `updatedAt`. A missing profile, or one that cannot be read,
+ * is written.
  */
 exports.syncPublicProfile = onDocumentWritten("companies/{companyId}", async (event) => {
     const companyId = event.params.companyId;
     const newData = event.data.after.exists ? event.data.after.data() : null;
+    const profileRef = db.collection("public_profiles").doc(companyId);
 
     // If company is deleted, delete public profile
     if (!newData) {
-        await db.collection("public_profiles").doc(companyId).delete();
+        await profileRef.delete();
         console.log(`[syncPublicProfile] Deleted public profile for ${companyId}`);
         return;
     }
 
     // The delete sentinel is what makes un-setting a gate take effect: profiles
     // are merged, and a merge leaves a nested key that is merely absent in place.
-    const publicData = buildPublicProfileDto(newData, serverTimestamp(), {
-        deleteSentinel: deleteSentinel(),
-    });
+    const sentinel = deleteSentinel();
+    const publicData = buildPublicProfileDto(newData, serverTimestamp(), { deleteSentinel: sentinel });
 
-    await db.collection("public_profiles").doc(companyId).set(publicData, { merge: true });
+    let profile = null;
+    try {
+        profile = await profileRef.get();
+    } catch (error) {
+        console.warn(`[syncPublicProfile] Could not read the public profile for ${companyId}; writing it:`, error.message);
+    }
+    if (profile?.exists && !mergeWouldChange(profile.data(), publicData, { deleteSentinel: sentinel, ignore: ['updatedAt'] })) {
+        console.log(`[syncPublicProfile] Public profile for ${companyId} already current`);
+        return;
+    }
+
+    await profileRef.set(publicData, { merge: true });
     console.log(`[syncPublicProfile] Synced public profile for ${companyId}`);
 });

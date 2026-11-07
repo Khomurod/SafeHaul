@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { Icon, CheckCircle2, Inbox, Loader2, XCircle } from '@design-system/icons';
 import { Avatar, Badge, Button, SelectableCard } from '@/design-system/components';
 import { EmptyState, ErrorState, LoadingState } from '@/design-system/patterns';
+import { campaignLimitOf } from '../constants/campaignConstants';
 
 /**
  * Feature-owned domain → visual mapping for a recipient's lifecycle status.
@@ -31,6 +32,11 @@ const STATUS_TONE = {
  */
 const PANEL_CLASS = 'h-[500px] w-full overflow-hidden rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse';
 
+// What the list asks the server for leaves out Limit Volume, which only trims the
+// rows shown (newest first, as the launch takes them), so typing it reloads
+// nothing; and the uploaded rows, which never go to the server.
+const NOT_FETCHED = new Set(['campaignLimit', 'rawData']);
+
 // `method` is the campaign's channel: the preview of CRM leads leaves out those a
 // campaign of that channel already reached. For an uploaded list,
 // `alreadyMessagedKeys` names those rows by their key.
@@ -43,6 +49,11 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
 
     // Prevent double-fetching in React.StrictMode
     const fetchingRef = useRef(false);
+
+    const fetchKey = JSON.stringify(filters || {}, (key, value) => (NOT_FETCHED.has(key) ? undefined : value));
+    const fetchFilters = useMemo(() => JSON.parse(fetchKey), [fetchKey]);
+    const limit = localData ? 0 : campaignLimitOf(filters);
+    const shownLeads = useMemo(() => (limit > 0 ? leads.slice(0, limit) : leads), [leads, limit]);
 
     const loadMore = useCallback(async (reset = false) => {
         if (localData) return; // No loading needed for local data
@@ -58,11 +69,11 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
 
             // Backend-compatible filter mapping
             const backendFilters = {
-                ...filters,
-                excludeRecentDays: (filters.excludeRecentDays && filters.excludeRecentDays !== 'off')
-                    ? filters.excludeRecentDays
+                ...fetchFilters,
+                excludeRecentDays: (fetchFilters.excludeRecentDays && fetchFilters.excludeRecentDays !== 'off')
+                    ? fetchFilters.excludeRecentDays
                     : null,
-                campaignLimit: filters.campaignLimit ? parseInt(filters.campaignLimit) : null
+                campaignLimit: null, // applied to the rows shown
             };
 
             const result = await getLeadsFn({
@@ -90,7 +101,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             setLoading(false);
             fetchingRef.current = false;
         }
-    }, [companyId, filters, lastDocId, hasMore, localData, method]);
+    }, [companyId, fetchFilters, lastDocId, hasMore, localData, method]);
 
     // Reset and load when filters change
     useEffect(() => {
@@ -107,14 +118,14 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             fetchingRef.current = false;
             loadMore(true);
         }
-    }, [filters, companyId, localData, method]);
+    }, [fetchFilters, companyId, localData, method]);
 
     // Tells the audience step which leads the preview holds once a load settles,
     // so its count subtracts an un-ticked lead only while the lead is listed. A
     // reload's empty list in between is not reported: every un-tick reloads.
     useEffect(() => {
-        if (!loading) onLeadsChange?.(leads);
-    }, [leads, loading, onLeadsChange]);
+        if (!loading) onLeadsChange?.(shownLeads);
+    }, [shownLeads, loading, onLeadsChange]);
 
     // Row Renderer
     const rowContent = (index, user) => {
@@ -245,8 +256,8 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             ) : (
                 <Virtuoso
                     style={{ height: '100%' }}
-                    data={leads}
-                    endReached={() => hasMore && loadMore(false)}
+                    data={shownLeads}
+                    endReached={() => hasMore && shownLeads.length === leads.length && loadMore(false)}
                     itemContent={rowContent}
                     className="custom-scrollbar"
                     components={{

@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-const fx = vi.hoisted(() => ({ reads: [] }));
+const fx = vi.hoisted(() => ({ reads: [], user: { uid: 'uid-1', email: 'ann@example.com' } }));
 const COMPANY_DOC = { contact: { email: 'office@example.com' }, postApplicationTemplates: [{ templateId: 'tpl-1', title: 'W-9' }] };
 
 vi.mock('firebase/firestore', () => {
@@ -31,7 +31,7 @@ vi.mock('firebase/firestore', () => {
         documentId: () => '__name__',
         getDoc: async (ref) => {
             fx.reads.push(`doc ${ref.path}`);
-            const data = { 'users/uid-1': { name: 'Ann Admin' }, 'companies/co-1': COMPANY_DOC }[ref.path] || null;
+            const data = { 'users/uid-1': { name: 'Ann Admin' }, 'companies/co-1': COMPANY_DOC, 'companies/co-2': COMPANY_DOC }[ref.path] || null;
             return { exists: () => Boolean(data), data: () => data };
         },
         getDocs: async (q) => {
@@ -58,20 +58,17 @@ vi.mock('firebase/functions', () => ({
         return { data: { success: true, settings: { isVerified: true } } };
     },
 }));
-vi.mock('@lib/firebase', () => {
-    const user = { uid: 'uid-1', email: 'ann@example.com' };
-    return {
-        db: {},
-        functions: {},
-        auth: {
-            currentUser: user,
-            onAuthStateChanged: (callback) => {
-                callback(user);
-                return () => {};
-            },
+vi.mock('@lib/firebase', () => ({
+    db: {},
+    functions: {},
+    auth: {
+        get currentUser() { return fx.user; },
+        onAuthStateChanged: (callback) => {
+            callback(fx.user);
+            return () => {};
         },
-    };
-});
+    },
+}));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
 
@@ -79,14 +76,17 @@ import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';
 import { CompanyAdminDashboard } from './CompanyAdminDashboard';
 import { forgetDashboardAttention } from '../hooks/useDashboardAttention';
+import { forgetCompanyReadiness } from '../hooks/useCompanyReadiness';
+import { forgetDashboardCounts, forgetHiringBrief } from '@features/companies';
+import { DASHBOARD_KEEP_MS } from '@shared/utils/keptAnswer';
 
-function renderDashboard(role) {
+function renderDashboard(role, companyId = 'co-1') {
     return render(
         <MemoryRouter>
             <DataContext.Provider
                 value={{
-                    currentCompanyProfile: { id: 'co-1', companyName: 'Example Freight', teamMembers: [] },
-                    currentUserClaims: { roles: { 'co-1': role } },
+                    currentCompanyProfile: { id: companyId, companyName: 'Example Freight', teamMembers: [] },
+                    currentUserClaims: { roles: { [companyId]: role } },
                 }}
             >
                 <ToastProvider>
@@ -110,7 +110,33 @@ const BRIEF = Array(3).fill('count companies/co-1/applications');
 afterEach(() => {
     fx.reads = [];
     forgetDashboardAttention();
+    forgetDashboardCounts();
+    forgetHiringBrief();
+    forgetCompanyReadiness();
+    vi.restoreAllMocks();
 });
+
+/** Renders the dashboard and waits until each of its parts has shown what it read. */
+async function visit(role, companyId) {
+    const view = renderDashboard(role, companyId);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Hired: 3' })).toBeInTheDocument());
+    expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
+    expect(await screen.findByText('This month’s numbers loaded.')).toBeInTheDocument();
+    if (role === 'company_admin') expect(await screen.findByRole('heading', { name: 'Company setup' })).toBeInTheDocument();
+    return view;
+}
+
+/** What a company admin's visit reads of a company, the user's name aside. */
+const companyReads = (companyId) => [
+    'call getDashboardAttention',
+    'call getEmailSettingsMeta',
+    ...Array(5).fill(`count companies/${companyId}/applications`),
+    ...Array(2).fill(`count companies/${companyId}/leads`),
+    `doc companies/${companyId}`,
+    `doc companies/${companyId}/integrations/sms_provider`,
+    `doc companies/${companyId}/templates/tpl-1`,
+];
+const withoutName = (reads) => reads.filter((read) => read !== 'doc users/uid-1').sort();
 
 describe('the company dashboard', () => {
     it('reads its counts, the user’s name, what needs attention and, for an admin, what Company setup needs, and no records', async () => {
@@ -148,5 +174,33 @@ describe('the company dashboard', () => {
             ...BRIEF,
             ...COUNTS_AND_NAME.slice(0, 4),
         ]);
+    });
+
+    it('reads nothing again when opened again within two minutes, and everything after', async () => {
+        const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        (await visit('company_admin')).unmount();
+        expect(withoutName(fx.reads)).toEqual(companyReads('co-1'));
+
+        fx.reads = [];
+        now.mockReturnValue(1_000_000 + DASHBOARD_KEEP_MS - 1);
+        (await visit('company_admin')).unmount();
+        expect(withoutName(fx.reads)).toEqual([]);
+
+        now.mockReturnValue(1_000_000 + DASHBOARD_KEEP_MS);
+        await visit('company_admin');
+        expect(withoutName(fx.reads)).toEqual(companyReads('co-1'));
+    });
+
+    it('reads anew for another company and after another sign-in, never showing what was kept', async () => {
+        (await visit('company_admin')).unmount();
+
+        fx.reads = [];
+        (await visit('company_admin', 'co-2')).unmount();
+        expect(withoutName(fx.reads)).toEqual(companyReads('co-2'));
+
+        fx.reads = [];
+        fx.user = { uid: 'uid-1', email: 'ann@example.com' };
+        await visit('company_admin', 'co-2');
+        expect(withoutName(fx.reads)).toEqual(companyReads('co-2'));
     });
 });

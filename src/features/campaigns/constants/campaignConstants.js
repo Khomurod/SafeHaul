@@ -124,6 +124,17 @@ export const isCancellableSessionStatus = (status) =>
 export const isLaunchedDraft = (draft) => draft?.launchedAt !== undefined;
 
 /**
+ * Limit Volume, read as the launch reads it
+ * (`functions/bulkActions/helpers/campaignLimit.js`): the most recipients a CRM
+ * campaign takes, or 0 for no limit. The screen applies it to the audience it
+ * already counted, so typing it asks the server for nothing.
+ */
+export const campaignLimitOf = (filters) => {
+    const limit = parseInt(filters?.campaignLimit, 10);
+    return Number.isFinite(limit) && limit > 0 ? limit : 0;
+};
+
+/**
  * Friendly error messages for Bulletproof Logic
  */
 export const ERROR_MESSAGES = {

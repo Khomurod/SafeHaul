@@ -19,6 +19,7 @@ const { pauseBeforeNextSend, SEND_WINDOW_MS } = require("./sendPacing");
 const BaseAdapter = require("../../integrations/adapters/BaseAdapter");
 const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
 const { emailLedgerKey } = require("../helpers/recentlyMessaged");
+const { isPlaceholderEmail } = require("../../shared/placeholderDomains");
 
 // This many texts the SMS provider never answered, with no sent text between
 // them, stop the campaign: the provider is not answering.
@@ -178,7 +179,9 @@ async function runSendLoop({
                             }
                         } else if (config.method === 'email') {
                             if (!emailTransporter) throw new Error("Email Settings Invalid");
-                            recipientIdentity = leadData.email || "No Email";
+                            // An import without an email made up a placeholder address: nobody
+                            // reads it, and the bounce counts against the company's mail server.
+                            recipientIdentity = isPlaceholderEmail(leadData.email) ? "No Email" : leadData.email;
 
                             if (recipientIdentity !== "No Email") {
                                 const finalBody = fillPlaceholders(config.message, leadData, plainGuestText, applicationLink);
