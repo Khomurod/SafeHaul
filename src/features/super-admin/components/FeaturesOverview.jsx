@@ -3,7 +3,7 @@ import { loadCompanies } from '@features/companies/services/companyService';
 import { Badge, DataTable } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { COMPANY_FEATURES, isFeatureOn } from '../config/features';
+import { COMPANY_FEATURES, isFeatureOn } from '@shared/utils/companyFeatures';
 import { mockFeatureCompanies } from './featuresOverviewMock';
 
 const nameOf = (company) => company.companyName || company.name || company.id;

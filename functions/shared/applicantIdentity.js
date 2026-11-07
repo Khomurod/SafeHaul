@@ -8,7 +8,9 @@
  * says whether another device can find it
  * (`src/features/driver-app/components/application/resumeIdentity.js`). If the
  * two copies read a fact differently, "Finish later" promises a match the
- * server never finds.
+ * server never finds. `nationalDigits` is also the one reading of a phone's
+ * digits (`normalizeSearchPhone`, the site's `normalizePhone`); the E.164 form
+ * is `toE164Us`.
  *
  * MIRRORED, DELIBERATELY. `src/shared/utils/applicantIdentity.js` is the
  * browser copy: the body between the markers is byte-identical, and

@@ -7,7 +7,7 @@
 // inventory (see NumberAssignmentManager for the full DLP/redaction rationale).
 export const MISSING_TOKEN = '__missing__';
 
-// Canonical E.164 normalization. Mirrors functions/shared/normalizePhone so that a
+// Canonical E.164 normalization. Mirrors functions/shared/toE164Us so that a
 // number stored in any format -- "(555) 123-4567", "5551234567", "15551234567",
 // "+15551234567" -- collapses to the SAME string the synced inventory uses
 // (+15551234567). Without this, an assigned/default line saved in a different format

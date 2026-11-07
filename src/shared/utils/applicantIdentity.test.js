@@ -9,6 +9,8 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import * as impl from './applicantIdentity';
+import { normalizePhone } from './helpers';
+import { normalizeSearchPhone } from './searchNormalization';
 
 const vectors = JSON.parse(
     fs.readFileSync(path.resolve(__dirname, '../../../functions/shared/applicantIdentity.vectors.json'), 'utf8'),
@@ -40,4 +42,17 @@ describe('applicantIdentity (src mirror) — shared check values', () => {
             },
         );
     }
+});
+
+describe('one reading of a phone\'s digits', () => {
+    const phones = [
+        ...vectors.nationalDigits.map(({ input }) => input),
+        '  (512) 555-0142 ', '1 512 555 0142', '+44 20 7946 0958', 'ext. 12', 5125550142, 0,
+    ];
+
+    it.each(phones.map((phone) => [JSON.stringify(phone), phone]))('%s reads the same everywhere', (_label, phone) => {
+        const digits = impl.nationalDigits(phone);
+        expect(normalizePhone(phone)).toBe(digits);
+        if (phone !== null && phone !== undefined) expect(normalizeSearchPhone(phone)).toBe(impl.nationalDigits(String(phone)));
+    });
 });

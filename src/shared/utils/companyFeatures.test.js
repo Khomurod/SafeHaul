@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMPANY_FEATURES, isFeatureOn } from './features';
+import { COMPANY_FEATURES, isFeatureOn } from './companyFeatures';
 
 const company = (features) => ({ id: 'co-1', features });
 

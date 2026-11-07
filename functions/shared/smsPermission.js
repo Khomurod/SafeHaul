@@ -14,7 +14,7 @@
 //   (`isBlacklisted`, `blacklist.js`) is not texted automatically.
 
 const { isBlacklisted } = require('../blacklist');
-const { normalizePhone } = require('./normalizePhone');
+const { toE164Us } = require('./toE164Us');
 
 const SMS_CONSENT_FIELD = 'sms-consent';
 
@@ -30,7 +30,7 @@ function agreedToSms(application) {
  * as blocked).
  */
 async function onOptOutList(companyId, phone) {
-    if (!normalizePhone(phone)) return false;
+    if (!toE164Us(phone)) return false;
     return isBlacklisted(companyId, phone);
 }
 

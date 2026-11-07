@@ -215,6 +215,8 @@ function withinPayloadBudget(formData) {
 // Resume tokens
 // ---------------------------------------------------------------------------
 
+const { hashSecret: hashResumeToken, secretMatches: resumeTokenMatches } = require('./secretTokens');
+
 /**
  * A resume token, hashed at rest.
  *
@@ -227,17 +229,6 @@ function withinPayloadBudget(formData) {
 function mintResumeToken() {
     const token = crypto.randomBytes(32).toString('hex');
     return { token, hash: hashResumeToken(token) };
-}
-
-function hashResumeToken(token) {
-    return crypto.createHash('sha256').update(String(token || '')).digest('hex');
-}
-
-function resumeTokenMatches(storedHash, token) {
-    const expected = Buffer.from(String(storedHash || ''), 'utf8');
-    const actual = Buffer.from(hashResumeToken(token), 'utf8');
-    if (expected.length !== actual.length) return false;
-    return crypto.timingSafeEqual(expected, actual);
 }
 
 // ---------------------------------------------------------------------------

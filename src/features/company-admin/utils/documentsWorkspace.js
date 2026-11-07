@@ -8,13 +8,7 @@
  * cannot support.
  */
 
-const toMillis = (value) => {
-    if (!value) return null;
-    if (typeof value.toMillis === 'function') return value.toMillis();
-    if (typeof value.seconds === 'number') return value.seconds * 1000;
-    if (value instanceof Date) return value.getTime();
-    return null;
-};
+import { millisOf as toMillis } from '@shared/utils/millisOf';
 
 const normalize = (value) => (value === null || value === undefined ? '' : String(value));
 

@@ -6,7 +6,7 @@ const { parseAtsSmsTemplate, mentionsApplicationLink } = require('./shared/atsSm
 const { applicationLinks } = require('./shared/applicationLink');
 const { agreedToSms, onOptOutList } = require('./shared/smsPermission');
 const { isAlreadyExists } = require('./shared/writeSubmissionSnapshot');
-const { normalizePhone } = require('./utils/phoneUtils');
+const { toE164Us } = require('./utils/phoneUtils');
 
 const CONTACT_ATTEMPT_STATUSES = ['Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3'];
 
@@ -167,7 +167,7 @@ async function sendContactAttemptSmsIfNeeded({ companyId, beforeData, afterData,
   }
 
   const rawPhone = afterData.phoneNormalized || afterData.phone || '';
-  const phone = normalizePhone(rawPhone);
+  const phone = toE164Us(rawPhone);
   if (!phone) {
     console.warn('[atsContactSms] Missing or invalid phone; skipping SMS');
     return log.record('skipped_no_phone', 'not sent: there is no usable phone number');

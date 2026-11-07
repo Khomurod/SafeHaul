@@ -7,7 +7,7 @@ import { forgetCompanies } from '@features/companies/services/companyService';
 import { Button, DataTable, IconButton, Switch } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
-import { COMPANY_FEATURES, isFeatureOn } from '../config/features';
+import { COMPANY_FEATURES, isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * One company's features: a switch for each, a scheduled switch-off, and the

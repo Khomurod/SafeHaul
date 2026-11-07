@@ -20,6 +20,7 @@
  */
 import { normalizePostApplicationTemplates } from '@features/driver-app/components/application/publicApplyHelpers';
 import { fieldsMissingCompanySignature } from '@features/signing/utils/companySignature';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 export const READINESS_LINKS = Object.freeze({
     email: '/company/settings?section=email',
@@ -148,7 +149,7 @@ export function companyReadiness({ company, email, sms, formTemplates }) {
     }
 
     const profile = company.value || {};
-    if (profile.features?.pev !== false) {
+    if (isFeatureOn(profile, 'pev')) {
         if (!noticeEmail(profile)) {
             items.push({
                 id: 'contact',
@@ -170,7 +171,7 @@ export function companyReadiness({ company, email, sms, formTemplates }) {
             });
         }
     }
-    if (profile.features?.eDocs !== false) {
+    if (isFeatureOn(profile, 'eDocs')) {
         items.push(...formItems(normalizePostApplicationTemplates(profile.postApplicationTemplates), formTemplates));
     }
     return { items: items.filter(Boolean), hints };

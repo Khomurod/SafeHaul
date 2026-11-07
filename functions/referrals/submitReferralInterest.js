@@ -15,7 +15,7 @@ const { admin, db } = require('../firebaseAdmin');
 const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');
 const { checkRateLimit } = require('../shared/rateLimiter');
 const { trustedClientIp } = require('../shared/clientIp');
-const { normalizePhone } = require('../shared/normalizePhone');
+const { toE164Us } = require('../shared/toE164Us');
 const { normalizeSearchPhone } = require('../shared/searchNormalization');
 const { isValidEmail } = require('../shared/isValidEmail');
 const { createNotification } = require('../shared/createNotification');
@@ -48,7 +48,7 @@ function readAnswers(data) {
     if (data.contactConsent !== true) {
         throw new HttpsError('invalid-argument', 'Please agree to be contacted so a recruiter can reach you.');
     }
-    return { firstName, lastName, phone: normalizePhone(normalizedPhone), normalizedPhone, email };
+    return { firstName, lastName, phone: toE164Us(normalizedPhone), normalizedPhone, email };
 }
 
 /** A lead or an application this company already has for the driver, or null. */

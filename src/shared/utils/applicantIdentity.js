@@ -2,10 +2,11 @@
  * ESM mirror of `functions/shared/applicantIdentity.js`: how an applicant's
  * identity facts are compared when an unfinished application is resumed. The
  * wizard's "Finish later" (`resumeIdentity.js`) reads them as the server keys a
- * saved application, or it would promise a match the server never finds. The
- * body between the markers is byte-identical to the server copy;
- * `applicantIdentity.test.js` fails if the two drift, and both run
- * `functions/shared/applicantIdentity.vectors.json`.
+ * saved application, or it would promise a match the server never finds;
+ * `nationalDigits` is also the site's one reading of a phone's digits
+ * (`normalizePhone`, `normalizeSearchPhone`). The body between the markers is
+ * byte-identical to the server copy; `applicantIdentity.test.js` fails if the
+ * two drift, and both run `functions/shared/applicantIdentity.vectors.json`.
  */
 
 // --- body ---------------------------------------------------------------------

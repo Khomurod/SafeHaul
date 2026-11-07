@@ -19,6 +19,7 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, MetricCard, Notice, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 // The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
 // icons are presentation only. The strip itself is the design system's
@@ -40,7 +41,7 @@ const focusOptions = (list, resetKey) => ({
 
 export function CampaignsDashboard({ companyId }) {
     const { currentCompanyProfile } = useData();
-    const isCampaignsEnabled = currentCompanyProfile?.features?.campaignsEnabled !== false;
+    const isCampaignsEnabled = isFeatureOn(currentCompanyProfile, 'campaignsEnabled');
     const [activeTab, setActiveTab] = useState('drafts'); // 'drafts' | 'history'
     // The campaign open in the editor: `{ id, isNew }`, `isNew` until its first save creates the draft.
     const [openCampaign, setOpenCampaign] = useState(null);

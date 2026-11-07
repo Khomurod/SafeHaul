@@ -11,7 +11,7 @@ import { CONTACT_ATTEMPT_STATUSES } from '@shared/constants/atsStatus';
  * - the record is a lead, or an application whose driver answered "Yes" to
  *   "Can we send you SMS messages?" (`sms-consent`, `shared/smsPermission.js`);
  * - the record has a usable phone (`phoneNormalized`, else `phone`: ten digits,
- *   or more with a country code, `shared/normalizePhone.js`);
+ *   or more with a country code, `shared/toE164Us.js`);
  * - the number is on neither the company's nor the global opt-out list;
  * - the SMS provider takes it.
  * Each outcome is written to the record's Activity ("Automated SMS").

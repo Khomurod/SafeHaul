@@ -1,6 +1,7 @@
 // src/shared/utils/helpers.js
 
 import { parseIsoDateParts } from './dateFormHelpers';
+import { nationalDigits } from './applicantIdentity';
 
 /**
  * Returns a "Not Specified" string if the value is empty, otherwise returns the value.
@@ -26,20 +27,14 @@ export function toTitleCase(str) {
         .join(' ');
 }
 
+/**
+ * A phone's national digits: digits only, a leading US 1 on eleven digits
+ * dropped, whatever length is left ('' for none). The one reading of a phone's
+ * digits (`nationalDigits`, which the server's `phoneNormalized` and a resumed
+ * application's match use too). The server's E.164 form is `toE164Us`.
+ */
 export function normalizePhone(phone) {
-    if (!phone) return "";
-
-    // 1. Convert to string and remove non-digits
-    let cleaned = String(phone).trim().replace(/\D/g, '');
-
-    // 2. Handle US Country Code (Strip leading 1 if length is 11)
-    if (cleaned.length === 11 && cleaned.startsWith('1')) {
-        cleaned = cleaned.substring(1);
-    }
-
-    // 3. Return whatever digits we have. 
-    // Previously, this returned "" if length !== 10, which caused data loss.
-    return cleaned;
+    return nationalDigits(phone);
 }
 
 /**

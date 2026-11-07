@@ -28,6 +28,7 @@ const { isCompanySignatureField } = require('./shared/companySignature');
 const { isValidEmail } = require('./shared/isValidEmail');
 const { clipText, escapeHtml } = require('./shared/plainText');
 const { cleanString, nameFromProfile } = require('./shared/userIdentity');
+const { millisOf } = require('./shared/millisOf');
 
 // A claim older than this is a crashed attempt, not one still sending.
 const CLAIM_LIFETIME_MS = 10 * 60 * 1000;
@@ -55,12 +56,6 @@ function refuseChangedAddress(address, approved) {
     if (address.toLowerCase() !== approved.toLowerCase()) {
         throw new HttpsError('aborted', 'The signer\'s email changed after you opened this. Close it and review the document again.');
     }
-}
-
-function millisOf(value) {
-    if (value && typeof value.toMillis === 'function') return value.toMillis();
-    if (value instanceof Date) return value.getTime();
-    return null;
 }
 
 const dayOf = (value) => {

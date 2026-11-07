@@ -15,14 +15,13 @@
 const { db } = require('../firebaseAdmin');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
+const { trimTo } = require('../shared/plainText');
 function clientIp(context) {
     return context.rawRequest?.ip || 'unknown_guest';
 }
 
 /** Trims and bounds a string that arrived from a browser. */
-function text(value, max = 200) {
-    return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
+const text = (value, max = 200) => trimTo(value, max);
 
 /**
  * A Firestore document id that came from a browser.

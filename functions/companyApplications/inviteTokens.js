@@ -18,8 +18,6 @@
  * That is a minutes-scale concern, so it is a minutes-scale grace.
  */
 
-const crypto = require('crypto');
-
 /**
  * How long a link works.
  *
@@ -54,16 +52,8 @@ const EXCHANGE_LIMIT = Object.freeze({ limit: 10, windowSeconds: 60 });
  */
 const MINT_LIMIT = Object.freeze({ limit: 20, windowSeconds: 300 });
 
-function hashInvite(token) {
-    return crypto.createHash('sha256').update(String(token || '')).digest('hex');
-}
-
-function inviteMatches(storedHash, token) {
-    const expected = Buffer.from(String(storedHash || ''), 'utf8');
-    const actual = Buffer.from(hashInvite(token), 'utf8');
-    if (expected.length !== actual.length) return false;
-    return crypto.timingSafeEqual(expected, actual);
-}
+/** Stored as its SHA-256 and compared in constant time (`shared/secretTokens.js`). */
+const { hashSecret: hashInvite, secretMatches: inviteMatches } = require('../shared/secretTokens');
 
 /**
  * Milliseconds, from whatever the store handed back.

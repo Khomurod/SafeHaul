@@ -26,6 +26,7 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 // The editor (the PDF workbench with pdf.js, and the AI field assistant) loads
 // when a document is created or edited, not with the workspace's lists.
@@ -253,7 +254,7 @@ export default function DocumentsManager() {
     // count when a profile arrives with E-Docs off after the first paint, and
     // React throws ("Rendered fewer hooks than expected") instead of showing the
     // lock. The views test flips the flag on a mounted screen.
-    if (currentCompanyProfile?.features?.eDocs === false) {
+    if (!isFeatureOn(currentCompanyProfile, 'eDocs')) {
         return <FeatureLockedModal featureName="E-Docs" onClose={() => navigate('/company/dashboard')} />;
     }
 

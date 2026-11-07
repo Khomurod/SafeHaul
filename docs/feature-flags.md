@@ -15,7 +15,7 @@ An open company workspace follows both maps live, with no reload: [`useLiveCompa
 
 ## Canonical feature keys
 
-Defined in `COMPANY_FEATURES` in [`features.js`](../src/features/super-admin/config/features.js), with each one's default; `isFeatureOn(company, key)` reads a flag by it:
+Defined in `COMPANY_FEATURES` in [`companyFeatures.js`](../src/shared/utils/companyFeatures.js), with each one's default; `isFeatureOn(company, key)` reads a flag by it:
 
 | Key | Label (admin UI) | Enforced in product |
 |-----|------------------|---------------------|

@@ -1,4 +1,5 @@
 import { COMPANY_ROUTE_MANIFEST } from './companyRouteManifest';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * Whether a company page may be offered to the signed-in person: a menu item in
@@ -10,8 +11,8 @@ import { COMPANY_ROUTE_MANIFEST } from './companyRouteManifest';
  *
  *  - `adminOnly` needs a company admin of this company or a super admin
  *    (`isCompanyAdminForRoute`, the check `CompanyAdminRoute` makes);
- *  - `featureFlag` needs the company's feature on. A missing key is on; only an
- *    explicit `false` turns a feature off (`docs/feature-flags.md`).
+ *  - `featureFlag` needs the company's feature on (`isFeatureOn`: a missing key
+ *    is on unless the feature is off by default; `docs/feature-flags.md`).
  *
  * @param {object|undefined} route an entry of `COMPANY_ROUTE_MANIFEST`
  * @param {{ isCompanyAdmin: boolean, features?: Record<string, boolean> }} access
@@ -20,7 +21,7 @@ import { COMPANY_ROUTE_MANIFEST } from './companyRouteManifest';
 export function canOfferCompanyRoute(route, { isCompanyAdmin, features }) {
   if (!route) return false;
   if (route.adminOnly && !isCompanyAdmin) return false;
-  if (route.featureFlag && features?.[route.featureFlag] === false) return false;
+  if (route.featureFlag && !isFeatureOn({ features }, route.featureFlag)) return false;
   return true;
 }
 

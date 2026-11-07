@@ -13,6 +13,8 @@
  * markers must stay byte-identical, which the mirror's test checks.
  */
 
+const { nationalDigits } = require('./applicantIdentity');
+
 // --- body ---------------------------------------------------------------------
 // Identical to src/shared/utils/searchNormalization.js. Edit both, or the parity test fails.
 
@@ -35,16 +37,13 @@ function normalizeSearchEmail(value) {
 
 /**
  * Phone: digits only; a leading US country code "1" on an 11-digit number is
- * stripped. Mirrors the long-standing normalizePhone in src/shared/utils/helpers.js
- * so records written here stay queryable by the existing phoneNormalized reads.
+ * stripped. It is `nationalDigits`, the one reading of a phone's digits (the
+ * site's `normalizePhone` in src/shared/utils/helpers.js is too), so records
+ * written here stay queryable by the existing phoneNormalized reads.
  */
 function normalizeSearchPhone(value) {
     if (value === null || value === undefined) return '';
-    let digits = String(value).trim().replace(/\D/g, '');
-    if (digits.length === 11 && digits.startsWith('1')) {
-        digits = digits.substring(1);
-    }
-    return digits;
+    return nationalDigits(String(value));
 }
 
 /** Confirmation numbers are stored uppercase (SAF-2026-XXXXX); normalize to uppercase, no spaces. */

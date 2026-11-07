@@ -15,6 +15,7 @@ import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { Card } from '@/design-system/components';
 import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * Previous Employment Verification — initiation and tracking.
@@ -299,7 +300,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
         }
     };
 
-    if (currentCompanyProfile?.features?.pev === false) {
+    if (!isFeatureOn(currentCompanyProfile, 'pev')) {
         return (
             <div className="p-ds-8">
                 <PaywallMessage

@@ -16,16 +16,9 @@
 import { hasDeliveryFailure, isLinkExpired } from './documentsWorkspace';
 import { canRemindSigner } from '@features/signing/utils/signerReminder';
 import { serverMessageOf } from '@shared/utils/callableErrors';
+import { millisOf } from '@shared/utils/millisOf';
 
 export { isLinkExpired };
-
-const millisOf = (value) => {
-    if (!value) return null;
-    if (typeof value.toMillis === 'function') return value.toMillis();
-    if (typeof value.seconds === 'number') return value.seconds * 1000;
-    if (value instanceof Date) return value.getTime();
-    return null;
-};
 
 const statusOf = (request) => String(request?.status || '').trim().toLowerCase();
 

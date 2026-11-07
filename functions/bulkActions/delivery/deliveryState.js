@@ -7,7 +7,7 @@
 // message id the send loop now stores, or, for a log written before the id was
 // kept, by the recipient's number and the time of the send.
 
-const { normalizePhone } = require('../../shared/normalizePhone');
+const { toE164Us } = require('../../shared/toE164Us');
 
 /** States a later check does not change. */
 const FINAL_STATES = new Set(['delivered', 'failed', 'unconfirmed', 'unknown']);
@@ -61,7 +61,7 @@ function matchLogsToRecords(logs, records) {
     const byPhone = new Map();
     for (const record of records) {
         if (record?.id != null) byId.set(String(record.id), record);
-        const phone = normalizePhone(record?.to?.[0]?.phoneNumber);
+        const phone = toE164Us(record?.to?.[0]?.phoneNumber);
         const createdAt = millisOf(record?.creationTime);
         if (!phone || createdAt == null) continue;
         if (!byPhone.has(phone)) byPhone.set(phone, []);
@@ -80,7 +80,7 @@ function matchLogsToRecords(logs, records) {
     }
     for (const log of logs) {
         if (log.providerMessageId) continue;
-        const phone = normalizePhone(log.recipientIdentity);
+        const phone = toE164Us(log.recipientIdentity);
         const sentAt = millisOf(log.timestamp);
         if (!phone || sentAt == null) continue;
         let best = null;

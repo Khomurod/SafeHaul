@@ -64,17 +64,8 @@ const LINK_TTL_MS = 15 * 60 * 1000;
 /** `lastUsedAt` is written at most this often per key, so a busy key does not write on every read. */
 const LAST_USED_EVERY_MS = 60 * 1000;
 
-function hashKey(key) {
-    return crypto.createHash('sha256').update(String(key || '')).digest('hex');
-}
-
-/** Does `key` hash to `storedHash`? Constant time, as an invite token is compared. */
-function keyMatches(storedHash, key) {
-    const expected = Buffer.from(String(storedHash || ''), 'utf8');
-    const actual = Buffer.from(hashKey(key), 'utf8');
-    if (expected.length !== actual.length) return false;
-    return crypto.timingSafeEqual(expected, actual);
-}
+/** A key is stored as its SHA-256 and compared in constant time, as an invite token is (`shared/secretTokens.js`). */
+const { hashSecret: hashKey, secretMatches: keyMatches } = require('../shared/secretTokens');
 
 /** A new key: the id it is stored under, and the full key, which is shown once. */
 function mintKey() {
