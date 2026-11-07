@@ -373,6 +373,10 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
     const pendingSnap = await ref.collection('pending_changes').get();
     const byKey = new Map(pendingSnap.docs.map((d) => [d.id, d.data()]));
+    // When each change was read: its resolution is written only onto the change as
+    // read (`lastUpdateTime`), so a proposal that lands between this read and the
+    // commit fails the whole batch, exactly as one that landed before it fails below.
+    const readAt = new Map(pendingSnap.docs.map((d) => [d.id, d.updateTime]));
     // A decision is about the value the page showed (`shown`): a proposal made while
     // the page was open replaces the pending value, and approving that one would
     // record a value the driver never saw. Checked for every decision before anything
@@ -427,16 +431,20 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
             return settled.value;
         };
 
+        const resolve = (data) => batch.update(pcRef, {
+            ...data, resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { lastUpdateTime: readAt.get(fieldKey) });
+
         if (action === 'approve') {
             const approved = settle(change.proposedValue ?? null);
             docUpdates[fieldKey] = approved;
-            batch.set(pcRef, { status: 'approved', resolvedValue: approved, resolution: 'approve', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'approved', resolvedValue: approved, resolution: 'approve' });
         } else if (action === 'reject') {
-            batch.set(pcRef, { status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject' });
         } else if (action === 'edit') {
             const driverValue = settle(r.value ?? null); // driver's edit is final
             docUpdates[fieldKey] = driverValue;
-            batch.set(pcRef, { status: 'edited', resolvedValue: driverValue, resolution: 'edit', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'edited', resolvedValue: driverValue, resolution: 'edit' });
         } else {
             continue; // invalid action
         }
@@ -445,7 +453,16 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     if (Object.keys(docUpdates).length > 0) {
         batch.set(ref, docUpdates, { merge: true });
     }
-    await batch.commit();
+    try {
+        await batch.commit();
+    } catch (err) {
+        // A change rewritten since it was read (Firestore's FAILED_PRECONDITION): nothing was recorded.
+        if (err?.code === 9 || err?.code === 'failed-precondition') {
+            logger.info('[submitChangeResolution] refused: a change moved while the decisions were being recorded');
+            throw new HttpsError('failed-precondition', CHANGES_UPDATED, { reason: 'changes-updated' });
+        }
+        throw err;
+    }
 
     // Recompute remaining pending; clear the mark + close the review when none remain.
     const remainingSnap = await ref.collection('pending_changes').where('status', '==', 'pending').limit(1).get();

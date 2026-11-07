@@ -20,7 +20,7 @@ const mockState = {
   pendingDocs: [],
   reviewSnap: { exists: true, data: () => ({}) },
 };
-const mockBatch = { set: jest.fn(), commit: jest.fn() };
+const mockBatch = { set: jest.fn(), update: jest.fn(), commit: jest.fn() };
 const mockAdd = jest.fn();
 const mockAppRef = {
   get: () => Promise.resolve(mockState.appSnap),
@@ -78,6 +78,8 @@ beforeEach(() => {
 });
 
 const target = { companyId: 'co1', applicationId: 'app1', collectionName: 'applications' };
+/** When a pending change was last written, as its snapshot reports it (`updateTime`). */
+const READ_AT = { seconds: 1700000000, nanoseconds: 0 };
 
 describe('proposeApplicationChanges', () => {
   it('requires auth', async () => {
@@ -318,6 +320,39 @@ describe('submitChangeResolution checks the value the driver saw', () => {
     expect(mockBatch.set.mock.calls.find(([ref]) => ref === mockAppRef)[1]).toEqual({ middleName: null });
   });
 
+  it('writes each decision only onto the change as it was read', async () => {
+    mockState.pendingDocs = mockState.pendingDocs.map((d) => ({ ...d, updateTime: READ_AT }));
+    await submitChangeResolution({ data: { token: 't', resolutions: [
+      { fieldKey: 'firstName', action: 'approve', shown: 'Jon' },
+      { fieldKey: 'city', action: 'reject', shown: 'Sparks' },
+    ] } });
+
+    expect(mockBatch.update).toHaveBeenCalledWith(
+      { __pc: 'firstName' }, expect.objectContaining({ status: 'approved', resolvedValue: 'Jon' }), { lastUpdateTime: READ_AT },
+    );
+    expect(mockBatch.update).toHaveBeenCalledWith(
+      { __pc: 'city' }, expect.objectContaining({ status: 'rejected', resolvedValue: 'Reno' }), { lastUpdateTime: READ_AT },
+    );
+  });
+
+  it('refuses the call when a proposal lands between the check and the write', async () => {
+    // Firestore refuses the batch: a change was written after it was read.
+    mockBatch.commit.mockRejectedValueOnce(Object.assign(new Error('FAILED_PRECONDITION'), { code: 9 }));
+    const e = await refusal([{ fieldKey: 'firstName', action: 'approve', shown: 'Jon' }]);
+
+    expect(e.code).toBe('failed-precondition');
+    expect(e.details).toEqual({ reason: 'changes-updated' });
+    // Nothing after the batch ran: the review stays open, nothing is logged as decided.
+    expect(mockReviewRef.set).not.toHaveBeenCalled();
+    expect(mockAdd).not.toHaveBeenCalled();
+  });
+
+  it('passes on any other failure to record the decisions', async () => {
+    mockBatch.commit.mockRejectedValueOnce(Object.assign(new Error('unavailable'), { code: 14 }));
+    const e = await refusal([{ fieldKey: 'firstName', action: 'approve', shown: 'Jon' }]);
+    expect(e.code).toBe(14);
+  });
+
   it('keeps the old behaviour for a page that sends no shown value', async () => {
     const res = await submitChangeResolution({ data: { token: 't', resolutions: [
       { fieldKey: 'firstName', action: 'approve' },
@@ -326,7 +361,7 @@ describe('submitChangeResolution checks the value the driver saw', () => {
 
     // The pending value as it stands now; the settled change is skipped, as before.
     expect(mockBatch.set.mock.calls.find(([ref]) => ref === mockAppRef)[1]).toEqual({ firstName: 'Jon' });
-    expect(mockBatch.set.mock.calls.some(([ref]) => ref.__pc === 'phone')).toBe(false);
+    expect([...mockBatch.set.mock.calls, ...mockBatch.update.mock.calls].some(([ref]) => ref.__pc === 'phone')).toBe(false);
     expect(res.success).toBe(true);
   });
 });
@@ -348,6 +383,7 @@ describe('employers through the approval workflow', () => {
   /** The pending change as `submitChangeResolution` reads it back. */
   const pendingEmployers = (proposedValue) => [{
     id: 'employers',
+    updateTime: READ_AT,
     data: () => ({
       fieldKey: 'employers', status: 'pending',
       originalValue: [ABC, XYZ], proposedValue,
@@ -460,10 +496,10 @@ describe('employers through the approval workflow', () => {
 
     // No write to the application document at all: the canonical original stands.
     expect(employersWritten()).toBeUndefined();
-    expect(mockBatch.set).toHaveBeenCalledWith(
+    expect(mockBatch.update).toHaveBeenCalledWith(
       { __pc: 'employers' },
       expect.objectContaining({ status: 'rejected' }),
-      { merge: true },
+      { lastUpdateTime: READ_AT },
     );
   });
 
@@ -492,7 +528,8 @@ describe('employers through the approval workflow', () => {
       data: { token: 'tok-123', resolutions: [{ fieldKey: 'employers', action: 'approve' }] },
     });
 
-    const written = mockBatch.set.mock.calls.map(([ref]) => (ref.__pc ? `pending_changes/${ref.__pc}` : 'application'));
+    const written = [...mockBatch.set.mock.calls, ...mockBatch.update.mock.calls]
+      .map(([ref]) => (ref.__pc ? `pending_changes/${ref.__pc}` : 'application'));
     expect(written.every((path) => path === 'application' || path.startsWith('pending_changes/'))).toBe(true);
     expect(mockAdd.mock.calls.every(([row]) => typeof row.action === 'string')).toBe(true);
   });
