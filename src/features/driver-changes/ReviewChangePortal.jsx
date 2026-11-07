@@ -115,12 +115,15 @@ const ACTIONS = [
 const KEPT = 'Your choices are still on this page';
 
 /**
- * Where a failed submission leaves the driver. A refusal of the link itself in
- * the server's words (expired, replaced by a newer link, already complete, gone)
- * ends the review on the public pages' shared link screen; anything else keeps
- * every choice for Try again.
+ * Where a failed submission leaves the driver. Changes that moved since the page
+ * loaded load it again; a refusal of the link itself in the server's words
+ * (expired, replaced by a newer link, already complete, gone) ends the review on
+ * the shared link screen; anything else keeps every choice for Try again.
  */
 function submitFailure(e) {
+    if (e?.code === 'functions/failed-precondition' && e?.details?.reason === 'changes-updated') {
+        return { reviewAgain: true };
+    }
     const said = serverMessageOf(e);
     switch (e?.code) {
         case 'functions/failed-precondition':
@@ -136,6 +139,14 @@ function submitFailure(e) {
     }
     return { message: `Your responses were not sent. ${KEPT}: check your connection and try again.` };
 }
+
+/**
+ * Is this the change as the page showed it? Both copies are the server's encoding
+ * of the record, so an unchanged one reads the same; if not, a choice is cleared.
+ */
+const sameChange = (before, now) => Boolean(before)
+    && JSON.stringify([before.originalValue ?? null, before.proposedValue ?? null])
+        === JSON.stringify([now.originalValue ?? null, now.proposedValue ?? null]);
 
 /** One change's decision, as its own Approve, Reject or Edit sets it. */
 const withAction = (resolutions, fieldKey, action) => ({
@@ -166,6 +177,11 @@ export function ReviewChangePortal() {
     // (ones proposed after this page loaded, which the driver has not seen).
     // The server says only whether any remain, not how many.
     const [done, setDone] = useState(null);
+    // A send refused because changes moved: what the page showed and the driver chose,
+    // for the next load to keep. Then `{ names }`, the changes whose choices it cleared.
+    const carriedRef = useRef(null);
+    const [updated, setUpdated] = useState(null);
+    const updatedRef = useRef(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -185,11 +201,18 @@ export function ReviewChangePortal() {
                 setData(res);
                 // No decision is made for the driver: approving is something
                 // they do, change by change or all at once, on every visit.
+                const carried = carriedRef.current;
+                carriedRef.current = null;
+                const before = new Map((carried?.changes || []).map((c) => [c.fieldKey, c]));
                 const init = {};
+                const moved = [];
                 (res.changes || []).filter((c) => c.status === 'pending').forEach((c) => {
-                    init[c.fieldKey] = { action: null, value: isScalar(c.proposedValue) ? String(c.proposedValue ?? '') : c.proposedValue };
+                    const kept = carried && sameChange(before.get(c.fieldKey), c) ? carried.resolutions[c.fieldKey] : null;
+                    if (carried && !kept) moved.push(c.fieldLabel || c.fieldKey);
+                    init[c.fieldKey] = kept || { action: null, value: isScalar(c.proposedValue) ? String(c.proposedValue ?? '') : c.proposedValue };
                 });
                 setResolutions(init);
+                setUpdated(carried ? { names: moved } : null);
             } catch (e) {
                 console.error('Review link error:', e);
                 if (!cancelled) setLinkProblem(linkProblemFromError(e, 'This review link could not be opened.'));
@@ -214,24 +237,30 @@ export function ReviewChangePortal() {
         if (undecidedAttempts > 0) undecidedRef.current?.focus();
     }, [undecidedAttempts]);
 
+    useEffect(() => {
+        if (updated) updatedRef.current?.focus();
+    }, [updated]);
+
     const reload = () => {
         setLoading(true);
         setLinkProblem(null);
         setDone(null);
         setSubmitError('');
         setUndecidedAttempts(0);
+        setUpdated(null);
         setAttempt((n) => n + 1);
     };
 
     /**
      * Sends one decision per pending change, in one call: the server checks each
-     * on its own (still pending, employers re-attached by identity) and records
-     * them together or not at all, so a send never half-lands.
+     * on its own (still pending, still the value shown, employers re-attached by
+     * identity) and records them together or not at all, so a send never half-lands.
      */
     const send = async (decided, { all = false } = {}) => {
         const payload = pending.map((c) => {
             const r = decided[c.fieldKey];
-            const out = { fieldKey: c.fieldKey, action: r.action };
+            // What this page showed: the server refuses the send if the company proposed another since.
+            const out = { fieldKey: c.fieldKey, action: r.action, shown: c.proposedValue ?? null };
             if (r.action === 'edit') out.value = isScalar(c.proposedValue) ? r.value : c.proposedValue;
             return out;
         });
@@ -248,7 +277,10 @@ export function ReviewChangePortal() {
             setDone({ more });
         } catch (e) {
             const failure = submitFailure(e);
-            if (failure.endsLink) setLinkProblem(linkProblemFromError(e));
+            if (failure.reviewAgain) {
+                carriedRef.current = { changes: pending, resolutions: decided };
+                reload();
+            } else if (failure.endsLink) setLinkProblem(linkProblemFromError(e));
             else setSubmitError(failure.message);
         } finally {
             setSubmitting(false);
@@ -274,11 +306,15 @@ export function ReviewChangePortal() {
         send(approved, { all: true });
     };
 
+    // Known once the review has loaded, when the server names the company.
+    const companyName = typeof data?.companyName === 'string' ? data.companyName.trim() : '';
+
     if (linkProblem) {
         return (
             <LinkProblemScreen
                 reason={linkProblem.reason}
                 detail={linkProblem.detail}
+                companyName={companyName}
                 onRetry={isRetryableLinkProblem(linkProblem.reason) ? reload : undefined}
             />
         );
@@ -302,9 +338,8 @@ export function ReviewChangePortal() {
                         </span>
                         <div className="min-w-0">
                             <h1 className="text-ds-heading-md font-bold">Review changes to your application</h1>
-                            {/* The review link carries no company name (getChangeReview
-                                returns none), so the sentence names the role. */}
-                            <p className="text-ds-body text-ds-content-on-inverse-muted">The company you applied to proposed these changes. Approve, reject, or fix each one.</p>
+                            {/* Until the review names the company, the sentence names the role. */}
+                            <p className="text-ds-body text-ds-content-on-inverse-muted">{`${companyName || 'The company you applied to'} proposed these changes. Approve, reject, or fix each one.`}</p>
                         </div>
                     </div>
                 </div>
@@ -345,6 +380,13 @@ export function ReviewChangePortal() {
                         </div>
                     ) : (
                         <div className="space-y-5">
+                            {updated && (
+                                <Notice ref={updatedRef} tabIndex={-1} tone="warning" announce="polite" title="Some changes were updated">
+                                    {updated.names.length > 0
+                                        ? `${updated.names.join(', ')} changed after you opened this page. Review ${updated.names.length === 1 ? 'it' : 'them'} again, then submit your responses.`
+                                        : 'The list below is now up to date. Check your choices, then submit your responses.'}
+                                </Notice>
+                            )}
                             {pending.map((c) => {
                                 const r = resolutions[c.fieldKey] || {};
                                 const canEdit = isScalar(c.proposedValue) && isScalar(c.originalValue);

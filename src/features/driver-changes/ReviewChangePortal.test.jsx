@@ -154,8 +154,8 @@ describe('ReviewChangePortal', () => {
         await waitFor(() => expect(mockCallable).toHaveBeenCalledWith('submitChangeResolution', {
             token: 'tok-1',
             resolutions: [
-                { fieldKey: 'firstName', action: 'approve' },
-                { fieldKey: 'city', action: 'approve' },
+                { fieldKey: 'firstName', action: 'approve', shown: 'Jonathan' },
+                { fieldKey: 'city', action: 'approve', shown: 'Sparks' },
             ],
         }));
         await waitFor(() => expect(screen.getByText(/Thank you/i)).toBeInTheDocument());
@@ -177,8 +177,8 @@ describe('ReviewChangePortal', () => {
         await waitFor(() => expect(mockCallable).toHaveBeenCalledWith('submitChangeResolution', {
             token: 'tok-1',
             resolutions: [
-                { fieldKey: 'firstName', action: 'edit', value: 'Johnny' },
-                { fieldKey: 'city', action: 'reject' },
+                { fieldKey: 'firstName', action: 'edit', value: 'Johnny', shown: 'Jonathan' },
+                { fieldKey: 'city', action: 'reject', shown: 'Sparks' },
             ],
         }));
         await waitFor(() => expect(screen.getByText(/Thank you/i)).toBeInTheDocument());
@@ -317,7 +317,7 @@ describe('an employers change', () => {
 
         await waitFor(() => expect(mockCallable).toHaveBeenCalledWith('submitChangeResolution', {
             token: 'tok-1',
-            resolutions: [{ fieldKey: 'employers', action: 'approve' }],
+            resolutions: [{ fieldKey: 'employers', action: 'approve', shown: [XYZ] }],
         }));
     });
 });
@@ -388,8 +388,8 @@ describe('decisions are the driver\'s own', () => {
         expect(sent).toHaveLength(2);
         expect(sent[1]).toEqual(sent[0]);
         expect(sent[0][1].resolutions).toEqual([
-            { fieldKey: 'firstName', action: 'edit', value: 'Johnny' },
-            { fieldKey: 'city', action: 'reject' },
+            { fieldKey: 'firstName', action: 'edit', value: 'Johnny', shown: 'Jonathan' },
+            { fieldKey: 'city', action: 'reject', shown: 'Sparks' },
         ]);
     });
 
