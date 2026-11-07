@@ -19,6 +19,7 @@ import {
     Textarea,
 } from '@design-system/components';
 import { domIdSegment } from '@shared/utils/domId';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { isEditableInPlace, normalizeOption } from './schemaOptions';
 import { SchemaEditCheckbox, SchemaEditSelect } from './SchemaEditControls';
 
@@ -167,19 +168,21 @@ function mapFieldType(schemaType) {
     return map[schemaType] || 'text';
 }
 
+/** What a field with nothing in it shows. */
+const NO_VALUE = <span className="italic text-ds-content-muted">-</span>;
+
 /**
  * Format a value for display, handling sensitive data and empty values
  */
 function formatDisplayValue(value, definition, fileUrls = {}, filesPending = false) {
     if (value === undefined || value === null || value === '') {
-        return <span className="italic text-ds-content-muted">-</span>;
+        return NO_VALUE;
     }
 
     // Handle sensitive data masking
     if (definition.sensitive && definition.mask) {
-        const strValue = String(value);
         if (definition.mask.includes('{last4}')) {
-            return '***-**-' + strValue.slice(-4);
+            return maskSsn(value) ?? NO_VALUE;
         }
         return definition.mask;
     }

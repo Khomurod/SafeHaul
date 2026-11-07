@@ -13,6 +13,7 @@ import { Icon, User, MapPin, Phone, Mail, CreditCard, Truck, AlertTriangle, Chec
 import { formatDate } from '@shared/utils/helpers';
 import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelpers';
 import { signedDayOf } from '@shared/legal/previousEmployerRelease';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { Badge, Card, IconButton, Link, Notice } from '@/design-system/components';
 
 /** Safely convert Firestore Timestamps, ISO strings, or epoch values to a Date (or null). */
@@ -42,7 +43,7 @@ function IdentityCard({ appData }) {
     // masked and there is nothing to reveal.
     const rawSsn = String(appData.ssn || '').trim();
     const hasSsn = rawSsn.length > 4;
-    const maskedSSN = hasSsn ? `***-**-${rawSsn.slice(-4)}` : '***-**-****';
+    const maskedSSN = maskSsn(rawSsn) ?? '***-**-****';
 
     return (
         <DossierSummaryCard icon={User} title="Personal Information">

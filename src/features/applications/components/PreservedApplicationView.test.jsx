@@ -84,6 +84,14 @@ describe('PreservedApplicationView', () => {
         expect(screen.queryByText('412-88-7391')).toBeNull();
     });
 
+    it('masks a sensitive answer with fewer than four digits completely, never showing its text', () => {
+        const [personal, ...rest] = RECORD.sections;
+        const answers = personal.answers.map((answer) => (answer.key === 'ssn' ? { ...answer, value: 'Unknown' } : answer));
+        render(<PreservedApplicationView record={{ ...RECORD, sections: [{ ...personal, answers }, ...rest] }} />);
+        expect(screen.getByText('***-**-****')).toBeInTheDocument();
+        expect(screen.queryByText('Unknown')).toBeNull();
+    });
+
     it('lays out a repeating group as labelled cells', () => {
         render(<PreservedApplicationView record={RECORD} />);
         expect(screen.getByText('Employer')).toBeInTheDocument();

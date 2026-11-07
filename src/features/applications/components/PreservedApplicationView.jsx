@@ -27,6 +27,7 @@ import { Icon as DsIcon, FileText, ShieldCheck, ShieldOff, ShieldAlert } from '@
 import { Badge, Button, Card, FieldDisplay } from '@/design-system/components';
 import { EmptyState } from '@/design-system/patterns';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '../services/openApplicationFile';
 
 /** A value the driver did not supply, said in words rather than left blank. */
@@ -40,19 +41,6 @@ function formatInstant(value) {
     return date.toLocaleString(undefined, {
         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
-}
-
-/**
- * Mask a Social Security Number to its last four digits.
- *
- * The record stores the number as truth; masking is a presentation decision, and
- * on screen the answer is always no. The full number appears only in the
- * authorized original PDF, whose every access is authorized and audited.
- */
-function maskSensitive(value) {
-    const digits = String(value ?? '').replace(/\D/g, '');
-    if (!digits) return value;
-    return `***-**-${digits.slice(-4)}`;
 }
 
 /**
@@ -93,7 +81,10 @@ function OpenUploadedFile({ storagePath }) {
 }
 
 function AnswerRow({ answer, openUploads }) {
-    const value = answer.sensitive && !answer.isMissing ? maskSensitive(answer.value) : answer.value;
+    // The record stores the number as truth; masking is a presentation decision,
+    // and on screen the answer is always no. The full number appears only in the
+    // authorized original PDF, whose every access is authorized and audited.
+    const value = answer.sensitive && !answer.isMissing ? (maskSsn(answer.value) ?? answer.value) : answer.value;
     const display = (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? NOT_PROVIDED_TONE : ''}`}>

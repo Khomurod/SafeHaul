@@ -185,6 +185,12 @@ describe('ApplicationTab identity summary', () => {
     expect(screen.getByText('***-**-****')).toBeInTheDocument();
   });
 
+  it('never masks a value without four digits down to a piece of its text', () => {
+    renderTab({ ...APP, ssn: 'Unknown' });
+    expect(screen.getByText('***-**-****')).toBeInTheDocument();
+    expect(screen.queryByText('***-**-nown')).toBeNull();
+  });
+
   it('joins the address and falls back to an em dash', () => {
     renderTab();
     // Frozen: the parts are joined with ', ' throughout, including before the ZIP.

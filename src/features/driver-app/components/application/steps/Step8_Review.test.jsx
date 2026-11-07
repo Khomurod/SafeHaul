@@ -60,6 +60,12 @@ describe('Review & Confirm — what it shows', () => {
     expect(screen.queryByText('123-45-6789')).toBeNull();
   });
 
+  it.each(['Unknown', '12'])('masks %j, which has fewer than four digits, completely', (ssn) => {
+    renderReview({ ssn });
+    expect(screen.getByText('***-**-****')).toBeInTheDocument();
+    expect(screen.queryByText(ssn)).toBeNull();
+  });
+
   it('formats dates the way the preserved record and the PDF do', () => {
     renderReview();
     expect(screen.getByText('01/01/1990')).toBeInTheDocument();
