@@ -109,6 +109,41 @@ describe('form controls', () => {
   });
 });
 
+/*
+ * Fields side by side line up their controls. A field is a grid of auto rows
+ * (label, control, messages); a row of a parent grid stretches the shorter field
+ * to its neighbour's height, and without `align-content` that space was shared
+ * among its rows, so the control sat lower. Seen in Settings → Text messages:
+ * the phone hint wrapped to a second line and Reason's input sat 6px under the
+ * phone input. jsdom lays nothing out, so the rule itself is what is pinned.
+ */
+describe('FormField beside a taller field', () => {
+  const CSS = readFileSync(path.join(__dirname, 'FormControls.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('packs its label, control and messages at its top', () => {
+    const rule = CSS.slice(CSS.indexOf('.ds-form-field {'));
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/align-content:\s*start;/);
+  });
+
+  it('gives fields with and without a required mark the same label structure', () => {
+    render(
+      <>
+        <FormField label="Phone number" description="A hint long enough to wrap." required>
+          <Input />
+        </FormField>
+        <FormField label="Reason" description="Optional.">
+          <Input />
+        </FormField>
+      </>,
+    );
+    const [phone, reason] = screen.getAllByRole('textbox').map((input) => input.closest('.ds-form-field'));
+    const shape = (field) => [...field.children].map((child) => child.className);
+    expect(shape(phone)).toEqual(shape(reason));
+    expect(shape(phone)).toEqual(['ds-label', 'ds-form-control', 'ds-field-message']);
+  });
+});
+
 /**
  * The control size scale, shared with `Button`.
  *

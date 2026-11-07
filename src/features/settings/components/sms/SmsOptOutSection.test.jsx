@@ -99,6 +99,19 @@ describe('the list', () => {
 });
 
 describe('adding a number', () => {
+    // Side by side on a wide screen, stacked on a phone. Both are design-system
+    // fields, whose rows pack at the top (FormControls.test.jsx), so the phone
+    // hint wrapping to a second line no longer pushes Reason's input down.
+    it('lays out Phone number and Reason as two design-system fields in one row', async () => {
+        await renderSection();
+        const phone = screen.getByLabelText(/Phone number/).closest('.ds-form-field');
+        const reason = screen.getByLabelText(/Reason/).closest('.ds-form-field');
+        expect(phone).not.toBeNull();
+        expect(reason).not.toBeNull();
+        expect(phone.parentElement).toBe(reason.parentElement);
+        expect(phone.parentElement).toHaveClass('grid', 'sm:grid-cols-2');
+    });
+
     it('sends the number and the reason, then clears the form and shows the reloaded list', async () => {
         await renderSection();
         calls.listSmsOptOuts.mockImplementation(async () => listed([
