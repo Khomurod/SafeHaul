@@ -9,7 +9,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
-const { isSuperAdminClaims } = require("./shared/superAdmin");
+const { assertSuperAdminAuth } = require("./shared/superAdmin");
 
 const CONTACT_OUTCOMES = new Set(['interested', 'callback', 'not_qualified', 'not_interested', 'hired_elsewhere']);
 const COLLECTION_GROUP_PAGE_SIZE = 1000;
@@ -199,14 +199,7 @@ async function processCompany(companyId, dryRun) {
 exports.backfillCompanyStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '512MiB' },
     async (request) => {
-        if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-        // Only super admins can run backfills
-        const userRecord = await admin.auth().getUser(request.auth.uid);
-        const claims = userRecord.customClaims || {};
-        if (!isSuperAdminClaims(claims)) {
-            throw new HttpsError('permission-denied', 'Super admin access required.');
-        }
+        assertSuperAdminAuth(request.auth, 'Super admin access required.');
 
         const { companyId, dryRun = true } = request.data || {};
         if (!companyId) throw new HttpsError('invalid-argument', 'companyId is required.');
@@ -228,14 +221,7 @@ exports.backfillCompanyStats = onCall(
 exports.backfillAllStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '1GiB' },
     async (request) => {
-        if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-        // Only super admins can run bulk backfills
-        const userRecord = await admin.auth().getUser(request.auth.uid);
-        const claims = userRecord.customClaims || {};
-        if (!isSuperAdminClaims(claims)) {
-            throw new HttpsError('permission-denied', 'Super admin access required.');
-        }
+        assertSuperAdminAuth(request.auth, 'Super admin access required.');
 
         const { dryRun = true } = request.data || {};
 

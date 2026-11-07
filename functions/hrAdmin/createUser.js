@@ -7,7 +7,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { resolveUserIdentity, profileRepairPayload, cleanString } = require("../shared/userIdentity");
-const { assertCompanyActive } = require("../shared/companyAccess");
+const { assertCompanyAdminByToken } = require("../shared/companyAdminToken");
 const { isSuperAdminClaims } = require("../shared/superAdmin");
 
 // --- 1. CREATE USER ---
@@ -73,7 +73,6 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
         throw new HttpsError("invalid-argument", "email, companyId and role are required.");
     }
 
-    const roles = request.auth.token.roles || {};
     const isGlobalSuperAdmin = isSuperAdminClaims(request.auth.token);
 
     // DEFAULT-DENY authorization. Previously only `super_admin` and
@@ -85,17 +84,12 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
             throw new HttpsError("permission-denied", "Only Super Admins can create other Super Admins.");
         }
     } else if (ASSIGNABLE_PORTAL_ROLES.includes(role)) {
-        const isAdminForThisCompany = roles[companyId] === "company_admin";
-        if (!isGlobalSuperAdmin && !isAdminForThisCompany) {
-            throw new HttpsError("permission-denied", "You do not have permission to add users to this company.");
-        }
+        // A deactivated company's admins are refused; a super admin never is.
+        await assertCompanyAdminByToken(request.auth, companyId, "You do not have permission to add users to this company.");
     } else {
         // Unknown / unsupported role — reject outright.
         throw new HttpsError("invalid-argument", `Unsupported role: ${role}`);
     }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isGlobalSuperAdmin) await assertCompanyActive(companyId);
 
     let userId;
     let isNewUser = false;
