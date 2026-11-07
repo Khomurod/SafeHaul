@@ -9,7 +9,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
-const { assertSuperAdminAuth } = require("./shared/superAdmin");
+const { isSuperAdminClaims } = require("./shared/superAdmin");
 
 const CONTACT_OUTCOMES = new Set(['interested', 'callback', 'not_qualified', 'not_interested', 'hired_elsewhere']);
 const COLLECTION_GROUP_PAGE_SIZE = 1000;
@@ -196,10 +196,22 @@ async function processCompany(companyId, dryRun) {
 /**
  * Backfill stats for a single company (super-admin only).
  */
+/**
+ * Super admins only, read from the Auth record on every call rather than from
+ * the token: a super admin whose role was removed is refused at once (К4).
+ */
+async function assertFreshSuperAdmin(request) {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
+    const userRecord = await admin.auth().getUser(request.auth.uid);
+    if (!isSuperAdminClaims(userRecord.customClaims || {})) {
+        throw new HttpsError('permission-denied', 'Super admin access required.');
+    }
+}
+
 exports.backfillCompanyStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '512MiB' },
     async (request) => {
-        assertSuperAdminAuth(request.auth, 'Super admin access required.');
+        await assertFreshSuperAdmin(request);
 
         const { companyId, dryRun = true } = request.data || {};
         if (!companyId) throw new HttpsError('invalid-argument', 'companyId is required.');
@@ -221,7 +233,7 @@ exports.backfillCompanyStats = onCall(
 exports.backfillAllStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '1GiB' },
     async (request) => {
-        assertSuperAdminAuth(request.auth, 'Super admin access required.');
+        await assertFreshSuperAdmin(request);
 
         const { dryRun = true } = request.data || {};
 

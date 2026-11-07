@@ -1,9 +1,7 @@
 /**
- * The super-admin-only maintenance callables (Data cleanup's email-settings
- * migration and search-fields backfill, Analytics' stats rebuild) ask the
- * shared `assertSuperAdminAuth` on the verified token: no Auth API read per
- * call, the same two claims the rules read, and each its own refusal sentence.
- * All ids are artificial.
+ * Analytics' stats rebuild is for super admins only, read from the Auth record
+ * on every call, not from the token: a super admin whose role was removed is
+ * refused on the next call (К4). All ids are artificial.
  */
 jest.mock('firebase-functions/v2/https', () => ({
     onCall: jest.fn((optsOrFn, maybeFn) => (typeof maybeFn === 'function' ? maybeFn : optsOrFn)),
@@ -27,19 +25,13 @@ jest.mock('../../firebaseAdmin', () => {
         },
     };
 });
-jest.mock('../../integrations/encryption', () => ({ decrypt: jest.fn() }));
-jest.mock('../../shared/smtpSettings', () => ({ sealPassword: jest.fn() }));
 jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: jest.fn(async () => true) }));
 
-const { migrateEmailSettings } = require('../../migrateEmailSettings');
 const { backfillCompanyStats, backfillAllStats } = require('../../statsBackfill');
-const { backfillApplicationSearchFields } = require('../../searchFieldsBackfill');
 
 const CALLABLES = [
-    ['migrateEmailSettings', migrateEmailSettings, {}, 'Only super admins can run migrations.'],
     ['backfillCompanyStats', backfillCompanyStats, { companyId: 'co-1' }, 'Super admin access required.'],
     ['backfillAllStats', backfillAllStats, {}, 'Super admin access required.'],
-    ['backfillApplicationSearchFields', backfillApplicationSearchFields, { companyId: 'co-1' }, 'Only Super Admins can run backfills.'],
 ];
 
 beforeEach(() => mockGetUser.mockReset());
@@ -53,15 +45,24 @@ describe.each(CALLABLES)('%s', (_name, callable, data, denied) => {
         ['a company admin', { roles: { 'co-1': 'company_admin' } }],
         ['a recruiter', { roles: { 'co-1': 'recruiter' } }],
         ['no claims', {}],
-    ])('refuses %s with its own sentence', async (_who, token) => {
-        await expect(callable({ auth: { uid: 'u1', token }, data })).rejects.toMatchObject({ code: 'permission-denied', message: denied });
+    ])('refuses %s, by the Auth record', async (_who, claims) => {
+        mockGetUser.mockResolvedValue({ customClaims: claims });
+        await expect(callable({ auth: { uid: 'u1', token: {} }, data })).rejects.toMatchObject({ code: 'permission-denied', message: denied });
+    });
+
+    it('refuses a super admin whose role was removed, though the token still says super admin', async () => {
+        mockGetUser.mockResolvedValue({ customClaims: {} });
+        await expect(callable({ auth: { uid: 'u1', token: { globalRole: 'super_admin' } }, data }))
+            .rejects.toMatchObject({ code: 'permission-denied', message: denied });
+        expect(mockGetUser).toHaveBeenCalledWith('u1');
     });
 
     it.each([
         ['under roles', { roles: { globalRole: 'super_admin' } }],
-        ['at the token root', { globalRole: 'super_admin' }],
-    ])('lets a super admin through by the claim %s, reading no Auth record', async (_where, token) => {
-        await expect(callable({ auth: { uid: 'super-1', token }, data })).resolves.toBeDefined();
-        expect(mockGetUser).not.toHaveBeenCalled();
+        ['at the root', { globalRole: 'super_admin' }],
+    ])('lets a super admin through by the Auth record\'s claim %s', async (_where, claims) => {
+        mockGetUser.mockResolvedValue({ customClaims: claims });
+        await expect(callable({ auth: { uid: 'super-1', token: {} }, data })).resolves.toBeDefined();
+        expect(mockGetUser).toHaveBeenCalledWith('super-1');
     });
 });
