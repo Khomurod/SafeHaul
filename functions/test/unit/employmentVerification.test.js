@@ -26,7 +26,7 @@ jest.mock('pdf-lib', () => require('./employmentVerification.support').pdfLibMoc
 jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support').firebaseAdminMock());
 
 const {
-  appKey, applicationDocs, verificationDocs,
+  appKey, applicationDocs, companyDocs, verificationDocs,
   mockAssertCompanyAccessForRequest, mockSendDynamicEmail, resetPevState,
   setTransactionInterference, writeApplicationOutOfBand,
 } = require('./employmentVerification.support');
@@ -121,6 +121,42 @@ describe('employmentVerification callables', () => {
       expect(result.verificationUrl).toBe('https://safehaul.test/verify/pev-token-123456');
       expect(result).not.toHaveProperty('token');
       expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+    });
+
+    describe('the company it names', () => {
+      const send = () => sendVerificationRequest({
+        auth: { uid: 'user-1' },
+        data: {
+          companyId: 'co-1', applicationId: 'app-1', employerIndex: 0,
+          applicantName: 'John Driver', employerName: 'Old Carrier',
+          employerEmail: 'hr@oldcarrier.com', deliveryMethod: 'email',
+        },
+      });
+      beforeEach(() => {
+        applicationDocs.set(appKey('co-1', 'applications', 'app-1'), { employers: [{ companyName: 'Old Carrier' }] });
+      });
+
+      it('is the one the access check read, not read again', async () => {
+        mockAssertCompanyAccessForRequest.mockImplementation(async () => ({
+          exists: true,
+          data: () => ({ ...companyDocs.get('co-1'), companyName: 'Checked Carrier' }),
+        }));
+        await send();
+        expect(verificationDocs.get('pev-token-123456').companyName).toBe('Checked Carrier');
+      });
+
+      it('is read here when a super admin\'s check could not read it', async () => {
+        mockAssertCompanyAccessForRequest.mockImplementation(async () => undefined);
+        await send();
+        expect(verificationDocs.get('pev-token-123456').companyName).toBe('SafeHaul Carrier');
+      });
+
+      it('refuses a company that is not there, sending nothing', async () => {
+        companyDocs.delete('co-1');
+        await expect(send()).rejects.toMatchObject({ code: 'not-found', message: 'Company not found.' });
+        expect(verificationDocs.size).toBe(0);
+        expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+      });
     });
 
     it('keeps an employer id a row already had, rather than re-minting it', async () => {

@@ -76,10 +76,14 @@ async function settle(id, read) {
     }
 }
 
-/** The company's `features`; unreadable, every feature counts as on. */
-async function featuresOf(company) {
+/**
+ * The company's `features`, from the snapshot the access check read, else read
+ * here (a super admin's check hands back none when it could not read the
+ * company); unreadable, every feature counts as on.
+ */
+async function featuresOf(company, checkedSnap) {
     try {
-        const snap = await company.get();
+        const snap = checkedSnap || await company.get();
         return (snap.exists && snap.data()?.features) || {};
     } catch (error) {
         console.warn('[getDashboardAttention] The company could not be read:', error?.code ?? 'error');
@@ -154,10 +158,10 @@ function readRows(companyId, features, now) {
 exports.getDashboardAttention = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
     const companyId = companyIdOf(request.data?.companyId);
-    await assertCompanyAccessForRequest(request, companyId, 'getDashboardAttention');
+    const companySnap = await assertCompanyAccessForRequest(request, companyId, 'getDashboardAttention');
 
     const now = Date.now();
-    const features = await featuresOf(db.collection('companies').doc(companyId));
+    const features = await featuresOf(db.collection('companies').doc(companyId), companySnap);
     const pending = readRows(companyId, features, now);
     const ids = Object.keys(pending);
     const answers = await Promise.all(ids.map((id) => pending[id]));

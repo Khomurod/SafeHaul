@@ -366,6 +366,19 @@ describe('a feature the company turned off', () => {
             'awaitingSignature', 'dqExpiring', 'draftsExpiring', 'pendingChanges', 'pevNoResponse', 'pevWaiting', 'sealFailed',
         ]);
     });
+
+    // The tests above stand for a super admin whose check could not read the
+    // company and handed back nothing: the callable reads it itself.
+    it('takes the features from the company the access check read, and does not read it again', async () => {
+        put('companies/co-1', { features: {} });
+        assertCompanyAccessForRequest.mockImplementation(async () => ({ exists: true, data: () => ({ features: { eDocs: false } }) }));
+
+        const { rows } = await call();
+
+        expect(rows).not.toHaveProperty('sealFailed');
+        expect(rows).toHaveProperty('pevWaiting');
+        expect(mockQueries.filter((q) => q.kind === 'doc')).toEqual([]);
+    });
 });
 
 describe('every query', () => {

@@ -44,11 +44,12 @@ exports.sendPostApplicationDocument = onCall({ cors: true }, async (request) => 
     }
   }
 
-  await assertCompanyAccessForRequest(request, companyId, 'sendPostApplicationDocument');
+  const checkedCompany = await assertCompanyAccessForRequest(request, companyId, 'sendPostApplicationDocument');
 
   const companyRef = db.collection('companies').doc(companyId);
   const [companySnap, appSnap] = await Promise.all([
-    companyRef.get(),
+    // The company the access check read; a super admin's check may hand back none.
+    checkedCompany || companyRef.get(),
     companyRef.collection('applications').doc(applicationId).get(),
   ]);
   const company = companySnap.exists ? companySnap.data() || {} : {};

@@ -274,6 +274,15 @@ describe('an edit', () => {
         expect(cities).toEqual([expect.objectContaining({ displayValue: 'Dallas' })]);
     });
 
+    it('answers with the company document as the admin check read it', async () => {
+        await driverDraft();
+        mockAssertCompanyAdmin.mockResolvedValue({ exists: true, data: () => ({ applicationRules: { asChecked: true } }) });
+
+        const result = await edit({ city: 'Dallas' }, { city: 'Austin' });
+
+        expect(result.form.applicationRules).toEqual({ asChecked: true });
+    });
+
     it('is refused on the carrier\'s own application the driver has not saved yet', async () => {
         seedDraft({ origin: 'company', status: 'prepared' });
 

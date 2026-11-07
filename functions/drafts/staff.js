@@ -56,7 +56,8 @@ async function authorize(request, budgetName, budget) {
         throw new HttpsError('invalid-argument', 'companyId and applicantKey are required.');
     }
 
-    await assertCompanyAdminStrict(uid, companyId);
+    // The company as the check read it, so the caller need not read it again.
+    const companySnap = await assertCompanyAdminStrict(uid, companyId);
 
     const allowed = await checkRateLimit(
         `${budgetName}_${companyId}_${uid}`, budget.limit, budget.windowSeconds, 'closed',
@@ -64,7 +65,7 @@ async function authorize(request, budgetName, budget) {
     if (!allowed) {
         throw new HttpsError('resource-exhausted', 'Too many requests. Please wait a moment and try again.');
     }
-    return { uid, companyId, applicantKey };
+    return { uid, companyId, applicantKey, companySnap };
 }
 
 module.exports = { NOT_FOUND, auditCollection, authorize, staffAction };

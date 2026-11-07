@@ -121,11 +121,12 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
     }
 
     // PEV-SEC-1 FIX: Verify the caller actually belongs to the specified company.
-    await assertCompanyAccessForRequest(request, companyId, 'PEV/sendVerificationRequest');
+    const checkedCompany = await assertCompanyAccessForRequest(request, companyId, 'PEV/sendVerificationRequest');
 
     try {
-        // Get company name
-        const companyDoc = await db.collection('companies').doc(companyId).get();
+        // Get company name: the company the access check read; a super admin's
+        // check may hand back none.
+        const companyDoc = checkedCompany || await db.collection('companies').doc(companyId).get();
         if (!companyDoc.exists) throw new HttpsError('not-found', 'Company not found.');
         const companyData = companyDoc.data();
         const companyName = companyData.companyName || companyData.name || 'Prospective Employer';

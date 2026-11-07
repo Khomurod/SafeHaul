@@ -125,8 +125,9 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
     // The "no answer" follow-up goes out when anyone on the company team logs a
     // call nobody answered; the other templates stay with company admins.
     const assertMaySend = triggerType === 'no_answer' ? assertCompanyAccess : assertCompanyAdminStrict;
+    let checkedCompany;
     try {
-        await assertMaySend(request.auth.uid, companyId);
+        checkedCompany = await assertMaySend(request.auth.uid, companyId);
     } catch (e) {
         throw new HttpsError('permission-denied', 'You do not have permission to send emails for this company.');
     }
@@ -177,9 +178,10 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
                     </div>
                 </div>`;
         } else if (triggerType === 'no_answer') {
-            // The company's own name and application page, read here rather than
-            // taken from the caller, and the recruiter's name as text.
-            const companySnap = await db.collection('companies').doc(companyId).get();
+            // The company's own name and application page, as the access check
+            // read it (a super admin's check may hand back none: read here)
+            // rather than taken from the caller, and the recruiter's name as text.
+            const companySnap = checkedCompany || await db.collection('companies').doc(companyId).get();
             const company = companySnap.exists ? companySnap.data() : {};
             const applyUrl = `https://app.safehaul.io/apply/${encodeURIComponent(company.appSlug || companyId)}`;
             subject = "We missed you!";
