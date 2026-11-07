@@ -26,7 +26,8 @@ const walk = (dir) => {
       out.push(...walk(abs));
       continue;
     }
-    if (/\.(js|jsx|ts|tsx)$/.test(entry.name)) out.push(abs);
+    // A test is not the app: its sample code may name callables nothing calls.
+    if (/\.(js|jsx|ts|tsx)$/.test(entry.name) && !/\.(test|spec)\.[jt]sx?$/.test(entry.name)) out.push(abs);
   }
   return out;
 };

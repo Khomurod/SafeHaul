@@ -52,4 +52,9 @@ describe('readFrontendCallables', () => {
             'publishCompanyAgreementWording', 'revertCompanyAgreementWording',
         ]) expect(names).toContain(name);
     });
+
+    it('reads the app, not its tests: the samples above name callables nothing calls', () => {
+        const names = readFrontendCallables();
+        for (const sample of ['saveDraft', 'getDraft', 'publishWording', 'listLeads']) expect(names).not.toContain(sample);
+    });
 });
