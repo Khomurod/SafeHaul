@@ -257,16 +257,17 @@ every exported function — callables, Firestore triggers and scheduled jobs.
 not export; the full mapping is in
 [docs/callable-frontend-map.md](docs/callable-frontend-map.md).
 
-```bash
-npm run deploy:functions:plan          # Plan an incremental deploy
-npm run deploy:functions:incremental   # Incremental deploy — the normal path
-firebase deploy --only functions:functionName
-firebase deploy --only hosting
-```
+**Deploys happen only through CI.** Merging to `main` deploys the Testing site
+and the shared backend (functions, rules, indexes); Production changes only when
+someone promotes a tested Testing release (Super Admin → Releases). Never deploy
+from a workstation: Testing and Production share one backend, and
+`firebase deploy --only hosting` would publish **every** hosting target,
+Production included. Emergencies and rollbacks:
+[docs/FIREBASE_HOSTING_RUNBOOK.md](docs/FIREBASE_HOSTING_RUNBOOK.md).
 
-> On a machine with limited CPU, prefer `deploy:functions:incremental` (or
-> `deploy:functions:sequential`) over a full parallel deploy, to avoid OOM
-> during the build.
+```bash
+npm run deploy:functions:plan          # Dry run: which functions the next merge would deploy
+```
 
 ---
 

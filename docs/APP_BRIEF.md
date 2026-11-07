@@ -267,6 +267,13 @@ download URL; views re-sign from `storagePath`, and the dossier and
 authorizes it) reuse a link 10 minutes. `not-found` says the file is gone; any
 other error offers a retry, the row still attached (gates key on presence).
 
+**The bucket's CORS lets browsers read files cross-origin.** pdf.js fetches a
+signed URL from the app's origin (signing room, envelope editor), which needs it.
+The live setting (read-only check, 2026-11-07) allows any origin with GET, PUT,
+POST, DELETE and HEAD; `cors.json` holds it, and `npm run storage:set-cors`
+applies it by hand (not CI). Narrowing it to the SafeHaul sites with GET and HEAD
+is a live security change that waits for the owner's approval.
+
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
 2026-10-02 hold only a filename). Every renderer (review, snapshot, PDF,
@@ -1725,7 +1732,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
 - **"Read the documents" reads only what the current browser holds.** A
   prepared application re-opened later names its documents, readable once
-  re-attached; files are not fetched back (that needs bucket CORS, not set).
+  re-attached; files are not fetched back from Storage.
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
   `true`, so opt-out), the driver pressed *Finish later* on page one before

@@ -71,7 +71,6 @@ const CROSS_CUTTING_FILES = Object.freeze([
     'playwright.config.cjs',
     'jsconfig.json',
     'eslint.config.js',
-    '.eslintrc.json',
     'postcss.config.js',
     'tailwind.config.js',
     'index.html',
