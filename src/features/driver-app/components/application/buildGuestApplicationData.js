@@ -7,7 +7,7 @@ import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
 import { withoutCompanyKeys } from './companyEditsSync';
 
 export function buildGuestApplicationData({
-  formData, company, applicationId, confirmationNumber, submissionAttemptId, recruiterCode, sandbox, slug,
+  formData, company, applicationId, confirmationNumber, submissionAttemptId, sandbox, slug,
 }) {
   const email = formData.email || '';
   const phone = formData.phone || '';
@@ -28,7 +28,9 @@ export function buildGuestApplicationData({
     signatureType: formData.signatureType || 'drawn',
     companyId: company.id,
     companyName: company.companyName,
-    recruiterCode: recruiterCode || null,
+    // The recruiter's link code the answers carry (`referralIntake.js`): it stays
+    // with a draft continued in another session or on another device.
+    recruiterCode: formData.recruiterCode || null,
     sourceType: sandbox ? 'Sandbox Application' : 'Public Application',
     sourceSlug: sandbox ? SANDBOX_APP_SLUG : slug,
     status: 'New Application',

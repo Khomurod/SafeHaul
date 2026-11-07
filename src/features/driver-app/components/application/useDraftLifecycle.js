@@ -14,6 +14,7 @@ import {
 import { canBeFoundElsewhere } from './resumeIdentity';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
+import { holdsLinkCodes } from './referralIntake';
 
 /** The `storagePath` of every uploaded file among the answers, a custom question's included. */
 export function storedFilePaths(formData) {
@@ -30,11 +31,16 @@ export function storedFilePaths(formData) {
 // the callers and tests that knew the rule here.
 export { canBeFoundElsewhere };
 
+// One object, so a caller that names no codes does not give `applyRestoredDraft` a new dependency each render.
+const NO_LINK_CODES = Object.freeze({});
+
 export function useDraftLifecycle({
   slug,
   sandbox,
   formData,
   currentStep,
+  // The codes in the page address (`linkCodesFrom`), which win over a restored draft's.
+  linkCodes = NO_LINK_CODES,
   draftIdRef,
   restoredFromDraftRef,
   discardMarkRef,
@@ -183,7 +189,7 @@ export function useDraftLifecycle({
     // Nothing of this application was on this device before, so every answer a
     // Company Admin edited is new to the driver here. See `companyEditsSync.js`.
     const answers = withCompanyNotice(restored.formData, companyFieldsAfter(restored.companyEdits, 0));
-    setFormData((prev) => ({ ...prev, ...answers }));
+    setFormData((prev) => ({ ...prev, ...answers, ...linkCodes }));
     setCurrentStep(restored.stepIndex);
     setIntakeMode('manual');
     // Written straight back to the local copy, so a reload after a restore does
@@ -204,11 +210,18 @@ export function useDraftLifecycle({
       draftId: draftIdRef.current,
     });
     if (written.draftId) draftIdRef.current = written.draftId;
+    // The link this page was opened with wins over the codes the saved application
+    // carried, as on every other restore. That is new work, so an ordinary write,
+    // which the next save sends.
+    if (!holdsLinkCodes(answers, linkCodes)) {
+      const owed = saveApplicationDraft(slug, { ...formData, ...answers, ...linkCodes });
+      if (owed.draftId) draftIdRef.current = owed.draftId;
+    }
     // What is on screen now came out of the stored draft, which decides what a
     // discard elsewhere costs this tab.
     restoredFromDraftRef.current = true;
     showSuccess('Your saved application has been restored.');
-  }, [slug, formData, showSuccess, draftIdRef, restoredFromDraftRef, setFormData, setCurrentStep, setIntakeMode]);
+  }, [slug, formData, linkCodes, showSuccess, draftIdRef, restoredFromDraftRef, setFormData, setCurrentStep, setIntakeMode]);
 
   const handleContinueExisting = useCallback(async () => {
     applyRestoredDraft(await continueExisting());

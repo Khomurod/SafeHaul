@@ -18,8 +18,8 @@ function deferred() {
 }
 
 function harness({
-    stepAtStart, referralCode = null, serverFormData = { firstName: 'Marcus' }, discarded = false,
-    invite = { status: 'absent' },
+    stepAtStart, referralCode = null, recruiterCode = null, serverFormData = { firstName: 'Marcus' },
+    discarded = false, invite = { status: 'absent' },
 }) {
     const pending = deferred();
     const stepUpdates = [];
@@ -29,7 +29,11 @@ function harness({
     reconcileServerDraftOnLoad({
         slug: 'reconcile-step-test',
         invite,
-        referralCode,
+        // The codes in the address, as `linkCodesFrom` reads them: only those present.
+        linkCodes: {
+            ...(referralCode ? { referralCode } : {}),
+            ...(recruiterCode ? { recruiterCode } : {}),
+        },
         resetGenerationRef: { current: 0 },
         restoredFromDraftRef: { current: false },
         draftIdRef,
@@ -182,5 +186,62 @@ describe('reconcileServerDraftOnLoad and a referral link', () => {
         });
         await land(2);
         expect(formUpdates[0]({})).toMatchObject({ referralCode: 'ABCD2345' });
+    });
+});
+
+/**
+ * A recruiter's link code (`?r=` / `?recruiter=`) is restored and kept by the same
+ * rule as a referral code: the saved copy's code comes back, and the link clicked
+ * this time wins over it.
+ */
+describe('reconcileServerDraftOnLoad and the recruiter code', () => {
+    it('brings back the recruiter the server copy saved when the address names none', async () => {
+        const { formUpdates, land } = harness({
+            stepAtStart: 0,
+            serverFormData: { firstName: 'Marcus', recruiterCode: 'link-1' },
+        });
+        await land(2);
+        expect(formUpdates[0]({})).toMatchObject({ recruiterCode: 'link-1' });
+        expect(readApplicationDraft('reconcile-step-test')?.data?.recruiterCode).toBe('link-1');
+    });
+
+    it('keeps the recruiter of the link clicked over the one the server copy saved, still owed to the server', async () => {
+        const { formUpdates, land } = harness({
+            stepAtStart: 0,
+            recruiterCode: 'link-2',
+            serverFormData: { firstName: 'Marcus', recruiterCode: 'link-1', referralCode: 'ABCD2345' },
+        });
+        await land(2);
+        expect(formUpdates[0]({})).toMatchObject({ recruiterCode: 'link-2', referralCode: 'ABCD2345' });
+        expect(readApplicationDraft('reconcile-step-test')?.data?.recruiterCode).toBe('link-2');
+        expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
+    });
+
+    it('stores the recruiter of the link clicked when this device\'s unsent copy wins', async () => {
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', lastName: 'Lee', recruiterCode: 'link-1' }, { lastStep: 3 });
+        const { formUpdates, land } = harness({
+            stepAtStart: 0,
+            recruiterCode: 'link-2',
+            serverFormData: { firstName: 'Marcus', recruiterCode: 'link-1' },
+        });
+        await land(2);
+        expect(formUpdates[0]({})).toMatchObject({ lastName: 'Lee', recruiterCode: 'link-2' });
+        expect(readApplicationDraft('reconcile-step-test')?.data).toMatchObject({ lastName: 'Lee', recruiterCode: 'link-2' });
+        expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
+    });
+
+    it('stores the recruiter of the link clicked in the local copy when there is no server copy', async () => {
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', recruiterCode: 'link-1' }, { lastStep: 3 });
+        const { formUpdates, landNothing } = harness({ stepAtStart: 0, recruiterCode: 'link-2' });
+        await landNothing();
+        expect(readApplicationDraft('reconcile-step-test')?.data).toMatchObject({ firstName: 'Marcus', recruiterCode: 'link-2' });
+        expect(formUpdates).toHaveLength(0);
+    });
+
+    it('writes nothing back when the copy already names the recruiter of the link', async () => {
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', recruiterCode: 'link-1' }, { lastStep: 3, synced: true });
+        const { landNothing } = harness({ stepAtStart: 0, recruiterCode: 'link-1' });
+        await landNothing();
+        expect(draftSyncState('reconcile-step-test')?.dirty).toBe(false);
     });
 });

@@ -82,6 +82,19 @@ describe('buildApplicationDoc', () => {
     expect(built.applicationDoc.lifecycle.clientVersion).toBe('2.0-bulletproof');
   });
 
+  it('takes the recruiter code the guest answers carry, as submitGuestApplication passes them', () => {
+    // The apply page sends the code from the answers, where a continued draft kept it.
+    const built = buildApplicationDoc({
+      companyId: 'co1',
+      companyName: 'Tenant Co',
+      email: 'a@b.com',
+      phone: '5551234567',
+      signature: 'data:image/png;base64,AAA',
+      formData: { firstName: 'A', recruiterCode: 'link-1' },
+    });
+    expect(built.applicationDoc.recruiterCode).toBe('link-1');
+  });
+
   it('persists normalized search fields from the shared normalizer', () => {
     const built = buildApplicationDoc({
       companyId: 'co1',
