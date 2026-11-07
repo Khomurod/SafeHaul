@@ -6,6 +6,8 @@ import { storage } from '@lib/firebase/storage';
 import { getCompanyProfile } from '@features/companies';
 import { reusableApplicationFileUrl } from '@features/applications/services/applicationFileLink';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { e2eLoadedDossierRecord } from './e2eDossierFixture';
 
 const simpleRetry = async (fn, retries = 3, delay = 1000) => {
   for (let i = 0; i < retries; i++) {
@@ -42,6 +44,21 @@ export function useAppFetch(companyId, applicationId) {
     setLoading(true);
     setError('');
     setFilesPending(false);
+
+    // `?e2eDossier=loaded` (E2E test mode only, never in a production build): a
+    // made-up record (`e2eDossierFixture.js`) and no read, as E2E mode cannot
+    // reach Firestore. Written out here, not in a helper, so a production build
+    // drops the branch and the record with it.
+    if (isE2ETestMode && !import.meta.env.PROD && getE2EQueryParam('e2eDossier', '') === 'loaded') {
+      const data = e2eLoadedDossierRecord();
+      setCollectionName('applications');
+      setAppData(data);
+      setCurrentStatus(data.status);
+      setAssignedTo(data.assignedTo);
+      setFileUrls({});
+      setLoading(false);
+      return;
+    }
 
     try {
       // The company profile and the record at the same time: neither needs
