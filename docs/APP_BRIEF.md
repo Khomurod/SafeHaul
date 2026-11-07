@@ -1390,7 +1390,8 @@ the daily count**; refusing is a recorded outcome.
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
   the DQ tab's first opening in each opening of the dossier files any still missing
-  (`syncDqFiles`, leads too; again after a failed filing). A
+  (`syncDqFiles`, leads too). A call that fails is made again at the next visit; an
+  upload it could not write in a call that succeeded waits for the next opening. A
   removed entry stays removed. PEV request PDFs, results and day-30 records of
   attempts are filed by the PEV callables and job, one record each (`pev_request_<id>`,
   `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
