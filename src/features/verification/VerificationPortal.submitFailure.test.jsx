@@ -11,7 +11,7 @@
  * Artificial data only — no real tokens, drivers or employers.
  */
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -162,7 +162,9 @@ describe('a response that is not sent', () => {
         renderPortal();
         await fillAndSubmit();
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'This link has expired' })).toHaveFocus();
+        const expired = await screen.findByRole('heading', { level: 1, name: 'This link has expired' });
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(expired).toHaveFocus());
         expect(screen.getByText(/ask Artificial Requesting Carrier for a new link/)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     });

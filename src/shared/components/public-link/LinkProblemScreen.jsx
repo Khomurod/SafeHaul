@@ -1,6 +1,6 @@
-import React, { useId } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle, Clock, RefreshCw } from '@design-system/icons';
-import { Button } from '@/design-system/components';
+import { Button, Notice } from '@/design-system/components';
 import { ErrorState, PageState } from '@design-system/patterns';
 import { LINK_PROBLEM } from './linkProblem';
 
@@ -12,7 +12,10 @@ import { LINK_PROBLEM } from './linkProblem';
  * It says what happened, what to do, and who to ask: the company, by name when
  * the page knows it. "Try again" appears only when the page passes `onRetry`,
  * which it does only when trying again can help (`isRetryableLinkProblem`, or the
- * application link's own transient outcomes).
+ * application link's own transient outcomes). "Ask <Company> for a new link"
+ * appears when the page passes `onRequestNewLink` and a new link can help (the
+ * link expired, was replaced or could not be opened): the company is told, and
+ * sends one with its own resend; this page shows no contact detail of theirs.
  *
  * It lives outside the design system on purpose: it knows about links, senders
  * and what each reason means. Underneath it is the approved page-state pattern,
@@ -63,6 +66,67 @@ const COPY = Object.freeze({
     },
 });
 
+/** The reasons a new link can help: it ran out, was replaced, or could not be opened. */
+const RENEWABLE = new Set([LINK_PROBLEM.EXPIRED, LINK_PROBLEM.REPLACED, LINK_PROBLEM.UNOPENABLE]);
+
+/**
+ * The server's refusal of too many requests from this network. Nobody was told:
+ * someone else on the same network may have used them up.
+ */
+const tooMany = (error) => /(?:^|\/)resource-exhausted$/.test(String(error?.code ?? ''));
+
+/**
+ * The "Ask … for a new link" request: `'idle'`, `'asking'`, `'asked'`,
+ * `'limited'` (refused as too many, for now) or `'failed'`. Focus follows the
+ * outcome: to the status that replaces the button, or back to the button,
+ * offered again, when the request did not go (it was disabled while asking).
+ */
+function useNewLinkRequest(onRequestNewLink) {
+    const [state, setState] = useState('idle');
+    const buttonRef = useRef(null);
+    const statusRef = useRef(null);
+    useEffect(() => {
+        if (state === 'asked') statusRef.current?.focus();
+        if (state === 'failed' || state === 'limited') buttonRef.current?.focus();
+    }, [state]);
+    const ask = async () => {
+        setState('asking');
+        try {
+            await onRequestNewLink();
+            setState('asked');
+        } catch (error) {
+            setState(tooMany(error) ? 'limited' : 'failed');
+        }
+    };
+    return { state, ask, buttonRef, statusRef };
+}
+
+/**
+ * What became of the request, where its button was: polite when it went, at
+ * once when it did not. Nothing while there is no outcome yet, so the state's
+ * layout is the same as without the request.
+ */
+function newLinkOutcome({ state, statusRef }, sender, senderFirst) {
+    if (state === 'asked') {
+        return (
+            <Notice ref={statusRef} tabIndex={-1} tone="success" announce="polite">
+                {`Done. ${senderFirst} has been asked to send you a new link.`}
+            </Notice>
+        );
+    }
+    if (state === 'limited') {
+        return (
+            <Notice tone="warning" announce="assertive">
+                Too many requests came from this network. Please try again later, or contact {sender}.
+            </Notice>
+        );
+    }
+    if (state === 'failed') {
+        return <Notice tone="danger" announce="assertive">That request could not be sent. Please contact {sender}.</Notice>;
+    }
+    return undefined;
+}
+
 /**
  * @param {object} props
  * @param {string} props.reason one of `LINK_PROBLEM`
@@ -73,18 +137,32 @@ const COPY = Object.freeze({
  *   sentence; `null` when the page's actions already say it
  * @param {() => void} [props.onRetry] shows "Try again"; pass it only when
  *   trying again can help
+ * @param {() => Promise<unknown>} [props.onRequestNewLink] shows "Ask <Company>
+ *   for a new link" when a new link can help; rejects with the callable's error
  * @param {React.ReactNode} [props.actions] the page's own way forward, after
  *   "Try again"
  */
-export function LinkProblemScreen({ reason, companyName, detail, advice, onRetry, actions }) {
+export function LinkProblemScreen({ reason, companyName, detail, advice, onRetry, onRequestNewLink, actions }) {
     const headingId = `link-problem-${useId().replace(/:/g, '')}`;
-    const copy = COPY[reason] ?? COPY[LINK_PROBLEM.UNOPENABLE];
-    const sender = (typeof companyName === 'string' && companyName.trim()) || 'the sender';
+    const request = useNewLinkRequest(onRequestNewLink);
+    const shown = COPY[reason] ? reason : LINK_PROBLEM.UNOPENABLE;
+    const copy = COPY[shown];
+    const named = (typeof companyName === 'string' && companyName.trim()) || null;
+    const sender = named || 'the sender';
+    // The same, at the start of a sentence.
+    const senderFirst = named || 'The sender';
     const said = advice === undefined ? copy.advice(sender) : advice;
     const description = [detail || copy.detail, said].filter(Boolean).join(' ');
-    const way = (onRetry || actions) ? (
+    const canAsk = Boolean(onRequestNewLink) && RENEWABLE.has(shown);
+    const showAsk = canAsk && request.state !== 'asked';
+    const way = (onRetry || showAsk || actions) ? (
         <>
             {onRetry && <Button variant="primary" onClick={onRetry}>Try again</Button>}
+            {showAsk && (
+                <Button ref={request.buttonRef} variant="primary" loading={request.state === 'asking'} onClick={request.ask}>
+                    Ask {sender} for a new link
+                </Button>
+            )}
             {actions}
         </>
     ) : undefined;
@@ -98,6 +176,7 @@ export function LinkProblemScreen({ reason, companyName, detail, advice, onRetry
         // A server's sentence can carry an unbroken word; it wraps rather than overflowing.
         description: <span className="[overflow-wrap:anywhere]">{description}</span>,
         actions: way,
+        children: canAsk ? newLinkOutcome(request, sender, senderFirst) : undefined,
     };
 
     return (

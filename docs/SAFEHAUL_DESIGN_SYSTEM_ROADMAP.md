@@ -139,7 +139,7 @@ The reverse directions are prohibited — including any `@shared` import inside
   `UploadField`, `LoginScreen`, `VerificationPortal`, `SignatureSheet`,
   `ReviewChangePortal`, `ApplyIdentityCheckScreen`). A thing that is not a
   control must not read a control height (`--ds-metric-icon-size`,
-  `--ds-table-selection-control-size`).
+  `--ds-table-selection-control-size`). Side-by-side `FormField`s stay level.
 - **`xs` is 24px — the WCAG 2.2 SC 2.5.8 minimum — and icon-only**:
   `IconButton size="xs"` reaches it, `Button` refuses it, `shape="round"` cuts a
   disc for a control on another element's corner. On the PDF overlays a pointer

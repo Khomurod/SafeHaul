@@ -5,7 +5,7 @@ import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { CompanySidebar } from './CompanySidebar';
 import { CompanyTopbar } from './CompanyTopbar';
 import { FeatureDeactivationWarning } from '../components/FeatureDeactivationWarning';
-import { useCompanyDeactivated } from '../hooks/useCompanyDeactivated';
+import { useLiveCompany } from '../hooks/useLiveCompany';
 import { CompanyDeactivatedScreen } from './CompanyDeactivatedScreen';
 import { useData } from '@/context/DataContext';
 import { DriverDossier } from '../components/modals/driver-dossier/DriverDossier';
@@ -19,7 +19,8 @@ export const CompanyAppShell = () => {
     const navigate = useNavigate();
     const navigationTriggerRef = useRef(null);
     const { currentCompanyProfile } = useData();
-    const deactivated = useCompanyDeactivated();
+    // The company's document, watched: its feature switches and whether it was turned off.
+    const deactivated = useLiveCompany();
     const [isNavigationOpen, setIsNavigationOpen] = useState(false);
     // The record open over the page, `{ id, tab }`: `tab` is the dossier tab a
     // notification is about, else the dossier opens on its first.

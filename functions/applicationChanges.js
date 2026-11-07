@@ -13,8 +13,10 @@
  *  - createChangeReview         (company_admin)  → mints a token review link; with
  *                                                  `deliver: 'email'` emails it to the
  *                                                  application's own address instead
- *  - getChangeReview            (public/token)   → driver loads before/after
- *  - submitChangeResolution     (public/token)   → driver approve/reject/edit
+ *  - getChangeReview            (public/token)   → driver loads before/after, and the
+ *                                                  company's name
+ *  - submitChangeResolution     (public/token)   → driver approve/reject/edit; with `shown`,
+ *                                                  only of the value the page showed
  *
  * ## `employers` is the one field that is not just a value
  *
@@ -42,17 +44,37 @@ const {
     appOriginFor, assertEmailAllowed, deliverableEmail, deliveryClaim, deliveryCoolingDown,
     emailSenderFor, linkEmailHtml, readDeliver, refusal, sendClaimedEmail,
 } = require("./shared/linkDelivery");
+const { sameAnswer } = require("./shared/companyEdits");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 const REVIEW_TTL_DAYS = 30;
 const REVIEW_TTL_MS = REVIEW_TTL_DAYS * 24 * 60 * 60 * 1000;
 const REPLACED_LINK = 'This review link was replaced by a newer one. Please use the latest link your recruiter sent.';
+// The page reads a refusal's words to tell a link that stopped working (replaced,
+// expired, already complete) from anything else, so this one uses none of them.
+const CHANGES_UPDATED = 'Some of these changes were updated after you opened this page. Please review them again.';
 
 /** Every review is written with a status (since the feature began): 'open' until it ends. */
 const isOpenReview = (review) => review.status === 'open';
 
 function appRef(companyId, collectionName, applicationId) {
     return db.collection('companies').doc(companyId).collection(collectionName).doc(applicationId);
+}
+
+/**
+ * The company's name, for the review page to say who proposed the changes: the
+ * `companyName` its emails use, or null. A courtesy, so a failed read names no
+ * one rather than closing the review.
+ */
+async function reviewCompanyName(companyId) {
+    try {
+        const snap = await db.collection('companies').doc(companyId).get();
+        const name = snap.exists ? snap.data()?.companyName : null;
+        return typeof name === 'string' && name.trim() ? name.trim() : null;
+    } catch (e) {
+        logger.warn(`[getChangeReview] company name not read for ${companyId}: ${e?.message || e}`);
+        return null;
+    }
 }
 
 function validateTarget(data) {
@@ -295,11 +317,15 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
     // A completed link shows nothing: the application's changes now include ones
     // proposed, and settled, under later links.
     if (!isOpenReview(review)) {
-        return { applicantName: review.applicantName, status: review.status, changes: [] };
+        const companyName = await reviewCompanyName(review.companyId);
+        return { applicantName: review.applicantName, status: review.status, changes: [], companyName };
     }
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
-    const changesSnap = await ref.collection('pending_changes').get();
+    const [changesSnap, companyName] = await Promise.all([
+        ref.collection('pending_changes').get(),
+        reviewCompanyName(review.companyId),
+    ]);
     const changes = changesSnap.docs.map((d) => {
         const c = d.data();
         return {
@@ -316,6 +342,7 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
         applicantName: review.applicantName,
         status: review.status,
         changes,
+        companyName,
     };
 });
 
@@ -346,6 +373,25 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
     const pendingSnap = await ref.collection('pending_changes').get();
     const byKey = new Map(pendingSnap.docs.map((d) => [d.id, d.data()]));
+    // When each change was read: its resolution is written only onto the change as
+    // read (`lastUpdateTime`), so a proposal that lands between this read and the
+    // commit fails the whole batch, exactly as one that landed before it fails below.
+    const readAt = new Map(pendingSnap.docs.map((d) => [d.id, d.updateTime]));
+    // A decision is about the value the page showed (`shown`): a proposal made while
+    // the page was open replaces the pending value, and approving that one would
+    // record a value the driver never saw. Checked for every decision before anything
+    // is written, so the call records all or nothing. A page that sends no `shown`
+    // predates this and keeps the old behaviour: Production serves it until a release.
+    const sawPendingValue = (r) => {
+        if (!r || !Object.prototype.hasOwnProperty.call(r, 'shown')) return true;
+        const change = byKey.get(r.fieldKey);
+        return change?.status === 'pending' && sameAnswer(r.shown, change.proposedValue);
+    };
+    const unseen = resolutions.filter((r) => !sawPendingValue(r)).length;
+    if (unseen > 0) {
+        logger.info(`[submitChangeResolution] refused: ${unseen} decision(s) on changes that moved after the page loaded`);
+        throw new HttpsError('failed-precondition', CHANGES_UPDATED, { reason: 'changes-updated' });
+    }
     // The record as it stands NOW, not as it stood when the change was proposed.
     // A verification can complete while a review link sits unopened for days.
     const liveSnap = await ref.get();
@@ -385,16 +431,20 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
             return settled.value;
         };
 
+        const resolve = (data) => batch.update(pcRef, {
+            ...data, resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { lastUpdateTime: readAt.get(fieldKey) });
+
         if (action === 'approve') {
             const approved = settle(change.proposedValue ?? null);
             docUpdates[fieldKey] = approved;
-            batch.set(pcRef, { status: 'approved', resolvedValue: approved, resolution: 'approve', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'approved', resolvedValue: approved, resolution: 'approve' });
         } else if (action === 'reject') {
-            batch.set(pcRef, { status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject' });
         } else if (action === 'edit') {
             const driverValue = settle(r.value ?? null); // driver's edit is final
             docUpdates[fieldKey] = driverValue;
-            batch.set(pcRef, { status: 'edited', resolvedValue: driverValue, resolution: 'edit', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'edited', resolvedValue: driverValue, resolution: 'edit' });
         } else {
             continue; // invalid action
         }
@@ -403,7 +453,16 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     if (Object.keys(docUpdates).length > 0) {
         batch.set(ref, docUpdates, { merge: true });
     }
-    await batch.commit();
+    try {
+        await batch.commit();
+    } catch (err) {
+        // A change rewritten since it was read (Firestore's FAILED_PRECONDITION): nothing was recorded.
+        if (err?.code === 9 || err?.code === 'failed-precondition') {
+            logger.info('[submitChangeResolution] refused: a change moved while the decisions were being recorded');
+            throw new HttpsError('failed-precondition', CHANGES_UPDATED, { reason: 'changes-updated' });
+        }
+        throw err;
+    }
 
     // Recompute remaining pending; clear the mark + close the review when none remain.
     const remainingSnap = await ref.collection('pending_changes').where('status', '==', 'pending').limit(1).get();

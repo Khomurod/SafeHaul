@@ -137,7 +137,7 @@ section('3. shared/clientIp.js → its loaders attribution');
     assertEqual(
       'clientIp is owned by exactly the modules that load it',
       [...owners].sort(),
-      ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js']
+      ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js', 'functions/requestNewLink.js']
     );
   }
 }
@@ -222,7 +222,7 @@ section('7. Touching ONLY shared/clientIp.js');
   const plan = planFor(['functions/shared/clientIp.js']);
   assert('plan is partial', plan.kind === 'partial');
   if (plan.kind === 'partial') {
-    const expected = ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js']
+    const expected = ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js', 'functions/requestNewLink.js']
       .flatMap((file) => fileToExports.get(file) || []).sort();
     assertEqual('no orphan skips', plan.skippedOrphans, []);
     assert('publicSigning has exports to compare', (fileToExports.get('functions/publicSigning.js') || []).length > 0);

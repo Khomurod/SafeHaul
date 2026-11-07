@@ -121,8 +121,15 @@ e-signature consent again, Decline explains how to sign on paper (nothing is rec
 and the page says "You can close this tab" (no button that cannot close it). A
 submission refused because the link stopped working (expired, replaced, already
 submitted, gone) ends on the same screen; any other failure keeps the form. Back to
-a driver's required documents from "already signed" marks that document done. There
-is no "request a new link" button: the public profile carries no contact details.
+a driver's required documents from "already signed" marks that document done.
+Where a new link can help (expired, replaced, could not be opened) the screen offers
+**Ask <Company> for a new link** (`requestNewLink`, public, 10 an hour per address):
+it tells the team member who sent the link while on the team (else the team) in the
+bell, opening the application or lead it was sent from, once per record a day and only
+while the document, verification or change is still waiting; it always answers the
+same, so it reveals nothing about a link, and the company sends the new link with the
+resend it already has. Past the hourly limit the page says to try later, never that
+the company was told. The page shows no company contact detail.
 
 ### Company workspace (`/company/*`)
 
@@ -325,6 +332,11 @@ application, and a stored draft's answers win. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
 team, who is notified; a carrier-prepared application goes to its preparer (§5).
+Both link codes, `referralCode` and a recruiter's `recruiterCode`, are kept with the
+draft; whenever a saved application is restored (this device, the server copy, a
+continuation link, the identity match on another device), the codes in the address
+opened win over the saved ones (`adoptLinkCodes`), and a fresh start on the same page
+(a new application after submitting, or after a discard in another tab) keeps them.
 **A lead who applies is linked to the application** (`onApplicationSubmitted`,
 `shared/leadApplicationLink.js`): the company's lead with the same email (trimmed,
 lowercased, never a placeholder; leads keep `emailNormalized`), else the one lead with
@@ -587,7 +599,8 @@ password of at least 6 characters.
 **Profile.** One page for every staff member (menu, or the name and avatar in the
 top bar): name, photo, sign-in email and password, and their **personal link**
 (`/apply/<slug>?r=<code>`, `recruiterCodeFor`; drivers who apply through it are
-assigned to them), with Copy (Д16). Its name save writes `users/{uid}.name`. There
+assigned to them, also when they finish later in another session, from a continuation
+link or on another device: the code travels in the answers), with Copy (Д16). Its name save writes `users/{uid}.name`. There
 is no Settings → My profile (an old `?section=personal` address opens Profile) and
 no Username field (a stored `username` is left, unread). Company profile shows the
 plan (`planType`) as one line; there is no Plan section.
@@ -872,6 +885,12 @@ text: the page retries; a submission takes the failed-snapshot path.
 **Page one refuses at the field** a required date of birth that is missing or
 unreadable and any date under 21 (required or optional): `TypedDateField`'s own
 error, announced and described by each box, as is a missing State; no toast.
+**The company's questions refuse at the question too.** From the first Continue, each
+required custom question still unanswered says so under itself ("Please answer this
+question.", "Please choose at least one.", "Please upload a file."), announced and
+describing its control; the focus goes to the first one, and each message leaves as its
+question is answered. A time half chosen says so under its lists. The final pre-flight
+still refuses a missing answer with "Please answer required question: …".
 
 **Application gates have one resolver.** `src/config/applicationGates.js` (is a
 standard DOT question required, optional or hidden?) mirrors
@@ -1095,7 +1114,11 @@ while the page was open, it then says so, with Review them — the server says o
 whether any remain, not how many),
 through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
-emails it to the application's own `email`);
+emails it to the application's own `email`), which names the company. Each decision
+is bound to the value the page showed (`shown`), and is written only onto the change as
+it was read: if the company proposed a new value after the page opened, nothing is
+recorded, the page reloads, keeps the choices for changes that did not move and asks to
+review the rest (an older page that sends no `shown` is decided as before);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
 write `pending_changes`. *Edit Application* gives a box only to the fields on the
 server's allowlist (`functions/shared/applicationEditableFields.json`, read by both
@@ -1238,7 +1261,9 @@ the stored key keeps its old name), which is **opt-in**: Settings → Facebook l
 shows only where a super admin set it `true`, since Facebook capture is off. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
 [`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
-`planType`, `appSlug`, `isActive` or `status`.
+`planType`, `appSlug`, `isActive` or `status`. An open company workspace follows its
+flags live (`useLiveCompany`, the same company-document listener that watches for
+deactivation): a switch shows or hides its menu entry and pages without a reload.
 
 ---
 
@@ -1380,7 +1405,8 @@ the daily count**; refusing is a recorded outcome.
   `firestore.indexes.json`), and shows the newest 20 of both. A seal outcome, a
   prepared application's submission, a lead's application, a PEV answer or no-response,
   a status change and an assignment notify once per event (`createNotification` with a
-  fixed id).
+  fixed id). A public link's "Ask … for a new link" notifies once per record a day
+  (`signing_link_requested`, `pev_link_requested`, `review_link_requested`).
 - **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
   matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
   An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);
@@ -1668,9 +1694,6 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 **Current limitations:**
 
 - **Browser errors are not collected anywhere**; users must report them.
-- **/review-change names no company** (`getChangeReview` returns none), and a new
-  proposal while a review link is open replaces the pending value the driver will
-  approve (the link is not revoked).
 - **A callable that wraps any failure as `internal` now reads generic** ("… could
   not be … Please try again"), because its text is often a raw error passed on
   (`createPortalUser`, `testEmailConnection`, line inventory, provider config, SMS,

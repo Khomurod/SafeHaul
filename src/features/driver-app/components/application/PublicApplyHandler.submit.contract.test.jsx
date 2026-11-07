@@ -262,14 +262,13 @@ describe('PublicApplyHandler submission contract', () => {
     expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
   });
 
-  it('clears the local draft and the pending recruiter code on success', async () => {
-    sessionStorage.setItem('pending_application_recruiter', 'REC-9');
-    await renderWithCompleteDraft();
+  it('sends the recruiter code the answers carry, and clears the local draft on success', async () => {
+    // Kept with the draft (`PublicApplyHandler.recruiterLink.contract.test.jsx`).
+    await renderWithCompleteDraft({ recruiterCode: 'REC-9' });
     await submit();
 
     await waitFor(() => expect(callableSpy).toHaveBeenCalled());
     await waitFor(() => expect(localStorage.getItem('draft_acme')).toBeNull());
-    expect(sessionStorage.getItem('pending_application_recruiter')).toBeNull();
     expect(callableSpy.mock.calls[0][0].formData.recruiterCode).toBe('REC-9');
   });
 
@@ -465,7 +464,11 @@ describe('PublicApplyHandler submission contract', () => {
       </MemoryRouter>,
     );
     await chooseManualIntake();
-    expect(sessionStorage.getItem('pending_application_recruiter')).toBe('FROM-LONG');
+    await submit();
+    await waitFor(() => expect(callableSpy).toHaveBeenCalled());
+    // In the answers, not in this tab's session: `PublicApplyHandler.recruiterLink.contract.test.jsx`.
+    expect(callableSpy.mock.calls[0][0].formData.recruiterCode).toBe('FROM-LONG');
+    expect(sessionStorage.getItem('pending_application_recruiter')).toBeNull();
     expect(sessionStorage.getItem('pending_application_company')).toBe('company-1');
   });
 });

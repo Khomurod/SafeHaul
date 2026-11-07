@@ -13,6 +13,7 @@ import {
 } from './applicationDraftStorage';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 import { INVITE_OUTCOMES } from './publicApplyInvite';
+import { holdsLinkCodes } from './referralIntake';
 
 /**
  * The server-draft reconciliation, once the company is known.
@@ -30,9 +31,10 @@ export function reconcileServerDraftOnLoad({
   // the ordering half; this is the identity half. See `publicApplyInvite.js` for
   // why the two are separate mechanisms.
   invite,
-  // The code in the address (`referralCodeFrom`), or null: the link clicked wins
-  // over a code an older visit saved, as it does over a restored local draft.
-  referralCode,
+  // The codes in the address (`linkCodesFrom`: a referral's, a recruiter's, or
+  // none): the link clicked wins over a code an older visit saved, as it does over
+  // a restored local draft.
+  linkCodes = {},
   resetGenerationRef,
   restoredFromDraftRef,
   draftIdRef,
@@ -56,14 +58,14 @@ export function reconcileServerDraftOnLoad({
     restoreFromStoredToken().then((restored) => {
       if (!current) return;
       if (!restored) {
-        // No server copy, so nothing a local write could outrank: the link code
-        // the page adopted goes into the local copy now, not at the next save —
+        // No server copy, so nothing a local write could outrank: the link codes
+        // the page adopted go into the local copy now, not at the next save —
         // never into another applicant's copy (`foreignSlot`, below).
-        if (!referralCode || invite?.foreignSlot || resetGenerationRef.current !== generation
+        if (invite?.foreignSlot || resetGenerationRef.current !== generation
           || discardGuardsRef.current.discardedElsewhere()) return;
         const local = readApplicationDraft(slug);
-        if (local?.data && local.data.referralCode !== referralCode) {
-          const saved = saveApplicationDraft(slug, { ...local.data, referralCode });
+        if (local?.data && !holdsLinkCodes(local.data, linkCodes)) {
+          const saved = saveApplicationDraft(slug, { ...local.data, ...linkCodes });
           if (saved.draftId) draftIdRef.current = saved.draftId;
         }
         return;
@@ -105,6 +107,7 @@ export function reconcileServerDraftOnLoad({
       }
 
       const guards = discardGuardsRef.current;
+      const storedLocal = invite?.foreignSlot ? null : readApplicationDraft(slug);
       // This used to be `{ ...prev, ...restored.formData }`, which made the server
       // copy win every field it held whether or not it was the newer one. That
       // destroyed the local backup with the very failure it exists to survive: a
@@ -134,7 +137,7 @@ export function reconcileServerDraftOnLoad({
          * no new writer is introduced to a slot whose naming and sequence rules
          * are as intricate as these.
          */
-        local: invite?.foreignSlot ? null : readApplicationDraft(slug),
+        local: storedLocal,
         server: restored,
         live: latestDraftRef.current.formData,
       });
@@ -150,7 +153,7 @@ export function reconcileServerDraftOnLoad({
 
       // The link clicked wins over a code the stored copy carries, in what is
       // written back as well as on screen.
-      const formData = referralCode ? { ...resolved.formData, referralCode } : resolved.formData;
+      const formData = { ...resolved.formData, ...linkCodes };
 
       // Write the outcome back locally when the **server** copy won.
       //
@@ -191,11 +194,13 @@ export function reconcileServerDraftOnLoad({
             draftId: draftIdRef.current,
           });
         if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
-      } else if (referralCode && resolved.formData.referralCode !== referralCode) {
-        // Local won, so its sequences stay as they are; only the link code is new
+      } else if (!holdsLinkCodes(storedLocal?.data, linkCodes)) {
+        // Local won, so its sequences stay as they are; only a link code is new
         // work, written as an ordinary local save so the next sync sends it. Here
         // and not at the earlier local restore: the winner is decided by then, and
         // a copy marked unsynced before the decision would beat a newer server copy.
+        // Measured against the stored copy, not the merged answers: those already
+        // carry the codes the page adopted, which storage may not hold yet.
         const saved = saveApplicationDraft(slug, formData);
         if (saved.draftId) draftIdRef.current = saved.draftId;
       }

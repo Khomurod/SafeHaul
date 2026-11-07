@@ -15,9 +15,17 @@
  * (`field.id || field.key || custom-question-<i>`), the
  * `formData.customAnswers[key]` read with the flat `formData[key]` fallback, the
  * `customAnswers` object write, the checkbox array toggle, the required-question
- * gate and its exact "Please answer required question: …" toast (all in
- * `requiredCustomQuestions.js`, which the pre-flight shares; spaces are no answer), the `linearScale` numeric coercion,
- * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
+ * rule (in `requiredCustomQuestions.js`, which the pre-flight shares; spaces are
+ * no answer), the `linearScale` numeric coercion, the
+ * `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
+ *
+ * **What is wrong is said at the question**, as on page one, never in a toast
+ * that is gone in seconds. From the first Continue, each required question still
+ * unanswered says so under itself (`unansweredQuestionMessage`: the control's or
+ * group's own `error`, announced and describing it), and stops as it is answered;
+ * Continue stays refused and the focus goes to the first question at fault (to
+ * the control the browser would refuse in it, such as the list a time still
+ * lacks). A time half chosen says so under its lists too.
  *
  * A time question is three lists (`TimeSelectField`, the same `HH:MM`), never the
  * phone's own dialog, which can lack Set; it is checked with the page before it
@@ -43,15 +51,14 @@ import React, { useRef, useState } from 'react';
 import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { shownOptions } from '@/config/customQuestionOptions';
-import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';
 import TimeSelectField from './components/TimeSelectField';
 import { CustomFileQuestion } from './components/CustomFileQuestion';
 import {
     customAnswerOf,
     customQuestionKey,
-    firstUnansweredRequiredQuestion,
-    requiredQuestionMessage,
+    unansweredQuestionMessage,
+    unansweredRequiredQuestionKeys,
 } from '../requiredCustomQuestions';
 import {
     Badge,
@@ -65,6 +72,17 @@ import {
     Textarea,
 } from '@/design-system/components';
 
+const CONTROLS = 'input, select, textarea';
+
+/** The first control in `container` the browser would refuse, or null. */
+const firstInvalidControl = (container) => Array.from(container?.querySelectorAll(CONTROLS) ?? [])
+    .find((control) => control.willValidate && !control.validity.valid) ?? null;
+
+/** Focus a question: the control at fault in it, else its first. */
+const focusQuestion = (question) => {
+    (firstInvalidControl(question) || question?.querySelector(CONTROLS))?.focus();
+};
+
 export function DynamicQuestionsStep({
     questions = [],
     formData = {},
@@ -73,7 +91,6 @@ export function DynamicQuestionsStep({
     handleFileUpload, // Optional file upload handler from parent
     embedded = false, // The questions alone, as a Company Admin's editor shows them
 }) {
-    const { showError } = useToast();
     // Every file question whose upload is still on its way, by question key: the
     // share of the file sent so far, from 0 to 1. Each one's Cancel is in the ref.
     const [uploading, setUploading] = useState({});
@@ -87,17 +104,31 @@ export function DynamicQuestionsStep({
     const questionKey = customQuestionKey;
     const getAnswer = (field, index) => customAnswerOf(formData, field, index);
 
+    // Set by the first Continue: from then on each required question still
+    // unanswered says so under itself, and stops once it is answered.
+    const [continuePressed, setContinuePressed] = useState(false);
+    const questionRefs = useRef({});
+    const unanswered = new Set(continuePressed ? unansweredRequiredQuestionKeys(questions, formData) : []);
+    const errorFor = (field, index) => (
+        unanswered.has(questionKey(field, index)) ? unansweredQuestionMessage(field) : undefined
+    );
+
     const handleContinue = () => {
-        const unanswered = firstUnansweredRequiredQuestion(questions, formData);
-        if (unanswered) {
-            showError(requiredQuestionMessage(unanswered));
+        setContinuePressed(true);
+        const [firstUnanswered] = unansweredRequiredQuestionKeys(questions, formData);
+        if (firstUnanswered !== undefined) {
+            focusQuestion(questionRefs.current[firstUnanswered]);
             return;
         }
         // Then the page's own checks, as every step runs them: a time half chosen
-        // for an optional question would otherwise go on as no answer.
+        // for an optional question would otherwise go on as no answer. It is the
+        // one answer this page marks invalid itself (`setCustomValidity`), and it
+        // says so under its lists; whatever else the browser refuses, it says.
         const form = document.getElementById('driver-form');
         if (form && !form.checkValidity()) {
-            form.reportValidity();
+            const invalid = firstInvalidControl(form);
+            if (invalid?.validity.customError) invalid.focus();
+            else form.reportValidity();
             return;
         }
         onNavigate('next');
@@ -200,12 +231,13 @@ export function DynamicQuestionsStep({
         const value = getAnswer(field, index) || '';
         const controlId = `custom-q-${key}`;
         const label = field.label || 'Additional question';
+        const error = errorFor(field, index);
 
         switch (field.type) {
             case 'paragraph':
             case 'textarea':
                 return (
-                    <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
+                    <FormField id={controlId} label={label} description={field.helpText} required={field.required} error={error}>
                         <Textarea
                             rows={4}
                             value={value}
@@ -218,7 +250,7 @@ export function DynamicQuestionsStep({
             case 'multipleChoice':
             case 'radio':
                 return (
-                    <ChoiceGroup legend={label} description={field.helpText} required={field.required}>
+                    <ChoiceGroup legend={label} description={field.helpText} required={field.required} error={error}>
                         {shownOptions(field.options).map((opt, i) => {
                             const { value: optValue, label: optLabel } = optionParts(opt);
                             return (
@@ -241,7 +273,7 @@ export function DynamicQuestionsStep({
             case 'checkboxes': {
                 const checkedValues = Array.isArray(value) ? value : [];
                 return (
-                    <ChoiceGroup legend={label} description={field.helpText} required={field.required}>
+                    <ChoiceGroup legend={label} description={field.helpText} required={field.required} error={error}>
                         {shownOptions(field.options).map((opt, i) => {
                             const { value: optValue, label: optLabel } = optionParts(opt);
                             return (
@@ -262,7 +294,7 @@ export function DynamicQuestionsStep({
             case 'dropdown':
             case 'select':
                 return (
-                    <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
+                    <FormField id={controlId} label={label} description={field.helpText} required={field.required} error={error}>
                         <Select value={value} onChange={(e) => handleChange(key, e.target.value)}>
                             <option value="">Select an option...</option>
                             {shownOptions(field.options).map((opt, i) => {
@@ -286,6 +318,7 @@ export function DynamicQuestionsStep({
                         minYear={ty - 100}
                         maxYear={ty + 25}
                         helpText={field.helpText || 'Month / Day / Year.'}
+                        error={error}
                     />
                 );
 
@@ -299,12 +332,14 @@ export function DynamicQuestionsStep({
                         onChange={(_, v) => handleChange(key, v)}
                         required={field.required}
                         helpText={field.helpText}
+                        error={error}
+                        showIncomplete={continuePressed}
                     />
                 );
 
             case 'number':
                 return (
-                    <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
+                    <FormField id={controlId} label={label} description={field.helpText} required={field.required} error={error}>
                         <Input
                             type="text"
                             inputMode="decimal"
@@ -327,6 +362,7 @@ export function DynamicQuestionsStep({
                         loading={key in uploading}
                         progress={uploading[key]}
                         failure={uploadFailures[key]}
+                        error={error}
                         onFile={(file) => uploadAnswer(key, file)}
                         onCancel={() => cancelUpload(key)}
                     />
@@ -343,6 +379,7 @@ export function DynamicQuestionsStep({
                         legend={label}
                         description={field.helpText || `${min} = ${minLabel}, ${max} = ${maxLabel}`}
                         required={field.required}
+                        error={error}
                         orientation="horizontal"
                     >
                         {scaleValues.map((val) => (
@@ -368,7 +405,7 @@ export function DynamicQuestionsStep({
 
             default: // shortAnswer, text
                 return (
-                    <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
+                    <FormField id={controlId} label={label} description={field.helpText} required={field.required} error={error}>
                         <Input
                             type="text"
                             value={value}
@@ -390,7 +427,12 @@ export function DynamicQuestionsStep({
             )}
 
             {questions.map((field, index) => (
-                <Card key={questionKey(field, index)} padding="md" className="space-y-ds-3">
+                <Card
+                    key={questionKey(field, index)}
+                    ref={(element) => { questionRefs.current[questionKey(field, index)] = element; }}
+                    padding="md"
+                    className="space-y-ds-3"
+                >
                     {field.dotRequired && (
                         <Badge tone="warning" icon={Shield}>DOT</Badge>
                     )}

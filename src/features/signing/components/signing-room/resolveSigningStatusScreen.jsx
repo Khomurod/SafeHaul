@@ -16,8 +16,9 @@ import {
  * `resolveApplyStatusScreen`:
  *
  *  1. **Loading, then a link that did not open** — neither has a document. The
- *     link's screen keeps the server's reason, names the sender and offers Try
- *     again only when the link could not be checked.
+ *     link's screen keeps the server's reason, names the sender, offers Try
+ *     again only when the link could not be checked, and "Ask … for a new link"
+ *     (`onRequestNewLink`) where a new link can help.
  *  2. **Voided**, which no later state can undo.
  *  3. **Signed just now**, above "already signed": a submission the room made
  *     itself is thanked, not told it was too late.
@@ -31,7 +32,7 @@ import {
  * @returns {React.ReactElement|null} null when the document itself should render
  */
 export function resolveSigningStatusScreen({
-    loading, linkProblem, companyName, onRetry,
+    loading, linkProblem, companyName, onRetry, onRequestNewLink,
     request, success, declined, hasEsignConsent, consentFocus = false,
     onReturnToDocuments, onAgree, onDecline, onGoBack,
 }) {
@@ -43,6 +44,7 @@ export function resolveSigningStatusScreen({
                 detail={linkProblem.detail}
                 companyName={companyName}
                 onRetry={isRetryableLinkProblem(linkProblem.reason) ? onRetry : undefined}
+                onRequestNewLink={onRequestNewLink}
             />
         );
     }

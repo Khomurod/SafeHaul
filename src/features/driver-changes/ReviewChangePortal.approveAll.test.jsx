@@ -83,6 +83,27 @@ describe('the review names who proposed the changes', () => {
         expect(screen.getByText(/The company you applied to proposed these changes\./)).toBeInTheDocument();
         expect(screen.queryByText(/recruiter/i)).not.toBeInTheDocument();
     });
+
+    it('names the company when the review says which it is', async () => {
+        mockCallable.mockImplementation((name) => (name === 'getChangeReview'
+            ? Promise.resolve({ data: { ...review([FIRST_NAME, CITY]).data, companyName: 'Acme Freight' } })
+            : Promise.resolve({ data: { success: true, remaining: 0 } })));
+        await renderLoaded();
+        expect(screen.getByText('Acme Freight proposed these changes. Approve, reject, or fix each one.')).toBeInTheDocument();
+        expect(screen.queryByText(/The company you applied to/)).not.toBeInTheDocument();
+    });
+
+    it('names the company on the link screen when the link stops working after the review loaded', async () => {
+        mockCallable.mockImplementation((name) => (name === 'getChangeReview'
+            ? Promise.resolve({ data: { ...review([FIRST_NAME, CITY]).data, companyName: 'Acme Freight' } })
+            : Promise.reject(callableError('failed-precondition', 'This review is already complete.'))));
+        await renderLoaded();
+        fireEvent.click(approveAll());
+
+        expect(await screen.findByRole('heading', { level: 1, name: 'This link has already been used' })).toBeInTheDocument();
+        expect(screen.getByText(/contact Acme Freight\./)).toBeInTheDocument();
+        expect(screen.queryByText(/the sender/)).not.toBeInTheDocument();
+    });
 });
 
 describe('Approve all', () => {
@@ -103,8 +124,8 @@ describe('Approve all', () => {
         expect(byAll[1]).toEqual({
             token: 'tok-1',
             resolutions: [
-                { fieldKey: 'firstName', action: 'approve' },
-                { fieldKey: 'city', action: 'approve' },
+                { fieldKey: 'firstName', action: 'approve', shown: 'Jonathan' },
+                { fieldKey: 'city', action: 'approve', shown: 'Sparks' },
             ],
         });
     });
@@ -116,9 +137,9 @@ describe('Approve all', () => {
 
         await screen.findByText('Thank you!');
         expect(submitted()[0][1].resolutions).toEqual([
-            { fieldKey: 'firstName', action: 'approve' },
-            { fieldKey: 'employers', action: 'approve' },
-            { fieldKey: 'phone', action: 'approve' },
+            { fieldKey: 'firstName', action: 'approve', shown: 'Jonathan' },
+            { fieldKey: 'employers', action: 'approve', shown: [] },
+            { fieldKey: 'phone', action: 'approve', shown: '5559998888' },
         ]);
         expect(submitted()).toHaveLength(1);
     });
@@ -241,8 +262,9 @@ describe('Approve all', () => {
         await renderLoaded();
         fireEvent.click(approveAll());
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'This link was replaced by a newer one' }))
-            .toHaveFocus();
+        const replaced = await screen.findByRole('heading', { level: 1, name: 'This link was replaced by a newer one' });
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(replaced).toHaveFocus());
         expect(screen.queryByRole('button', { name: /^Approve all/ })).not.toBeInTheDocument();
     });
 
@@ -275,7 +297,7 @@ describe('a review link that does not open', () => {
         expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
         expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
-        expect(screen.getByText(/the sender/)).toBeInTheDocument();
+        expect(screen.getByText(/(?:ask|from) the sender/)).toBeInTheDocument();
     });
 
     it('opens the review on Try again when the link could not be checked', async () => {

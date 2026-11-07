@@ -24,6 +24,7 @@ import {
 } from './applicationDraftStorage';
 import { REMOVED_MESSAGE, isRemovedRefusal } from './draftRemoval';
 import { heldIdentityTracker } from './resumeIdentity';
+import { NO_LINK_CODES } from './referralIntake';
 
 export function useDiscardAwareResume({
   slug,
@@ -34,6 +35,9 @@ export function useDiscardAwareResume({
   setSubmissionStatus,
   showInfo,
   setFormData,
+  // The page address's referral and recruiter codes: the fresh start after a
+  // discard keeps them, so the link that opened this page still counts.
+  linkCodes = NO_LINK_CODES,
   setCurrentStep,
   setIntakeMode,
 }) {
@@ -264,7 +268,7 @@ export function useDiscardAwareResume({
       // holds this tab's own application, and deleting that would destroy the backup
       // of work the applicant is still typing.
       clearApplicationDraft(slug);
-      setFormData({});
+      setFormData({ ...linkCodes });
       setCurrentStep(0);
       setIntakeMode(null);
       if (reason === 'removed') showInfo(REMOVED_MESSAGE);
@@ -281,7 +285,7 @@ export function useDiscardAwareResume({
     showInfo(submitted
       ? 'That application was submitted in another tab. Your answers here will start a new one.'
       : 'The saved application was discarded in another tab. Your answers here will start a new one.');
-  }, [slug, submissionStatus, setSubmissionStatus, forgetDraftOwnership, showInfo, setFormData, setCurrentStep, setIntakeMode]);
+  }, [slug, submissionStatus, setSubmissionStatus, forgetDraftOwnership, showInfo, setFormData, linkCodes, setCurrentStep, setIntakeMode]);
 
   /**
    * A stable handle on the two discard callbacks.

@@ -5,7 +5,11 @@ controls. They use native event objects and do not transform values, validate
 business rules, fetch data, or save anything.
 
 - `FormField` associates one control with its label, helper text, required
-  state, and error.
+  state, and error. Its rows pack at its top (`align-content: start`): in a
+  grid row beside a taller field (a hint that wraps, an error) the extra height
+  goes below the messages, so the two controls stay level. Before, the rows
+  shared it and the shorter field's control sat lower (6px in Settings → Text
+  messages, under a two-line phone hint).
 - `FieldDisplay` presents labelled read-only information without adding a form
   control to keyboard order.
 - `Label` and `FieldMessage` are available for uncommon compositions.

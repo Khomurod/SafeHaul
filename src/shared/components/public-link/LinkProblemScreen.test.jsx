@@ -1,9 +1,9 @@
 // The one "this link does not work" screen the public pages share. Artificial
 // company names only.
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkProblemScreen } from './LinkProblemScreen';
 import { LINK_PROBLEM, linkProblemFromError } from './linkProblem';
 
@@ -102,5 +102,122 @@ describe('LinkProblemScreen', () => {
             expect(container.innerHTML).not.toMatch(/text-\[(9|10|11)px\]/);
             unmount();
         }
+    });
+});
+
+describe('LinkProblemScreen: Ask for a new link', () => {
+    const onRequestNewLink = vi.fn(async () => ({ ok: true }));
+    const ASK = 'Ask Acme Freight for a new link';
+    const refusal = (code) => Object.assign(new Error(code), { code: `functions/${code}` });
+
+    beforeEach(() => {
+        // Queues *Once values: reset, and the default put back.
+        vi.resetAllMocks();
+        onRequestNewLink.mockImplementation(async () => ({ ok: true }));
+    });
+
+    it.each([LINK_PROBLEM.EXPIRED, LINK_PROBLEM.REPLACED, LINK_PROBLEM.UNOPENABLE])(
+        'is offered when %s, beside the advice the screen already gives',
+        (reason) => {
+            render(<LinkProblemScreen reason={reason} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />);
+            expect(screen.getByRole('button', { name: ASK })).toBeEnabled();
+            const advice = ALL.find(([r]) => r === reason)[3];
+            expect(screen.getByText(advice)).toBeInTheDocument();
+        },
+    );
+
+    it.each([LINK_PROBLEM.USED, LINK_PROBLEM.NOT_FOUND, LINK_PROBLEM.UNAVAILABLE])(
+        'is not offered when %s, where a new link would not help',
+        (reason) => {
+            render(<LinkProblemScreen reason={reason} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />);
+            expect(screen.queryByRole('button', { name: /for a new link/ })).not.toBeInTheDocument();
+        },
+    );
+
+    it('is not offered when the page passes no way to ask', () => {
+        render(<LinkProblemScreen reason={LINK_PROBLEM.EXPIRED} companyName="Acme Freight" />);
+        expect(screen.queryByRole('button', { name: /for a new link/ })).not.toBeInTheDocument();
+    });
+
+    it('is busy while asking, then says the company was asked, in place of the button, and takes the focus', async () => {
+        let answer;
+        onRequestNewLink.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve; }));
+        render(<LinkProblemScreen reason={LINK_PROBLEM.EXPIRED} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />);
+
+        fireEvent.click(screen.getByRole('button', { name: ASK }));
+        const button = screen.getByRole('button', { name: ASK });
+        expect(button).toHaveAttribute('aria-busy', 'true');
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(onRequestNewLink).toHaveBeenCalledTimes(1);
+
+        await act(async () => answer({ ok: true }));
+        const done = await screen.findByText('Done. Acme Freight has been asked to send you a new link.');
+        // The focus moves in an effect, after the notice renders.
+        await waitFor(() => expect(done.closest('[role="status"].ds-notice')).toHaveFocus());
+        expect(screen.queryByRole('button', { name: ASK })).not.toBeInTheDocument();
+    });
+
+    it('never says the company was told when the server refused too many requests, and offers the button again', async () => {
+        // Someone else on the same network may have used the requests up: nobody was told.
+        onRequestNewLink.mockRejectedValueOnce(refusal('resource-exhausted'));
+        render(<LinkProblemScreen reason={LINK_PROBLEM.REPLACED} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />);
+
+        fireEvent.click(screen.getByRole('button', { name: ASK }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Too many requests came from this network. Please try again later, or contact Acme Freight.',
+        );
+        expect(screen.queryByText(/has been (asked|told)/)).not.toBeInTheDocument();
+        const again = screen.getByRole('button', { name: ASK });
+        await waitFor(() => expect(again).toHaveFocus());
+
+        fireEvent.click(again);
+        expect(await screen.findByText('Done. Acme Freight has been asked to send you a new link.')).toBeInTheDocument();
+    });
+
+    it('says at once when the request could not be sent, and offers the button again', async () => {
+        onRequestNewLink.mockRejectedValueOnce(Object.assign(new TypeError('Failed to fetch')));
+        render(<LinkProblemScreen reason={LINK_PROBLEM.UNOPENABLE} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />);
+
+        fireEvent.click(screen.getByRole('button', { name: ASK }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'That request could not be sent. Please contact Acme Freight.',
+        );
+        const again = screen.getByRole('button', { name: ASK });
+        await waitFor(() => expect(again).toHaveFocus());
+
+        fireEvent.click(again);
+        expect(await screen.findByText('Done. Acme Freight has been asked to send you a new link.')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(onRequestNewLink).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks "the sender" when the page does not know the company', async () => {
+        onRequestNewLink.mockRejectedValueOnce(new Error('offline'));
+        render(<LinkProblemScreen reason={LINK_PROBLEM.EXPIRED} onRequestNewLink={onRequestNewLink} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ask the sender for a new link' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent('Please contact the sender.');
+        fireEvent.click(screen.getByRole('button', { name: 'Ask the sender for a new link' }));
+        expect(await screen.findByText('Done. The sender has been asked to send you a new link.')).toBeInTheDocument();
+    });
+
+    it('has no accessibility violations with the button and with each outcome', async () => {
+        onRequestNewLink
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockRejectedValueOnce(refusal('resource-exhausted'));
+        const { container } = render(
+            <LinkProblemScreen reason={LINK_PROBLEM.EXPIRED} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />,
+        );
+        expect((await axe(container)).violations).toEqual([]);
+
+        fireEvent.click(screen.getByRole('button', { name: ASK }));
+        await screen.findByRole('alert');
+        expect((await axe(container)).violations).toEqual([]);
+
+        fireEvent.click(screen.getByRole('button', { name: ASK }));
+        const card = screen.getByRole('main');
+        await within(card).findByText(/Too many requests came from this network/);
+        expect((await axe(container)).violations).toEqual([]);
     });
 });

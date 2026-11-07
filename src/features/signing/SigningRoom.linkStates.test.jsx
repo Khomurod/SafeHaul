@@ -16,12 +16,14 @@ import {
 
 const getEnvelopeFn = vi.fn();
 const fetchPublicCompanyName = vi.fn(async () => 'Acme Freight');
+const requestNewLink = vi.fn(async () => ({ ok: true }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => getEnvelopeFn) }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
 vi.mock('@shared/services/publicCompanyName', () => ({
     fetchPublicCompanyName: (...args) => fetchPublicCompanyName(...args),
 }));
+vi.mock('@shared/services/requestNewLink', () => ({ requestNewLink: (...args) => requestNewLink(...args) }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false, getE2EQueryParam: vi.fn(() => '') }));
 vi.mock('@shared/hooks', () => ({ useIsMobile: () => false }));
 
@@ -63,7 +65,9 @@ describe('a signing link that does not open', () => {
         getEnvelopeFn.mockRejectedValueOnce(refusal('deadline-exceeded', 'This signing link has expired. Please request a new one.'));
         renderRoom();
 
-        expect(await heading('This link has expired')).toHaveFocus();
+        const expired = await heading('This link has expired');
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(expired).toHaveFocus());
         expect(screen.getByText(/ask Acme Freight for a new link/)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
         expect(screen.queryByText('Access Denied')).not.toBeInTheDocument();
@@ -77,6 +81,16 @@ describe('a signing link that does not open', () => {
         await heading('This link could not be opened');
         expect(screen.getByText(/replaced by a newer link, or the document may already be signed/))
             .toHaveTextContent(/Open the newest message from Acme Freight/);
+    });
+
+    it('asks the company for a new link to this document, by its ids and never its token', async () => {
+        getEnvelopeFn.mockRejectedValueOnce(refusal('deadline-exceeded', 'This signing link has expired. Please request a new one.'));
+        renderRoom();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Ask Acme Freight for a new link' }));
+        expect(await screen.findByText('Done. Acme Freight has been asked to send you a new link.')).toBeInTheDocument();
+        expect(requestNewLink).toHaveBeenCalledWith({ kind: 'sign', companyId: 'co1', requestId: 'req1' });
+        expect(JSON.stringify(requestNewLink.mock.calls)).not.toContain('link-token');
     });
 
     it('still explains the link when the company name cannot be read', async () => {
@@ -153,13 +167,14 @@ describe('declining to sign electronically', () => {
         expect(consent).not.toHaveFocus();
 
         fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
-        expect(await heading('You did not agree to sign electronically')).toHaveFocus();
+        const declined = await heading('You did not agree to sign electronically');
+        await waitFor(() => expect(declined).toHaveFocus());
         expect(screen.getByText(/You can close this tab\./)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
         await waitFor(() => expect(screen.getByRole('button', { name: /I Agree - Proceed to Sign/ })).toBeInTheDocument());
         // Go back's button is gone: the consent's heading holds the focus, not `<body>`.
-        expect(screen.getByRole('heading', { level: 1, name: 'Electronic Signature Consent' })).toHaveFocus();
+        await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Electronic Signature Consent' })).toHaveFocus());
     });
 });
 

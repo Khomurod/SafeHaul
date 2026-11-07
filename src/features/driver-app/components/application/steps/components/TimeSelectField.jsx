@@ -49,6 +49,12 @@ function valueOf(parts) {
  * dropping a half answer. The `${idPrefix}-hour|minute|period` element ids are
  * its contract.
  *
+ * `error` is the page's own message about the time, such as a required time left
+ * unanswered: said under the lists, announced, marking and describing each list.
+ * `showIncomplete` lets a time half chosen say so there too once the page has
+ * been sent. Either way a time half chosen gives the more exact message, marking
+ * only the lists still empty, as `TypedDateField` does for a date half typed.
+ *
  * Private to the application wizard, like `TypedDateField`: the hours-of-service
  * statement and a company's own time questions ask with it.
  */
@@ -60,10 +66,13 @@ export default function TimeSelectField({
     onChange,
     required = false,
     helpText,
+    error,
+    showIncomplete = false,
 }) {
     const rawId = useId().replace(/:/g, '');
     const groupLabelId = `${idPrefix}-group-label-${rawId}`;
     const helpTextId = `${idPrefix}-help-${rawId}`;
+    const errorId = `${idPrefix}-error`;
 
     const [parts, setParts] = useState(() => partsOf(value));
     const emitted = useRef(value || '');
@@ -80,6 +89,9 @@ export default function TimeSelectField({
 
     const chosen = PART_KEYS.filter((key) => parts[key]).length;
     const halfChosen = chosen > 0 && chosen < PART_KEYS.length;
+    const incomplete = halfChosen && (showIncomplete || Boolean(error));
+    const message = incomplete ? HALF_CHOSEN : error;
+    const describedBy = [helpText ? helpTextId : null, message ? errorId : null].filter(Boolean).join(' ') || undefined;
 
     useEffect(() => {
         for (const key of PART_KEYS) {
@@ -124,7 +136,7 @@ export default function TimeSelectField({
             <div
                 role="group"
                 aria-labelledby={label || required ? groupLabelId : undefined}
-                aria-describedby={helpText ? helpTextId : undefined}
+                aria-describedby={describedBy}
                 className="grid grid-cols-2 gap-ds-2 sm:grid-cols-3"
             >
                 {/* On a phone AM/PM takes the line below, as a date's year does: in a
@@ -138,6 +150,8 @@ export default function TimeSelectField({
                             value={parts[key]}
                             onChange={onPartChange(key)}
                             required={required}
+                            aria-invalid={(incomplete ? !parts[key] : Boolean(error)) || undefined}
+                            aria-describedby={message ? describedBy : undefined}
                         >
                             <option value="">{placeholder}</option>
                             {options.map((option) => (
@@ -147,6 +161,7 @@ export default function TimeSelectField({
                     </div>
                 ))}
             </div>
+            {message && <FieldMessage id={errorId} tone="error">{message}</FieldMessage>}
         </div>
     );
 }

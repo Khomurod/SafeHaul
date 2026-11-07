@@ -16,6 +16,7 @@ import {
 } from './postApplyDocsStorage';
 import { useQueuedApplicationOutcome } from './useQueuedApplicationOutcome';
 import { readDiscardMark } from './applicationDraftStorage';
+import { NO_LINK_CODES } from './referralIntake';
 
 export function usePostSubmitDocuments({
   slug,
@@ -32,6 +33,9 @@ export function usePostSubmitDocuments({
   setSubmittedApplicationId,
   setSubmittedConfirmationNumber,
   setFormData,
+  // The page address's referral and recruiter codes (`linkCodesFrom`): a new
+  // application from the same link starts with them, as the first one did.
+  linkCodes = NO_LINK_CODES,
   setCurrentStep,
   draftIdRef,
   discardMarkRef,
@@ -82,7 +86,7 @@ export function usePostSubmitDocuments({
     setSubmittedApplicationId('');
     setSubmittedConfirmationNumber('');
     setPostSubmitDocs({});
-    setFormData({});
+    setFormData({ ...linkCodes });
     setCurrentStep(0);
     // A genuinely new application. `finishDraftLifecycle` has already forgotten the
     // submitted one's name; this is here so the invariant holds from either direction,
@@ -97,7 +101,7 @@ export function usePostSubmitDocuments({
     forgetDraftOwnership();
     // Typed here from now on, as after Start Over.
     restoredFromDraftRef.current = false;
-  }, [company?.id, slug, draftIdRef, discardMarkRef, restoredFromDraftRef, forgetDraftOwnership, setPostSubmitDocs, setSubmissionStatus, setSubmittedApplicationId, setSubmittedConfirmationNumber, setFormData, setCurrentStep]);
+  }, [company?.id, slug, draftIdRef, discardMarkRef, restoredFromDraftRef, forgetDraftOwnership, setPostSubmitDocs, setSubmissionStatus, setSubmittedApplicationId, setSubmittedConfirmationNumber, setFormData, linkCodes, setCurrentStep]);
 
   const handleOpenPostApplicationTemplate = async (template) => {
     if (!template?.templateId || !company?.id || !submittedApplicationId) {

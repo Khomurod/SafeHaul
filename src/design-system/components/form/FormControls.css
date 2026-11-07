@@ -1,5 +1,12 @@
+/*
+ * `align-content: start` keeps label, control and messages packed at the top
+ * when a parent grid or flex row stretches the field to a taller neighbour's
+ * height (a hint that wraps, an error); left to stretch, the auto rows shared
+ * that space and the control sat lower than the one beside it.
+ */
 .ds-form-field {
   display: grid;
+  align-content: start;
   gap: var(--ds-space-2);
   min-width: 0;
 }

@@ -27,7 +27,7 @@ import {
   listenForReconnectFlush,
 } from './publicApplyDraftSync';
 import { INVITE_OUTCOMES } from './publicApplyInvite';
-import { prefillFromQuickInterest, referralCodeFrom } from './referralIntake';
+import { linkCodesFrom, prefillFromQuickInterest } from './referralIntake';
 // And in hooks of their own: the circular discard/resume pair, the draft
 // lifecycle, and the post-submission documents flow.
 import { useDiscardAwareResume } from './useDiscardAwareResume';
@@ -47,7 +47,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const params = useParams();
   const slug = sandbox ? SANDBOX_APP_SLUG : params.slug;
   const [searchParams] = useSearchParams();
-  const linkReferralCode = referralCodeFrom(searchParams);
+  const linkCodes = useMemo(() => linkCodesFrom(searchParams), [searchParams]); // a referral's and a recruiter's
   const navigate = useNavigate();
   const { showSuccess, showError, showInfo } = useToast();
 
@@ -140,7 +140,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     submissionStatus,
     setSubmissionStatus,
     showInfo,
-    setFormData,
+    setFormData, linkCodes,
     setCurrentStep,
     setIntakeMode,
   });
@@ -256,7 +256,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     return reconcileServerDraftOnLoad({
       slug,
       invite: inviteOutcome,
-      referralCode: linkReferralCode,
+      linkCodes,
       resetGenerationRef,
       restoredFromDraftRef,
       draftIdRef,
@@ -268,7 +268,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       setCurrentStep,
       setIntakeMode,
     });
-  }, [company?.id, sandbox, slug, inviteOutcome, linkReferralCode, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef, markIdentitySatisfied]);
+  }, [company?.id, sandbox, slug, inviteOutcome, linkCodes, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef, markIdentitySatisfied]);
 
   /** Retries the server copy when the connection comes back — see the listener. */
   useEffect(() => {
@@ -306,6 +306,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     sandbox,
     formData,
     currentStep,
+    linkCodes,
     draftIdRef,
     restoredFromDraftRef,
     discardMarkRef,
@@ -388,7 +389,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setSubmissionStatus,
     setSubmittedApplicationId,
     setSubmittedConfirmationNumber,
-    setFormData,
+    setFormData, linkCodes,
     setCurrentStep,
     draftIdRef, discardMarkRef, restoredFromDraftRef, forgetDraftOwnership,
     navigate,
@@ -434,7 +435,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     intakeMode,
     companyId: company?.id,
     companyName: company?.companyName,
-    referralCode: linkReferralCode,
+    referralCode: linkCodes.referralCode,
     // The referral quick form's answers fill page one where it is still empty.
     onQuickInterestPrefill: (contact) => setFormData((prev) => prefillFromQuickInterest(prev, contact)),
     handleChooseAutoFill,
@@ -443,7 +444,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     handleCdlAutoFillFileChange,
   });
   if (statusScreen) return statusScreen;
-
 
   return (
     <div className="min-h-screen bg-ds-canvas pb-ds-12">

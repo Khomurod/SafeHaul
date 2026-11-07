@@ -61,4 +61,5 @@ async function notifySealOutcome(db, companyId, requestId, request, outcome) {
     }
 }
 
-module.exports = { notifySealOutcome };
+// `recipientFor` also says who hears that a signer asked for a new link (`requestNewLink.js`).
+module.exports = { notifySealOutcome, recipientFor };

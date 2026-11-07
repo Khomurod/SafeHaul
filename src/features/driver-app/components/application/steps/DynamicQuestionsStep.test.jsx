@@ -400,13 +400,15 @@ describe('DynamicQuestionsStep answer contract', () => {
 describe('DynamicQuestionsStep required gate', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('blocks Continue with the frozen message naming the unanswered question', () => {
+  // What it says, and where, is in DynamicQuestionsStep.fieldErrors.test.jsx.
+  it('blocks Continue on an unanswered question, saying so under it and not in a toast', () => {
     const { onNavigate } = renderStep([{ id: 'q1', label: 'Why us?', type: 'shortAnswer', required: true }]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(onNavigate).not.toHaveBeenCalled();
-    expect(showError).toHaveBeenCalledWith('Please answer required question: Why us?');
+    expect(screen.getByText('Please answer this question.')).toHaveAttribute('role', 'alert');
+    expect(showError).not.toHaveBeenCalled();
   });
 
   it('treats an empty checkbox array as unanswered', () => {
@@ -417,6 +419,7 @@ describe('DynamicQuestionsStep required gate', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(onNavigate).not.toHaveBeenCalled();
+    expect(screen.getByText('Please choose at least one.')).toHaveAttribute('role', 'alert');
   });
 
   it('treats a blank file answer as unanswered', () => {
@@ -427,6 +430,7 @@ describe('DynamicQuestionsStep required gate', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(onNavigate).not.toHaveBeenCalled();
+    expect(screen.getByText('Please upload a file.')).toHaveAttribute('role', 'alert');
   });
 
   it.each([
@@ -441,7 +445,7 @@ describe('DynamicQuestionsStep required gate', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(onNavigate).not.toHaveBeenCalled();
-    expect(showError).toHaveBeenCalledWith('Please answer required question: Years driving');
+    expect(screen.getByText('Please answer this question.')).toHaveAttribute('role', 'alert');
   });
 
   it('advances once every required question is answered', () => {
