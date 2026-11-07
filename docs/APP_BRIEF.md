@@ -1555,6 +1555,15 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 - **A hire date is never guessed.** `hiredAt` exists only where the server saw the
   status enter hired (from 2026-11-06, Д15). Older hires stay without one: no backfill,
   and no hire date read from `createdAt`, `updatedAt`, `statusChangedAt` or Activity.
+- **A masked SSN is `***-**-` and its last four digits everywhere** (screens,
+  application and previous-employer PDFs, the company API); a value with fewer
+  than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
+  on `functions/shared/maskSsn.vectors.json`. The dossier's Full application
+  view still prints the SSN whole (no field marks it sensitive): a known gap
+  for the owner to decide.
+- **A screen offers to email a link only to an address the server would send
+  to:** `canEmailLinkTo` and Fix recipient use `isWellFormedEmail`, the server's
+  `isValidEmail` rule (`functions/shared/isValidEmail.vectors.json`).
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
   `onCancel`, so "start a new application" is never the cancel action: Start
   over is its own explicit destructive confirmation, and Escape at either stage
