@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useApplicationView } from '@features/company-admin/hooks/useApplicationView';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { useData } from '@/context/DataContext';
@@ -12,6 +12,7 @@ import { useCompactViewport } from './useCompactViewport';
 import { useContactAttemptTexts } from './useContactAttemptTexts';
 import { savedTextNote } from './contactAttemptText';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { forgetDriverUploadFilings } from '@features/company-admin/components/tabs/dqFileSync';
 
 /**
  * DriverProfileModal
@@ -79,6 +80,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A tab may open another (`onOpenTab`: the DQ file's employers open Previous
  *   Employment). The panel then starts at its top and takes the focus, as the
  *   control that was pressed is gone.
+ * - What the dossier does once a record while it is open is forgotten when it
+ *   closes: the DQ tab's filing of the driver's uploads
+ *   (`fileDriverUploadsOnce`).
  */
 export function DriverProfileModal({
     companyId,
@@ -120,6 +124,8 @@ export function DriverProfileModal({
     */
     const tabsIdBase = `dossier-${useId().replace(/:/g, '')}`;
     const isCompact = useCompactViewport();
+    // The next opening of the dossier files each record's uploads again.
+    useEffect(() => () => forgetDriverUploadFilings(), []);
 
     const { currentUserClaims } = useData();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
