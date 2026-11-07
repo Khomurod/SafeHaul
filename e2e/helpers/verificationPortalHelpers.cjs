@@ -74,9 +74,9 @@ async function fillRespondent(page) {
 /**
  * Choose a radio option the way a user does — by clicking its label.
  *
- * The real `<input type="radio">` is `sr-only` inside the `<label>` (the
- * standard custom-radio pattern), so the visible dot intercepts a direct click
- * on the input. Keyboard operation is unaffected and is covered separately.
+ * Each option is the design system's `Radio`: a native input with its own
+ * `<label for>`, so clicking the visible text selects it. Keyboard operation is
+ * covered separately.
  */
 const chooseInGroup = (page, groupName, optionName) => page
   .getByRole('group', { name: groupName })
