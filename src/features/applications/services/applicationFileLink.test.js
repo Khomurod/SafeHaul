@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callables = vi.hoisted(() => ({
     getSignedApplicationFileUrl: vi.fn(),
+    getSignedApplicationFileUrls: vi.fn(),
     getSignedPevUrl: vi.fn(),
     getSignedDocumentUrl: vi.fn(),
 }));
@@ -12,8 +13,10 @@ vi.mock('@lib/firebase', () => ({ functions: {}, auth: session.auth }));
 
 import {
     FILE_LINK_REUSE_MS,
+    MAX_FILES_PER_SIGNING,
     forgetApplicationFileLinks,
     reusableApplicationFileUrl,
+    reusableApplicationFileUrls,
     signedApplicationFileUrl,
 } from './applicationFileLink';
 
@@ -166,5 +169,99 @@ describe('reusableApplicationFileUrl', () => {
         await expect(stale).rejects.toThrow('internal');
         await expect(reusableApplicationFileUrl(UPLOAD)).resolves.toBe('https://signed.test/link-1');
         expect(callables.getSignedApplicationFileUrl).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('reusableApplicationFileUrls', () => {
+    const MEDICAL = UPLOAD.replace('cdl', 'medical');
+    const PEV = 'companies/co-1/applications/app-1/pev_results/PEV_A_abcd1234.pdf';
+    /** Answers every path it is asked for, each with a link of its own. */
+    const signAll = async ({ storagePaths }) => ({
+        data: { success: true, results: Object.fromEntries(storagePaths.map((path) => [path, { url: `https://signed.test/together/${path}` }])) },
+    });
+
+    beforeEach(() => {
+        session.auth.currentUser = { uid: 'recruiter-1' };
+        callables.getSignedApplicationFileUrls.mockImplementation(signAll);
+    });
+
+    it("signs a record's driver uploads in one call", async () => {
+        const links = reusableApplicationFileUrls([UPLOAD, MEDICAL, UPLOAD]);
+
+        await expect(links[UPLOAD]).resolves.toBe(`https://signed.test/together/${UPLOAD}`);
+        await expect(links[MEDICAL]).resolves.toBe(`https://signed.test/together/${MEDICAL}`);
+        expect(callables.getSignedApplicationFileUrls).toHaveBeenCalledTimes(1);
+        expect(callables.getSignedApplicationFileUrls).toHaveBeenCalledWith({ storagePaths: [UPLOAD, MEDICAL] });
+        expect(callables.getSignedApplicationFileUrl).not.toHaveBeenCalled();
+    });
+
+    it('reuses the links it holds, for the files signed together or one at a time', async () => {
+        await reusableApplicationFileUrl(UPLOAD);
+        await reusableApplicationFileUrls([MEDICAL])[MEDICAL];
+
+        const links = reusableApplicationFileUrls([UPLOAD, MEDICAL]);
+
+        await expect(links[UPLOAD]).resolves.toBe('https://signed.test/upload');
+        await expect(links[MEDICAL]).resolves.toBe(`https://signed.test/together/${MEDICAL}`);
+        expect(callables.getSignedApplicationFileUrls).toHaveBeenCalledTimes(1);
+        expect(callables.getSignedApplicationFileUrl).toHaveBeenCalledTimes(1);
+    });
+
+    it('signs no more than eight files in a call', async () => {
+        const paths = Array.from({ length: MAX_FILES_PER_SIGNING + 1 }, (_, i) => UPLOAD.replace('cdl', `file-${i}`));
+
+        const links = reusableApplicationFileUrls(paths);
+        await Promise.all(Object.values(links));
+
+        expect(MAX_FILES_PER_SIGNING).toBe(8);
+        expect(callables.getSignedApplicationFileUrls.mock.calls.map(([{ storagePaths }]) => storagePaths.length)).toEqual([8, 1]);
+    });
+
+    it('sends a verification file to its own signer', async () => {
+        const links = reusableApplicationFileUrls([PEV]);
+
+        await expect(links[PEV]).resolves.toBe('https://signed.test/pev');
+        expect(callables.getSignedApplicationFileUrls).not.toHaveBeenCalled();
+    });
+
+    it('fails a refused file alone, with its reason, and signs it again next time', async () => {
+        callables.getSignedApplicationFileUrls.mockResolvedValueOnce({
+            data: {
+                success: true,
+                results: {
+                    [UPLOAD]: { url: 'https://signed.test/cdl' },
+                    [MEDICAL]: { error: { code: 'permission-denied', message: 'You do not have access to this company.' } },
+                },
+            },
+        });
+
+        const links = reusableApplicationFileUrls([UPLOAD, MEDICAL]);
+
+        await expect(links[UPLOAD]).resolves.toBe('https://signed.test/cdl');
+        await expect(links[MEDICAL]).rejects.toMatchObject({
+            message: 'You do not have access to this company.',
+            code: 'functions/permission-denied',
+        });
+        await expect(reusableApplicationFileUrls([UPLOAD, MEDICAL])[MEDICAL]).resolves.toBe(`https://signed.test/together/${MEDICAL}`);
+        expect(callables.getSignedApplicationFileUrls).toHaveBeenLastCalledWith({ storagePaths: [MEDICAL] });
+    });
+
+    it('signs each file on its own when the call fails', async () => {
+        callables.getSignedApplicationFileUrls.mockRejectedValueOnce(Object.assign(new Error('not found'), { code: 'functions/not-found' }));
+
+        const links = reusableApplicationFileUrls([UPLOAD, MEDICAL]);
+
+        await expect(links[UPLOAD]).resolves.toBe('https://signed.test/upload');
+        await expect(links[MEDICAL]).resolves.toBe('https://signed.test/upload');
+        expect(callables.getSignedApplicationFileUrl.mock.calls).toEqual([[{ storagePath: UPLOAD }], [{ storagePath: MEDICAL }]]);
+    });
+
+    it('never hands a link to another sign-in', async () => {
+        await reusableApplicationFileUrls([UPLOAD])[UPLOAD];
+
+        session.auth.currentUser = { uid: 'recruiter-2' };
+        await reusableApplicationFileUrls([UPLOAD])[UPLOAD];
+
+        expect(callables.getSignedApplicationFileUrls).toHaveBeenCalledTimes(2);
     });
 });

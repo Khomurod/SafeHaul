@@ -251,6 +251,8 @@ function exportFunctions(wanted) {
   // Signed download URLs for driver-uploaded application files (guest_uploads): re-signs
   // at view time so company users can open CDLs/medical cards (the persisted URL expires).
   if (wanted('getSignedApplicationFileUrl')) exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrl;
+  // The dossier's driver uploads in one call, each signed as getSignedApplicationFileUrl signs it.
+  if (wanted('getSignedApplicationFileUrls')) exports.getSignedApplicationFileUrls = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrls;
   // The DQ tab, on opening: files the record's uploads no DQ record holds yet.
   if (wanted('syncDqFiles')) exports.syncDqFiles = require('./syncDqFiles').syncDqFiles;
   // Every DQ write: keeps the record's `dqExpiresNext` (earliest valid-until date) true.
