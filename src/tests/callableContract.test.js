@@ -35,6 +35,16 @@ describe('callablesIn', () => {
         expect([...callablesIn(source)]).toEqual(['publishWording']);
     });
 
+    it('reads only calls of the wrapper itself, not a method or a longer name ending in it', () => {
+        const source = `
+            const call = (name, data) => httpsCallable(functions, name)(data);
+            await call('saveDraft', {});
+            handler.call('ctx', 1);
+            recall('notACallable');
+        `;
+        expect([...callablesIn(source)]).toEqual(['saveDraft']);
+    });
+
     it('ignores a function that does not hand its first parameter to httpsCallable', () => {
         const source = `
             const say = (text) => console.log(text);

@@ -37,12 +37,14 @@ jest.mock('../../firebaseAdmin', () => {
 });
 
 // The one SMS settings rule is the shared assertCompanyAdminStrict (owner
-// decision K1); here it stands in for the company's admin, and the deactivation
-// read stays a double.
+// decision K1); here it stands in for it: a super admin by their Auth record
+// passes before the deactivation read, as the real rule does, and the company's
+// admin meets that read, which stays a double.
 const mockAssertCompanyActive = jest.fn();
+const mockSuperAdminUids = new Set(['super-1']);
 jest.mock('../../shared/companyAccess', () => ({
     ...jest.requireActual('../../shared/companyAccess'),
-    assertCompanyAdminStrict: async (_uid, companyId) => mockAssertCompanyActive(companyId),
+    assertCompanyAdminStrict: async (uid, companyId) => (mockSuperAdminUids.has(uid) ? undefined : mockAssertCompanyActive(companyId)),
 }));
 
 const { saveIntegrationConfig, verifySmsConfig, verifyLineConnection } = require('../../integrations/controllers/configController');

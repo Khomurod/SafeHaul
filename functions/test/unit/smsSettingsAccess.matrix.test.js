@@ -219,3 +219,18 @@ describe('K1: before and after', () => {
         expect(AFTER.saveIntegrationConfig.ownerWithoutAdminRole).toBe(true);
     });
 });
+
+// K4: a removal applies at once. A super admin whose role was removed keeps a
+// token that says super admin for up to an hour; the Auth record already does
+// not. Every SMS settings callable reads the record, so each refuses at once.
+// Before, saveSmsLineAssignments and sendTestSMS read it, and the other six
+// trusted the token.
+describe('K4: a removed super admin', () => {
+    const removed = { uid: 'ex-super-1', token: { globalRole: 'super_admin', roles: { globalRole: 'super_admin' } } };
+
+    it.each(Object.keys(CALLS))('%s refuses on the Auth record, whatever the token says, touching nothing', async (name) => {
+        const error = await callables[name]({ auth: removed, data: CALLS[name]('co-1') }).catch((e) => e);
+        expect(error?.message).toBe('Company admin access required.');
+        expect(mockTouched).toEqual([]);
+    });
+});

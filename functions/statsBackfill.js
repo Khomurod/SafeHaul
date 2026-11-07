@@ -133,9 +133,6 @@ async function processCompany(companyId, dryRun) {
 }
 
 /**
- * Backfill stats for a single company (super-admin only).
- */
-/**
  * Super admins only, read from the Auth record on every call rather than from
  * the token: a super admin whose role was removed is refused at once (К4).
  */
@@ -147,6 +144,7 @@ async function assertFreshSuperAdmin(request) {
     }
 }
 
+/** Backfill stats for a single company (super-admin only). */
 exports.backfillCompanyStats = onCall(
     { cors: true, timeoutSeconds: 540, memory: '512MiB' },
     async (request) => {

@@ -55,6 +55,14 @@ process.env.SMS_ENCRYPTION_KEY = '01234567890123456789012345678901';
 const { encrypt, decrypt } = require('../../integrations/encryption');
 const { saveIntegrationConfig } = require('../../integrations/controllers/configController');
 
+// Who may manage SMS settings is one rule with its own matrix
+// (smsSettingsAccess.matrix.test.js, which reads the caller's Auth record for
+// real); here the caller passes it.
+jest.mock('../../shared/companyAccess', () => ({
+    ...jest.requireActual('../../shared/companyAccess'),
+    assertCompanyAdminStrict: async () => {},
+}));
+
 const OWNER = { uid: 'owner-1', token: { globalRole: 'super_admin', roles: {} } };
 const PROVIDER = 'companies/co-1/integrations/sms_provider';
 const KEEP = '__PRESERVE__';

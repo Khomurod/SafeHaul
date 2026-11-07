@@ -33,6 +33,13 @@ describe('StatusBadge', () => {
         expect(container.querySelector('.ds-badge')).toHaveAttribute('data-tone', tone);
     });
 
+    it('reads a status stored as something other than text as neutral, without throwing', () => {
+        for (const stored of [5, true, { label: 'Hired' }]) {
+            expect(getStatusTone(stored)).toBe('neutral');
+            expect(() => getStatusIcon(stored)).not.toThrow();
+        }
+    });
+
     it('reads an unrecognised status as neutral, not as new', () => {
         // Neutral is the honest answer. Defaulting an unknown status to `info`
         // would render it identically to a genuinely new record and quietly

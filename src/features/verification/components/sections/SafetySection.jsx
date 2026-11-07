@@ -1,7 +1,8 @@
 import React from 'react';
-import { ChoiceGroup, FormField, FormSection, Radio, Textarea } from '@/design-system/components';
+import { FormField, FormSection, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
+import { ChoiceQuestion } from './ChoiceQuestion';
 import { RETURN_TO_DUTY_OPTIONS, YES_NO_OPTIONS } from './choiceOptions';
 
 /** Return-to-duty answers after which a follow-up testing plan applies. */
@@ -17,66 +18,39 @@ export function SafetySection({ formData, formErrors, updateField }) {
             title="Section 2: Safety & Compliance (FMCSA Required)"
             description="This information is required by federal regulation"
         >
-            <ChoiceGroup
+            <ChoiceQuestion
+                name="subjectToFmcsrs"
                 legend="Was this driver subject to the Federal Motor Carrier Safety Regulations (FMCSRs)?"
                 description="i.e., Did they operate a commercial motor vehicle (CMV) for your company?"
+                options={YES_NO_OPTIONS}
                 required
-                orientation="horizontal"
-                error={formErrors.subjectToFmcsrs}
-            >
-                {YES_NO_OPTIONS.map((opt) => (
-                    <Radio
-                        key={String(opt.value)}
-                        name="subjectToFmcsrs"
-                        value={String(opt.value)}
-                        label={opt.label}
-                        checked={formData.subjectToFmcsrs === opt.value}
-                        onChange={() => updateField('subjectToFmcsrs', opt.value)}
-                        aria-required="true"
-                    />
-                ))}
-            </ChoiceGroup>
+                formData={formData}
+                formErrors={formErrors}
+                updateField={updateField}
+            />
 
-            <ChoiceGroup
+            <ChoiceQuestion
+                name="subjectToDotTesting"
                 legend="Was this driver subject to DOT drug & alcohol testing requirements?"
+                options={YES_NO_OPTIONS}
                 required
-                orientation="horizontal"
-                error={formErrors.subjectToDotTesting}
-            >
-                {YES_NO_OPTIONS.map((opt) => (
-                    <Radio
-                        key={String(opt.value)}
-                        name="subjectToDotTesting"
-                        value={String(opt.value)}
-                        label={opt.label}
-                        checked={formData.subjectToDotTesting === opt.value}
-                        onChange={() => updateField('subjectToDotTesting', opt.value)}
-                        aria-required="true"
-                    />
-                ))}
-            </ChoiceGroup>
+                formData={formData}
+                formErrors={formErrors}
+                updateField={updateField}
+            />
 
             {formData.subjectToDotTesting && (
                 <Stack gap="md" className="rounded-ds-lg border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-4">
-                    <ChoiceGroup
+                    <ChoiceQuestion
+                        name="hadDrugAlcoholViolations"
                         legend="Did this driver have any DOT drug or alcohol violations?"
                         description="Including positive tests, refusals, or other violations per 49 CFR Part 40"
+                        options={YES_NO_OPTIONS}
                         required
-                        orientation="horizontal"
-                        error={formErrors.hadDrugAlcoholViolations}
-                    >
-                        {YES_NO_OPTIONS.map((opt) => (
-                            <Radio
-                                key={String(opt.value)}
-                                name="hadDrugAlcoholViolations"
-                                value={String(opt.value)}
-                                label={opt.label}
-                                checked={formData.hadDrugAlcoholViolations === opt.value}
-                                onChange={() => updateField('hadDrugAlcoholViolations', opt.value)}
-                                aria-required="true"
-                            />
-                        ))}
-                    </ChoiceGroup>
+                        formData={formData}
+                        formErrors={formErrors}
+                        updateField={updateField}
+                    />
 
                     {formData.hadDrugAlcoholViolations && (
                         <Stack gap="md">
@@ -96,21 +70,14 @@ export function SafetySection({ formData, formErrors, updateField }) {
                                     placeholder="Describe the nature of the violation(s), date(s), substance(s) involved..."
                                 />
                             </FormField>
-                            <ChoiceGroup
+                            <ChoiceQuestion
+                                name="completedReturnToDuty"
                                 legend="Did the driver complete the return-to-duty process per 49 CFR Part 40, Subpart O?"
-                                orientation="horizontal"
-                            >
-                                {RETURN_TO_DUTY_OPTIONS.map((opt) => (
-                                    <Radio
-                                        key={String(opt.value)}
-                                        name="completedReturnToDuty"
-                                        value={String(opt.value)}
-                                        label={opt.label}
-                                        checked={formData.completedReturnToDuty === opt.value}
-                                        onChange={() => updateField('completedReturnToDuty', opt.value)}
-                                    />
-                                ))}
-                            </ChoiceGroup>
+                                options={RETURN_TO_DUTY_OPTIONS}
+                                formData={formData}
+                                formErrors={formErrors}
+                                updateField={updateField}
+                            />
                             {FOLLOW_UP_ANSWERS.includes(formData.completedReturnToDuty) && (
                                 <FormField
                                     id="verify-follow-up-testing-plan"
@@ -134,25 +101,16 @@ export function SafetySection({ formData, formErrors, updateField }) {
                 <h3 className="mb-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
                     Accident History
                 </h3>
-                <ChoiceGroup
+                <ChoiceQuestion
+                    name="hadAccidents"
                     legend="Were there any DOT-recordable accidents involving this driver in the last 3 years?"
                     description="Per 49 CFR §390.5: accidents involving fatality, bodily injury requiring medical treatment away from the scene, or disabling damage to any vehicle requiring tow-away"
+                    options={YES_NO_OPTIONS}
                     required
-                    orientation="horizontal"
-                    error={formErrors.hadAccidents}
-                >
-                    {YES_NO_OPTIONS.map((opt) => (
-                        <Radio
-                            key={String(opt.value)}
-                            name="hadAccidents"
-                            value={String(opt.value)}
-                            label={opt.label}
-                            checked={formData.hadAccidents === opt.value}
-                            onChange={() => updateField('hadAccidents', opt.value)}
-                            aria-required="true"
-                        />
-                    ))}
-                </ChoiceGroup>
+                    formData={formData}
+                    formErrors={formErrors}
+                    updateField={updateField}
+                />
 
                 {formData.hadAccidents && (
                     <div className="mt-ds-4">
@@ -169,22 +127,15 @@ export function SafetySection({ formData, formErrors, updateField }) {
                 )}
 
                 <div className="mt-ds-4">
-                    <ChoiceGroup
+                    <ChoiceQuestion
+                        name="hadNonRecordableAccidents"
                         legend="Were there any other accidents involving this driver in the last 3 years that were not DOT-recordable?"
                         description="Optional. For example, minor collisions or property damage below the DOT definition above."
-                        orientation="horizontal"
-                    >
-                        {YES_NO_OPTIONS.map((opt) => (
-                            <Radio
-                                key={String(opt.value)}
-                                name="hadNonRecordableAccidents"
-                                value={String(opt.value)}
-                                label={opt.label}
-                                checked={formData.hadNonRecordableAccidents === opt.value}
-                                onChange={() => updateField('hadNonRecordableAccidents', opt.value)}
-                            />
-                        ))}
-                    </ChoiceGroup>
+                        options={YES_NO_OPTIONS}
+                        formData={formData}
+                        formErrors={formErrors}
+                        updateField={updateField}
+                    />
                 </div>
 
                 {formData.hadNonRecordableAccidents && (

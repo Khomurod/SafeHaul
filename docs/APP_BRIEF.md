@@ -1340,11 +1340,13 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
   in use, and reports a missing secret apart from an unreadable one.
 - **SMS settings are one rule** (`integrations/controllers/config/smsSettingsAccess.js`,
   owner decision К1): saving and verifying the provider, adding, removing, testing and
-  verifying a line, line assignments and the test text all use `assertCompanyAdminStrict`
-  (a Company Admin by token or membership, or the company's owner: `ownerId`, `createdBy`,
-  `adminId`; a deactivated company refused) plus a super admin by token; never a recruiter
-  or HR user. The Settings screens and the `integrations` documents stay Company Admin
-  only, so an owner without that role reaches these only through the callables.
+  verifying a line, line assignments and the test text all use `assertCompanyAdminStrict`:
+  a Company Admin by their claims or a membership, the company's owner (`ownerId`,
+  `createdBy`, `adminId`) or a super admin; a deactivated company refused, but for a super
+  admin; never a recruiter or HR user. Claims are read from the Auth record on each call,
+  never from the token, so a removed role is refused at once (К4). The Settings screens and
+  the `integrations` documents stay Company Admin only, so an owner without that role
+  reaches these only through the callables.
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s

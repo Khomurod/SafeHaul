@@ -47,7 +47,9 @@ export function callablesIn(contents) {
   let match;
   while ((match = literal.exec(contents)) !== null) found.add(match[1]);
   while ((match = wrapper.exec(contents)) !== null) {
-    const use = new RegExp(`\\b${match[1]}\\(\\s*['"\`]([A-Za-z0-9_]+)['"\`]`, "g");
+    // The wrapper itself, never a method or a longer name that ends in its name
+    // (`handler.call('x')` is not a call of a wrapper named `call`).
+    const use = new RegExp(`(?<![\\w$.])${match[1]}\\(\\s*['"\`]([A-Za-z0-9_]+)['"\`]`, "g");
     let call;
     while ((call = use.exec(contents)) !== null) found.add(call[1]);
   }

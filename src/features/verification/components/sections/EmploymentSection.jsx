@@ -1,7 +1,8 @@
 import React from 'react';
-import { ChoiceGroup, FormField, FormSection, Input, Radio, Select, Textarea } from '@/design-system/components';
+import { FormField, FormSection, Input, Select, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
+import { ChoiceQuestion } from './ChoiceQuestion';
 import { NO_RECORD_OPTIONS, YES_NO_OPTIONS } from './choiceOptions';
 
 /** Section 1: Employment Confirmation. After "No" to rehire the employer may
@@ -12,24 +13,15 @@ export function EmploymentSection({ formData, formErrors, updateField }) {
             title="Section 1: Employment Confirmation"
             description="Confirm the applicant's employment details"
         >
-            <ChoiceGroup
+            <ChoiceQuestion
+                name="wasEmployed"
                 legend="Was this individual employed by your company?"
+                options={NO_RECORD_OPTIONS}
                 required
-                orientation="horizontal"
-                error={formErrors.wasEmployed}
-            >
-                {NO_RECORD_OPTIONS.map((opt) => (
-                    <Radio
-                        key={String(opt.value)}
-                        name="wasEmployed"
-                        value={String(opt.value)}
-                        label={opt.label}
-                        checked={formData.wasEmployed === opt.value}
-                        onChange={() => updateField('wasEmployed', opt.value)}
-                        aria-required="true"
-                    />
-                ))}
-            </ChoiceGroup>
+                formData={formData}
+                formErrors={formErrors}
+                updateField={updateField}
+            />
 
             {formData.wasEmployed && (
                 <Stack gap="md" className="border-l-2 border-ds-status-info-border pl-ds-4">
@@ -102,18 +94,14 @@ export function EmploymentSection({ formData, formErrors, updateField }) {
                         </Select>
                     </FormField>
 
-                    <ChoiceGroup legend="Eligible for Rehire?" orientation="horizontal">
-                        {YES_NO_OPTIONS.map((opt) => (
-                            <Radio
-                                key={String(opt.value)}
-                                name="eligibleForRehire"
-                                value={String(opt.value)}
-                                label={opt.label}
-                                checked={formData.eligibleForRehire === opt.value}
-                                onChange={() => updateField('eligibleForRehire', opt.value)}
-                            />
-                        ))}
-                    </ChoiceGroup>
+                    <ChoiceQuestion
+                        name="eligibleForRehire"
+                        legend="Eligible for Rehire?"
+                        options={YES_NO_OPTIONS}
+                        formData={formData}
+                        formErrors={formErrors}
+                        updateField={updateField}
+                    />
                     {formData.eligibleForRehire === false && (
                         <FormField id="verify-rehire-explanation" label="Please explain (optional)">
                             <Textarea

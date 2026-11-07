@@ -53,6 +53,9 @@ let mockCallerToken = {};
 jest.mock('../../shared/companyAccess', () => ({
     ...jest.requireActual('../../shared/companyAccess'),
     assertCompanyAdminStrict: async (_uid, companyId) => {
+        if (!companyId) throw Object.assign(new Error('companyId is required.'), { code: 'invalid-argument' });
+        // The real rule reads the caller's Auth record; here the token stands in for it.
+        if (jest.requireActual('../../shared/superAdmin').isSuperAdminClaims(mockCallerToken)) return;
         if (mockCallerToken.roles?.[companyId] !== 'company_admin') {
             throw Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' });
         }
