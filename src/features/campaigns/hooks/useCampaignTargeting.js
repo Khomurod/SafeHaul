@@ -3,163 +3,149 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT, campaignLimitOf } from '../constants/campaignConstants';
 
+const NO_KEYS = new Set();
+
+/**
+ * The "Exclude Previously Messaged" window the count applies, or null for none.
+ * An upload is counted with the window the screen shows until another is
+ * picked; only "No Exclusion" turns it off.
+ */
+const windowOf = (filters) => {
+    const setting = filters.leadType === 'import'
+        ? (filters.excludeRecentDays || UPLOAD_EXCLUDE_DEFAULT)
+        : filters.excludeRecentDays;
+    return setting && setting !== 'off' ? setting : null;
+};
+
+/** What a count depends on. Limit Volume and the un-ticks are not: they come off the answer. */
+const audienceKeyOf = (companyId, method, filters) => JSON.stringify([
+    companyId, method, filters.leadType, filters.status, filters.recruiterId,
+    filters.createdAfter, filters.notContactedSince, filters.lastCallOutcome, filters.segmentId,
+    windowOf(filters),
+]);
+
+/** Asks the server who the audience is: `{ total, alreadyMessaged, keys, error }`. */
+async function countAudience({ companyId, filters, method }) {
+    const exclusion = windowOf(filters);
+
+    // Import mode: ask which rows this channel already reached.
+    if (filters.leadType === 'import') {
+        const rawData = filters.rawData || [];
+        if (rawData.length === 0) return { total: 0, alreadyMessaged: 0, keys: NO_KEYS, error: ERROR_MESSAGES.ZERO_RESULTS };
+        if (!exclusion) return { total: rawData.length, alreadyMessaged: 0, keys: NO_KEYS, error: null };
+        try {
+            const result = await httpsCallable(functions, 'checkImportPhones')({
+                companyId,
+                method,
+                excludeRecentDays: exclusion,
+                // Each row by the key the preview and the launch name it by.
+                recipients: rawData.map((row, index) => ({
+                    key: row.id || `import_${index}`,
+                    phone: row.normalizedPhone || row.phone || '',
+                    email: row.email || '',
+                })),
+            });
+            const keys = new Set(result.data.excludedKeys || []);
+            const total = Math.max(0, rawData.length - keys.size);
+            return { total, alreadyMessaged: keys.size, keys, error: total === 0 ? ERROR_MESSAGES.ZERO_RESULTS : null };
+        } catch (err) {
+            console.error('checkImportPhones error:', err);
+            // Non-fatal: the raw count, so the recruiter isn't blocked. The launch checks every row again.
+            return { total: rawData.length, alreadyMessaged: 0, keys: NO_KEYS, error: null };
+        }
+    }
+
+    try {
+        const result = await httpsCallable(functions, 'getFilterCount')({
+            companyId,
+            method,
+            // The whole audience: Limit Volume is applied to the answer, in the hook.
+            filters: { ...filters, excludeRecentDays: exclusion, campaignLimit: null },
+        });
+        const total = result.data.count || 0;
+        return { total, alreadyMessaged: result.data.alreadyMessaged || 0, keys: NO_KEYS, error: total === 0 ? ERROR_MESSAGES.ZERO_RESULTS : null };
+    } catch (err) {
+        console.error('Targeting Error:', err);
+        return { total: 0, alreadyMessaged: 0, keys: NO_KEYS, error: ERROR_MESSAGES.COUNT_FAILED };
+    }
+}
+
 /**
  * The audience count for a campaign of `method`'s channel ('sms' or 'email').
  * "Already messaged" is a recipient a campaign of the same channel reached
  * inside the window (`functions/bulkActions/helpers/recentlyMessaged.js`):
  * `alreadyMessaged` says how many the count leaves out, and for an uploaded
  * list `alreadyMessagedKeys` names those rows by their preview key.
- * Limit Volume trims a CRM count here, in the browser: changing it counts nothing again.
+ *
+ * Without a window the count is a cheap server aggregation and follows the
+ * filters by itself. With one, the server reads every matching record and its
+ * ledger entry, so the count waits for `recount` (Recalculate audience): until
+ * then `needsRecount` is true and nothing counted for other filters is shown.
+ * Limit Volume trims a CRM count here, in the browser: changing it counts
+ * nothing again. None of this decides who is messaged; the launch checks every
+ * recipient again on the server.
  */
 export function useCampaignTargeting(companyId, filters, currentUser, method = 'sms') {
-    const [matchCount, setMatchCount] = useState(0);
-    const [alreadyMessaged, setAlreadyMessaged] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
-    // The uploaded rows a campaign of this channel already reached, by row key.
-    const [alreadyMessagedKeys, setAlreadyMessagedKeys] = useState(new Set());
+    // Whether someone is signed in, not who: a new user object is not new filters.
+    const signedIn = Boolean(currentUser);
+    const isImport = filters.leadType === 'import';
+    const rows = isImport ? (filters.rawData ?? null) : null;
+    const key = audienceKeyOf(companyId, method, filters);
+    // An upload with no rows has nothing to look up, so it counts by itself.
+    const onRequest = windowOf(filters) !== null && !(isImport && !rows?.length);
 
-    // Debounce ref to prevent rapid-fire queries
-    const timeoutRef = useRef(null);
-    // Bumped by `retry` to count the same filters again after a failure.
-    const [attempt, setAttempt] = useState(0);
-    const retry = useCallback(() => setAttempt((n) => n + 1), []);
+    // The last answer, and the audience it is for (`key`, and the uploaded rows by identity).
+    const [counted, setCounted] = useState(null);
+    // The count in flight: `{ id, key, rows }`.
+    const [pending, setPending] = useState(null);
+    const lastRunRef = useRef(0);
+    const latestRef = useRef(null);
+    latestRef.current = { companyId, filters, method, key, rows };
 
+    const isFor = (entry) => Boolean(entry) && entry.key === key && entry.rows === rows;
+
+    const run = useCallback(async (audience) => {
+        const id = lastRunRef.current + 1;
+        lastRunRef.current = id;
+        setPending({ id, key: audience.key, rows: audience.rows });
+        const result = await countAudience(audience);
+        // An answer for filters the recruiter has since changed, or one a later
+        // count overtook, arrives too late to count.
+        const now = latestRef.current;
+        if (id === lastRunRef.current && now.key === audience.key && now.rows === audience.rows) {
+            setCounted({ key: audience.key, rows: audience.rows, ...result });
+        }
+        setPending((current) => (current?.id === id ? null : current));
+    }, []);
+
+    // The cheap count follows the filters, 500 ms after the last change.
     useEffect(() => {
-        // --- 1. DEFENSIVE GUARDS ---
-        if (!currentUser || !companyId) return;
+        if (!signedIn || !companyId || onRequest) return undefined;
+        const timer = setTimeout(() => run(latestRef.current), 500);
+        return () => clearTimeout(timer);
+    }, [key, rows, onRequest, signedIn, companyId, run]);
 
-        // An answer for filters the recruiter has since changed arrives too late
-        // to count: it must not overwrite the count for the current ones.
-        let stale = false;
+    // Recalculate audience, and Try again after a failed count.
+    const recount = useCallback(() => {
+        if (!signedIn || !companyId) return;
+        run(latestRef.current);
+    }, [signedIn, companyId, run]);
 
-        const fetchCount = async () => {
-            setIsLoading(true);
-            setError(null);
-
-            // Import mode: ask which rows this channel already reached.
-            if (filters.leadType === 'import') {
-                const rawData = filters.rawData || [];
-                const importCount = rawData.length;
-                setAlreadyMessaged(0);
-
-                if (importCount === 0) {
-                    setMatchCount(0);
-                    setAlreadyMessagedKeys(new Set());
-                    setError(ERROR_MESSAGES.ZERO_RESULTS);
-                    setIsLoading(false);
-                    return;
-                }
-
-                // The window the screen shows applies until another is picked;
-                // only "No Exclusion" returns the raw count.
-                const excludeSetting = filters.excludeRecentDays || UPLOAD_EXCLUDE_DEFAULT;
-                if (excludeSetting === 'off') {
-                    setMatchCount(importCount);
-                    setAlreadyMessagedKeys(new Set());
-                    setIsLoading(false);
-                    return;
-                }
-
-                // Each row by the key the preview and the launch name it by.
-                const recipients = rawData.map((row, index) => ({
-                    key: row.id || `import_${index}`,
-                    phone: row.normalizedPhone || row.phone || '',
-                    email: row.email || '',
-                }));
-
-                try {
-                    const checkFn = httpsCallable(functions, 'checkImportPhones');
-                    const result = await checkFn({
-                        companyId,
-                        method,
-                        excludeRecentDays: excludeSetting,
-                        recipients,
-                    });
-                    if (stale) return;
-
-                    const excluded = new Set(result.data.excludedKeys || []);
-                    setAlreadyMessagedKeys(excluded);
-                    setAlreadyMessaged(excluded.size);
-                    const filteredCount = Math.max(0, importCount - excluded.size);
-                    setMatchCount(filteredCount);
-                    if (filteredCount === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
-                } catch (err) {
-                    if (stale) return;
-                    console.error('checkImportPhones error:', err);
-                    // Non-fatal: fall back to raw count so the user isn't blocked
-                    setMatchCount(importCount);
-                    setAlreadyMessagedKeys(new Set());
-                } finally {
-                    if (!stale) setIsLoading(false);
-                }
-                return;
-            }
-
-            try {
-                const getCountFn = httpsCallable(functions, 'getFilterCount');
-
-                // Prepare backend-compatible filters
-                const backendFilters = {
-                    ...filters,
-                    // Map booleans/strings to backend expectations if necessary
-                    excludeRecentDays: (filters.excludeRecentDays && filters.excludeRecentDays !== 'off')
-                        ? filters.excludeRecentDays
-                        : null,
-                    // The whole audience: Limit Volume is applied below, to this answer.
-                    campaignLimit: null,
-                };
-
-                const result = await getCountFn({ companyId, filters: backendFilters, method });
-                if (stale) return;
-                const count = result.data.count || 0;
-                setAlreadyMessaged(result.data.alreadyMessaged || 0);
-                setMatchCount(count);
-                setAlreadyMessagedKeys(new Set());
-                if (count === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
-
-            } catch (err) {
-                if (stale) return;
-                console.error("Targeting Error:", err);
-                setMatchCount(0);
-                setAlreadyMessaged(0);
-                setAlreadyMessagedKeys(new Set());
-                setError(ERROR_MESSAGES.COUNT_FAILED);
-            } finally {
-                if (!stale) setIsLoading(false);
-            }
-        };
-
-        // Clear previous timeout
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-        // Set new timeout (Debounce 500ms)
-        timeoutRef.current = setTimeout(fetchCount, 500);
-
-        return () => {
-            stale = true;
-            clearTimeout(timeoutRef.current);
-        };
-    }, [
-        // Deep dependency check on relevant filter keys to trigger re-fetch
-        filters.leadType,
-        filters.status?.join(','), // Join array to primitive for stable comparison
-        filters.recruiterId,
-        filters.createdAfter,
-        filters.notContactedSince,
-        filters.lastCallOutcome,
-        filters.segmentId,
-        filters.excludeRecentDays,
-        filters.rawData,        // Re-check when import data changes
-        method,
-        companyId,
-        currentUser,
-        attempt
-    ]);
-
+    const needsRecount = onRequest && !isFor(counted);
+    // The cheap count shows the last answer until the next one arrives.
+    const shown = needsRecount ? null : counted;
     // An uploaded list has no Limit Volume (the launch sends every row it keeps).
-    const limit = filters.leadType === 'import' ? 0 : campaignLimitOf(filters);
-    const limitedCount = limit > 0 ? Math.min(matchCount, limit) : matchCount;
+    const limit = isImport ? 0 : campaignLimitOf(filters);
+    const total = shown?.total ?? 0;
 
-    return { matchCount: limitedCount, alreadyMessaged, isLoading, error, alreadyMessagedKeys, retry };
+    return {
+        matchCount: limit > 0 ? Math.min(total, limit) : total,
+        alreadyMessaged: shown?.alreadyMessaged ?? 0,
+        alreadyMessagedKeys: shown?.keys ?? NO_KEYS,
+        isLoading: isFor(pending),
+        error: shown?.error ?? null,
+        needsRecount,
+        recount,
+        retry: recount,
+    };
 }

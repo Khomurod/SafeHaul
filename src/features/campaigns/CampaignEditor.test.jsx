@@ -221,6 +221,20 @@ describe('CampaignEditor — navigation & completion', () => {
         expect(screen.getByRole('button', { name: /Content/ })).toHaveTextContent('(completed)');
     });
 
+    // With the exclusion window on, the audience step reports a count that waits
+    // for Recalculate audience; Launch must see it change once recalculated,
+    // even when the filters and the number stay the same.
+    it('passes Launch whether the audience is counted for its filters', async () => {
+        await renderEditor();
+        const filters = { mode: 'all', excludeRecentDays: '30' };
+        act(() => { captured.audience.onChange(filters, 0, { method: 'sms', alreadyMessaged: 0, needsRecount: true }); });
+        act(() => { captured.audience.onChange(filters, 0, { method: 'sms', alreadyMessaged: 0, needsRecount: false }); });
+
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+        await screen.findByTestId('launch');
+        expect(captured.launch.campaign.countedFor).toEqual({ method: 'sms', alreadyMessaged: 0, needsRecount: false });
+    });
+
     it('marks the active section with aria-current', async () => {
         await renderEditor();
         expect(screen.getByRole('button', { name: /Audience/ })).toHaveAttribute('aria-current', 'step');

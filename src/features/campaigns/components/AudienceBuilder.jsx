@@ -75,7 +75,9 @@ const EXCLUDE_RECENT_OPTIONS = [
  * `method` is the campaign's channel ('sms' or 'email'): the count leaves out
  * whoever a campaign of that channel already reached inside the window.
  * `onChange(filters, count, { method, alreadyMessaged })` reports the count and
- * the channel it was made for.
+ * the channel it was made for. With the window on, the count waits for
+ * Recalculate audience: until then it reports 0 with `needsRecount: true`, and
+ * Launch waits for it.
  */
 export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey = 'default', method = 'sms' }) {
     const { currentUser } = useData();
@@ -107,6 +109,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     // 1. CRM COUNT HOOK (Stateless now)
     const {
         matchCount, alreadyMessaged, isLoading: isCountLoading, alreadyMessagedKeys, error: countError, retry: retryCount,
+        needsRecount, recount,
     } = useCampaignTargeting(companyId, localFilters, currentUser, method);
     const channelLabel = CHANNEL_LABELS[method] || CHANNEL_LABELS.sms;
     // A count the server could not make is a failure, not an empty audience.
@@ -186,15 +189,17 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     const finalCount = uploadRows
         ? uploadRows.length - uploadMessagedCount - manualExcludedCount
         : Math.max(0, matchCount - manualExcludedCount);
+    // Not counted for these filters yet: no number, here or on Launch.
+    const reportedCount = needsRecount ? 0 : finalCount;
 
     // Effect: Sync filters + count to parent. The count leaves out the rows the
     // recruiter un-ticked: it is the number the launch screen says will be messaged.
-    const countedFor = useMemo(() => ({ method, alreadyMessaged: messagedCount }), [method, messagedCount]);
+    // `needsRecount` is always written: the draft is saved by merging, so a field
+    // left out would keep its old value.
+    const countedFor = useMemo(() => ({ method, alreadyMessaged: messagedCount, needsRecount }), [method, messagedCount, needsRecount]);
     useEffect(() => {
-        onChange(localFilters, finalCount, countedFor);
-    }, [localFilters, finalCount, countedFor, onChange]);
-
-
+        onChange(localFilters, reportedCount, countedFor);
+    }, [localFilters, reportedCount, countedFor, onChange]);
 
     // Handler for Filter Inputs
     const handleFilterChange = (key, value) => {
@@ -421,7 +426,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                         {isUploadMode ? 'Import Manifest' : 'Live Database Query'}
                                     </div>
                                     <p className="flex items-baseline gap-ds-2">
-                                        <span className="text-ds-heading-xl font-bold tracking-tight text-ds-content-on-inverse">{countFailed ? '—' : finalCount}</span>
+                                        <span className="text-ds-heading-xl font-bold tracking-tight text-ds-content-on-inverse">{countFailed || needsRecount ? '—' : finalCount}</span>
                                         <span className="text-ds-body font-medium text-ds-content-on-inverse-muted">recipients</span>
                                     </p>
                                 </div>
@@ -436,7 +441,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                     ? 'Updating recipient count…'
                                     : countFailed
                                         ? 'The recipient count failed.'
-                                        : `${finalCount} recipients selected.`}
+                                        : needsRecount
+                                            ? 'The recipient count is not up to date.'
+                                            : `${finalCount} recipients selected.`}
                             </p>
 
                             <div className="mt-ds-2 flex flex-wrap gap-ds-2">
@@ -450,7 +457,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                 {messagedCount > 0 && (
                                     <Badge tone="warning">{messagedCount} already messaged by {channelLabel}</Badge>
                                 )}
-                                {finalCount > MAX_RECIPIENTS_PER_LAUNCH && (
+                                {reportedCount > MAX_RECIPIENTS_PER_LAUNCH && (
                                     <Badge tone="danger">Over the {MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')}-per-launch limit</Badge>
                                 )}
                             </div>
@@ -464,6 +471,18 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                     actions={<Button size="sm" variant="secondary" onClick={retryCount}>Try again</Button>}
                                 >
                                     {ERROR_MESSAGES.COUNT_FAILED}
+                                </Notice>
+                            )}
+
+                            {needsRecount && (
+                                <Notice
+                                    tone="warning"
+                                    size="sm"
+                                    title="Count not up to date"
+                                    className="mt-ds-3"
+                                    actions={<Button size="sm" variant="secondary" loading={isCountLoading} onClick={recount}>Recalculate audience</Button>}
+                                >
+                                    Leaving out anyone already messaged by {channelLabel} reads every match, so the count runs only when you ask. Launch checks every recipient again before sending.
                                 </Notice>
                             )}
                         </div>
@@ -488,10 +507,10 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                             <Button
                                 variant="primary"
                                 fullWidth
-                                onClick={() => onChange(localFilters, finalCount, countedFor)}
+                                onClick={() => onChange(localFilters, reportedCount, countedFor)}
                             >
                                 <Icon icon={CheckCircle2} size="xl" />
-                                Confirm Audience ({finalCount})
+                                Confirm Audience ({needsRecount ? '—' : finalCount})
                             </Button>
                         </div>
                     </div>

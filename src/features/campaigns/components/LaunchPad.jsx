@@ -98,7 +98,11 @@ export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaun
     if (countedForOtherChannel) {
         errors.push(`The audience was counted for ${countedLabel}. Open Audience to count it for ${methodLabel}.`);
     }
-    if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
+    // Not counted for its filters yet (the window's count waits for Recalculate):
+    // the number here would not be the audience. The launch checks everyone again.
+    if (countedFor?.needsRecount) {
+        errors.push('The audience is not counted for its current filters. Open Audience and press Recalculate audience.');
+    } else if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
     if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
         errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
     }
