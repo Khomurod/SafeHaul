@@ -11,15 +11,16 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '@lib/firebase';
+import { functions } from '@lib/firebase';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
+import { DASHBOARD_KEEP_MS, keptAnswer } from '@shared/utils/keptAnswer';
 
 /** How long an answer is kept. */
-export const ATTENTION_KEEP_MS = 2 * 60 * 1000;
+export const ATTENTION_KEEP_MS = DASHBOARD_KEEP_MS;
 
 const QUIET = Object.freeze({ rows: Object.freeze({}), windows: Object.freeze({}) });
 
-let kept = null;
+const kept = keptAnswer({ keepMs: ATTENTION_KEEP_MS });
 
 async function callAttention(companyId) {
     const { data } = await httpsCallable(functions, 'getDashboardAttention')({ companyId });
@@ -31,22 +32,12 @@ async function callAttention(companyId) {
 
 /** The kept answer while it is fresh for this company and sign-in, else a new read. */
 function readAttention(companyId) {
-    const session = auth.currentUser;
-    const now = Date.now();
-    if (kept && kept.companyId === companyId && kept.session === session && now - kept.at < ATTENTION_KEEP_MS) {
-        return kept.promise;
-    }
-    const entry = { companyId, session, at: now, promise: callAttention(companyId) };
-    kept = entry;
-    entry.promise.catch(() => {
-        if (kept === entry) kept = null;
-    });
-    return entry.promise;
+    return kept.read(companyId, () => callAttention(companyId));
 }
 
 /** Forgets the kept answer, so the next dashboard reads again. */
 export function forgetDashboardAttention() {
-    kept = null;
+    kept.forget();
 }
 
 /**

@@ -7,6 +7,14 @@ import { applyClientSideFilters, createdAtMillis } from './dashboardSearch';
 import { loadHiringBrief } from './dashboardQueries';
 import { monthKey } from './dashboardPeriods';
 import { E2E_DASHBOARD_APPLICATIONS } from './e2eDashboardFixtures';
+import { keptAnswer } from '@shared/utils/keptAnswer';
+
+const kept = keptAnswer();
+
+/** Forgets the kept brief, so the next dashboard counts it again. */
+export function forgetHiringBrief() {
+    kept.forget();
+}
 
 /**
  * The browser tests' brief: the fixture applications through the filters their
@@ -26,7 +34,9 @@ function e2eHiringBrief(month) {
 /**
  * The dashboard's hiring brief for the viewer's current month: applications
  * added, applications in process and applications hired, each a server count
- * of the list it opens (`loadHiringBrief`), read once when the dashboard opens.
+ * of the list it opens (`loadHiringBrief`), read once when the dashboard opens
+ * and kept two minutes for this sign-in, company and month (`keptAnswer`); a
+ * failed read is not kept, so Try again reads anew.
  *
  * `brief` is null while it loads and after a failure (`error`), never a 0 that
  * was not counted; `refresh` reads it again. `month` (`YYYY-MM`) is the month
@@ -36,7 +46,9 @@ export function useHiringBrief(companyId) {
     const [month] = useState(() => monthKey(new Date()));
     const { value, isLoading, error, refresh } = useServerAggregate({
         enabled: Boolean(companyId),
-        run: async () => (isE2ETestMode ? e2eHiringBrief(month) : loadHiringBrief({ companyId, month })),
+        run: async () => (isE2ETestMode
+            ? e2eHiringBrief(month)
+            : kept.read(`${companyId}#${month}`, () => loadHiringBrief({ companyId, month }))),
     });
     return { brief: value, month, isLoading, error, refresh };
 }

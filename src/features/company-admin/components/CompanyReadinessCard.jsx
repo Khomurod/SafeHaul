@@ -4,12 +4,14 @@ import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { ButtonLink, Card, Link, StatusMedallion } from '@/design-system/components';
 import { Icon, AlertCircle, ArrowRight, CheckCircle, Info } from '@design-system/icons';
-import { useCompanyReadiness } from '../hooks/useCompanyReadiness';
+import { forgetCompanyReadiness, useCompanyReadiness } from '../hooks/useCompanyReadiness';
 
 /**
  * "Company setup" on the dashboard, for a company admin only: the settings the
  * company has not set up (`companyReadiness.js`), each with a link to the page
  * that fixes it, read once when the dashboard opens (`useCompanyReadiness`).
+ * Following a link forgets what was read, so coming back after the fix checks
+ * again.
  *
  * When everything is set up it is one calm line, so the dashboard stays quiet
  * and the admin still sees the check ran; the optional PEV copies are a link in
@@ -17,10 +19,15 @@ import { useCompanyReadiness } from '../hooks/useCompanyReadiness';
  * anyone else it renders nothing and reads nothing.
  */
 
-/** A link inside the app: a plain press stays in the page, any other opens as the browser would. */
+/**
+ * A link inside the app: a plain press stays in the page, any other opens as the
+ * browser would. Either way the kept answer is forgotten: the page it opens may
+ * fix what it names.
+ */
 function useInAppLink() {
     const navigate = useNavigate();
     return (href) => (event) => {
+        forgetCompanyReadiness();
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         navigate(href);

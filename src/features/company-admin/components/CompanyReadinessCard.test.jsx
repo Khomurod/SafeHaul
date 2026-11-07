@@ -31,6 +31,7 @@ const fx = vi.hoisted(() => ({
     emailSettings: { smtpHost: 'smtp.example.test', isVerified: true },
     emailFails: false,
     gate: null,
+    user: { uid: 'uid-1' },
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -50,24 +51,26 @@ vi.mock('firebase/functions', () => ({
         return { data: { success: true, settings: fx.emailSettings } };
     },
 }));
-vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, auth: { get currentUser() { return fx.user; } } }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 
 import { DataContext } from '@/context/DataContext';
 import { CompanyReadinessCard } from './CompanyReadinessCard';
+import { forgetCompanyReadiness } from '../hooks/useCompanyReadiness';
+import { DASHBOARD_KEEP_MS } from '@shared/utils/keptAnswer';
 
 function Where() {
     const location = useLocation();
     return <p data-testid="where">{`${location.pathname}${location.search}`}</p>;
 }
 
-function renderCard({ role = 'company_admin', docs = READY_DOCS } = {}) {
+function renderCard({ role = 'company_admin', docs = READY_DOCS, companyId = 'co-1' } = {}) {
     fx.docs = structuredClone(docs);
     return render(
         <MemoryRouter initialEntries={['/company/dashboard']}>
-            <DataContext.Provider value={{ currentUserClaims: { roles: { 'co-1': role } } }}>
+            <DataContext.Provider value={{ currentUserClaims: { roles: { [companyId]: role } } }}>
                 <Routes>
-                    <Route path="*" element={<><CompanyReadinessCard companyId="co-1" /><Where /></>} />
+                    <Route path="*" element={<><CompanyReadinessCard companyId={companyId} /><Where /></>} />
                 </Routes>
             </DataContext.Provider>
         </MemoryRouter>,
@@ -76,6 +79,7 @@ function renderCard({ role = 'company_admin', docs = READY_DOCS } = {}) {
 
 afterEach(() => {
     cleanup();
+    forgetCompanyReadiness();
     Object.assign(fx, {
         reads: [],
         docs: {},
@@ -83,6 +87,7 @@ afterEach(() => {
         emailSettings: { smtpHost: 'smtp.example.test', isVerified: true },
         emailFails: false,
         gate: null,
+        user: { uid: 'uid-1' },
     });
     vi.restoreAllMocks();
 });
@@ -180,6 +185,84 @@ describe('for a company admin', () => {
 
         await screen.findByRole('heading', { name: 'Company setup' });
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('kept for a while', () => {
+    const READS = 4;
+
+    it('is not checked again when the dashboard opens again within two minutes, and is after', async () => {
+        const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const first = renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        first.unmount();
+        expect(fx.reads).toHaveLength(READS);
+
+        now.mockReturnValue(1_000_000 + DASHBOARD_KEEP_MS - 1);
+        const second = renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        second.unmount();
+        expect(fx.reads).toHaveLength(READS);
+
+        now.mockReturnValue(1_000_000 + DASHBOARD_KEEP_MS);
+        renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        expect(fx.reads).toHaveLength(2 * READS);
+    });
+
+    it('is checked anew for another company, and for another sign-in', async () => {
+        const first = renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        first.unmount();
+
+        const other = renderCard({ companyId: 'co-2', docs: {} });
+        expect(await screen.findByRole('heading', { name: 'Company setup' })).toBeInTheDocument();
+        other.unmount();
+        expect(fx.reads.filter((read) => read.startsWith('call getEmailSettingsMeta'))).toEqual([
+            'call getEmailSettingsMeta {"companyId":"co-1"}',
+            'call getEmailSettingsMeta {"companyId":"co-2"}',
+        ]);
+
+        fx.user = { uid: 'uid-1' };
+        renderCard({ companyId: 'co-2', docs: {} });
+        expect(await screen.findByRole('heading', { name: 'Company setup' })).toBeInTheDocument();
+        expect(fx.reads.filter((read) => read.startsWith('call getEmailSettingsMeta'))).toHaveLength(3);
+    });
+
+    it('is checked anew after a link to fix something is followed', async () => {
+        fx.emailSettings = { smtpHost: '', isVerified: false };
+        const first = renderCard();
+        fireEvent.click(await screen.findByRole('link', { name: 'Open email settings' }));
+        first.unmount();
+
+        fx.emailSettings = { smtpHost: 'smtp.example.test', isVerified: true };
+        renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        expect(fx.reads.filter((read) => read.startsWith('call getEmailSettingsMeta'))).toHaveLength(2);
+    });
+
+    it('keeps no answer with something that could not be checked', async () => {
+        fx.emailFails = true;
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const first = renderCard();
+        expect(await screen.findByText('Some settings could not be checked just now.')).toBeInTheDocument();
+        first.unmount();
+
+        fx.emailFails = false;
+        renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        expect(fx.reads.filter((read) => read.startsWith('call getEmailSettingsMeta'))).toHaveLength(2);
+    });
+
+    it('shows nothing kept to someone who is no longer an admin', async () => {
+        const first = renderCard();
+        expect(await screen.findByText('Company setup is complete.')).toBeInTheDocument();
+        first.unmount();
+
+        renderCard({ role: 'recruiter' });
+        await waitFor(() => expect(screen.getByTestId('where')).toBeInTheDocument());
+        expect(screen.queryByText(/Company setup/)).toBeNull();
+        expect(screen.queryByRole('status')).toBeNull();
     });
 });
 
