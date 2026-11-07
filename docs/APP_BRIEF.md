@@ -1046,7 +1046,7 @@ already on record — what `InviteLinkPanel` tells recruiters.
 **A device holding the draft's resume token is asked nothing**
 (`reconcileServerDraftOnLoad`); another applicant's token is not enough, and
 their local copy is withheld as on `opened`. **While identity is pending nothing
-else is restored:** one shared decision (production and E2E) gates
+else is restored:** one decision, in the one start-up sequence E2E mode shares, gates
 `loadPublicApplyCompany`'s local-draft restore (a stranger's answers would be
 autosaved here) and post-apply restore (its success screen would cover the
 check), and clears the stale post-apply session; a failed link touches neither.
@@ -1285,7 +1285,8 @@ only**.
 `callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
 an explicit `false` disables — except `callTracking` (labelled **Facebook leads**;
 the stored key keeps its old name), which is **opt-in**: Settings → Facebook leads
-shows only where a super admin set it `true`, since Facebook capture is off. `features` is stripped from the public profile
+shows only where a super admin set it `true`, since Facebook capture is off. Screens and routes read a flag only
+through `isFeatureOn` (`src/shared/utils/companyFeatures.js`), which knows each key's default. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
 [`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
 `planType`, `appSlug`, `isActive` or `status`. An open company workspace follows its
@@ -1328,6 +1329,13 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
   on both or one AI entry point reads a credential the other cannot. Super Admin
   → AI Integrations → **Check credential access** asks both, names the account
   in use, and reports a missing secret apart from an unreadable one.
+- **SMS settings are one rule** (`integrations/controllers/config/smsSettingsAccess.js`,
+  owner decision К1): saving and verifying the provider, adding, removing, testing and
+  verifying a line, line assignments and the test text all use `assertCompanyAdminStrict`
+  (a Company Admin by token or membership, or the company's owner: `ownerId`, `createdBy`,
+  `adminId`; a deactivated company refused) plus a super admin by token; never a recruiter
+  or HR user. The Settings screens and the `integrations` documents stay Company Admin
+  only, so an owner without that role reaches these only through the callables.
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
@@ -1403,9 +1411,10 @@ the daily count**; refusing is a recorded outcome.
   not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
   tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`, which only Super
-  Admin → Analytics reads (Maintenance rebuilds it, counting the legacy `activities` log
-  too, which the rules keep readable and closed to writes; the company dashboard shows
-  no call statistics); application and
+  Admin → Analytics reads (Maintenance rebuilds it with the trigger's own counting,
+  `functions/shared/callStats.js`, counting the legacy `activities` log too, which the
+  rules keep readable and closed to writes; a rebuild overwrites each day that has a call
+  and leaves other days as they were; the company dashboard shows no call statistics); application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
@@ -1591,7 +1600,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 - **E2E test mode works only on the dev server the browser suites start.** A
   production build ignores `VITE_E2E_TEST_MODE` and ships no fixture data or
   harness (`src/lib/runtime/e2eMode.js`); fixture code follows the rule in its
-  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations).
+  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations). The
+  application page starts up through one sequence in both (`loadPublicApplyCompany`):
+  E2E mode only takes the company from a fixture, so the browser suites run the real
+  restore and discard guards.
 - **A masked SSN is `***-**-` and its last four digits everywhere** (screens,
   application and previous-employer PDFs, the company API); a value with fewer
   than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
