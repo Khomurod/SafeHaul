@@ -34,6 +34,7 @@
  * GitHub Actions environment.
  */
 import { appendFileSync } from 'node:fs';
+import { createGithubApi } from './lib/githubApi.mjs';
 
 const {
     APP_VERSION_ID: appVersionId,
@@ -73,27 +74,11 @@ if (!/^[0-9a-f]{40}$/.test(sha)) {
     process.exit(1);
 }
 
-const api = async (path, init = {}) => {
-    const response = await fetch(`https://api.github.com/repos/${repository}${path}`, {
-        ...init,
-        headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${token}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-            'Content-Type': 'application/json',
-            ...(init.headers || {}),
-        },
-    });
-    if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`GitHub API ${init.method || 'GET'} ${path} -> ${response.status}: ${body.slice(0, 400)}`);
-    }
-    return response.json();
-};
+const api = createGithubApi({ token, repository });
 
 const deployment = await api('/deployments', {
     method: 'POST',
-    body: JSON.stringify({
+    body: {
         ref: sha,
         environment: channel,
         // This workflow *is* the gate: the deploy job already lists every required
@@ -111,7 +96,7 @@ const deployment = await api('/deployments', {
             landingVersionId,
             runId,
         },
-    }),
+    },
 });
 
 // The deployment id is what `release-ready` needs in order to promote this
@@ -129,10 +114,7 @@ const statusBody = {
 };
 
 if (releaseState === 'success') {
-    await api(`/deployments/${deployment.id}/statuses`, {
-        method: 'POST',
-        body: JSON.stringify(statusBody),
-    });
+    await api(`/deployments/${deployment.id}/statuses`, { method: 'POST', body: statusBody });
 } else {
     // `in_progress` is an interstitial marker for humans reading the GitHub UI.
     // It carries no authority: the gate asks for `success`, and a deployment
@@ -143,8 +125,8 @@ if (releaseState === 'success') {
     try {
         await api(`/deployments/${deployment.id}/statuses`, {
             method: 'POST',
-            headers: { Accept: 'application/vnd.github.flash-preview+json' },
-            body: JSON.stringify(statusBody),
+            accept: 'application/vnd.github.flash-preview+json',
+            body: statusBody,
         });
     } catch (error) {
         console.warn(

@@ -47,10 +47,8 @@
 import { appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-const { createGithubApi, isSafeHaulRelease } = require('../functions/releaseManagement/eligibility.js');
+import { createGithubApi } from './lib/githubApi.mjs';
+import { confirmedReleases } from './lib/confirmedReleases.mjs';
 
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const ZERO_SHA = /^0{40}$/;
@@ -116,14 +114,7 @@ export function chooseDeployBase({ lastDeployedSha, pushBefore, isAncestor }) {
  * @returns {Promise<string|null>}
  */
 export async function readLastDeployedSha(api) {
-    const deployments = await api('/deployments?environment=testing&per_page=100');
-    for (const deployment of Array.isArray(deployments) ? deployments : []) {
-        if (!isSafeHaulRelease(deployment)) continue;
-        const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=100`);
-        // Newest-first, so index 0 is the current state.
-        if ((Array.isArray(statuses) ? statuses[0]?.state : undefined) !== 'success') continue;
-        return deployment.sha || null;
-    }
+    for await (const deployment of confirmedReleases(api, 'testing')) return deployment.sha || null;
     return null;
 }
 
