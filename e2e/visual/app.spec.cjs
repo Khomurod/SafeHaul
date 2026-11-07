@@ -88,14 +88,14 @@ const SCREENS = [
      * driver's name: on a phone the middle of a row is its call button. On a
      * phone, Close, the name on one line and the section strip stay put above
      * the record. Each part that loads on its own is waited on: Do not text once
-     * the opt-out list is answered here, the DQ marker once its (empty) list
+     * the opt-out check is answered here, the DQ marker once its (empty) list
      * arrives, and the Application tab's summary once the preserved record's
      * read fails, as every read does in E2E mode.
      */
     {
         name: 'company-dossier-loaded',
         url: '/company/drivers/applications?e2eAuth=company_admin&e2eDossier=loaded',
-        callables: { listSmsOptOuts: SMS_OPT_OUTS },
+        callables: { checkSmsOptOut: { listed: false } },
         open: (page) => page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' })
             .getByRole('rowheader').click(),
         ready: (page) => [

@@ -3,8 +3,9 @@ import { functions } from '@lib/firebase';
 
 /**
  * The three callables behind Settings → Text messages → Opted-out numbers
- * (`functions/smsOptOuts.js`). Any team member lists and adds; only a Company
- * Admin removes, re-checked on the server for the company named here.
+ * (`functions/smsOptOuts.js`), and the one-number check the driver dossier
+ * makes. Any team member lists, checks and adds; only a Company Admin removes,
+ * re-checked on the server for the company named here.
  */
 
 export async function listSmsOptOuts(companyId) {
@@ -15,6 +16,12 @@ export async function listSmsOptOuts(companyId) {
         total: Number.isInteger(data?.total) ? data.total : entries.length,
         hasMore: data?.hasMore === true,
     };
+}
+
+/** Whether one number is on the company's list, read from its own entry: `true` or `false`. */
+export async function checkSmsOptOut({ companyId, phone }) {
+    const { data } = await httpsCallable(functions, 'checkSmsOptOut')({ companyId, phone });
+    return data?.listed === true;
 }
 
 /** Answers `{ added, entry }`: `added` is false for a number already listed, which keeps its first entry. */

@@ -1,6 +1,6 @@
 /**
  * A company's SMS opt-out list, kept by its team (`smsOptOuts.js`): any member
- * lists it and adds a number, only a Company Admin removes one, and the global
+ * lists it, checks one number and adds one, only a Company Admin removes one, and the global
  * list is never touched. The role checks are the real `companyAccess.js`, over
  * made-up claims. All numbers and names are artificial.
  */
@@ -24,7 +24,9 @@ const CLAIMS = {
 };
 mock.admin.auth = () => ({ getUser: async (uid) => ({ customClaims: CLAIMS[uid] || {} }) });
 
-const { LIST_LIMIT, listSmsOptOuts, addSmsOptOut, removeSmsOptOut } = require('../../smsOptOuts');
+const {
+    LIST_LIMIT, listSmsOptOuts, checkSmsOptOut, addSmsOptOut, removeSmsOptOut,
+} = require('../../smsOptOuts');
 
 const as = (uid, name = 'Artificial Person') => ({ uid, token: { name } });
 const call = (fn, data, auth = as('recruiter-uid', 'Rita Recruiter')) => fn({ data, auth });
@@ -39,8 +41,8 @@ const SEED = { [COMPANY]: { companyName: 'Artificial Co' }, 'companies/co-2': { 
 const stored = () => Object.fromEntries(mock.docs);
 let logged;
 
-/** Makes `method` of every opt-out entry fail as Firestore can: with the document's path in the message. */
-function failEntries(method) {
+/** Puts `wrap(list)` in place of every company's opt-out list. */
+function wrapLists(wrap) {
     const collection = mock.db.collection;
     jest.spyOn(mock.db, 'collection').mockImplementation((name) => {
         const companies = collection(name);
@@ -49,21 +51,30 @@ function failEntries(method) {
             const company = companies.doc(id);
             const sub = (subName) => {
                 const list = company.collection(subName);
-                if (subName !== 'blacklist') return list;
-                return {
-                    ...list,
-                    doc: (phone) => ({
-                        ...list.doc(phone),
-                        [method]: async () => {
-                            throw Object.assign(new Error(`9 FAILED_PRECONDITION: ${list.path}/${phone}`), { code: 9 });
-                        },
-                    }),
-                };
+                return subName === 'blacklist' ? wrap(list) : list;
             };
             return { ...company, collection: sub };
         };
         return { ...companies, doc: companyDoc };
     });
+}
+
+/** Makes `method` of every opt-out entry fail as Firestore can: with the document's path in the message. */
+function failEntries(method) {
+    wrapLists((list) => ({
+        ...list,
+        doc: (phone) => ({
+            ...list.doc(phone),
+            [method]: async () => {
+                throw Object.assign(new Error(`9 FAILED_PRECONDITION: ${list.path}/${phone}`), { code: 9 });
+            },
+        }),
+    }));
+}
+
+/** Leaves each list its entries alone: reading or counting a list whole fails. */
+function entriesOnly() {
+    wrapLists((list) => ({ path: list.path, doc: list.doc }));
 }
 
 beforeEach(() => {
@@ -133,6 +144,71 @@ describe('listing the numbers', () => {
         await expect(call(listSmsOptOuts, { companyId: 'co-1' }, as('outsider-uid')))
             .rejects.toMatchObject({ code: 'permission-denied' });
         await expect(call(listSmsOptOuts, { companyId: 'co-1' }, null)).rejects.toMatchObject({ code: 'unauthenticated' });
+    });
+});
+
+describe('checking one number', () => {
+    it('says a listed number is listed, whatever its format, from its own entry alone', async () => {
+        mock.reset({ ...SEED, [ENTRY]: FROM_REPLY });
+        // The company's list is never read whole for one number.
+        entriesOnly();
+
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '(555) 123-4567' }))
+            .resolves.toEqual({ listed: true });
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '+1 555.123.4567' }, as('admin-uid')))
+            .resolves.toEqual({ listed: true });
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '555-000-0009' }))
+            .resolves.toEqual({ listed: false });
+        expect(stored()[ENTRY]).toEqual(FROM_REPLY);
+    });
+
+    it('finds a number older than the newest the list shows', async () => {
+        const seed = { ...SEED, [ENTRY]: { ...FROM_REPLY, timestamp: at('2020-01-01T00:00:00.000Z') } };
+        const start = Date.parse('2026-01-01T00:00:00.000Z');
+        for (let i = 0; i < LIST_LIMIT + 1; i += 1) {
+            seed[`${COMPANY}/blacklist/+1555${String(2000000 + i)}`] = {
+                reason: 'Asked not to be texted', timestamp: { toMillis: () => start + i * 60000 }, source: 'team',
+            };
+        }
+        mock.reset(seed);
+
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '5551234567' })).resolves.toEqual({ listed: true });
+    });
+
+    it('says a number on another company’s list, or only the global one, is not listed', async () => {
+        mock.reset({
+            ...SEED,
+            'companies/co-2/blacklist/+15551234567': FROM_REPLY,
+            [GLOBAL]: { reason: 'Opt-out via company co-9', timestamp: at('2026-09-01T00:00:00.000Z') },
+        });
+
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '5551234567' })).resolves.toEqual({ listed: false });
+    });
+
+    it('refuses someone outside the company, and someone signed out', async () => {
+        mock.reset({ ...SEED, [ENTRY]: FROM_REPLY });
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '5551234567' }, as('outsider-uid')))
+            .rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '5551234567' }, null))
+            .rejects.toMatchObject({ code: 'unauthenticated' });
+    });
+
+    it('refuses a company id that is not one', async () => {
+        await expect(call(checkSmsOptOut, { companyId: 'co-1/blacklist', phone: '5551234567' }))
+            .rejects.toMatchObject({ code: 'invalid-argument' });
+        await expect(call(checkSmsOptOut, { phone: '5551234567' })).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
+
+    it.each(['12345', 'not a number', '', null, 42, '1'.repeat(20)])('refuses %j with a message', async (phone) => {
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone }))
+            .rejects.toMatchObject({ code: 'invalid-argument', message: expect.stringMatching(/phone number/) });
+    });
+
+    it('reports a failed read plainly, and logs its code, never the number', async () => {
+        failEntries('get');
+        await expect(call(checkSmsOptOut, { companyId: 'co-1', phone: '5551234567' }))
+            .rejects.toMatchObject({ code: 'internal', message: 'The number could not be checked. Try again.' });
+        expect(logged).toContainEqual('[checkSmsOptOut] failed for company co-1: 9');
     });
 });
 

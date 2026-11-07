@@ -221,6 +221,8 @@ function exportFunctions(wanted) {
   if (wanted('handleOptOut')) exports.handleOptOut = require('./blacklist').handleOptOut;
   // The company's list as its team keeps it in Settings → Text messages: any member lists and adds, a Company Admin removes.
   if (wanted('listSmsOptOuts')) exports.listSmsOptOuts = require('./smsOptOuts').listSmsOptOuts;
+  // The driver dossier's "Texts off": whether one number is on that list, for any member.
+  if (wanted('checkSmsOptOut')) exports.checkSmsOptOut = require('./smsOptOuts').checkSmsOptOut;
   if (wanted('addSmsOptOut')) exports.addSmsOptOut = require('./smsOptOuts').addSmsOptOut;
   if (wanted('removeSmsOptOut')) exports.removeSmsOptOut = require('./smsOptOuts').removeSmsOptOut;
 
