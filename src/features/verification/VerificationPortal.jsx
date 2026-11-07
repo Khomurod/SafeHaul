@@ -19,6 +19,7 @@ import { useParams } from 'react-router-dom';
 import { Icon, ShieldCheck, Send } from '@design-system/icons';
 import { Button, Notice } from '@/design-system/components';
 import { LinkProblemScreen, isRetryableLinkProblem } from '@shared/components/public-link';
+import { requestNewLink } from '@shared/services/requestNewLink';
 import { useVerificationPortal } from './hooks/useVerificationPortal';
 import {
     LoadingScreen,
@@ -99,6 +100,7 @@ export function VerificationPortal() {
                 // Known when the link stopped working with the form open.
                 companyName={verificationData?.companyName}
                 onRetry={isRetryableLinkProblem(linkProblem.reason) ? retry : undefined}
+                onRequestNewLink={() => requestNewLink({ kind: 'verify', token })}
             />
         );
     }

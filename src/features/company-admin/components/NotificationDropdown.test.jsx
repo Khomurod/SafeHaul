@@ -215,6 +215,9 @@ describe('a notification in the bell', () => {
         ['a PEV answer', { type: 'pev_completed', title: 'Verification answered', message: 'Prairie Line Freight answered the employment verification for Ann Baker' }, 'pev'],
         ['a PEV with no answer', { type: 'pev_no_response', title: 'Verification not answered', message: 'Prairie Line Freight did not answer the employment verification for Ann Baker within 30 days' }, 'pev'],
         ['a DQ document expiring', { type: 'dq_expiring', title: 'DQ document expires soon', message: "Ann Baker's medical card is valid until Nov 20, 2026" }, 'dq'],
+        ['a signer asking for a new link', { type: 'signing_link_requested', title: 'New link requested', message: 'Ann Baker asked for a new link to sign “Offer Letter”.' }, 'documents'],
+        ['an employer asking for a new link', { type: 'pev_link_requested', title: 'New link requested', message: 'Prairie Line Freight asked for a new link to answer the employment verification for Ann Baker.' }, 'pev'],
+        ['a driver asking for a new review link', { type: 'review_link_requested', title: 'New link requested', message: 'Ann Baker asked for a new link to review the changes to their application.' }, 'application'],
     ])('opens %s on the dossier tab it is about', async (_name, notice, tab) => {
         const onOpenRecord = await openBell([{
             id: 'n-9', relatedId: 'app-4', relatedType: 'application', read: false, createdAt: at, ...notice,

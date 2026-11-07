@@ -296,7 +296,7 @@ describe('a review link that does not open', () => {
         expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
         expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
-        expect(screen.getByText(/the sender/)).toBeInTheDocument();
+        expect(screen.getByText(/(?:ask|from) the sender/)).toBeInTheDocument();
     });
 
     it('opens the review on Try again when the link could not be checked', async () => {

@@ -24,6 +24,7 @@ import { SignatureSheet } from '@features/signing/components/SignatureSheet';
 // and passes them down.
 import { SigningDocumentView } from '@features/signing/components/signing-room/SigningDocumentView';
 import { resolveSigningStatusScreen } from '@features/signing/components/signing-room/resolveSigningStatusScreen';
+import { requestNewLink } from '@shared/services/requestNewLink';
 import { isSignedStatus, rememberSignedHere } from '@features/signing/utils/alreadySigned';
 import { useSigningDraftWriter } from '@features/signing/hooks/useSigningDraftWriter';
 import { usePdfZoomGestures } from '@features/signing/hooks/usePdfZoomGestures';
@@ -316,6 +317,8 @@ export default function SigningRoom() {
     // ESIGN-8 consent (required before the document is shown), in that order.
     const statusScreen = resolveSigningStatusScreen({
         loading, linkProblem, companyName, onRetry: retry,
+        // The company is told; the link's token is not needed for that.
+        onRequestNewLink: () => requestNewLink({ kind: 'sign', companyId, requestId }),
         request, success, declined, hasEsignConsent, consentFocus,
         onReturnToDocuments: returnToDocuments,
         onAgree: () => setHasEsignConsent(true),

@@ -8,6 +8,7 @@ import { LinkProblemScreen, isRetryableLinkProblem, linkProblemFromError } from 
 import { Icon, Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from '@design-system/icons';
 import { Button, Card, Input, Notice, SegmentedControl, StatusMedallion } from '@/design-system/components';
 import { isEmployerChange, summarizeEmployerChange } from './employerChangeSummary';
+import { requestNewLink } from '@shared/services/requestNewLink';
 
 const MOCK_REVIEW = {
     applicantName: 'Test Driver',
@@ -316,6 +317,7 @@ export function ReviewChangePortal() {
                 detail={linkProblem.detail}
                 companyName={companyName}
                 onRetry={isRetryableLinkProblem(linkProblem.reason) ? reload : undefined}
+                onRequestNewLink={() => requestNewLink({ kind: 'review', token })}
             />
         );
     }

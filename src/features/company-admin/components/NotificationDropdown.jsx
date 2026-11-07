@@ -38,7 +38,10 @@ const timeAgo = (date) => {
 // already sent open it too: a signed or unsealed document (`sealNotifications.js`)
 // its Documents to sign, a PEV answer or no-response (`employmentVerification/
 // notifications.js`) Previous Employment, a DQ deadline (`notifyDqExpiry.js`) the
-// DQ File. Any other opens the dossier on its first tab.
+// DQ File. A request for a new link (`requestNewLink.js`) opens where the link is
+// sent again: a document's on Documents to sign, a PEV's on Previous Employment,
+// a change review's on Application (Email review link). Any other opens the
+// dossier on its first tab.
 const DOSSIER_TAB_BY_TYPE = Object.freeze({
     document_signed: 'documents',
     document_seal_failed: 'documents',
@@ -46,6 +49,9 @@ const DOSSIER_TAB_BY_TYPE = Object.freeze({
     pev_no_response: 'pev',
     dq_expiring: 'dq',
     dq_expired: 'dq',
+    signing_link_requested: 'documents',
+    pev_link_requested: 'pev',
+    review_link_requested: 'application',
 });
 
 // The server's notifications name the record they are about: the dossier

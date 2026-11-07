@@ -14,6 +14,8 @@ vi.mock('firebase/functions', () => ({
     httpsCallable: (_functions, name) => callables[name],
 }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
+const requestNewLink = vi.hoisted(() => vi.fn());
+vi.mock('@shared/services/requestNewLink', () => ({ requestNewLink }));
 vi.mock('@lib/runtime/e2eMode', () => ({
     isE2ETestMode: false,
     getE2EQueryParam: () => '',
@@ -177,6 +179,21 @@ describe('VerificationPortal', () => {
 
         expect(await screen.findByRole('heading', { level: 1, name: 'This link has expired' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+        consoleError.mockRestore();
+    });
+
+    it('asks the company for a new link to this request, by its token', async () => {
+        const err = new Error('This verification request has expired. Please contact the requesting company.');
+        err.code = 'functions/deadline-exceeded';
+        callables.getVerificationRequest.mockRejectedValue(err);
+        requestNewLink.mockReset();
+        requestNewLink.mockResolvedValue({ ok: true });
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        renderPortal('token-xyz');
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Ask the sender for a new link' }));
+        expect(await screen.findByText('Done. The sender has been asked to send you a new link.')).toBeInTheDocument();
+        expect(requestNewLink).toHaveBeenCalledWith({ kind: 'verify', token: 'token-xyz' });
         consoleError.mockRestore();
     });
 
