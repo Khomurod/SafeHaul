@@ -265,7 +265,10 @@ still hold an expired one, and the dossier's own admin upload stores a Storage
 download URL; views re-sign from `storagePath`, and the dossier and
 `useSignedUploadPreview` (a 15-minute URL from `getSignedGuestUploadUrl`, which
 authorizes it) reuse a link 10 minutes. `not-found` says the file is gone; any
-other error offers a retry, the row still attached (gates key on presence).
+other error offers a retry, the row still attached (gates key on presence). The
+dossier signs a record's uploads in one call (`getSignedApplicationFileUrls`, each
+file as `getSignedApplicationFileUrl` signs it; the single call stays for Open
+file, a fallback and the Production build).
 
 **The bucket's CORS lets browsers read files cross-origin.** pdf.js fetches a
 signed URL from the app's origin (signing room, envelope editor), which needs it.
@@ -353,8 +356,10 @@ unassigned application goes to the lead's recruiter while on the team, who is to
 once (not when it is already theirs). The dossier opens one from the other; deleting
 either removes the link, and a lead whose newest application is deleted points back
 at an earlier one it applied with.
-**The driver dossier** (one record, application or lead). Each section has one name, the
-tab's (`dossierSections.js`); a lead's first is "Lead", it is deleted as a lead and has no
+**The driver dossier** (one record, application or lead). An opener that knows the
+record's collection (a list, a bell notice, the linked lead or application, Add lead)
+names it, so a lead is one read; without one, applications are looked in first. Each
+section has one name, the tab's (`dossierSections.js`); a lead's first is "Lead", it is deleted as a lead and has no
 application PDF. The left column shows the phone and email as text, Applied (application) or
 Added (lead), and the last call: its result, and its time unless a campaign message moved
 `lastContactedAt`. The Summary's CDL expiry says it is from the application or lead; the DQ
@@ -522,7 +527,8 @@ portal names the regulation ("Requested under FMCSA 49 CFR Part 391.23"), no
 application lists, on request, each agreement the applicant answered (accepted and
 signed, declined, not recorded, or certified only within a combined acknowledgement),
 with version, time and signature type. It reads the frozen `submission/{snapshotId}`
-once, when first opened, through the Application tab's presenter; the PDF still opens
+when first opened; a record found is kept in memory, shared with the Application tab,
+until the dossier closes (a missing one or a failed read is read again); the PDF still opens
 only through the audited `getApplicationOriginalPdfUrl`.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
@@ -1186,6 +1192,13 @@ create and never change, so no record claims another company.
 **A deactivated company** (`isActive: false`) takes no applications, passes no
 server staff check, drops out of its staff's tokens (§8) and closes their workspace; never a super admin's.
 
+**Server access checks read fresh on every call (К4).** `assertCompanyAccess` and
+`assertCompanyAdminStrict` read the caller's claims and the company document in parallel
+on each call and hand back the company snapshot, so a callable does not read it again.
+Nothing about roles, claims, membership or company state is kept between requests: a
+removed role or a deactivation applies to the next call. A super admin passes even when
+the company is deactivated or cannot be read.
+
 ---
 
 ## 6. Permissions and access rules
@@ -1237,11 +1250,12 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   through `submitGuestApplication`.
 - **Documents are never public URLs.** Every file link is server-issued, single
   purpose and checked against company membership (`getSignedDocumentUrl`,
-  `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
+  `getSignedApplicationFileUrl`, `getSignedApplicationFileUrls`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
-- **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists and adds a
+- **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists, checks and adds a
   number, only a Company Admin removes one, and never from the global list. Its screen is in Settings (admins);
-  the dossier's Do not text adds a number. "Texts off" reads the company list only, its newest 300.
+  the dossier's Do not text adds a number. "Texts off" checks the dossier's one number against the company list
+  only (`checkSmsOptOut`, one read).
 - **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
   team member, `assertCompanyAccessForRequest`): the application or request must be
   under that company, and Send to driver's template in its post-application list.
@@ -1369,12 +1383,13 @@ the daily count**; refusing is a recorded outcome.
   for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created. A signed application also links its lead (§4).
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
-  opening the DQ tab files any still missing (`syncDqFiles`, leads too). A
+  the DQ tab's first opening in each opening of the dossier files any still missing
+  (`syncDqFiles`, leads too; again after a failed filing). A
   removed entry stays removed. PEV request PDFs, results and day-30 records of
   attempts are filed by the PEV callables and job, one record each (`pev_request_<id>`,
   `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
   linked to an application or lead by `sealDocument` (`signed_<requestId>`), and by
-  `syncDqFiles` when the tab opens if it is missing (a failed filing, an older seal).
+  `syncDqFiles` when the tab first opens in a dossier opening if it is missing (a failed filing, an older seal).
   A changed `cdlExpiration`, `medCardExpiration` or `twicExpiration` moves the date of
   the synced records of that type, never the other way. `onDqFileWritten` keeps each
   application's and lead's `dqExpiresNext` (the earliest valid-until date among records
@@ -1776,7 +1791,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   `deleteSandboxApplication` removes the same files
   (`shared/applicationStorage.js`) but only inside `companies/SANDBOX/`, so a
   public sandbox submission cannot reach a real company's file. Viewing is safe
-  (`getSignedApplicationFileUrl` refuses paths outside the caller's companies).
+  (`getSignedApplicationFileUrl` and `getSignedApplicationFileUrls` refuse paths outside the caller's companies).
   Only custom-question uploads are held to `guest_uploads/`; restricting the
   standard fields needs a survey of every folder a legitimate file can live in.
 - **Violations, accidents and previous addresses** are on the server's allowlist,
@@ -1848,7 +1863,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   after a change made there, and the employers as the dossier loaded them (reopen it after
   another person's change or a PEV change), while the sidebar's marker follows the DQ list
   live; `dqExpiresNext` reaches older records on a
-  DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
+  DQ write, when their DQ tab first opens in a dossier opening, or through Data cleanup → DQ valid-until dates; an
   old card left in the file keeps the record's earliest date (and the daily notice about
   it) until it is removed; a date
   the team set on a synced record gives way to the application's next change of that
@@ -1861,7 +1876,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
   attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
   in the already-filed record; a day-30 record that failed to file is not made again
-  (logged). A sealed document missing from the DQ file is filed when its DQ tab opens. Send to driver does not resend a form already sent, even
+  (logged). A sealed document missing from the DQ file is filed when its DQ tab first opens in a dossier opening. Send to driver does not resend a form already sent, even
   after its link expired (Remind does); an optional post-application form is listed only once a request
   for it exists. A retried document's certificate prints the retry time as COMPLETED AT.
   Retry seal and the record link guard against mistakes, not a team member: the rules let
