@@ -428,7 +428,8 @@ service cloud.firestore {
         }
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
         match /activity_logs/{activityId} { allow read, write: if isCompanyTeam(companyId); }
-        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+        // The legacy log: kept for reading; everything writes activity_logs.
+        match /activities/{activityId} { allow read: if isCompanyTeam(companyId); allow write: if false; }
         // Company-proposed pending changes: team may READ (to show badges); all
         // writes go through the proposeApplicationChanges / submitChangeResolution
         // callables (Admin SDK), so client writes are denied.
@@ -487,7 +488,7 @@ service cloud.firestore {
                          (isSuperAdmin() || leadCompanyTeamWriteAllowed());
         allow delete: if isCompanyTeam(companyId);
         match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId); }
-        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read: if isCompanyTeam(companyId); allow write: if false; }
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
         match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId); }
         match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId); }

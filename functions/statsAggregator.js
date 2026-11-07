@@ -215,30 +215,7 @@ exports.onActivityLogCreated = onDocumentCreated(
     }
 );
 
-// --- TRIGGER 2: Legacy 'activities' collection (backwards compatibility) ---
-exports.onLegacyActivityCreated = onDocumentCreated(
-    {
-        document: 'companies/{companyId}/applications/{appId}/activities/{activityId}',
-        region: 'us-central1'
-    },
-    async (event) => {
-
-        const data = event.data?.data();
-
-        if (!data) return;
-
-        try {
-            const dateKey = await processStatsUpdate(db, event.params.companyId, data, event.params.activityId, 'LegacyAggregator');
-            if (dateKey) {
-                console.log(`[LegacyAggregator] Updated stats for ${event.params.companyId}/${dateKey}`);
-            }
-        } catch (error) {
-            console.error('[LegacyAggregator] Legacy trigger failed:', error);
-        }
-    }
-);
-
-// --- TRIGGER 3: activity_logs under LEADS collection ---
+// --- TRIGGER 2: activity_logs under LEADS collection ---
 exports.onLeadsActivityLogCreated = onDocumentCreated(
     {
         document: 'companies/{companyId}/leads/{leadId}/activity_logs/{logId}',
@@ -260,30 +237,6 @@ exports.onLeadsActivityLogCreated = onDocumentCreated(
             }
         } catch (error) {
             console.error('[LeadsAggregator] Leads trigger failed:', error);
-        }
-    }
-);
-
-// --- TRIGGER 4: Legacy activities under LEADS collection ---
-// CALL-13 FIX: Cover the legacy leads/{leadId}/activities/{activityId} path
-exports.onLeadsLegacyActivityCreated = onDocumentCreated(
-    {
-        document: 'companies/{companyId}/leads/{leadId}/activities/{activityId}',
-        region: 'us-central1'
-    },
-    async (event) => {
-
-        const data = event.data?.data();
-
-        if (!data) return;
-
-        try {
-            const dateKey = await processStatsUpdate(db, event.params.companyId, data, event.params.activityId, 'LeadsLegacyAggregator');
-            if (dateKey) {
-                console.log(`[LeadsLegacyAggregator] Updated stats for LEAD legacy activity: ${event.params.companyId}/${dateKey}`);
-            }
-        } catch (error) {
-            console.error('[LeadsLegacyAggregator] Leads legacy trigger failed:', error);
         }
     }
 );

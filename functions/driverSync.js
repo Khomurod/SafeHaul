@@ -259,14 +259,7 @@ exports.onApplicationUpdated = onDocumentUpdated({
   if (dated > 0) console.log(`[onApplicationUpdated] Moved the valid-until date of ${dated} DQ records for application ${appId}`);
 });
 
-// 4. Sync Driver Log Activity (Fix for Permission Error + Support both 'activities' and 'activity_logs')
-exports.syncDriverOnActivity = onDocumentCreated({
-  document: "companies/{companyId}/{collectionId}/{leadId}/activities/{logId}",
-  maxInstances: 5
-}, async (event) => {
-  return handleLogSync(event);
-});
-
+// 4. Sync Driver Log Activity
 exports.syncDriverOnLog = onDocumentCreated({
   document: "companies/{companyId}/{collectionId}/{leadId}/activity_logs/{logId}",
   maxInstances: 5

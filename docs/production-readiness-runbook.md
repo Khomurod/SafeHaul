@@ -88,10 +88,12 @@ behind a verified, live export.
 
 ### Already shipped in code (non-destructive)
 
-- Collection-group triggers `stampActivityLogExpiry` / `stampLegacyActivityExpiry`
-  (`functions/activityLogRetention.js`) stamp `expiresAt = createTime + 90d` on
+- Collection-group trigger `stampActivityLogExpiry`
+  (`functions/activityLogRetention.js`) stamps `expiresAt = createTime + 90d` on
   every new activity-log doc under
-  `companies/{companyId}/{applications|leads}/{parentId}/{activity_logs|activities}/{logId}`.
+  `companies/{companyId}/{applications|leads}/{parentId}/activity_logs/{logId}`.
+  The legacy `activities` log takes no new writes (Firestore rules); the
+  backfill below stamps its old docs.
   Idempotent; skips docs already stamped. (`ACTIVITY_LOG_RETENTION_DAYS` lives in
   `functions/shared/retention.js`.)
 - One-off backfill for pre-existing docs: `scripts/backfill-activity-log-expiry.mjs`

@@ -104,12 +104,8 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 
 ## Callable exports with no SPA caller
 
-These are exported and may be used by **scripts**, **future UI**, **legacy clients**, or **internal workers**:
-
-| Callable | Notes |
-|----------|-------|
-| `migrateEmailSettings` | One-time migration; invoke callable manually (ops) |
-| `reconcileCompanyDashboardStats` | KPI reconciliation callable ([`dashboardStatsRollup.js`](../functions/dashboardStatsRollup.js)) |
+None. A callable no screen calls is retired through `RETIREMENTS` in
+[`scripts/retire-functions.mjs`](../scripts/retire-functions.mjs).
 
 ---
 

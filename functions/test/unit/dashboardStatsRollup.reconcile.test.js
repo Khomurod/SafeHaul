@@ -11,12 +11,6 @@
  */
 jest.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: (_opts, handler) => handler }));
 jest.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: (_opts, handler) => handler }));
-jest.mock('firebase-functions/v2/https', () => ({
-  onCall: (_opts, handler) => handler,
-  HttpsError: class HttpsError extends Error {
-    constructor(code, message) { super(message); this.code = code; }
-  },
-}));
 
 const mockState = { companies: [], counts: {}, failCompany: null, writes: [] };
 jest.mock('../../firebaseAdmin', () => {
@@ -45,7 +39,7 @@ jest.mock('../../firebaseAdmin', () => {
   };
 });
 
-const { reconcileDashboardStatsDaily, reconcileCompanyDashboardStats } = require('../../dashboardStatsRollup');
+const { reconcileDashboardStatsDaily } = require('../../dashboardStatsRollup');
 
 const HIRED = 'status in ["Hired","Approved"]';
 
@@ -104,15 +98,5 @@ describe('the daily recount of the dashboard counters', () => {
 
     expect(mockState.writes).toHaveLength(10);
     expect(mockState.writes.map((write) => write.path)).toContain('companies/c11/internal_stats/dashboard');
-  });
-
-  it("is the Super Admin recount's own rule", async () => {
-    await expect(reconcileCompanyDashboardStats({ auth: null, data: { companyId: 'c1' } })).rejects.toThrow();
-    const result = await reconcileCompanyDashboardStats({
-      auth: { uid: 'sa', token: { globalRole: 'super_admin' } },
-      data: { companyId: 'c1' },
-    });
-    expect(result).toEqual({ success: true, applicationsTotal: 112, leadsTotal: 4210, hiredTotal: 51 });
-    expect(mockState.writes).toHaveLength(1);
   });
 });

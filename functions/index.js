@@ -76,7 +76,6 @@ function exportFunctions(wanted) {
   // 4a. Employer dashboard counter rollups (internal_stats — server writes only)
   if (wanted('onApplicationWrittenDashboardRollup')) exports.onApplicationWrittenDashboardRollup = require('./dashboardStatsRollup').onApplicationWrittenDashboardRollup;
   if (wanted('onLeadWrittenDashboardRollup')) exports.onLeadWrittenDashboardRollup = require('./dashboardStatsRollup').onLeadWrittenDashboardRollup;
-  if (wanted('reconcileCompanyDashboardStats')) exports.reconcileCompanyDashboardStats = require('./dashboardStatsRollup').reconcileCompanyDashboardStats;
   if (wanted('reconcileDashboardStatsDaily')) exports.reconcileDashboardStatsDaily = require('./dashboardStatsRollup').reconcileDashboardStatsDaily;
   // The dashboard's "Needs attention": the company's counts of what waits on someone (team)
   if (wanted('getDashboardAttention')) exports.getDashboardAttention = require('./dashboardAttention').getDashboardAttention;
@@ -85,7 +84,6 @@ function exportFunctions(wanted) {
   if (wanted('onApplicationSubmitted')) exports.onApplicationSubmitted = require('./driverSync').onApplicationSubmitted;
   if (wanted('onApplicationUpdated')) exports.onApplicationUpdated = require('./driverSync').onApplicationUpdated;  // NEW: Sync files on update
   if (wanted('syncDriverOnLog')) exports.syncDriverOnLog = require('./driverSync').syncDriverOnLog;
-  if (wanted('syncDriverOnActivity')) exports.syncDriverOnActivity = require('./driverSync').syncDriverOnActivity;
   if (wanted('onCompanyLeadSubmitted')) exports.onCompanyLeadSubmitted = require('./driverSync').onCompanyLeadSubmitted;
 
   // 4c. ATS automated SMS on contact-attempt transitions
@@ -143,7 +141,6 @@ function exportFunctions(wanted) {
   // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
   // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
   if (wanted('analyzeEdocFieldPlacement')) exports.analyzeEdocFieldPlacement = require('./edocFieldPlacement').analyzeEdocFieldPlacement;
-  if (wanted('backfillApplicationSearchFields')) exports.backfillApplicationSearchFields = require('./searchFieldsBackfill').backfillApplicationSearchFields;
   // Maintenance → Data cleanup: the owner's one-time removal of leftover data, checked before it runs.
   if (wanted('dataCleanup')) exports.dataCleanup = require('./maintenance/dataCleanup').dataCleanup;
   // Gives applications submitted before preservation a preserved record and PDF,
@@ -175,9 +172,6 @@ function exportFunctions(wanted) {
   // REFACTOR: Sanitized callable for Email Settings UI — never returns smtpPass
   if (wanted('getEmailSettingsMeta')) exports.getEmailSettingsMeta = require('./getEmailSettingsMeta').getEmailSettingsMeta;
 
-  // MIGRATION: One-time migration of email settings from root doc to admin-only subcollection
-  if (wanted('migrateEmailSettings')) exports.migrateEmailSettings = require('./migrateEmailSettings').migrateEmailSettings;
-
   if (wanted('backfillPublicProfiles')) exports.backfillPublicProfiles = require('./companyAdmin').backfillPublicProfiles;
   // Hourly reconciler: rewrites public profiles left behind by a change to the
   // projection itself, which the onWrite trigger alone can never reach.
@@ -203,13 +197,10 @@ function exportFunctions(wanted) {
 
   // 11. Stats Aggregation
   if (wanted('onActivityLogCreated')) exports.onActivityLogCreated = require('./statsAggregator').onActivityLogCreated;
-  if (wanted('onLegacyActivityCreated')) exports.onLegacyActivityCreated = require('./statsAggregator').onLegacyActivityCreated;
   if (wanted('onLeadsActivityLogCreated')) exports.onLeadsActivityLogCreated = require('./statsAggregator').onLeadsActivityLogCreated; // NEW: Leads trigger
-  if (wanted('onLeadsLegacyActivityCreated')) exports.onLeadsLegacyActivityCreated = require('./statsAggregator').onLeadsLegacyActivityCreated; // NEW: Leads legacy trigger
 
   // 12. Activity-log retention (B2): stamp expiresAt for the eventual TTL policy.
   if (wanted('stampActivityLogExpiry')) exports.stampActivityLogExpiry = require('./activityLogRetention').stampActivityLogExpiry;
-  if (wanted('stampLegacyActivityExpiry')) exports.stampLegacyActivityExpiry = require('./activityLogRetention').stampLegacyActivityExpiry;
 
   // 13. Stats Backfill (Admin Tools)
   // CALL-3 FIX: These functions are called by StatsBackfillPanel.jsx and were previously missing.

@@ -9,9 +9,9 @@
 //
 // Path coverage: activity logs live at
 //   companies/{companyId}/{applications|leads}/{parentId}/activity_logs/{logId}
-//   companies/{companyId}/{applications|leads}/{parentId}/activities/{logId}
 // The `{parentCollection}` wildcard covers both applications and leads — the same
-// proven pattern driverSync.js uses, so it deploys identically.
+// proven pattern driverSync.js uses, so it deploys identically. The legacy
+// `activities` log is read-only (Firestore rules) and nothing writes it.
 
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { stampExpiryOnCreate } = require('./shared/retention');
@@ -19,14 +19,6 @@ const { stampExpiryOnCreate } = require('./shared/retention');
 exports.stampActivityLogExpiry = onDocumentCreated(
     {
         document: 'companies/{companyId}/{parentCollection}/{parentId}/activity_logs/{logId}',
-        maxInstances: 10,
-    },
-    (event) => stampExpiryOnCreate(event),
-);
-
-exports.stampLegacyActivityExpiry = onDocumentCreated(
-    {
-        document: 'companies/{companyId}/{parentCollection}/{parentId}/activities/{logId}',
         maxInstances: 10,
     },
     (event) => stampExpiryOnCreate(event),

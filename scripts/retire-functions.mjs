@@ -151,6 +151,26 @@ export const RETIREMENTS = Object.freeze([
         since: '7aaca385a3a86a173805b2bbbb4eac1bc234ffcb',
         names: Object.freeze(['backfillSmsSentPhones', 'backfillAllSmsSentPhones']),
     }),
+    Object.freeze({
+        // One-time migrations no release ever called (Data cleanup's SMTP copies
+        // and search fields items do their work) and a Super Admin recount the
+        // daily `reconcileDashboardStatsDaily` does. `since`: the Production
+        // release of 2026-11 checked to call none of them.
+        id: 'unused-migrations',
+        since: '79bdaef59b244788f68209c83dd2b3577444c891',
+        names: Object.freeze([
+            'migrateEmailSettings', 'backfillApplicationSearchFields', 'reconcileCompanyDashboardStats',
+        ]),
+    }),
+    Object.freeze({
+        // Triggers on the legacy `activities` log, which takes no writes: its last
+        // writer, a System Health step, went in `7aaca38`, which that release carries.
+        id: 'legacy-activities',
+        since: '79bdaef59b244788f68209c83dd2b3577444c891',
+        names: Object.freeze([
+            'onLegacyActivityCreated', 'onLeadsLegacyActivityCreated', 'stampLegacyActivityExpiry', 'syncDriverOnActivity',
+        ]),
+    }),
 ]);
 
 export const REGION = 'us-central1';

@@ -1403,8 +1403,9 @@ the daily count**; refusing is a recorded outcome.
   not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
   tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`, which only Super
-  Admin → Analytics reads (Maintenance rebuilds it; the company dashboard shows no call
-  statistics); application and
+  Admin → Analytics reads (Maintenance rebuilds it, counting the legacy `activities` log
+  too, which the rules keep readable and closed to writes; the company dashboard shows
+  no call statistics); application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
@@ -1924,8 +1925,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
   **seven-day cooldown**; security fixes are not delayed.
 - **One-time backfill callables are still exported** (`backfillPublicProfiles`,
-  `migrateEmailSettings`, `backfillApplicationSearchFields`, stats backfills):
-  Super Admin maintenance tools, not dead code; check before removing one.
+  stats backfills): Super Admin maintenance tools, not dead code; check before
+  removing one. Data cleanup's SMTP copies and search fields items replaced
+  `migrateEmailSettings` and `backfillApplicationSearchFields`, retired with
+  `reconcileCompanyDashboardStats` (the daily recount does its work).
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
   application search fields, SMTP password copies outside `email_config`, DQ
