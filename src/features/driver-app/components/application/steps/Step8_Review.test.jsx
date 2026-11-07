@@ -66,6 +66,13 @@ describe('Review & Confirm — what it shows', () => {
     expect(screen.queryByText(ssn)).toBeNull();
   });
 
+  it('shows a Social Security Card upload as uploaded, never its file name', () => {
+    renderReview({ 'ssc-upload': { name: 'card-123-45-6789.jpg', storagePath: 'guest_uploads/co/card.jpg' } });
+    expect(screen.getByText('File uploaded')).toBeInTheDocument();
+    expect(screen.queryByText(/card-123-45-6789/)).toBeNull();
+    expect(screen.getAllByText('***-**-6789')).toHaveLength(1);
+  });
+
   it('formats dates the way the preserved record and the PDF do', () => {
     renderReview();
     expect(screen.getByText('01/01/1990')).toBeInTheDocument();

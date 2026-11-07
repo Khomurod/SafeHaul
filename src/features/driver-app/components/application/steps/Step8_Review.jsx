@@ -71,8 +71,10 @@ function ReviewSection({ title, onEdit, children }) {
 }
 
 function AnswerRow({ answer }) {
-    // Last four digits only. Never the whole number, on any screen.
-    const value = answer.sensitive && !answer.isMissing ? (maskSsn(answer.value) ?? answer.value) : answer.value;
+    // Last four digits only. Never the whole number, on any screen; a sensitive
+    // upload (the Social Security Card) shows that it was uploaded, not its name.
+    let value = answer.value;
+    if (answer.sensitive && !answer.isMissing) value = answer.isFile ? 'File uploaded' : (maskSsn(answer.value) ?? answer.value);
     return (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? MISSING : ''}`}>

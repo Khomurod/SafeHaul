@@ -37,10 +37,10 @@ function toDateOrNull(val) {
 
 function IdentityCard({ appData }) {
     const [showSSN, setShowSSN] = useState(false);
-    // The shared mask (`maskSsn`). A missing SSN is fully masked and has nothing to
-    // reveal; the mask is never applied to a fallback string such as 'Unknown'.
+    // The shared mask (`maskSsn`). Show/Hide only for a number with four digits:
+    // a missing SSN or a value such as 'Unknown' has nothing to reveal.
     const rawSsn = String(appData.ssn || '').trim();
-    const hasSsn = rawSsn.length > 4;
+    const hasSsn = rawSsn.replace(/\D/g, '').length >= 4;
     const maskedSSN = maskSsn(rawSsn) ?? '***-**-****';
 
     return (

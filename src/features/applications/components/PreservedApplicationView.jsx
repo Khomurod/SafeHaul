@@ -80,11 +80,23 @@ function OpenUploadedFile({ storagePath }) {
     );
 }
 
+const SENSITIVE_UPLOAD = 'File uploaded';
+
+/**
+ * What a sensitive answer shows: an SSN masked to its last four digits, an upload
+ * (the Social Security Card) as "File uploaded", never its file name.
+ */
+function sensitiveAnswerText(answer) {
+    if (!answer.sensitive || answer.isMissing) return answer.value;
+    if (answer.isFile) return SENSITIVE_UPLOAD;
+    return maskSsn(answer.value) ?? answer.value;
+}
+
 function AnswerRow({ answer, openUploads }) {
     // The record stores the number as truth; masking is a presentation decision,
     // and on screen the answer is always no. The full number appears only in the
     // authorized original PDF, whose every access is authorized and audited.
-    const value = answer.sensitive && !answer.isMissing ? (maskSsn(answer.value) ?? answer.value) : answer.value;
+    const value = sensitiveAnswerText(answer);
     const display = (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? NOT_PROVIDED_TONE : ''}`}>

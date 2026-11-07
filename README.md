@@ -258,16 +258,20 @@ not export; the full mapping is in
 [docs/callable-frontend-map.md](docs/callable-frontend-map.md).
 
 **Deploys happen only through CI.** Merging to `main` deploys the Testing site
-and the shared backend (functions, rules, indexes); Production changes only when
-someone promotes a tested Testing release (Super Admin → Releases). Never deploy
+and the shared backend (functions, rules, indexes), which Production uses too, so
+a backend change reaches Production at once. The Production *frontend* changes
+only when someone promotes a tested Testing release (Super Admin → Releases). Never deploy
 from a workstation: Testing and Production share one backend, and
 `firebase deploy --only hosting` would publish **every** hosting target,
 Production included. Emergencies and rollbacks:
 [docs/FIREBASE_HOSTING_RUNBOOK.md](docs/FIREBASE_HOSTING_RUNBOOK.md).
 
 ```bash
-npm run deploy:functions:plan          # Dry run: which functions the next merge would deploy
+DEPLOY_GIT_BASE=origin/main npm run deploy:functions:plan   # Dry run: functions changed since main
 ```
+
+Without `DEPLOY_GIT_BASE` the plan compares with the previous commit only. CI
+picks its own base and also deploys the functions it always includes.
 
 ---
 

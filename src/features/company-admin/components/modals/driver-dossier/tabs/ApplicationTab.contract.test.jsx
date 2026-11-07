@@ -189,6 +189,8 @@ describe('ApplicationTab identity summary', () => {
     renderTab({ ...APP, ssn: 'Unknown' });
     expect(screen.getByText('***-**-****')).toBeInTheDocument();
     expect(screen.queryByText('***-**-nown')).toBeNull();
+    // Nothing to reveal, so no Show SSN.
+    expect(screen.queryByRole('button', { name: /show ssn/i })).toBeNull();
   });
 
   it('joins the address and falls back to an em dash', () => {

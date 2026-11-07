@@ -100,6 +100,7 @@ export function toDisplayAnswer(answer) {
         value: answer.displayValue || NOT_PROVIDED,
         isMissing: !answer.displayValue,
         sensitive: Boolean(answer.sensitive),
+        isFile: answer.type === 'file',
         // Repeating groups (employers, violations) are rendered by dedicated
         // components; flagged so a generic renderer does not print "[object Object]".
         repeating: Boolean(answer.repeating),

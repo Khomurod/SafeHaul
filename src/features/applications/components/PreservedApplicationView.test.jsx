@@ -92,6 +92,18 @@ describe('PreservedApplicationView', () => {
         expect(screen.queryByText('Unknown')).toBeNull();
     });
 
+    it('shows a sensitive upload as uploaded, never its file name or a mask', () => {
+        const [personal, ...rest] = RECORD.sections;
+        const card = {
+            key: 'ssc-upload', label: 'Social Security Card', value: 'card-123-45-6789.jpg',
+            isMissing: false, sensitive: true, isFile: true, repeating: false, rows: [],
+        };
+        render(<PreservedApplicationView record={{ ...RECORD, sections: [{ ...personal, answers: [...personal.answers, card] }, ...rest] }} />);
+        expect(screen.getByText('File uploaded')).toBeInTheDocument();
+        expect(screen.queryByText(/card-123-45-6789/)).toBeNull();
+        expect(screen.getAllByText('***-**-7391')).toHaveLength(1);
+    });
+
     it('lays out a repeating group as labelled cells', () => {
         render(<PreservedApplicationView record={RECORD} />);
         expect(screen.getByText('Employer')).toBeInTheDocument();
