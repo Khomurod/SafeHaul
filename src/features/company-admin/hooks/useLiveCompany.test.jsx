@@ -196,6 +196,19 @@ describe('useLiveCompany: the feature switches', () => {
         expect(fx.listeners).toHaveLength(1);
     });
 
+    it('takes a switch turned off and back on before the company in use caught up', () => {
+        fx.data = session({ id: 'co-1', features: { eDocs: true } });
+        renderHook(() => useLiveCompany());
+
+        // Both answers land before a render: the company in use still says on.
+        act(() => {
+            fx.listeners.at(-1).next(snapshot({ features: { eDocs: false } }));
+            fx.listeners.at(-1).next(snapshot({ features: { eDocs: true } }));
+        });
+
+        expect(fx.applied.map(({ changes }) => changes.features)).toEqual([{ eDocs: false }, { eDocs: true }]);
+    });
+
     it("follows a super admin's switches in their workspace too", () => {
         fx.data = session({ id: 'co-1', features: { campaignsEnabled: true } }, 'super_admin');
         renderHook(() => useLiveCompany());

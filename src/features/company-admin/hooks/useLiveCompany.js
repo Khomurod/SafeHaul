@@ -44,6 +44,10 @@ export function useLiveCompany() {
 
     useEffect(() => {
         if (!companyId) return undefined;
+        // The switches of this listener's last answer. Two answers can arrive before
+        // the company in use takes the first, so each is also measured against the
+        // one before it: a switch turned off and back on reaches the workspace both times.
+        let last = null;
         return onSnapshot(
             doc(db, 'companies', companyId),
             (snap) => {
@@ -54,7 +58,9 @@ export function useLiveCompany() {
                 const data = snap.data();
                 setLive({ companyId, deactivated: isCompanyDeactivated(data) });
                 const switches = switchesOf(data);
-                if (!sameSwitches(switches, switchesOf(profileRef.current))) applyCompanyChanges(companyId, switches);
+                const moved = last !== null && !sameSwitches(switches, last);
+                last = switches;
+                if (moved || !sameSwitches(switches, switchesOf(profileRef.current))) applyCompanyChanges(companyId, switches);
             },
             () => setRefusedKey(key),
         );
