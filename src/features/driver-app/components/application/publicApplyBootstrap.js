@@ -1,6 +1,7 @@
 // How the guest application page boots, for `PublicApplyHandler.jsx`: two
 // React-free functions, the post-apply session restore and the company load
-// (sandbox / E2E / production, with the local-draft restore and its discard
+// (sandbox, or one sequence for production and E2E mode that differs only in
+// where the company comes from, with the local-draft restore and its discard
 // guards). The server-draft reconciliation and the reconnect flush live in
 // `publicApplyDraftSync.js`. The component's effects keep their exact dependency
 // arrays and pass this tab's refs as the ref OBJECTS, so capture/re-read
@@ -72,7 +73,10 @@ export function restorePostApplySessionFor({
   
 }
 
-/** The company load: sandbox / E2E / production, with the local-draft restore. */
+/**
+ * The company load: sandbox, or production — which E2E mode runs too, with the
+ * fixture company in place of the fetched one — with the local-draft restore.
+ */
 export async function loadPublicApplyCompany({
   slug,
   sandbox,
@@ -169,40 +173,14 @@ export async function loadPublicApplyCompany({
           return;
         }
 
+        // One sequence for the browser suites and production: only where the
+        // company comes from differs. The suites run against no backend, so E2E
+        // mode reads the fixture profile, and everything below — the invitation,
+        // both restores and their discard guards — is the production code path.
         // `!PROD` keeps the fixture company out of a production build (`isE2ETestMode`).
-        if (!import.meta.env.PROD && isE2ETestMode) {
-          const mockCompany = buildE2EPublicProfile(slug);
-          setCompany(mockCompany);
-          sessionStorage.setItem('pending_application_company', mockCompany.id);
-          // Same order as the production branch below, and kept that way
-          // deliberately: the comment there records that a divergence between the
-          // two is exactly why a browser test could not see an earlier bug.
-          const e2eInvite = await openInvite(mockCompany);
-          if (e2eInvite.status === INVITE_OUTCOMES.OPENED) return;
-          // Same decision as the production branch, from the same function.
-          const e2ePermits = permissionsAfterInvite(e2eInvite);
-          if (e2ePermits.restoreSubmission) restorePostApplySession(mockCompany);
-          if (getE2EQueryParam('e2eIntake', 'manual') !== 'choice') {
-            setIntakeMode('manual');
-          }
-          const e2eDraft = e2ePermits.restoreLocalDraft ? readApplicationDraft(slug) : null;
-          if (e2eDraft) {
-            // Same flag as the production path below: stored content on screen, so a
-            // discard elsewhere takes it with it. Kept in step so a browser test
-            // exercises the behaviour production has, not a weaker one.
-            restoredFromDraftRef.current = true;
-            draftIdRef.current = e2eDraft.meta?.draftId || null;
-            setFormData((prev) => ({ ...prev, ...e2eDraft.data }));
-            if (typeof e2eDraft.lastStep === 'number') {
-              setCurrentStep(e2eDraft.lastStep);
-            }
-          }
-          adoptLinkCodes(searchParams, setFormData);
-          setLoading(false);
-          return;
-        }
-
-        const companyData = await fetchPublicProfileBySlug(slug);
+        const companyData = (!import.meta.env.PROD && isE2ETestMode)
+          ? buildE2EPublicProfile(slug)
+          : await fetchPublicProfileBySlug(slug);
 
         if (!companyData) {
           setError("Company not found.");
@@ -215,9 +193,7 @@ export async function loadPublicApplyCompany({
         // Deliberately AFTER the company is set. `openInvite` returns straight out
         // of `loadCompany`, and the wizard it hands the driver reads
         // `company.companyName` -- so opening the invite first left every real
-        // carrier-sent link rendering against no company at all. The E2E branch
-        // above sets the company before calling it, which is precisely why a
-        // browser test could not see this. The two branches now agree.
+        // carrier-sent link rendering against no company at all.
         //
         // And deliberately BEFORE the post-apply session restore, which is the
         // reorder that stops a 24-hour-old confirmation screen for this carrier
@@ -240,6 +216,13 @@ export async function loadPublicApplyCompany({
         // when an invitation FAILED too — a dead link must not take away a success
         // screen — but not while a live one is asking the driver to confirm.
         if (permits.restoreSubmission) restorePostApplySession(companyData);
+
+        // The browser suites skip the intake chooser unless `?e2eIntake=choice`
+        // asks for it.
+        if (!import.meta.env.PROD && isE2ETestMode
+          && getE2EQueryParam('e2eIntake', 'manual') !== 'choice') {
+          setIntakeMode('manual');
+        }
 
         // P2-5 FIX: Recover saved draft from localStorage on page revisit.
         //
