@@ -17,7 +17,7 @@ const fx = vi.hoisted(() => ({ deactivated: false, logout: vi.fn() }));
 vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentCompanyProfile: { id: 'co-1', companyName: 'Acme Freight' }, handleLogout: fx.logout }),
 }));
-vi.mock('../hooks/useCompanyDeactivated', () => ({ useCompanyDeactivated: () => fx.deactivated }));
+vi.mock('../hooks/useLiveCompany', () => ({ useLiveCompany: () => fx.deactivated }));
 vi.mock('./CompanySidebar', () => ({ CompanySidebar: () => null }));
 vi.mock('../components/FeatureDeactivationWarning', () => ({ FeatureDeactivationWarning: () => null }));
 vi.mock('./CompanyTopbar', () => ({

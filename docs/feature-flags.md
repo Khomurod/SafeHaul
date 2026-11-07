@@ -9,6 +9,8 @@ Per-tenant feature toggles live on **`companies/{companyId}`** as two parallel m
 
 Super admins manage both on each company's own screen, its Features tab ([`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx)). Only they can: the rules refuse a company admin's write to either. Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
 
+An open company workspace follows both maps live, with no reload: [`useLiveCompany`](../src/features/company-admin/hooks/useLiveCompany.js), mounted once by the company shell, keeps the one listener on `companies/{companyId}` (the same one that closes a deactivated company) and copies a changed `features` / `featureSchedules` into the company in use (`applyCompanyChanges`), so the sidebar, page guards and the warning modal follow at once. Nothing else on the company is taken from the listener, and a snapshot whose switches match changes nothing. It runs for super admins in the workspace too; a refused or offline read changes no switch (E2E mode's fixture flags stay).
+
 ---
 
 ## Canonical feature keys
@@ -175,6 +177,7 @@ After scheduler runs past June 1:
 | [`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx) | Nav filtering |
 | [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx) | Pre-shutdown UX |
 | [`DataContext.jsx`](../src/context/DataContext.jsx) | Loads `currentCompanyProfile` including flags |
+| [`useLiveCompany.js`](../src/features/company-admin/hooks/useLiveCompany.js) | Keeps the open workspace's flags live (and closes a deactivated company) |
 
 ---
 
