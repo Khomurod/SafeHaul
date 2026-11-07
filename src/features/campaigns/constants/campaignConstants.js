@@ -109,6 +109,33 @@ export const isCancellableSessionStatus = (status) =>
     CANCELLABLE_SESSION_STATUSES.includes(status);
 
 /**
+ * A campaign's status → its `Badge` tone, the one map the campaign cards and the
+ * campaign report share (K2). A failed campaign reads as a failure; an unknown
+ * status is neutral. Display only: the stored status never changes.
+ */
+const SESSION_STATUS_TONES = Object.freeze({
+    active: 'success',
+    draft: 'neutral',
+    completed: 'info',
+    scheduled: 'warning',
+    queued: 'accent',
+    failed: 'danger',
+    paused: 'warning',
+    cancelled: 'neutral',
+});
+
+/** The tone and the capitalised label a campaign's status is shown with. */
+export function campaignStatusPresentation(status) {
+    const tone = Object.prototype.hasOwnProperty.call(SESSION_STATUS_TONES, status)
+        ? SESSION_STATUS_TONES[status]
+        : 'neutral';
+    const label = typeof status === 'string' && status.length > 0
+        ? status.charAt(0).toUpperCase() + status.slice(1)
+        : 'Unknown';
+    return { tone, label };
+}
+
+/**
  * A draft that was launched (`useCampaignDraft.markLaunched`): kept as the
  * campaign's record, no longer listed under Drafts or launchable. `launchedAt`
  * is null, not absent, while the server time is pending.

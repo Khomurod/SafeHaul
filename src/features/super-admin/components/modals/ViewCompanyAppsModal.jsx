@@ -1,11 +1,11 @@
 import React, { useId, useState, useMemo } from 'react';
 import { Icon, X, Search, FileText, Calendar, User } from '@design-system/icons';
-import { Badge, Button, DataTable, IconButton, Input, Notice } from '@/design-system/components';
+import { Button, DataTable, IconButton, Input, Notice } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
 import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
-import { applicationStatusTone } from '../applicationStatusTone';
 import { useCompanyApplicationPages } from '../../hooks/useCompanyApplicationPages';
+import { StatusBadge } from '@shared/components/badges';
 
 // --- SMART NAME RESOLVER ---
 // Checks all possible locations where data might be saved
@@ -66,9 +66,11 @@ const APPLICATION_COLUMNS = [
   {
     key: 'status',
     header: 'Status',
-    width: 'md',
+    // `lg`, as every list of `StatusBadge`s: the badge carries an icon and does
+    // not wrap, so "New Application" or "Background Check" outgrows `md`.
+    width: 'lg',
     render: (app) => (
-      <Badge tone={applicationStatusTone(app.status)}>{app.status || 'New Application'}</Badge>
+      <StatusBadge status={app.status || 'New Application'} />
     ),
   },
   {
@@ -114,8 +116,8 @@ const format = (n) => n.toLocaleString('en-US');
  *    and `EmptyState`, which own that announcement, so filtering the list to
  *    nothing is announced too; the brand loader stays, because `LoadingState`'s
  *    spinner is not it.
- *  - **Status is never colour alone.** It is an approved `Badge` whose text
- *    carries the meaning, with the domain→tone mapping owned by this feature.
+ *  - **Status is never colour alone.** It is the shared `StatusBadge`: its
+ *    text carries the meaning, with an icon and the company workspace's tone.
  *
  *  - The list is an embedded `DataTable` with its own height limit, so its
  *    header stays in view while the rows scroll inside the dialog. Email and

@@ -385,6 +385,23 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
     expect(screen.getByText('New Application')).toBeInTheDocument();
   });
 
+  it('tones each status as the company workspace does: Hired green, Rejected red (K2)', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Alpha', lastName: 'Driver', status: 'Hired' },
+      { id: 'a2', firstName: 'Beta', lastName: 'Driver', status: 'Rejected' },
+      { id: 'a3', firstName: 'Gamma', lastName: 'Driver' },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const hired = (await screen.findByText('Hired')).closest('.ds-badge');
+    expect(hired).toHaveAttribute('data-tone', 'success');
+    expect(screen.getByText('Rejected').closest('.ds-badge')).toHaveAttribute('data-tone', 'danger');
+    expect(screen.getByText('New Application').closest('.ds-badge')).toHaveAttribute('data-tone', 'info');
+    // The text carries the meaning; the shared badge adds a decorative icon.
+    expect(hired.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('filters across name, email and status', async () => {
     mockLoadApplications.mockResolvedValue([
       { id: 'a1', firstName: 'Alpha', lastName: 'Driver', email: 'alpha@example.test', status: 'Hired' },

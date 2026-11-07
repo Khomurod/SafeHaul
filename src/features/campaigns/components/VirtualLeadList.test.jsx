@@ -336,6 +336,24 @@ describe('VirtualLeadList — selection semantics', () => {
         // No element opts out of the supported type scale.
         expect(document.querySelector('.text-\\[10px\\]')).toBeNull();
     });
+
+    it('tones the stored statuses as the company workspace does: Hired green (K2)', () => {
+        render(
+            <VirtualLeadList
+                companyId="co-1"
+                filters={{}}
+                localData={[
+                    lead('l1', { status: 'Hired' }),
+                    lead('l2', { status: 'Rejected' }),
+                    lead('l3', { status: 'New Application' }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Hired')).toHaveAttribute('data-tone', 'success');
+        expect(screen.getByText('Rejected')).toHaveAttribute('data-tone', 'danger');
+        expect(screen.getByText('New Application')).toHaveAttribute('data-tone', 'info');
+    });
 });
 
 describe('VirtualLeadList — states', () => {

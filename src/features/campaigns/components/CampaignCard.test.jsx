@@ -55,9 +55,12 @@ describe('CampaignCard', () => {
         ['draft', 'Draft', 'neutral'],
         ['completed', 'Completed', 'info'],
         ['scheduled', 'Scheduled', 'warning'],
-        ['queued', 'Queued', 'neutral'],
+        ['queued', 'Queued', 'accent'],
+        ['paused', 'Paused', 'warning'],
         ['cancelled', 'Cancelled', 'neutral'],
-        ['failed', 'Failed', 'neutral'],
+        // K2: a failed campaign reads as a failure, as it does in its report.
+        ['failed', 'Failed', 'danger'],
+        ['mystery', 'Mystery', 'neutral'],
     ])('presents %s as label "%s" with tone %s', (status, label, tone) => {
         render(<CampaignCard campaign={{ id: '1', name: 'C', status }} />);
         const badge = screen.getByText(label);

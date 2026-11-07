@@ -1,9 +1,9 @@
 import React, { useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
 import { Icon, Building, Users, FileText, Edit2 } from '@design-system/icons';
-import { Badge, Button, Card } from '@/design-system/components';
+import { Button, Card } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { applicationStatusTone } from './applicationStatusTone';
+import { StatusBadge } from '@shared/components/badges';
 
 /**
  * Global search results across companies, users and driver applications.
@@ -19,9 +19,8 @@ import { applicationStatusTone } from './applicationStatusTone';
  * Defects fixed here:
  *  - **Status was communicated by colour alone.** Each application rendered
  *    `getStatusColor(...)` as a bare pill of legacy palette classes. Status is
- *    now an approved `Badge` whose text carries the meaning, with the
- *    domain→tone mapping owned by this feature (the design system must not know
- *    what "Background Check" means).
+ *    now the shared `StatusBadge` — its text, an icon, and the same tone the
+ *    company workspace gives that status (K2: Hired reads green, Declined red).
  *  - The three groups were bare `<section>`s with no accessible name, so their
  *    headings were not programmatically associated.
  *  - Long company names, emails and slugs could not wrap or truncate, pushing
@@ -131,7 +130,7 @@ export function GlobalSearchResults({
                     </span>
                   </span>
                   <span className="shrink-0">
-                    <Badge tone={applicationStatusTone(status)}>{status}</Badge>
+                    <StatusBadge status={status} />
                   </span>
                 </Card>
               );

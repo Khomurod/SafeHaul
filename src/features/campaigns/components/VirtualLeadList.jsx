@@ -6,17 +6,7 @@ import { Icon, CheckCircle2, Inbox, Loader2, XCircle } from '@design-system/icon
 import { Avatar, Badge, Button, SelectableCard } from '@/design-system/components';
 import { EmptyState, ErrorState, LoadingState } from '@/design-system/patterns';
 import { campaignLimitOf } from '../constants/campaignConstants';
-
-/**
- * Feature-owned domain → visual mapping for a recipient's lifecycle status.
- * The design system only knows generic Badge tones; the campaigns feature owns
- * which status maps to which tone. Tones preserve the previous appearance:
- * new=info (blue), hired=success (emerald), everything else neutral (slate).
- */
-const STATUS_TONE = {
-    new: 'info',
-    hired: 'success',
-};
+import { getStatusTone } from '@shared/components/badges/StatusBadge';
 
 /**
  * The preview panel is an inverse ("console") surface, which the token contract
@@ -175,11 +165,11 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
                     <span className="block truncate text-ds-xs text-ds-content-on-inverse-muted">{contact}</span>
                 </span>
 
-                {/* Status Badge */}
+                {/* Status Badge: the company workspace's tone for a recruiting status (K2); none is neutral. */}
                 {isPhoneExcluded ? (
                     <Badge tone="warning">Already Messaged</Badge>
                 ) : (
-                    <Badge tone={STATUS_TONE[user.status] || 'neutral'}>{user.status || 'Lead'}</Badge>
+                    <Badge tone={getStatusTone(user.status)}>{user.status || 'Lead'}</Badge>
                 )}
 
                 <span className="ds-visually-hidden">{stateText}</span>

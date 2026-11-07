@@ -60,6 +60,40 @@ describe('StatusBadge', () => {
         expect(getStatusTone(status)).toBe(tone);
     });
 
+    /**
+     * K2: one status → tone map for every screen that shows a recruiting
+     * status — the company workspace, Super Admin's lists and the campaign
+     * audience preview. Hired reads green (`success`); a closed-out driver reads
+     * as `danger`. Every stored value is listed, so a regex edit that moves one
+     * shows up here.
+     */
+    it.each([
+        ['New', 'info'],
+        ['New Application', 'info'],
+        ['New Lead', 'info'],
+        ['Contact Attempt 1', 'neutral'],
+        ['Contact Attempt 2', 'neutral'],
+        ['Contact Attempt 3', 'neutral'],
+        ['In Process', 'neutral'],
+        ['Interested', 'neutral'],
+        ['Hired', 'success'],
+        ['Approved', 'success'],
+        ['Qualified', 'success'],
+        ['Offer Accepted', 'success'],
+        ['Terminated', 'danger'],
+        ['Declined', 'danger'],
+        ['Rejected', 'danger'],
+        ['Offer Declined', 'danger'],
+        ['Background Check', 'accent'],
+        ['In Review', 'accent'],
+        ['Contacted', 'accent'],
+        ['Attempted', 'accent'],
+        ['Hold', 'warning'],
+        ['Stale', 'neutral'],
+    ])('tones the stored status %s as %s', (status, tone) => {
+        expect(getStatusTone(status)).toBe(tone);
+    });
+
     it('prefers the negative outcome when a status contains both', () => {
         // Order is load-bearing: "declined" is tested before "new", so a status
         // like this reads as declined rather than as a fresh record.

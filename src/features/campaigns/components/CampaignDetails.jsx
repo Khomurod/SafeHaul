@@ -7,31 +7,8 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, IconButton, Notice } from '@/design-system/components';
-import { deliveryCheckMessage } from '../constants/campaignConstants';
+import { campaignStatusPresentation, deliveryCheckMessage } from '../constants/campaignConstants';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
-
-// Feature-owned domain → visual mapping (design system only knows generic tones).
-// Tones preserve the previous appearance: active=success, completed=info,
-// scheduled/paused=warning (amber/orange), queued=accent, failed=danger,
-// draft/cancelled/unknown=neutral.
-const STATUS_TONE = {
-    active: 'success',
-    draft: 'neutral',
-    completed: 'info',
-    scheduled: 'warning',
-    queued: 'accent',
-    failed: 'danger',
-    paused: 'warning',
-    cancelled: 'neutral',
-};
-
-function statusPresentation(status) {
-    const tone = STATUS_TONE[status] || 'neutral';
-    const label = typeof status === 'string' && status.length > 0
-        ? status.charAt(0).toUpperCase() + status.slice(1)
-        : 'Unknown';
-    return { tone, label };
-}
 
 /*
  * `icon: Glyph`, not `icon: Icon`. The contract's own component is called
@@ -213,7 +190,7 @@ export function CampaignDetails({ campaign, onClose }) {
     const isActive = ['active', 'queued', 'scheduled'].includes(campaign.status);
     const isPaused = campaign.status === 'paused';
     const canCheckDelivery = String(campaign.messageConfig?.method || '').toLowerCase() === 'sms' && campaign.progress?.processedCount > 0;
-    const { tone, label } = statusPresentation(campaign.status);
+    const { tone, label } = campaignStatusPresentation(campaign.status);
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-ds-surface-subtle">

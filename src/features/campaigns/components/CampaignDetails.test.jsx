@@ -122,6 +122,17 @@ describe('CampaignDetails — rendering', () => {
         expect(screen.getByText('Provider rejected the batch')).toBeInTheDocument();
     });
 
+    it.each([
+        ['failed', 'Failed', 'danger'],
+        ['active', 'Active', 'success'],
+        ['queued', 'Queued', 'accent'],
+        ['paused', 'Paused', 'warning'],
+    ])('tones the %s status badge as the campaign card does', (status, label, tone) => {
+        // K2: one status map for the card and the report; a failed campaign reads as a failure.
+        renderDetails(makeCampaign({ status }));
+        expect(screen.getByText(label).closest('.ds-badge')).toHaveAttribute('data-tone', tone);
+    });
+
     it('falls back to the default message copy', () => {
         renderDetails(makeCampaign({ messageConfig: {} }));
         expect(screen.getByText('No message content defined.')).toBeInTheDocument();
