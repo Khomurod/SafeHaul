@@ -31,12 +31,13 @@ vi.mock('firebase/firestore', () => ({
     getCountFromServer: (...a) => getCountFromServer(...a),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
-vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, auth: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showError: vi.fn() }),
 }));
 
 import { useSuperAdminData } from './useSuperAdminData';
+import { forgetCompanies } from '@features/companies/services/companyService';
 
 async function mountLoaded() {
     const hook = renderHook(() => useSuperAdminData());
@@ -45,6 +46,8 @@ async function mountLoaded() {
 }
 
 beforeEach(() => {
+    // Each test reads every company afresh, not the copy an earlier test kept.
+    forgetCompanies();
     vi.clearAllMocks();
     failingCount = null;
     vi.spyOn(console, 'log').mockImplementation(() => {});

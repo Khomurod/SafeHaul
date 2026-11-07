@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@lib/firebase';
+import { loadCompanies } from '@features/companies/services/companyService';
 import { Badge, DataTable } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -28,8 +27,10 @@ function scheduledOff(company, key) {
 /**
  * Every company's features in one table, view only: each is on or off, with a
  * scheduled switch-off when one is set. A row opens that company's Features
- * tab (`onOpenCompany`), where they are switched. It reads every company, not
- * the companies list's loaded page.
+ * tab (`onOpenCompany`), where they are switched. It shows every company, not
+ * the companies list's loaded page, from the read the console's screens share
+ * (`loadCompanies`: at most two minutes old, read again after a feature is
+ * switched here).
  */
 export function FeaturesOverview({ onOpenCompany }) {
     const [companies, setCompanies] = useState([]);
@@ -45,7 +46,7 @@ export function FeaturesOverview({ onOpenCompany }) {
             return;
         }
         try {
-            const snap = await getDocs(collection(db, 'companies'));
+            const snap = await loadCompanies();
             const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
             setCompanies(list.sort((a, b) => nameOf(a).localeCompare(nameOf(b))));
         } catch (error) {
