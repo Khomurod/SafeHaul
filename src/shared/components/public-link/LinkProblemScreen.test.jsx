@@ -153,7 +153,8 @@ describe('LinkProblemScreen: Ask for a new link', () => {
 
         await act(async () => answer({ ok: true }));
         const done = await screen.findByText('Done. Acme Freight has been asked to send you a new link.');
-        expect(done.closest('[role="status"].ds-notice')).toHaveFocus();
+        // The focus moves in an effect, after the notice renders.
+        await waitFor(() => expect(done.closest('[role="status"].ds-notice')).toHaveFocus());
         expect(screen.queryByRole('button', { name: ASK })).not.toBeInTheDocument();
     });
 

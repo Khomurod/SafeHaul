@@ -260,7 +260,7 @@ describe('the quick interest form', () => {
       contactConsent: true,
     });
     const thanks = await screen.findByRole('heading', { name: 'Thank you' });
-    expect(thanks).toHaveFocus();
+    await waitFor(() => expect(thanks).toHaveFocus());
     expect(screen.getByText('A recruiter from Blue Line Freight will contact you soon.')).toBeInTheDocument();
 
     expect(prefill).not.toHaveBeenCalled();

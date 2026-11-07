@@ -262,8 +262,9 @@ describe('Approve all', () => {
         await renderLoaded();
         fireEvent.click(approveAll());
 
-        expect(await screen.findByRole('heading', { level: 1, name: 'This link was replaced by a newer one' }))
-            .toHaveFocus();
+        const replaced = await screen.findByRole('heading', { level: 1, name: 'This link was replaced by a newer one' });
+        // `PageState` moves the focus in an effect, after the heading renders.
+        await waitFor(() => expect(replaced).toHaveFocus());
         expect(screen.queryByRole('button', { name: /^Approve all/ })).not.toBeInTheDocument();
     });
 

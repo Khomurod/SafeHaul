@@ -174,7 +174,7 @@ describe('declining to sign electronically', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
         await waitFor(() => expect(screen.getByRole('button', { name: /I Agree - Proceed to Sign/ })).toBeInTheDocument());
         // Go back's button is gone: the consent's heading holds the focus, not `<body>`.
-        expect(screen.getByRole('heading', { level: 1, name: 'Electronic Signature Consent' })).toHaveFocus();
+        await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Electronic Signature Consent' })).toHaveFocus());
     });
 });
 
