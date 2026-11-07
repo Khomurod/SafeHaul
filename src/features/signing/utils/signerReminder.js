@@ -7,7 +7,12 @@
  * and word what the server answered. Pure: the call is `useSignerReminder`.
  */
 
+import { serverMessageOf } from '@shared/utils/callableErrors';
+
 const text = (value) => (typeof value === 'string' ? value.trim() : '');
+
+/** Refusals whose sentence the server writes for the person. */
+const EXPLAINED = new Set(['failed-precondition', 'aborted', 'not-found']);
 
 /**
  * Whether Remind is offered: a document waiting for its signature (`sent`, its
@@ -65,12 +70,14 @@ export function reminderResultMessage(data) {
     };
 }
 
-/** Why a press of Remind sent nothing. A refusal carries the server's own reason. */
+/**
+ * Why a press of Remind sent nothing. A refusal carries the server's own reason;
+ * a bare code (`serverMessageOf`) is no reason.
+ */
 export function reminderErrorMessage(error) {
     const code = String(error?.code || '').replace(/^functions\//, '');
-    if ((code === 'failed-precondition' || code === 'aborted' || code === 'not-found') && error?.message) {
-        return error.message;
-    }
+    const said = EXPLAINED.has(code) ? serverMessageOf(error) : null;
+    if (said) return said;
     if (code === 'permission-denied') return 'You do not have access to send reminders for this company.';
     return 'Could not send the reminder. Please try again.';
 }

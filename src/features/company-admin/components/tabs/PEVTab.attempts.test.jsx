@@ -158,6 +158,17 @@ describe('Record attempt', () => {
 
     await waitFor(() => expect(screen.getByText('The attempt could not be recorded. Please try again.')).toBeInTheDocument());
   });
+
+  it('never shows a bare code as the reason, as when the function is not on the server yet', async () => {
+    fnMocks.callable.mockRejectedValue(Object.assign(new Error('not-found'), { code: 'functions/not-found' }));
+    renderTab({ employers: [legacyRow({ status: 'Sent', history: [] })] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record attempt for Legacy Hauling' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Record attempt' }));
+
+    await waitFor(() => expect(screen.getByText('The attempt could not be recorded. Please try again.')).toBeInTheDocument());
+    expect(screen.queryByText('not-found')).toBeNull();
+  });
 });
 
 describe('the history dialog', () => {

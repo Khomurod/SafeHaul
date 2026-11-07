@@ -5,6 +5,7 @@ import { Icon, Phone } from '@design-system/icons';
 import { ConfirmDialog } from '@design-system/patterns';
 import { Button, FormField, Input, Select, Textarea } from '@/design-system/components';
 import { getFieldValue } from '@shared/utils/helpers';
+import { serverMessageOf } from '@shared/utils/callableErrors';
 
 /**
  * "Record attempt": a recruiter records a phone call, a fax or a note against
@@ -32,11 +33,13 @@ function localToday() {
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** The server's sentence for a refusal it explains, else a general one. */
+/** Refusals whose sentence the server writes for the person. */
+const EXPLAINED = new Set(['invalid-argument', 'not-found', 'failed-precondition', 'resource-exhausted']);
+
+/** The server's sentence for a refusal it explains (never a bare code), else a general one. */
 function failureText(error) {
     const code = String(error?.code || '').replace(/^functions\//, '');
-    const explained = ['invalid-argument', 'not-found', 'failed-precondition', 'resource-exhausted'];
-    return explained.includes(code) && error?.message ? error.message : 'The attempt could not be recorded. Please try again.';
+    return (EXPLAINED.has(code) && serverMessageOf(error)) || 'The attempt could not be recorded. Please try again.';
 }
 
 function RecordAttemptDialog({ record, emp, index, onRecorded, onClose }) {
