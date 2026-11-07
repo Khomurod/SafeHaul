@@ -157,15 +157,21 @@ describe('LinkProblemScreen: Ask for a new link', () => {
         expect(screen.queryByRole('button', { name: ASK })).not.toBeInTheDocument();
     });
 
-    it('says the person already asked when the server refuses another request', async () => {
+    it('never says the company was told when the server refused too many requests, and offers the button again', async () => {
+        // Someone else on the same network may have used the requests up: nobody was told.
         onRequestNewLink.mockRejectedValueOnce(refusal('resource-exhausted'));
         render(<LinkProblemScreen reason={LINK_PROBLEM.REPLACED} companyName="Acme Freight" onRequestNewLink={onRequestNewLink} />);
 
         fireEvent.click(screen.getByRole('button', { name: ASK }));
-        const told = await screen.findByText('You already asked. Acme Freight has been told.');
-        expect(told.closest('[role="status"].ds-notice')).toHaveFocus();
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: ASK })).not.toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Too many requests came from this network. Please try again later, or contact Acme Freight.',
+        );
+        expect(screen.queryByText(/has been (asked|told)/)).not.toBeInTheDocument();
+        const again = screen.getByRole('button', { name: ASK });
+        await waitFor(() => expect(again).toHaveFocus());
+
+        fireEvent.click(again);
+        expect(await screen.findByText('Done. Acme Freight has been asked to send you a new link.')).toBeInTheDocument();
     });
 
     it('says at once when the request could not be sent, and offers the button again', async () => {
@@ -210,7 +216,7 @@ describe('LinkProblemScreen: Ask for a new link', () => {
 
         fireEvent.click(screen.getByRole('button', { name: ASK }));
         const card = screen.getByRole('main');
-        await within(card).findByText('You already asked. Acme Freight has been told.');
+        await within(card).findByText(/Too many requests came from this network/);
         expect((await axe(container)).violations).toEqual([]);
     });
 });

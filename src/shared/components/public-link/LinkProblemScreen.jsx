@@ -69,22 +69,25 @@ const COPY = Object.freeze({
 /** The reasons a new link can help: it ran out, was replaced, or could not be opened. */
 const RENEWABLE = new Set([LINK_PROBLEM.EXPIRED, LINK_PROBLEM.REPLACED, LINK_PROBLEM.UNOPENABLE]);
 
-/** The server's refusal of a caller that already asked (too often from this network). */
-const alreadyAsked = (error) => /(?:^|\/)resource-exhausted$/.test(String(error?.code ?? ''));
+/**
+ * The server's refusal of too many requests from this network. Nobody was told:
+ * someone else on the same network may have used them up.
+ */
+const tooMany = (error) => /(?:^|\/)resource-exhausted$/.test(String(error?.code ?? ''));
 
 /**
  * The "Ask … for a new link" request: `'idle'`, `'asking'`, `'asked'`,
- * `'already'` (asked before, refused as too many) or `'failed'`. Focus follows
- * the outcome: to the status that replaces the button, or back to the button
- * after a failure (it was disabled while asking).
+ * `'limited'` (refused as too many, for now) or `'failed'`. Focus follows the
+ * outcome: to the status that replaces the button, or back to the button,
+ * offered again, when the request did not go (it was disabled while asking).
  */
 function useNewLinkRequest(onRequestNewLink) {
     const [state, setState] = useState('idle');
     const buttonRef = useRef(null);
     const statusRef = useRef(null);
     useEffect(() => {
-        if (state === 'asked' || state === 'already') statusRef.current?.focus();
-        if (state === 'failed') buttonRef.current?.focus();
+        if (state === 'asked') statusRef.current?.focus();
+        if (state === 'failed' || state === 'limited') buttonRef.current?.focus();
     }, [state]);
     const ask = async () => {
         setState('asking');
@@ -92,7 +95,7 @@ function useNewLinkRequest(onRequestNewLink) {
             await onRequestNewLink();
             setState('asked');
         } catch (error) {
-            setState(alreadyAsked(error) ? 'already' : 'failed');
+            setState(tooMany(error) ? 'limited' : 'failed');
         }
     };
     return { state, ask, buttonRef, statusRef };
@@ -104,12 +107,17 @@ function useNewLinkRequest(onRequestNewLink) {
  * layout is the same as without the request.
  */
 function newLinkOutcome({ state, statusRef }, sender, senderFirst) {
-    if (state === 'asked' || state === 'already') {
+    if (state === 'asked') {
         return (
-            <Notice ref={statusRef} tabIndex={-1} tone={state === 'asked' ? 'success' : 'info'} announce="polite">
-                {state === 'asked'
-                    ? `Done. ${senderFirst} has been asked to send you a new link.`
-                    : `You already asked. ${senderFirst} has been told.`}
+            <Notice ref={statusRef} tabIndex={-1} tone="success" announce="polite">
+                {`Done. ${senderFirst} has been asked to send you a new link.`}
+            </Notice>
+        );
+    }
+    if (state === 'limited') {
+        return (
+            <Notice tone="warning" announce="assertive">
+                Too many requests came from this network. Please try again later, or contact {sender}.
             </Notice>
         );
     }
@@ -146,7 +154,7 @@ export function LinkProblemScreen({ reason, companyName, detail, advice, onRetry
     const said = advice === undefined ? copy.advice(sender) : advice;
     const description = [detail || copy.detail, said].filter(Boolean).join(' ');
     const canAsk = Boolean(onRequestNewLink) && RENEWABLE.has(shown);
-    const showAsk = canAsk && ['idle', 'asking', 'failed'].includes(request.state);
+    const showAsk = canAsk && request.state !== 'asked';
     const way = (onRetry || showAsk || actions) ? (
         <>
             {onRetry && <Button variant="primary" onClick={onRetry}>Try again</Button>}

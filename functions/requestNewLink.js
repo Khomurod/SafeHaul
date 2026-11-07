@@ -19,11 +19,11 @@
  *  - a review not completed whose application still has a change waiting for the
  *    driver (Email review link needs one too).
  * One notice per record per UTC day (`createNotification` with a fixed id), for
- * the team member who sent it, else the team, opening the record. The whole team
- * can read every notification, so it holds names and a title only. A token never
- * appears in a notice or a log: a verification's or a review's token answers as
- * the person who holds it, so those notices are named by the request's id or a
- * hash of the token.
+ * the team member who sent it while on the team, else the team, opening the
+ * record. The whole team can read every notification, so it holds names and a
+ * title only. A token never appears in a notice or a log: a verification's or a
+ * review's token answers as the person who holds it, so those notices are named
+ * by the request's id or a hash of the application's path.
  */
 const crypto = require('crypto');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
@@ -34,6 +34,7 @@ const { trustedClientIp } = require('./shared/clientIp');
 const { createNotification } = require('./shared/createNotification');
 const { clipText, plainGuestText } = require('./shared/plainText');
 const { recipientFor } = require('./sealNotifications');
+const { assigneeOnTeam } = require('./shared/notificationAudience');
 const { requestIdOf } = require('./employmentVerification/requestLifecycle');
 
 /** Requests one caller address may make in `RATE_WINDOW_SECONDS`. */
@@ -75,6 +76,7 @@ async function signingNotice({ companyId, requestId }) {
     const request = snap.exists ? (snap.data() || {}) : null;
     if (request?.status !== 'sent') return null;
     const applicationId = textOf(request.sourceApplicationId);
+    const leadId = applicationId ? null : textOf(request.sourceLeadId);
     const signer = clipText(request.recipientName, 80) || 'The signer';
     const title = clipText(request.title, 80);
     return {
@@ -86,13 +88,18 @@ async function signingNotice({ companyId, requestId }) {
             type: 'signing_link_requested',
             title: TITLE,
             message: `${signer} asked for a new link to sign ${title ? `“${title}”` : 'a document'}.`,
-            relatedType: applicationId ? 'application' : 'signing_request',
-            relatedId: applicationId || requestId,
+            // The record the document was sent from, which the bell opens on its documents; else E-Docs.
+            relatedType: applicationId ? 'application' : (leadId ? 'lead' : 'signing_request'),
+            relatedId: applicationId || leadId || requestId,
         },
     };
 }
 
-/** The request as it stands now: a replaced one, followed to the request that replaced it. */
+/**
+ * The request as it stands now: a replaced one, followed to the request that
+ * replaced it. Still `superseded` when the chain runs longer than is followed or
+ * breaks, and then nothing is known to be outstanding.
+ */
 async function newestVerification(request) {
     let current = request;
     for (let hop = 0; hop < MAX_REPLACEMENTS && current.status === 'superseded'; hop += 1) {
@@ -111,7 +118,8 @@ async function verificationNotice({ token }) {
     const companyId = textOf(request?.companyId);
     const applicationId = textOf(request?.applicationId);
     if (!companyId || !applicationId) return null;
-    if (PEV_DONE.has((await newestVerification(request)).status)) return null;
+    const newest = await newestVerification(request);
+    if (newest.status === 'superseded' || PEV_DONE.has(newest.status)) return null;
     const employer = plainGuestText(request.employerName, 80) || 'A past employer';
     const applicant = plainGuestText(request.applicantName, 80) || 'the applicant';
     return {
@@ -143,7 +151,9 @@ async function reviewNotice({ token }) {
     const driver = named && named !== 'Driver' ? named : 'The driver';
     return {
         companyId,
-        name: hashOf(token),
+        // The application's changes, whichever of its review links asked: an older
+        // link and its replacement tell the company once.
+        name: hashOf(`${companyId}/${collectionName}/${applicationId}`),
         recipientId: textOf(review.createdBy),
         notification: {
             type: 'review_link_requested',
@@ -161,16 +171,18 @@ exports.requestNewLink = onCall({ cors: true }, async (request) => {
     const input = readInput(request.data);
     const ip = trustedClientIp(request.rawRequest);
     if (!(await checkRateLimit(`new_link_request_${ip}`, RATE_LIMIT, RATE_WINDOW_SECONDS, 'closed'))) {
-        throw new HttpsError('resource-exhausted', 'You already asked. Please wait before asking again.');
+        throw new HttpsError('resource-exhausted', 'Too many requests from this network. Please wait before asking again.');
     }
 
     try {
         const found = await NOTICES[input.kind](input);
         if (found) {
             const day = new Date().toISOString().slice(0, 10);
+            // The sender while on the team; one who has left reads nothing, so the team is told.
+            const recipientId = await assigneeOnTeam(db, found.companyId, found.recipientId);
             const created = await createNotification(db, found.companyId, {
                 ...found.notification,
-                ...(found.recipientId ? { recipientId: found.recipientId } : {}),
+                ...(recipientId ? { recipientId } : {}),
             }, { id: `new_link_${input.kind}_${found.name}_${day}` });
             if (created) logger.info(`[requestNewLink] ${input.kind}: company ${found.companyId} told.`);
         }

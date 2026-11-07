@@ -89,6 +89,26 @@ describe('requestNewLink tells the company', () => {
         });
     });
 
+    it('about a document sent from a lead: it opens the lead', async () => {
+        mock.docs.set(`companies/${CO}/signing_requests/sr-3`, {
+            status: 'sent', title: 'Lease agreement', recipientName: 'Pat Example', senderId: 'rec-1', sourceLeadId: 'lead-7',
+        });
+
+        await ask({ kind: 'sign', companyId: CO, requestId: 'sr-3' });
+        expect(notifications()[0].data).toMatchObject({ recipientId: 'rec-1', relatedType: 'lead', relatedId: 'lead-7' });
+    });
+
+    it('the whole team when the sender has left it', async () => {
+        mock.docs.set(`companies/${CO}`, { companyName: 'Artificial Freight', teamMembers: [{ userId: 'rec-2' }] });
+
+        await ask({ kind: 'sign', companyId: CO, requestId: 'sr-1' });
+        await ask({ kind: 'verify', token: PEV_TOKEN });
+        const [sign, verify] = ['sign', 'verify'].map((kind) => notifications().find(({ id }) => id.startsWith(`new_link_${kind}_`)));
+        // rec-1 sent the document and has left; rec-2, who sent the verification, has not.
+        expect(sign.data).not.toHaveProperty('recipientId');
+        expect(verify.data.recipientId).toBe('rec-2');
+    });
+
     it('about a verification not answered, naming the employer and the driver, never by its token', async () => {
         await expect(ask({ kind: 'verify', token: PEV_TOKEN })).resolves.toEqual({ ok: true });
 
@@ -173,6 +193,31 @@ describe('requestNewLink adds nothing more', () => {
 
         await expect(ask({ kind: 'verify', token: PEV_TOKEN })).resolves.toEqual({ ok: true });
         expect(notifications()).toEqual([]);
+    });
+
+    it('for a verification replaced more times than are followed: the newest is not known to be waiting', async () => {
+        mock.docs.set(`verification_requests/${PEV_TOKEN}`, {
+            ...SEED[`verification_requests/${PEV_TOKEN}`], status: 'superseded', supersededBy: 'pev-req-2',
+        });
+        for (let n = 2; n <= 7; n += 1) {
+            mock.docs.set(`verification_requests/token-${n}`, {
+                requestId: `pev-req-${n}`, companyId: CO,
+                ...(n < 7 ? { status: 'superseded', supersededBy: `pev-req-${n + 1}` } : { status: 'completed' }),
+            });
+        }
+
+        await expect(ask({ kind: 'verify', token: PEV_TOKEN })).resolves.toEqual({ ok: true });
+        expect(notifications()).toEqual([]);
+    });
+
+    it("for a review's older link and its replacement the same day: one notice for the application", async () => {
+        const NEWER = 'review-token-6666-7777-8888';
+        mock.docs.set(`change_reviews/${REVIEW_TOKEN}`, { ...SEED[`change_reviews/${REVIEW_TOKEN}`], status: 'revoked' });
+        mock.docs.set(`change_reviews/${NEWER}`, { ...SEED[`change_reviews/${REVIEW_TOKEN}`], token: NEWER });
+
+        await ask({ kind: 'review', token: REVIEW_TOKEN });
+        await ask({ kind: 'review', token: NEWER });
+        expect(notifications()).toHaveLength(1);
     });
 
     it('for a review whose changes were all settled under a newer link', async () => {
