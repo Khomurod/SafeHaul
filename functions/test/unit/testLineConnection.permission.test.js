@@ -1,6 +1,7 @@
 /**
  * Testing an SMS line logs in to RingCentral with the company's stored app
- * credentials, so only that company's admin, or the Super Admin, may ask for it.
+ * credentials, so only those who may manage the company's SMS settings (its
+ * admin or owner, or the Super Admin) may ask for it.
  */
 
 jest.mock('firebase-functions/v2/https', () => ({
@@ -42,17 +43,29 @@ jest.mock('../../firebaseAdmin', () => ({
     },
 }));
 
-// The company's deactivation is read in shared/companyAccess.js (its own tests);
-// here the company is active unless a case says otherwise.
+// Who may test a line is the one SMS settings rule, the shared
+// assertCompanyAdminStrict (owner decision K1; the full matrix, owners included,
+// runs it for real in smsSettingsAccess.matrix.test.js). Here it stands in by
+// the caller's token role, and the company's deactivation
+// (shared/companyAccess.js, its own tests) is active unless a case says otherwise.
 const mockAssertCompanyActive = jest.fn();
+let mockCallerToken = {};
 jest.mock('../../shared/companyAccess', () => ({
     ...jest.requireActual('../../shared/companyAccess'),
-    assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+    assertCompanyAdminStrict: async (_uid, companyId) => {
+        if (mockCallerToken.roles?.[companyId] !== 'company_admin') {
+            throw Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' });
+        }
+        await mockAssertCompanyActive(companyId);
+    },
 }));
 
 const { testLineConnection } = require('../../integrations/controllers/configController');
 
-const call = (token, data) => testLineConnection({ auth: { uid: 'u1', token }, data: { jwt: 'their-jwt', ...data } });
+const call = (token, data) => {
+    mockCallerToken = token;
+    return testLineConnection({ auth: { uid: 'u1', token }, data: { jwt: 'their-jwt', ...data } });
+};
 
 beforeEach(() => {
     mockAssertCompanyActive.mockReset().mockResolvedValue(undefined);

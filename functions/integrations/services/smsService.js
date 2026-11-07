@@ -1,6 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const SMSAdapterFactory = require('../factory');
-const { assertCompanyAdminStrict } = require('../../shared/companyAccess');
+const { assertSmsSettingsAccess } = require('../controllers/config/smsSettingsAccess');
 const { checkRateLimit } = require('../../shared/rateLimiter');
 
 // Shared options for functions that need encryption capabilities
@@ -19,7 +19,8 @@ exports.sendTestSMS = onCall(encryptedCallOptions, async (request) => {
     const { companyId, testPhoneNumber, fromNumber } = request.data;
 
     try {
-        await assertCompanyAdminStrict(request.auth.uid, companyId);
+        // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+        await assertSmsSettingsAccess(request.auth, companyId);
         const rateOk = await checkRateLimit(`send_test_sms_${companyId}_${request.auth.uid}`, 20, 300, 'closed');
         if (!rateOk) {
             throw new HttpsError('resource-exhausted', 'Too many test SMS requests. Please try again shortly.');

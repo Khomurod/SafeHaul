@@ -1,8 +1,9 @@
 /**
- * The SMS callables that check a company admin by membership refuse the admin
- * of a deactivated company before they touch its provider; a super admin is
- * never asked. The deactivation itself is read in shared/companyAccess.js
- * (companyAccess.deactivated.test.js). All ids are artificial.
+ * The SMS settings callables refuse the admin of a deactivated company before
+ * they touch its provider; a super admin is never asked. The deactivation itself
+ * is read in shared/companyAccess.js (companyAccess.deactivated.test.js); every
+ * SMS settings callable, owners included, is in smsSettingsAccess.matrix.test.js.
+ * All ids are artificial.
  */
 jest.mock('firebase-functions/v2/https', () => ({
     onCall: jest.fn((optsOrFn, maybeFn) => (typeof maybeFn === 'function' ? maybeFn : optsOrFn)),
@@ -35,10 +36,13 @@ jest.mock('../../firebaseAdmin', () => {
     };
 });
 
+// The one SMS settings rule is the shared assertCompanyAdminStrict (owner
+// decision K1); here it stands in for the company's admin, and the deactivation
+// read stays a double.
 const mockAssertCompanyActive = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({
     ...jest.requireActual('../../shared/companyAccess'),
-    assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+    assertCompanyAdminStrict: async (_uid, companyId) => mockAssertCompanyActive(companyId),
 }));
 
 const { saveIntegrationConfig, verifySmsConfig, verifyLineConnection } = require('../../integrations/controllers/configController');

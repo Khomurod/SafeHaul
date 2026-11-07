@@ -30,6 +30,13 @@ jest.mock('../../firebaseAdmin', () => ({
   },
 }));
 
+// The one SMS settings rule (shared assertCompanyAdminStrict, owner decision K1);
+// its matrix is smsSettingsAccess.matrix.test.js. Here it refuses everyone.
+const mockAssertCompanyAdminStrict = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+  assertCompanyAdminStrict: (...a) => mockAssertCompanyAdminStrict(...a),
+}));
+
 const { verifyLineConnection } = require('../../integrations/controllers/configController');
 
 const req = (data, token = { roles: {} }) => ({ auth: { uid: 'u1', token }, data });
@@ -38,6 +45,9 @@ describe('verifyLineConnection input validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockMembershipGet.mockResolvedValue({ empty: true, docs: [] });
+    mockAssertCompanyAdminStrict.mockRejectedValue(
+      Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' }),
+    );
   });
 
   it('rejects unauthenticated callers', async () => {
@@ -54,6 +64,7 @@ describe('verifyLineConnection input validation', () => {
     await expect(verifyLineConnection(req({ companyId: 'co1', phoneNumber: '+' })))
       .rejects.toMatchObject({ code: 'invalid-argument', message: /valid phone line/i });
     // Must short-circuit before the membership/permission lookup.
+    expect(mockAssertCompanyAdminStrict).not.toHaveBeenCalled();
     expect(mockMembershipGet).not.toHaveBeenCalled();
   });
 
@@ -62,14 +73,15 @@ describe('verifyLineConnection input validation', () => {
       await expect(verifyLineConnection(req({ companyId: 'co1', phoneNumber: bad })))
         .rejects.toMatchObject({ code: 'invalid-argument' });
     }
-    expect(mockMembershipGet).not.toHaveBeenCalled();
+    expect(mockAssertCompanyAdminStrict).not.toHaveBeenCalled();
   });
 
   it('lets a VALID number pass validation through to the permission check', async () => {
-    // Membership empty + not super admin -> should fail at permission-denied,
+    // Not an admin, owner or super admin -> should fail at permission-denied,
     // which proves the validity guard did NOT block a real number.
     await expect(verifyLineConnection(req({ companyId: 'co1', phoneNumber: '+15551234567' })))
       .rejects.toMatchObject({ code: 'permission-denied' });
-    expect(mockMembershipGet).toHaveBeenCalledTimes(1);
+    expect(mockAssertCompanyAdminStrict).toHaveBeenCalledTimes(1);
+    expect(mockAssertCompanyAdminStrict).toHaveBeenCalledWith('u1', 'co1');
   });
 });
