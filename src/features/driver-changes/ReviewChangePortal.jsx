@@ -238,9 +238,7 @@ export function ReviewChangePortal() {
         if (undecidedAttempts > 0) undecidedRef.current?.focus();
     }, [undecidedAttempts]);
 
-    useEffect(() => {
-        if (updated) updatedRef.current?.focus();
-    }, [updated]);
+    useEffect(() => { if (updated) updatedRef.current?.focus(); }, [updated]);
 
     const reload = () => {
         setLoading(true);
