@@ -144,6 +144,14 @@ describe('campaign placeholders', () => {
     }));
   });
 
+  it('never emails the placeholder address an import made up', async () => {
+    mockState.lead = { firstName: 'Alice', phone: '(555) 123-4567', email: 'placeholder_5551234567@placeholder.safehaulapp.com' };
+
+    await runBatch({ method: 'email', message: MESSAGE });
+
+    expect(mockSendMail).not.toHaveBeenCalled();
+  });
+
   it('fills the placeholders the composer offers in an email subject', async () => {
     await runBatch({ method: 'email', message: MESSAGE, subject: '[Recruiter Name] from [Company Name]' });
 
