@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
-import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
+import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT, campaignLimitOf } from '../constants/campaignConstants';
 
 /**
  * The audience count for a campaign of `method`'s channel ('sms' or 'email').
@@ -9,6 +9,7 @@ import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignCon
  * inside the window (`functions/bulkActions/helpers/recentlyMessaged.js`):
  * `alreadyMessaged` says how many the count leaves out, and for an uploaded
  * list `alreadyMessagedKeys` names those rows by their preview key.
+ * Limit Volume trims a CRM count here, in the browser: changing it counts nothing again.
  */
 export function useCampaignTargeting(companyId, filters, currentUser, method = 'sms') {
     const [matchCount, setMatchCount] = useState(0);
@@ -105,19 +106,14 @@ export function useCampaignTargeting(companyId, filters, currentUser, method = '
                     excludeRecentDays: (filters.excludeRecentDays && filters.excludeRecentDays !== 'off')
                         ? filters.excludeRecentDays
                         : null,
-                    campaignLimit: filters.campaignLimit ? parseInt(filters.campaignLimit) : null
+                    // The whole audience: Limit Volume is applied below, to this answer.
+                    campaignLimit: null,
                 };
 
                 const result = await getCountFn({ companyId, filters: backendFilters, method });
                 if (stale) return;
-                let count = result.data.count || 0;
+                const count = result.data.count || 0;
                 setAlreadyMessaged(result.data.alreadyMessaged || 0);
-
-                // Apply client-side cap visualization if set
-                if (backendFilters.campaignLimit) {
-                    count = Math.min(count, backendFilters.campaignLimit);
-                }
-
                 setMatchCount(count);
                 setAlreadyMessagedKeys(new Set());
                 if (count === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
@@ -154,7 +150,6 @@ export function useCampaignTargeting(companyId, filters, currentUser, method = '
         filters.lastCallOutcome,
         filters.segmentId,
         filters.excludeRecentDays,
-        filters.campaignLimit,
         filters.rawData,        // Re-check when import data changes
         method,
         companyId,
@@ -162,5 +157,9 @@ export function useCampaignTargeting(companyId, filters, currentUser, method = '
         attempt
     ]);
 
-    return { matchCount, alreadyMessaged, isLoading, error, alreadyMessagedKeys, retry };
+    // An uploaded list has no Limit Volume (the launch sends every row it keeps).
+    const limit = filters.leadType === 'import' ? 0 : campaignLimitOf(filters);
+    const limitedCount = limit > 0 ? Math.min(matchCount, limit) : matchCount;
+
+    return { matchCount: limitedCount, alreadyMessaged, isLoading, error, alreadyMessagedKeys, retry };
 }

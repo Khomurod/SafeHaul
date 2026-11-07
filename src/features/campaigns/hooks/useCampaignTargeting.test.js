@@ -132,3 +132,61 @@ describe('useCampaignTargeting — a CRM audience', () => {
         expect(result.current.matchCount).toBe(42);
     });
 });
+
+describe('useCampaignTargeting — Limit Volume', () => {
+    const CRM = { leadType: 'leads', status: ['new'] };
+    const withLimit = (campaignLimit, extra = {}) => ({ ...CRM, ...extra, campaignLimit });
+
+    beforeEach(() => {
+        getFilterCount.mockResolvedValue({ data: { count: 40, alreadyMessaged: 2 } });
+    });
+
+    it('asks the server for the whole audience and trims it in the browser', async () => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', withLimit('25'), USER));
+        await settle();
+
+        expect(getFilterCount.mock.calls[0][0].filters.campaignLimit).toBeNull();
+        expect(result.current.matchCount).toBe(25);
+        expect(result.current.alreadyMessaged).toBe(2);
+    });
+
+    it.each([
+        ['empty', ''],
+        ['zero', '0'],
+        ['not a number', 'abc'],
+        ['negative', '-5'],
+        ['larger than the audience', '500'],
+    ])('keeps the whole audience when the limit is %s, as the launch does', async (_label, campaignLimit) => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', withLimit(campaignLimit), USER));
+        await settle();
+
+        expect(result.current.matchCount).toBe(40);
+    });
+
+    it.each([
+        ['without an exclusion window', {}],
+        ['with an exclusion window', { excludeRecentDays: '30' }],
+    ])('does not count again while the limit is typed, %s', async (_label, extra) => {
+        const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+            initialProps: { filters: withLimit('', extra) },
+        });
+        await settle();
+        const counted = getFilterCount.mock.calls.length;
+        expect(result.current.matchCount).toBe(40);
+
+        for (const typed of ['1', '15', '150', '15', '1']) {
+            rerender({ filters: withLimit(typed, extra) });
+            await settle();
+        }
+
+        expect(getFilterCount).toHaveBeenCalledTimes(counted);
+        expect(result.current.matchCount).toBe(1);
+    });
+
+    it('leaves an uploaded list whole: the launch keeps every row it does not leave out', async () => {
+        const { result } = renderHook(() => useCampaignTargeting('co-1', { ...UPLOAD_OFF, campaignLimit: '1' }, USER));
+        await settle();
+
+        expect(result.current.matchCount).toBe(2);
+    });
+});
