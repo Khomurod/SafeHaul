@@ -2,12 +2,11 @@
 
 This runbook defines operations ownership, alerting responses, quota controls, and rollback steps required for production hardening.
 
-## Ownership Matrix
+## Ownership
 
-- Frontend incidents: Web Platform team
-- Cloud Functions incidents: Backend Platform team
-- Auth/RBAC incidents: Security owner
-- Messaging incidents (SMS/Email): Integrations owner
+The SafeHaul owner runs the platform alone and is responsible for every kind of
+incident: the site, Cloud Functions, sign-in and permissions, SMS and email.
+Customer companies' own team members are not part of this list.
 
 ## Alert Triggers
 
@@ -19,7 +18,7 @@ This runbook defines operations ownership, alerting responses, quota controls, a
 
 ## Immediate Incident Actions
 
-1. Triage severity and assign incident commander.
+1. Triage severity.
 2. Confirm blast radius (single tenant vs multi-tenant).
 3. Freeze deployments if severity is high.
 4. Apply rollback if latest deploy is implicated.
@@ -27,14 +26,10 @@ This runbook defines operations ownership, alerting responses, quota controls, a
 
 ## Rollback Procedure
 
-1. Identify previous successful workflow run and release SHA.
-2. Redeploy previous known-good Hosting + Functions revisions.
-3. Validate smoke checks:
-   - Auth login
-   - `initBulkSession`
-   - `sendTestSMS` (non-production dry-run tenant)
-   - `submitGuestApplication`
-4. Reopen traffic once errors return to baseline.
+Follow [FIREBASE_HOSTING_RUNBOOK.md](FIREBASE_HOSTING_RUNBOOK.md): "Rolling back
+Production" (promote an earlier tested release from Super Admin → Releases) and
+"Recovery". Testing and Production share one backend, so a backend fix goes
+forward through `main`; nothing is deployed from a workstation.
 
 ## Quotas and Rate Caps
 
@@ -55,7 +50,7 @@ Set on **both** `initBulkSession` and `processBulkBatch` (same values):
 | `PROCESS_BULK_BATCH_URL` | HTTPS trigger URL for `processBulkBatch` (Cloud Run). Example shape: `https://processbulkbatch-<hash>-uc.a.run.app` — copy from Firebase Console → Functions → `processBulkBatch`. |
 | `BULK_WORKER_SECRET` | Shared secret sent as header `X-SafeHaul-Internal-Auth`; must match on worker and enqueue path. Use 32+ random characters. |
 
-CI deploy writes these from GitHub Actions secrets `PROCESS_BULK_BATCH_URL` and `BULK_WORKER_SECRET` into `functions/.env` (see `.github/workflows/main.yml`). Local emulator: copy [`functions/.env.example`](../functions/.env.example) to `functions/.env`.
+Both are Secret Manager secrets bound to the functions that need them (`secrets:` in `functions/bulkActions/controllers/sessionController.js`); CI does not write them. Local emulator: copy [`functions/.env.example`](../functions/.env.example) to `functions/.env`.
 
 ### Cloud Tasks queue
 

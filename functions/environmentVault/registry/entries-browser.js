@@ -58,8 +58,9 @@ const BROWSER_ENTRIES = [
         integration: 'SafeHaul platform',
         sensitivity: SENSITIVITY.PUBLIC,
         consumers: [
-            'src/shared/components/modals/ManageTeamModal.jsx',
-            'src/features/settings/components/PersonalProfileTab.jsx',
+            'src/features/settings/components/TeamManagementTab.jsx',
+            'src/features/company-admin/components/profile/PersonalLinkCard.jsx',
+            'src/features/referrals/ReferralLinksPage.jsx',
         ],
     },
     {

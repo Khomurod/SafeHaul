@@ -130,7 +130,7 @@ SafeHaul/
 │   ├── design-system/       # Business-neutral visual contract (see its README)
 │   ├── features/            # Domain modules (driver-app, company-admin, signing, …)
 │   ├── hooks/               # Cross-feature hooks (global schema, submission queue)
-│   ├── lib/                 # firebase.js, applicationId.js, submissionQueue.js
+│   ├── lib/                 # firebase/ (app setup), applicationId.js, submissionQueue.js
 │   ├── shared/              # Cross-feature components, hooks, utils, workers
 │   ├── firestore.rules      # Firestore security rules — deployed from here
 │   ├── storage.rules        # Storage security rules — deployed from here
@@ -185,8 +185,8 @@ cd functions && npm install && cd ..
 ### Running locally
 
 ```bash
-npm run dev          # Vite dev server at http://localhost:5000
-firebase emulators:start   # Firestore, Functions, Auth
+npm run dev                    # Vite dev server at http://localhost:5000
+npm run test:rules:emulators   # Firestore and Storage rules suites on the emulator
 ```
 
 > The dev server is pinned to port **5000** with `strictPort: true` — it fails
@@ -346,7 +346,8 @@ npm run lint              # Frontend + backend + public-site claims
 npm run typecheck
 ```
 
-CI additionally runs `check:callable-contract`, `check:ai-boundary`,
+CI additionally runs `node scripts/check-callable-contract.mjs` (the
+`callable-contract` job), `check:ai-boundary`,
 `check:ci-plan`, `check:release-scripts`, `check:deploy-script`,
 `check:table-layout` and a Gitleaks secret scan.
 

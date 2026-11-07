@@ -1957,7 +1957,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 `npm test` (Vitest) · `npm run test:coverage` (ratchet gate) ·
 `npm run test:e2e` (Playwright) · `npm run test:rules` · `npm run typecheck` ·
 `npm run storybook` / `npm run test:stories`. CI also runs
-`check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
+`node scripts/check-callable-contract.mjs`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
 `check:table-layout`, `check:visual-contract`,
 `test:visual`, `test:secret-scan`, and a secret scan

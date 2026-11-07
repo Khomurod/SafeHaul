@@ -730,7 +730,7 @@ they asserted an `output_text` field and the `parts`/`inline_data` request shape
 The API returns neither. **A test that asserts the code's beliefs back to it
 cannot catch the code being wrong about the world.**
 
-Provider fixtures in `aiProviders.test.js` must therefore be *captured from a
+Provider fixtures in `aiProviders.*.test.js` must therefore be *captured from a
 real response*, not written from reading the adapter. The Gemini fixtures are
 recorded verbatim (ids and timings trimmed) with the capture date. This does not
 weaken the rule that no test may contact a vendor — the capture is a manual,
@@ -963,7 +963,7 @@ To add one:
    `/chat/completions` shape, `createOpenAiCompatibleAdapter` needs only a
    header builder.
 3. Register the adapter in `functions/ai/providers/index.js`.
-4. Add adapter tests to `functions/test/unit/aiProviders.test.js`.
+4. Add adapter tests to `functions/test/unit/aiProviders.vendors.test.js` (failures in `aiProviders.failures.test.js`).
 5. Grant the runtime service account access to the new secret name (see
    [Manual actions](#manual-actions-required)).
 
@@ -1205,11 +1205,11 @@ retrying into the limit. "A test that did not finish is not a pass" still holds 
 | `functions/test/unit/aiTelemetry.test.js` | Transaction shape, attempt cap, the allowlist at both levels, vendor-code validation, and explicit refusal to record prompts, images, credentials or extracted fields |
 | `functions/test/unit/aiTelemetryIndexes.test.js` | Composite indexes read out of the real query chain, and the TTL policy |
 | `functions/test/unit/aiHealthCheck.*.test.js` | Capability probes, including failing correctly: schema rejected while text works, retired vision model, an image ignored, a rubber-stamped claim (`probes`); model pins and throttled diagnostics (`pins`); stored results, a provider put back in use, secrecy (`results`) |
-| `functions/test/unit/aiProviders.test.js` | All nine adapters: endpoint, auth header, structured mode, response envelope, HTTP classification, timeout, path-traversal refusal |
-| `functions/test/unit/aiCredentials.test.js` | Secret naming, namespace refusal, lifecycle, legacy fallback, every callable's authorization, audit records, Groq migration |
+| `functions/test/unit/aiProviders.*.test.js` | All nine adapters: endpoint, auth header, structured mode, response envelope, HTTP classification, timeout, path-traversal refusal |
+| `functions/test/unit/aiCredentials.*.test.js` | Secret naming, namespace refusal, lifecycle, legacy fallback, every callable's authorization, audit records, Groq migration |
 | `functions/test/unit/cdlParser.test.js` | Callable contract preserved, guards ordered before AI spend, error mapping, log privacy |
 | `functions/test/unit/edocFieldPlacement.test.js` | Callable contract preserved, clamping, dedup, category mapping, log privacy |
-| `src/features/super-admin/views/AiIntegrationsView.contract.test.jsx` | Masking, one-at-a-time reveal, 30-second clear, no plaintext in DOM or storage, retired provider, re-authentication, typed delete |
+| `src/features/super-admin/views/AiIntegrationsView.contract.*.test.jsx` | Masking, one-at-a-time reveal, 30-second clear, no plaintext in DOM or storage, retired provider, re-authentication, typed delete |
 | `functions/test/unit/aiCredentialAccess.test.js` | The diagnostic: per-secret exists/readable, gRPC status mapping, `exists: null` when a check is refused, the runtime account read from the metadata server, and that no credential value is ever returned or logged |
 | `functions/test/unit/aiCredentialAccessV1.test.js` | The 1st-generation entry point, and that its error codes are translated rather than flattened to `internal` |
 

@@ -54,12 +54,13 @@ driver-profile sync. See the App Brief for the full inventory.
 ## 2. Lead sourcing
 
 Leads live entirely inside the owning company's `companies/{companyId}/leads`
-subcollection and enter through three channels:
+subcollection and enter through these channels:
 
 1. **Manual entry / Quick Add** — recruiters, from the company workspace.
 2. **CSV / spreadsheet bulk import** — staged through `useCompanyLeadUpload`.
-3. **Facebook Lead Ads webhook** — `functions/integrations/facebook.js` writes
-   directly to the matched company subcollection.
+3. **A referral quick form** — a driver's referral link (`submitReferralInterest`).
+4. **Facebook Lead Ads webhook** (`functions/integrations/facebook.js`) —
+   switched off; see APP_BRIEF §12.
 
 > The earlier platform-wide **Lead Distribution Engine**, which fanned leads out
 > on a daily cron, was **fully removed**. There is no `isPlatformLead`,

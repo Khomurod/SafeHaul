@@ -30,8 +30,7 @@
  *
  * Deliberately absent, so the gap is a decision rather than an oversight:
  *
- *  - `/` — the landing page has its own approved specification in `DESIGN.md`
- *    and is out of this campaign's scope.
+ *  - `/` — no page of its own: it sends a visitor to sign in or to their workspace.
  *  - `/interest/:slug` — a compatibility redirect with no UI of its own.
  *  - `/sandbox/*` and `/e2e/voe-preview` — harness routes, not product.
  *  - The `/company` and `/super-admin` sub-views beyond the ones listed. These
