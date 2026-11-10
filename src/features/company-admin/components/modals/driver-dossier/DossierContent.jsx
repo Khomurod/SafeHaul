@@ -128,8 +128,15 @@ export function DossierContent({
         }
     };
 
+    /*
+      Only Activity fills the panel's height: its log scrolls inside its own
+      card under a filter that stays put. Every other section is as tall as its
+      content. A full-height wrapper around a longer section let the content run
+      past the wrapper, and the panel's bottom padding stayed at the wrapper's
+      end, so the last card met the dialog's edge with no space under it.
+    */
     return (
-        <div className="h-full animate-in fade-in duration-300">
+        <div className={`${activeTab === 'activity' ? 'h-full ' : ''}animate-in fade-in duration-300`}>
             {renderContent()}
         </div>
     );

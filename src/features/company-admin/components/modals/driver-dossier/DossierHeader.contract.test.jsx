@@ -69,7 +69,8 @@ describe('DossierHeader confirmation number', () => {
 
   it('shows the confirmation number the driver was given, on the application tab', () => {
     renderHeader({ appData: withNumber });
-    expect(screen.getByText('Confirmation Number: SAF-2026-AB3CD')).toBeInTheDocument();
+    // One line of text; the number is its own span so it never breaks at a hyphen.
+    expect(screen.getByText(/^Confirmation Number:/)).toHaveTextContent(/^Confirmation Number: SAF-2026-AB3CD$/);
   });
 
   it("never shows the record's document id, and nothing when the record has no number", () => {

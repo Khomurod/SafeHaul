@@ -1,7 +1,7 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, X, Download, Trash2 } from '@design-system/icons';
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
-import { Badge, IconButton, Select } from '@/design-system/components';
+import { IconButton, Select } from '@/design-system/components';
 import { dossierStatusLabel as statusLabel } from './dossierStatusLabel';
 import { sectionTitle } from './dossierSections';
 import { stageOptionLabel } from './contactAttemptText';
@@ -30,7 +30,7 @@ function statusOptionsFor(currentStatus) {
  * Dossier header: the current section's title, the application reference, the
  * status/assignment controls, and the primary actions.
  *
- * Presentation uses the approved `IconButton`, `Select` and `Badge`
+ * Presentation uses the approved `IconButton` and `Select`
  * primitives with `--ds-*` tokens.
  *
  * Frozen contracts: every per-tab title string (a lead's first tab reads
@@ -56,14 +56,13 @@ function statusOptionsFor(currentStatus) {
  * Rules this header keeps:
  * - **The close button has an accessible name**: it is the only way out of a
  *   modal dialog.
- * - The Status and Assigned to labels stay in the accessible name computation —
- *   visually hidden on narrow headers, never `display:none`, which would leave
- *   both selects unlabelled on tablets and phones.
+ * - The Status and Assigned to labels are visible at every width, on one line
+ *   (over their select below 1440px), and name their selects through `htmlFor`.
  * - The Download action has an explicit accessible name, not `title` alone.
- * - **At 412 px the Close and Delete actions stay on screen.** The action group
- *   shrinks and wraps: a `shrink-0` group never wraps and is clipped by the
- *   dialog panel's `overflow-hidden`, and a phone has no Escape key to close
- *   the dossier with.
+ * - **At 412 px the Close and Delete actions stay on screen.** The actions are
+ *   their own group of at most three icon buttons beside the title; the selects,
+ *   the wide part, take the next row below 1440px. A phone has no Escape key to
+ *   close the dossier with.
  * - **A lead is not an application** (`collectionName`, the collection
  *   `useApplicationView` opened): its first tab is titled "Lead", its delete
  *   reads "Delete lead", and it has no application PDF to download. Anything
@@ -131,86 +130,81 @@ export function DossierHeader({
 
     return (
         <>
-            {/* `basis-48` keeps the title a readable line: with `flex-1`'s zero
-                basis it absorbed none of the available width and collapsed to
-                nothing behind the action group. */}
-            {/* Wraps, so on a phone the number goes under the title rather than
-                squeezing it to a few letters. */}
-            <div className="flex min-w-0 flex-1 basis-48 flex-wrap items-center gap-x-ds-3 gap-y-ds-1">
+            {/* The title, and under it the number the driver was given. Stacked,
+                so the pair is as narrow as its longer line and the controls keep
+                the width. */}
+            <div className="flex min-w-0 flex-1 basis-48 flex-col items-start gap-y-ds-1">
                 {/* `<h3>` sits under the identity `<h2>` in the sidebar, which in
                     turn sits under the dialog's own accessible name. */}
-                <h3 className="max-w-full truncate text-ds-body-lg font-bold text-ds-content">{getTitle()}</h3>
+                <h3 className="max-w-full truncate text-ds-heading-sm font-bold text-ds-content">{getTitle()}</h3>
 
+                {/* Text rather than a badge, which never wraps: beside the
+                    actions on a tablet the line breaks after "Number:" instead
+                    of running under them. */}
                 {activeTab === 'application' && (loading || confirmationNumber) && (
-                    <span className="shrink-0">
-                        <Badge tone="neutral">
-                            {loading ? 'Loading...' : `Confirmation Number: ${confirmationNumber}`}
-                        </Badge>
-                    </span>
+                    <p className="max-w-full text-ds-xs font-medium text-ds-content-secondary [overflow-wrap:anywhere]">
+                        {loading ? 'Loading...' : (
+                            // The number itself never breaks at its hyphens.
+                            <>Confirmation Number: <span className="whitespace-nowrap">{confirmationNumber}</span></>
+                        )}
+                    </p>
                 )}
             </div>
 
             {/*
-              DEFECT FIX (see the note above): `shrink-0` gave this group an
-              unconstrained max-content width, so `flex-wrap` never engaged and
-              the group ran 489 px wide inside a 412 px dialog. It may now shrink
-              and wrap onto further lines; `min-w-0` is what actually lets it.
+              Status and Assigned to. Below 1440px this group takes a row of its
+              own (`basis-full`, `order-last`) under the title and the actions,
+              so the actions never sit alone on a line; from 1440px, where the
+              dossier is wide enough, all three share one row in reading order.
+              Each label stays visible and on one line: over its select below
+              1440px, beside it from there.
             */}
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-ds-2">
-                {canEdit && (
-                    <>
-                        <div className="flex items-center gap-ds-2">
-                            {/* Always in the accessible name tree; only the visual
-                                presentation collapses on narrow headers. */}
-                            <label
-                                htmlFor={statusId}
-                                className="sr-only text-ds-xs font-semibold text-ds-content-secondary xl:not-sr-only"
-                            >
-                                Status
-                            </label>
-                            <Select
-                                id={statusId}
-                                className="max-w-[200px]"
-                                value={statusValue}
-                                onChange={(e) => {
-                                    const v = e.target.value;
-                                    if (onStatusUpdate) void onStatusUpdate(v);
-                                }}
-                            >
-                                {statusOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </Select>
-                        </div>
+            {canEdit && (
+                <div className="order-last grid basis-full grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-x-ds-3 min-[1440px]:order-none min-[1440px]:flex min-[1440px]:basis-auto min-[1440px]:items-center min-[1440px]:gap-x-ds-3">
+                    <div className="flex min-w-0 flex-col gap-ds-1 min-[1440px]:flex-row min-[1440px]:items-center">
+                        <label htmlFor={statusId} className="whitespace-nowrap text-ds-xs font-semibold text-ds-content-secondary">
+                            Status
+                        </label>
+                        <Select
+                            id={statusId}
+                            className="sm:max-w-[280px] min-[1440px]:max-w-[200px]"
+                            value={statusValue}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                if (onStatusUpdate) void onStatusUpdate(v);
+                            }}
+                        >
+                            {statusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </Select>
+                    </div>
 
-                        <div className="flex items-center gap-ds-2">
-                            <label
-                                htmlFor={assignId}
-                                className="sr-only text-ds-xs font-semibold text-ds-content-secondary xl:not-sr-only"
-                            >
-                                Assigned to
-                            </label>
-                            <Select
-                                id={assignId}
-                                className="max-w-[180px]"
-                                value={assignedTo || ''}
-                                onChange={(e) => {
-                                    if (onAssignChange) void onAssignChange(e.target.value);
-                                }}
-                            >
-                                <option value="">Unassigned</option>
-                                {(teamMembers || []).map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                        {m.name || m.displayName || m.email || m.id}
-                                    </option>
-                                ))}
-                            </Select>
-                        </div>
+                    <div className="flex min-w-0 flex-col gap-ds-1 min-[1440px]:flex-row min-[1440px]:items-center">
+                        <label htmlFor={assignId} className="whitespace-nowrap text-ds-xs font-semibold text-ds-content-secondary">
+                            Assigned to
+                        </label>
+                        <Select
+                            id={assignId}
+                            className="sm:max-w-[280px] min-[1440px]:max-w-[160px]"
+                            value={assignedTo || ''}
+                            onChange={(e) => {
+                                if (onAssignChange) void onAssignChange(e.target.value);
+                            }}
+                        >
+                            <option value="">Unassigned</option>
+                            {(teamMembers || []).map((m) => (
+                                <option key={m.id} value={m.id}>
+                                    {m.name || m.displayName || m.email || m.id}
+                                </option>
+                            ))}
+                        </Select>
+                    </div>
+                </div>
+            )}
 
-                        <span aria-hidden="true" className="hidden h-6 w-px bg-ds-border-subtle sm:block" />
-                    </>
-                )}
-
+            {/* Download, Delete and Close: beside the title at every width. */}
+            <div className="flex shrink-0 items-center gap-ds-1">
                 {/* A lead has no application document; its files are in its DQ File. */}
                 {!isLead && (
                     <IconButton
