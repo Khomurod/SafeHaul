@@ -1,9 +1,11 @@
 /**
  * Apply cors.json to the Firebase default Storage bucket for this repo.
- * Browsers read files cross-origin with it: pdf.js fetches signed read URLs from
- * the app's origin (signing room, envelope editor). Uploads go through the
- * Firebase SDK. The bucket is shared by Testing and Production, so running this
- * is a live security change: only with the owner's approval, never from CI.
+ * Browsers read files cross-origin with it: the app fetches PDFs from Storage
+ * (signing room, envelope editor), so it lists the SafeHaul sites with GET and
+ * HEAD. Uploads, deletes and metadata go through the Firebase SDK's endpoint,
+ * which answers CORS by its own fixed policy, not this file. The bucket is
+ * shared by Testing and Production, so running this is a live security change:
+ * only with the owner's approval, never from CI.
  *
  * Requires: Google Cloud SDK (`gcloud`) with `gsutil`, authenticated for the project.
  * Usage: node scripts/set-storage-cors.mjs

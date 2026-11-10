@@ -270,12 +270,14 @@ dossier signs a record's uploads in one call (`getSignedApplicationFileUrls`, ea
 file as `getSignedApplicationFileUrl` signs it; the single call stays for Open
 file, a fallback and the Production build).
 
-**The bucket's CORS lets browsers read files cross-origin.** pdf.js fetches a
-signed URL from the app's origin (signing room, envelope editor), which needs it.
-The live setting (read-only check, 2026-11-07) allows any origin with GET, PUT,
-POST, DELETE and HEAD; `cors.json` holds it, and `npm run storage:set-cors`
-applies it by hand (not CI). Narrowing it to the SafeHaul sites with GET and HEAD
-is a live security change that waits for the owner's approval.
+**The bucket's CORS lets the SafeHaul sites read files cross-origin.** The app
+fetches PDFs from Storage (signing room, envelope editor), which needs it.
+`cors.json` allows the Production and Testing app sites (custom and default
+domains) with GET and HEAD (owner decision, 2026-11-10); it is applied by hand
+(`npm run storage:set-cors`, or the same file through `gsutil cors set` in Cloud
+Shell), never by CI. Uploads, deletes and metadata go through the Firebase SDK's
+endpoint, which answers CORS by its own fixed policy (read-only check), so they
+do not depend on this file. A new site that reads files needs its origin added.
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
@@ -880,7 +882,12 @@ authorization is answered on the Violations step (`consent-mvr`); on Consent
 each other agreement has its own page, then the certification ending with the
 exact 391.21(b)(12) sentence, and the signature. An acceptance counts only at
 the version on screen and binds the submission to it. **An acceptance's IP is
-the one the server saw**, never the browser's claim. `legacy-1` bodies are a
+the one the server saw**, never a field the browser sends. Known gap: 1st-generation
+functions (this submission, application drafts, agreements, guest uploads, CDL
+and report parsing) still read Express's `req.ip`, the first X-Forwarded-For
+entry, which a caller can write, for that IP and their rate limits. The 2nd
+generation uses `trustedClientIp` (verified live); the 1st waits for its own live
+check (`docs/code-cleanup/README.md`, Ч1.1). `legacy-1` bodies are a
 **frozen forensic record — never edit them**; `clearinghouseConsent` has no
 `legacy-1`, so reconstruction cannot attribute a consent nobody gave.
 **Applications from before the MVR authorization have no acceptance for it**,
