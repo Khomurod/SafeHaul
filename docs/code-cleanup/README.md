@@ -83,8 +83,8 @@
   POST, DELETE, HEAD. `cors.json` теперь разрешает только сайты SafeHaul (Production и
   Testing) с GET/HEAD: PDF в подписании и редакторе читаются браузером. Загрузки,
   удаление и метаданные идут через адрес Firebase SDK, у которого свои правила CORS
-  (проверено только чтением), поэтому от этой настройки не зависят. Применяет владелец
-  одной командой в Cloud Shell (ниже).
+  (проверено только чтением), поэтому от этой настройки не зависят. Владелец применил его
+  в Cloud Shell 2026-11-10 (ниже).
 - **К10 — нет.** Постоянную проверку knip в CI не добавлять.
 - **К11 — Impeccable не используется:** файлы удалить после проверки, что их ничто не
   читает. Владелец — единственный, кто управляет SafeHaul: устаревшие назначения
@@ -216,28 +216,20 @@
 **Последнее действие (2026-11-10):** выполнены все пункты, кроме отмеченных
 «Отложено» и первого поколения в Ч1.1. По ответам владельца: Ч1.1 — второе поколение,
 Ч9.2 и Ч9.3 — Groq работает на сохранённом ключе (снимок: оба поколения «All readable»,
-Groq «Connected», кнопки «Migrate legacy key» нет), К9 — `cors.json` сужен.
+Groq «Connected», кнопки «Migrate legacy key» нет), К9 — `cors.json` сужен и применён.
 
 **Решения владельца (2026-11-10):** SSN в разделе Full application карточки показывается
 целиком, как сейчас. Экрана настроек SMS для владельца без роли админа не будет. Проверку
 первого поколения для Ч1.1 владелец делать не будет. CORS хранилища сузить (К9).
 
-**Что нужно от владельца:** применить новый CORS хранилища, один раз.
-1. Открыть console.cloud.google.com, проект `truckerapp-system`, кнопка Cloud Shell
-   (значок `>_` справа вверху). Если спросит разрешение — «Authorize».
-2. Вставить и нажать Enter:
+**CORS хранилища применён владельцем (2026-11-10)** через Cloud Shell. Проверка снаружи
+(только чтение): чужой сайт не получает разрешения, сайты SafeHaul получают GET/HEAD, PUT
+отклоняется; загрузки через Firebase SDK по-прежнему разрешены их собственной политикой.
+Откат, если понадобится: применить `cors.json` из коммита `f02558d6` той же командой
+(`gsutil cors set cors.json gs://truckerapp-system.firebasestorage.app`).
 
-   ```bash
-   cat > cors.json <<'EOF'
-   [{"origin":["https://app.safehaul.io","https://safehaul-app-production.web.app","https://safehaul-app-production.firebaseapp.com","https://truckerapp-system.web.app","https://truckerapp-system.firebaseapp.com"],"method":["GET","HEAD"],"responseHeader":["Content-Type","Authorization","Content-Length","Content-Range","User-Agent","x-goog-resumable","x-goog-meta-firebasestoragedownloadtokens"],"maxAgeSeconds":3600}]
-   EOF
-   gsutil cors set cors.json gs://truckerapp-system.firebasestorage.app
-   ```
-
-3. Открыть в E-Docs любой документ: PDF должен показаться. Проверку снаружи (чужой сайт
-   получает отказ) делает агент запросом только для чтения.
-
-Откат, если PDF перестали открываться: та же команда со старым содержимым — `cors.json` из
-коммита `f02558d6`.
+**Что нужно от владельца:** ничего срочного. По желанию: удалить неиспользуемый секрет
+`GROQ_API_KEY` в Secret Manager; выпустить Production (Super Admin → Releases), тогда же
+удалятся выведенные функции (`RETIREMENTS`).
 
 **Отложено с причиной:** Ч5.2, Ч7.3, Ч7.4, Ч7.5, Ч8.7, Ч9.1, Ч9.4 (не раньше 2027-02-07).
