@@ -275,11 +275,10 @@ fetches PDFs from Storage (signing room, envelope editor), which needs it.
 `cors.json` allows the Production and Testing app sites (custom and default
 domains) with GET and HEAD (owner decision, 2026-11-10); it is applied by hand
 (`npm run storage:set-cors`, or the same file through `gsutil cors set` in Cloud
-Shell), never by CI. **Until the owner applies it, the live bucket keeps the old
-setting** (any origin; GET, PUT, POST, DELETE, HEAD); the tracker's resume point
-(`docs/code-cleanup/README.md`) says when it is applied. Uploads, deletes and
-metadata go through the Firebase SDK's endpoint, which answers CORS by its own
-fixed policy (read-only check), so they do not depend on this file. A new site
+Shell), never by CI. The live bucket carries it since 2026-11-10 (read-only
+preflight check: another origin gets no CORS answer, PUT is refused). Uploads,
+deletes and metadata go through the Firebase SDK's endpoint, which answers CORS
+by its own fixed policy (read-only check), so they do not depend on this file. A new site
 that reads files needs its origin added. `localhost` is deliberately not listed:
 a local server with the real configuration cannot load a stored PDF in the
 envelope editor.
