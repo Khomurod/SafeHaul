@@ -1345,8 +1345,8 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
   `createdBy`, `adminId`) or a super admin; a deactivated company refused, but for a super
   admin; never a recruiter or HR user. Claims are read from the Auth record on each call,
   never from the token, so a removed role is refused at once (К4). The Settings screens and
-  the `integrations` documents stay Company Admin only, so an owner without that role
-  reaches these only through the callables.
+  the `integrations` documents stay Company Admin only (owner decision, 2026-11-10: no
+  SMS settings screen for an owner without that role).
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
@@ -1619,8 +1619,8 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   application and previous-employer PDFs, the company API); a value with fewer
   than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
   on `functions/shared/maskSsn.vectors.json`. The dossier's Full application
-  view still prints the SSN whole (no field marks it sensitive): a known gap
-  for the owner to decide.
+  view shows the SSN whole, by the owner's decision (2026-11-10): the recruiter
+  sees the driver's full record there, as other ATS platforms show it.
 - **A screen offers to email a link only to an address the server would send
   to:** `canEmailLinkTo` and Fix recipient use `isWellFormedEmail`, the server's
   `isValidEmail` rule (`functions/shared/isValidEmail.vectors.json`).
