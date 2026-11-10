@@ -14,7 +14,7 @@
  *   the last check still found the lane failing. A quota or rate limit (429)
  *   is not a failure here: the vendor asked for time, not for another version.
  *
- * Only enabled, configured, unretired providers, and only the lanes they already
+ * Only enabled, configured providers, and only the lanes they already
  * serve: the check never adds a provider, enables one or changes the order.
  *
  * ## What it changes
@@ -34,7 +34,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 
 const { db } = require('../firebaseAdmin');
 const {
-    PROVIDERS, isRetired, missingRequiredConfig, credentialReadiness,
+    PROVIDERS, missingRequiredConfig, credentialReadiness,
 } = require('../ai/registry/providers');
 const store = require('../ai/credentials/store');
 const { saveModelCheck, clearModelLists } = require('../ai/credentials/modelLists');
@@ -96,7 +96,7 @@ async function releaseLease(summary) {
 }
 
 /**
- * Puts the built-in version lists back for every unretired provider: forgets
+ * Puts the built-in version lists back for every provider: forgets
  * what the daily check saved (`modelLists`), so `resolveModels` answers from
  * the release's own lists again. Under the check's lease, because a check
  * running now would otherwise save the list it began with over the reset.
@@ -105,7 +105,7 @@ async function releaseLease(summary) {
  */
 async function resetModelLists({ now = Date.now() } = {}) {
     if (!await acquireLease(now)) return { skipped: 'running' };
-    const ids = PROVIDERS.filter((provider) => !isRetired(provider)).map((provider) => provider.id);
+    const ids = PROVIDERS.map((provider) => provider.id);
     // Every write settles before the lease goes, so no check starts among them.
     const results = await Promise.allSettled(ids.map((id) => clearModelLists(id)));
     // Releases only: the last run's time and summary stay that run's.
@@ -152,7 +152,7 @@ async function dueProviders({ now, force, providerIds, deps }) {
     const configs = await store.readAllConfigs();
     const due = [];
     for (const provider of PROVIDERS) {
-        if (isRetired(provider) || (providerIds && !providerIds.includes(provider.id))) continue;
+        if (providerIds && !providerIds.includes(provider.id)) continue;
         const config = configs.get(provider.id) || { enabled: true };
         if (config.enabled === false) continue;
         const reason = force ? 'requested' : dueReason(config, now);
@@ -327,8 +327,6 @@ exports.refreshAiModelLists = onSchedule({
     timeZone: TIMEZONE,
     timeoutSeconds: 540,
     memory: '256MiB',
-    // The legacy Groq binding, as the watcher has, so Groq's credential resolves the same way.
-    secrets: ['GROQ_API_KEY'],
 }, async () => {
     const outcome = await runModelRefresh();
     console.log(`[ops/modelRefresh] ${outcome.skipped || outcome.checked.join(' ') || 'nothing due'}`);

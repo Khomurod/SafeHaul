@@ -28,7 +28,7 @@ const CLIENT_SECRET_PLAINTEXT = 'artificial-client-secret';
 const LINE_JWT_PLAINTEXT = 'artificial-line-jwt';
 const SMTP_PASSWORD_PLAINTEXT = 'artificial-smtp-password';
 const PAGE_TOKEN_PLAINTEXT = 'artificial-page-token';
-const GROQ_KEY_PLAINTEXT = 'artificial-groq-key';
+const FACEBOOK_SECRET_PLAINTEXT = 'artificial-facebook-app-secret';
 
 function seedDocuments() {
     return {
@@ -110,14 +110,14 @@ const auditRecords = () => {
 function resetVaultState() {
     process.env.SMS_ENCRYPTION_KEY = ENCRYPTION_KEY;
     mock.reset(seedDocuments());
-    process.env.GROQ_API_KEY = GROQ_KEY_PLAINTEXT;
+    process.env.FACEBOOK_APP_SECRET = FACEBOOK_SECRET_PLAINTEXT;
     jest.spyOn(console, 'warn').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
 }
 
 /** The original `afterEach` body, unchanged. */
 function restoreVaultState() {
-    delete process.env.GROQ_API_KEY;
+    delete process.env.FACEBOOK_APP_SECRET;
     jest.restoreAllMocks();
 }
 
@@ -141,5 +141,5 @@ module.exports = {
     LINE_JWT_PLAINTEXT,
     SMTP_PASSWORD_PLAINTEXT,
     PAGE_TOKEN_PLAINTEXT,
-    GROQ_KEY_PLAINTEXT,
+    FACEBOOK_SECRET_PLAINTEXT,
 };

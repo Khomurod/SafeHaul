@@ -233,7 +233,6 @@ Google Secret Manager; they are shared by the test and production builds.
 |---|---|
 | `PROCESS_BULK_BATCH_URL` | Cloud Run URL for `processBulkBatch` (required for bulk campaigns) |
 | `BULK_WORKER_SECRET` | Shared secret for bulk worker HTTP auth (same on `initBulkSession` and `processBulkBatch`) |
-| `GROQ_API_KEY` | Groq vision API for CDL parsing (legacy binding, retained as an AI-platform rollback path) |
 | `SMS_ENCRYPTION_KEY` | AES key for encrypting SMS provider credentials |
 
 A local `functions/.env` is only for emulator development and must never be

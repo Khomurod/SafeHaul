@@ -47,19 +47,11 @@ const FUNCTIONS_DIR = path.resolve(__dirname, '../..');
 /**
  * The generations each secret is bound from, and therefore the runtime service
  * accounts that must be able to read it.
- *
- * `GROQ_API_KEY` is bound from both and always has been — `cdlParser.js` is 1st
- * generation and predates the AI platform — which is why both accounts already
- * have access to it and why adding `ai/callablesV1.js` needed no IAM change.
  */
 const EXPECTED = Object.freeze({
     // Both accounts. v1 arrived with the guest application-draft callables and
     // needed a one-time grant to the App Engine account (see the header).
     SMS_ENCRYPTION_KEY: ['v1', 'v2'],
-    // Both accounts, and always has been: `cdlParser.js` is 1st generation and
-    // predates the AI platform. That is why adding `ai/callablesV1.js` needed no
-    // IAM change while the draft callables did.
-    GROQ_API_KEY: ['v1', 'v2'],
     // 2nd generation only. A 1st-generation function binding any of these needs
     // the App Engine account granted access first.
     BULK_WORKER_SECRET: ['v2'],

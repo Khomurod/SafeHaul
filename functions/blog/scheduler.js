@@ -114,9 +114,6 @@ exports.publishScheduledBlogPosts = onSchedule({
     timeoutSeconds: 540,
     memory: '512MiB',
     retryCount: 2,
-    // The legacy Groq binding is the rollback path for the AI credential
-    // migration and must be readable here too.
-    secrets: ['GROQ_API_KEY'],
 }, async () => {
     const summary = await publishDueSlots();
     console.log(

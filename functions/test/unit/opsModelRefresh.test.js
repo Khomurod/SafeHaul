@@ -46,7 +46,7 @@ const { mockLeaseDoc } = require('../../firebaseAdmin');
 const {
     runModelRefresh, dueReason, refreshAiModelLists, readCheckState, setAutoSelect, resetModelLists,
 } = require('../../ops/modelRefresh');
-const { PROVIDERS, isRetired } = require('../../ai/registry/providers');
+const { PROVIDERS } = require('../../ai/registry/providers');
 const { RESULT } = require('../../ai/tasks/modelVerification');
 
 const HOUR = 60 * 60 * 1000;
@@ -133,6 +133,8 @@ describe('when a provider is due', () => {
 describe('which providers it checks', () => {
     it('only enabled, configured providers that are due: never one switched off', async () => {
         mockStore.readAllConfigs.mockResolvedValue(configs({
+            // A provider removed from the registry whose settings are still stored.
+            'github-models': { enabled: true, ...checkedLongAgo },
             gemini: { enabled: true, ...checkedLongAgo },
             mistral: { enabled: false, ...checkedLongAgo },
             groq: { enabled: true, modelCheck: { fullCheckAt: new Date(DAY - HOUR).toISOString(), checkedAt: new Date(DAY - HOUR).toISOString() } },
@@ -466,14 +468,14 @@ describe('one run at a time', () => {
         expect(mockLeaseDoc.data.leaseUntil).toBe(DAY + 60 * 1000);
     });
 
-    it('puts the built-in lists back for every unretired provider, and leaves the last check its own record', async () => {
+    it('puts the built-in lists back for every provider, and leaves the last check its own record', async () => {
         mockLeaseDoc.data = { autoSelect: false, lastRunAt: 'last-run', lastRunSummary: 'gemini=vision:ok' };
 
         const outcome = await resetModelLists({ now: DAY });
 
-        const unretired = PROVIDERS.filter((provider) => !isRetired(provider)).map((provider) => provider.id);
-        expect(outcome).toEqual({ reset: unretired });
-        expect(mockClear.mock.calls.map(([id]) => id).sort()).toEqual([...unretired].sort());
+        const ids = PROVIDERS.map((provider) => provider.id);
+        expect(outcome).toEqual({ reset: ids });
+        expect(mockClear.mock.calls.map(([id]) => id).sort()).toEqual([...ids].sort());
         expect(mockLeaseDoc.data).toMatchObject({
             leaseUntil: 0, autoSelect: false, lastRunAt: 'last-run', lastRunSummary: 'gemini=vision:ok',
         });

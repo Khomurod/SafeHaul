@@ -93,7 +93,7 @@ describe('orderProviders — degrading to the registry order', () => {
 describe('orderProviders — applying an order', () => {
     it('puts a fully-specified order in exactly that order', () => {
         const wanted = ['mistral', 'gemini', 'groq', 'openrouter', 'huggingface',
-            'cloudflare', 'cerebras', 'sambanova', 'github-models'];
+            'cloudflare', 'cerebras', 'sambanova'];
 
         expect(ids(orderProviders(PROVIDERS, wanted))).toEqual(wanted);
     });
@@ -104,7 +104,7 @@ describe('orderProviders — applying an order', () => {
         expect(result.slice(0, 2)).toEqual(['mistral', 'openrouter']);
         // The remainder keeps its relative registry order rather than being
         // shuffled, so an operator who ranks two providers has not implicitly
-        // reordered the other seven.
+        // reordered the other six.
         expect(result.slice(2)).toEqual(
             DEFAULT_FALLBACK_ORDER.filter((id) => id !== 'mistral' && id !== 'openrouter'),
         );
@@ -137,12 +137,14 @@ describe('orderProviders — applying an order', () => {
         }
     });
 
-    it('keeps the retired provider in the order rather than dropping it', () => {
-        // The registry keeps the retired row so the documented order keeps its
-        // shape; ordering must not be the thing that removes it. The router
-        // still skips it as `retired`.
-        expect(ids(orderProviders(PROVIDERS, ['github-models'])))
-            .toContain('github-models');
+    it('drops a stored id the registry no longer has, and keeps every current provider', () => {
+        // GitHub Models was removed from the registry; an order saved while it
+        // was listed still names it.
+        const result = ids(orderProviders(PROVIDERS, ['github-models', 'huggingface', 'gemini']));
+
+        expect(result.slice(0, 2)).toEqual(['huggingface', 'gemini']);
+        expect(result).not.toContain('github-models');
+        expect([...result].sort()).toEqual([...DEFAULT_FALLBACK_ORDER].sort());
     });
 
     it('does not mutate the registry array it was given', () => {

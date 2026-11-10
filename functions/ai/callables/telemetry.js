@@ -3,7 +3,7 @@
  *
  * Part of the AI Integrations callable surface. `onCall`, `HttpsError` and the
  * shared options and guards come from `./options` — see the note there about
- * why the `firebase-functions/v2` import lives beside the `secrets:` literal.
+ * why the `firebase-functions/v2` import lives beside the options.
  */
 
 const { callableOptions, onCall, safeFailure } = require('./options');

@@ -120,10 +120,8 @@ describe('safety and secrecy', () => {
         expect(JSON.stringify(result)).not.toMatch(/SECRETVALUE/);
     });
 
-    it('refuses a retired provider before spending anything', async () => {
-        const result = await testProviderConnection('github-models');
-
-        expect(result.success).toBe(false);
+    it('refuses a provider the registry does not have before spending anything', async () => {
+        await expect(testProviderConnection('github-models')).rejects.toThrow(/Unknown AI provider/);
         expect(mockExecute).not.toHaveBeenCalled();
     });
 

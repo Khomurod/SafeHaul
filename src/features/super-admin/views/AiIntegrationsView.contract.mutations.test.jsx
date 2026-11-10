@@ -1,5 +1,5 @@
 /**
- * Mutations: enable/disable, save/delete, the typed-back deletion, the Groq migration, and re-authentication.
+ * Mutations: enable/disable, save/delete, the typed-back deletion, and re-authentication.
  *
  * Part of the AiIntegrationsView contract suite, split from the original
  * single file by subject. The fixtures, callable stubs, spies and the
@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('firebase/functions', async () => (await import('./AiIntegrationsView.contract.support')).firebaseFunctionsMock());
@@ -18,13 +18,11 @@ vi.mock('@lib/firebase', async () => (await import('./AiIntegrationsView.contrac
 vi.mock('firebase/auth', async () => (await import('./AiIntegrationsView.contract.support')).firebaseAuthMock());
 vi.mock('@shared/components/feedback', async () => (await import('./AiIntegrationsView.contract.support')).feedbackMock());
 
-import { AiIntegrationsView } from './AiIntegrationsView';
 import {
     callables,
     showSuccess,
     showError,
     reauthenticateWithCredential,
-    PROVIDERS,
     REAL_SECRET,
     stubCallables,
     renderView,
@@ -192,60 +190,6 @@ describe('mutations', () => {
             providerId: 'cloudflare',
             settings: { accountId: 'b'.repeat(32) },
         }));
-    });
-});
-
-describe('Groq migration', () => {
-    it('offers the migration only while the legacy binding is in use', async () => {
-        await renderView();
-        expect(screen.queryByRole('button', { name: /Migrate legacy key/i })).toBeNull();
-
-        stubCallables({
-            listAiProviders: vi.fn().mockResolvedValue({
-                data: {
-                    providers: PROVIDERS.map((row) => (
-                        row.id === 'groq' ? { ...row, credentialSource: 'legacy-env' } : row
-                    )),
-                    telemetry: [],
-                },
-            }),
-        });
-        render(<AiIntegrationsView />);
-
-        await waitFor(() => expect(
-            screen.getAllByRole('button', { name: /Migrate legacy key/i }).length,
-        ).toBeGreaterThan(0));
-    });
-
-    it('says the provider is still on the legacy binding', async () => {
-        stubCallables({
-            listAiProviders: vi.fn().mockResolvedValue({
-                data: {
-                    providers: [{ ...PROVIDERS[0], credentialSource: 'legacy-env' }],
-                    telemetry: [],
-                },
-            }),
-        });
-        render(<AiIntegrationsView />);
-
-        await waitFor(() => expect(
-            screen.getByText(/Using the legacy deploy binding, not the managed credential\./),
-        ).toBeTruthy());
-    });
-
-    it('never renders a token returned by the migration', async () => {
-        stubCallables({
-            listAiProviders: vi.fn().mockResolvedValue({
-                data: { providers: [{ ...PROVIDERS[0], credentialSource: 'legacy-env' }], telemetry: [] },
-            }),
-        });
-        const { container } = render(<AiIntegrationsView />);
-        await waitFor(() => expect(screen.getAllByText('Groq').length).toBeGreaterThan(0));
-
-        fireEvent.click(screen.getByRole('button', { name: /Migrate legacy key/i }));
-
-        await waitFor(() => expect(callables.migrateGroqCredential).toHaveBeenCalled());
-        expect(container.innerHTML).not.toContain(REAL_SECRET);
     });
 });
 

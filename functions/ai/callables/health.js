@@ -3,7 +3,7 @@
  *
  * Part of the AI Integrations callable surface. `onCall`, `HttpsError` and the
  * shared options and guards come from `./options` — see the note there about
- * why the `firebase-functions/v2` import lives beside the `secrets:` literal.
+ * why the `firebase-functions/v2` import lives beside the options.
  */
 
 const { callableOptions, onCall, requireRegisteredProvider, safeFailure } = require('./options');
@@ -79,7 +79,7 @@ exports.testAiProvider = onCall({
     await assertWithinRateLimit(request, 'test', ACTIONS.TEST, { providerId });
 
     try {
-        const provider = requireRegisteredProvider(providerId, 'read');
+        const provider = requireRegisteredProvider(providerId);
         const result = await testProviderConnection(provider.id);
         // Never throws: a log row that cannot be written does not fail the test,
         // and one that stalls is not waited for past a few seconds, so the probes'

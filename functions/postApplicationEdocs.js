@@ -12,6 +12,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin, db } = require('./firebaseAdmin');
 const { checkRateLimit } = require('./shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
+const { trustedClientIp } = require('./shared/clientIp');
 const {
   COMPLETED_REQUEST_STATUSES,
   buildPostApplicationRequestId,
@@ -48,7 +49,7 @@ exports.createPostApplicationSigningRequest = onCall({ cors: true }, async (requ
     throw new HttpsError('invalid-argument', 'templateId is required.');
   }
 
-  const clientIp = request.rawRequest?.ip || 'unknown_guest';
+  const clientIp = trustedClientIp(request.rawRequest);
   const allowed = await checkRateLimit(`post_submit_doc_${clientIp}`, 10, 60, 'closed');
   if (!allowed) {
     throw new HttpsError('resource-exhausted', 'Too many attempts. Please wait a minute and try again.');

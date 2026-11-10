@@ -85,7 +85,7 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
     // own document, so they run side by side, as in `drafts/save.js`; the envelope
     // refusal still wins. A request the envelope limit refuses still counts toward its
     // network's limit, which only makes the pair stricter.
-    const ip = request.rawRequest?.ip || 'unknown';
+    const ip = trustedClientIp(request.rawRequest);
     const [envelopeLimit, ipLimit] = await Promise.allSettled([
         checkRateLimit(`envelope_read_${requestId}`, 30, 300, 'closed'),
         checkRateLimit(`envelope_read_ip_${ip}`, 100, 300, 'closed'),

@@ -122,7 +122,6 @@ Value availability values:
 | `FACEBOOK_APP_ID` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_APP_SECRET` | Facebook Lead Ads | critical | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_VERIFY_TOKEN` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
-| `GROQ_API_KEY` | Groq (AI) | critical | `server-runtime` | reveal / — / — | Yes |
 | `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 | `SMS_ENCRYPTION_KEY` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
 
@@ -176,7 +175,6 @@ so it cannot drift silently:
 | Secret | Bound from | Note |
 | --- | --- | --- |
 | `SMS_ENCRYPTION_KEY` | v1 **and** v2 | v1 arrived with the guest application-draft callables |
-| `GROQ_API_KEY` | v1 **and** v2 | always has — `cdlParser.js` is 1st generation and predates the AI platform |
 | everything else in §3 | v2 only | a 1st-generation consumer needs the grant above first |
 
 That test reads the real `secrets: [...]` declarations and fails when a secret
@@ -470,7 +468,7 @@ session, a rate-limit rejection and a confirmation mismatch all leave a trace.
 **"Every Secret Manager row says Missing."**
 The vault callables must bind the secrets to see them. Check that
 `functions/environmentVault/index.js` still declares
-`secrets: ['SMS_ENCRYPTION_KEY', 'FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET', 'FACEBOOK_VERIFY_TOKEN', 'GROQ_API_KEY', 'BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL']`
+`secrets: ['SMS_ENCRYPTION_KEY', 'FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET', 'FACEBOOK_VERIFY_TOKEN', 'BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL']`
 — `functions/test/unit/smsSecretBindings.test.js` guards this — and redeploy.
 
 **"A company credential will not decrypt."**
@@ -546,13 +544,10 @@ which credentials exist.
   client, not bound at deploy time, so a new or rotated credential takes effect
   within about a minute. That is also why adding a tenth provider cannot break
   the functions deploy.
-- **`GROQ_API_KEY`** remains registered as the legacy deploy binding and the
-  rollback path for the AI credential migration. The shared router reads it only
-  when `SAFEHAUL_AI_GROQ_APIKEY` is absent. Cleanup steps are in
-  [`docs/ai-platform.md`](./ai-platform.md).
-- **Retired providers.** `SAFEHAUL_AI_GITHUB_MODELS_TOKEN` is listed for
-  completeness. GitHub retired GitHub Models on 2026-07-30, so the slot can never
-  be configured.
+- **`GROQ_API_KEY`** is no longer bound to any function and is not listed here:
+  Groq's key is `SAFEHAUL_AI_GROQ_APIKEY`. The old secret still exists in Secret
+  Manager, unused, until the owner deletes it; see
+  [`docs/ai-platform.md`](./ai-platform.md#groqs-key).
 
 ### Retired keys
 

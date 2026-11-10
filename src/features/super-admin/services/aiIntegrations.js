@@ -24,7 +24,7 @@ export { isReauthCancelled } from './environmentVault';
  * Backend messages are already credential-free and already category-only for
  * provider failures, so `failed-precondition` and `invalid-argument` are passed
  * through: those carry the registry's own explanation, such as which
- * non-secret setting is missing or that a provider has been retired.
+ * non-secret setting is missing.
  */
 export function describeAiError(error, fallback = 'That operation could not be completed.') {
     return callableErrorText(error, fallback, {
@@ -192,16 +192,6 @@ export async function diagnoseAiCredentialAccess() {
     return {
         generations: [unwrap(gen2, 'v2'), unwrap(gen1, 'v1')],
     };
-}
-
-/**
- * Copies the legacy Groq deploy binding into the managed credential store.
- * The token is moved server-side; it is never returned here.
- */
-export async function migrateGroqCredential() {
-    const call = httpsCallable(functions, 'migrateGroqCredential');
-    const result = await call({});
-    return result.data;
 }
 
 // --- Research & Media -----------------------------------------------------

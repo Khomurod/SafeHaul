@@ -4,7 +4,7 @@
  *
  * Part of the AI Integrations callable surface. `onCall`, `HttpsError` and the
  * shared options and guards come from `./options` — see the note there about
- * why the `firebase-functions/v2` import lives beside the `secrets:` literal.
+ * why the `firebase-functions/v2` import lives beside the options.
  *
  * The check itself is `../../ops/modelRefresh.js`; "check now" runs the same
  * pass the hourly schedule does, for every provider at once, and the lease there
@@ -16,7 +16,7 @@ const { HttpsError, callableOptions, onCall, safeFailure } = require('./options'
 const { assertSuperAdmin, assertWithinRateLimit, guardPrivileged } = require('../../environmentVault/guards');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../../environmentVault/audit');
 const {
-    PROVIDERS, isRetired, resolveModels, missingRequiredConfig, credentialReadiness,
+    PROVIDERS, resolveModels, missingRequiredConfig, credentialReadiness,
 } = require('../registry/providers');
 const routingOrder = require('../router/order');
 const store = require('../credentials/store');
@@ -107,7 +107,7 @@ async function readVersions() {
         routingOrder.readProviderOrder(),
         readCheckState(),
     ]);
-    const providers = routingOrder.orderProviders(PROVIDERS, storedOrder).filter((provider) => !isRetired(provider));
+    const providers = routingOrder.orderProviders(PROVIDERS, storedOrder);
     const configOf = (provider) => configs.get(provider.id) || { enabled: true };
     const credentials = await Promise.all(providers.map((provider) => credentialState(provider, configOf(provider))));
     return {

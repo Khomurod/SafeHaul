@@ -1,8 +1,8 @@
 /**
  * Shared adapter for vendors that speak the OpenAI `/chat/completions` shape.
  *
- * Cerebras, Mistral, SambaNova, OpenRouter, Hugging Face's router and the
- * retired GitHub Models endpoint all accept the same request body, differing
+ * Cerebras, Mistral, SambaNova, OpenRouter and Hugging Face's router all
+ * accept the same request body, differing
  * only in base URL, extra headers, and how much of the structured-output
  * specification they actually implement. Those differences are parameters
  * here, not nine near-identical files.

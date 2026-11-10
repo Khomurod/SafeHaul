@@ -171,6 +171,14 @@ export const RETIREMENTS = Object.freeze([
             'onLegacyActivityCreated', 'onLeadsLegacyActivityCreated', 'stampLegacyActivityExpiry', 'syncDriverOnActivity',
         ]),
     }),
+    Object.freeze({
+        // The Groq key migration. That release still has its "Migrate legacy
+        // key" button, but shows it only when the server reports Groq's key as
+        // `legacy-env`, which the server no longer does.
+        id: 'groq-migration',
+        since: '79bdaef59b244788f68209c83dd2b3577444c891',
+        names: Object.freeze(['migrateGroqCredential']),
+    }),
 ]);
 
 export const REGION = 'us-central1';

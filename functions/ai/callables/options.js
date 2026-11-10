@@ -3,36 +3,21 @@
  * mask, and the small guards that turn a browser-supplied provider id into a
  * registry entry.
  *
- * **The `firebase-functions/v2` import belongs in this file, next to the
- * `secrets:` literal.** `test/unit/secretBindingGenerations.test.js` decides
- * which service accounts must be able to read a secret by scanning for
- * `secrets: [...]` and then asking, of the *same file*, which generation it
- * imports — a file declaring a binding without stating its generation is skipped
- * outright. Re-exporting `onCall` and `HttpsError` from here keeps the
- * declaration and the generation together and gives every handler module one
- * import instead of two.
- *
- * Be precise about what that guard would and would not have caught, because it
- * is easy to over-read: it asserts that nothing is bound from a generation
- * `EXPECTED` does not list, and that no `EXPECTED` entry names a secret nothing
- * binds. It does **not** assert that a secret is still bound from every
- * generation listed. So separating this literal from its import would have been
- * *silent*, not caught. What the guard does catch — and the reason the pairing
- * above matters — is a binding turning up under the wrong generation, which is
- * exactly what a careless split of a mixed v1/v2 file would produce.
+ * `onCall` and `HttpsError` are re-exported from here, which gives every
+ * handler module one import instead of two and keeps the `firebase-functions/v2`
+ * import beside the options. Keep it there if the options ever bind a secret:
+ * `test/unit/secretBindingGenerations.test.js` reads which generation binds a
+ * `secrets: [...]` declaration from the import in the *same file*, and skips a
+ * file that states none.
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 
-const { getProvider, isRetired } = require('../registry/providers');
+const { getProvider } = require('../registry/providers');
 const store = require('../credentials/store');
 
 const callableOptions = {
     cors: true,
-    // The legacy Groq binding must be readable so the console can report the
-    // provider as configured before an operator has migrated it, and so the
-    // migration itself can verify the old value server-side.
-    secrets: ['GROQ_API_KEY'],
 };
 
 /** Masked stand-in. Fixed width, so it reveals nothing about real length. */
@@ -49,13 +34,10 @@ function safeFailure(error, label) {
  * Resolves a browser-supplied provider id through the frozen registry.
  * Everything downstream depends on this having happened.
  */
-function requireRegisteredProvider(providerId, action) {
+function requireRegisteredProvider(providerId) {
     const provider = getProvider(providerId);
     if (!provider) {
         throw new HttpsError('not-found', 'Unknown AI provider.');
-    }
-    if (isRetired(provider) && action !== 'read') {
-        throw new HttpsError('failed-precondition', provider.retired.reason);
     }
     return provider;
 }

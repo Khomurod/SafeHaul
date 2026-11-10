@@ -18,7 +18,7 @@ const store = require('../../ai/credentials/store');
 // The mocked module, so this is the very `jest.fn()` the support file owns.
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const {
-    mockAuditWrites, mockFakeClient, requestOf, resetCredentialState,
+    mockAuditWrites, mockConfigDocs, mockFakeClient, requestOf, resetCredentialState,
 } = require('./aiCredentials.support');
 
 beforeEach(resetCredentialState);
@@ -117,13 +117,13 @@ describe('Super Admin callables', () => {
         )).rejects.toMatchObject({ code: 'resource-exhausted' });
     });
 
-    it('lists all nine providers with no plaintext anywhere in the response', async () => {
+    it('lists every provider with no plaintext anywhere in the response', async () => {
         await secretManager.writeSecret('mistral', 'apiKey', 'super-secret-mistral-key', { client: mockFakeClient });
 
         const response = await callables.listAiProviders(requestOf({}));
         const serialized = JSON.stringify(response);
 
-        expect(response.providers).toHaveLength(9);
+        expect(response.providers).toHaveLength(8);
         expect(serialized).not.toContain('super-secret-mistral-key');
         // Every credential field renders as the fixed mask, which reveals
         // nothing — not even the real length.
@@ -135,14 +135,23 @@ describe('Super Admin callables', () => {
         }
     });
 
-    it('reports the retired provider honestly instead of hiding it', async () => {
-        const response = await callables.listAiProviders(requestOf({}));
-        const github = response.providers.find((row) => row.id === 'github-models');
+    it('lists only registry providers while a removed one is still stored', async () => {
+        // GitHub Models left the registry, but Firestore can still hold its
+        // settings and a saved order that names it first.
+        mockConfigDocs.set('ai_provider_config/github-models', { enabled: false, health: 'retired' });
+        mockConfigDocs.set('ai_routing_config/order', { providerIds: ['github-models', 'mistral', 'gemini'] });
 
-        expect(github.retired).toBeTruthy();
-        expect(github.enabled).toBe(false);
-        expect(github.health).toBe('retired');
-        expect(github.retired.reason).toMatch(/retired GitHub Models/i);
+        const response = await callables.listAiProviders(requestOf({}));
+        const ids = response.providers.map((row) => row.id);
+
+        expect(ids).toEqual([
+            'mistral', 'gemini', 'groq', 'cloudflare', 'cerebras', 'sambanova', 'openrouter', 'huggingface',
+        ]);
+        expect(response.providers.map((row) => row.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+        expect(response.routing.order).toEqual(ids);
+        for (const lane of response.routing.lanes) {
+            expect(lane.providers.map((row) => row.providerId)).not.toContain('github-models');
+        }
     });
 
     it('preserves the documented priority order in the list', async () => {
@@ -150,9 +159,12 @@ describe('Super Admin callables', () => {
         // Gemini leads; see the priority note in the registry. The console must
         // show the real routing order, not the order the brief first specified.
         expect(response.providers.map((row) => row.id)).toEqual([
-            'gemini', 'groq', 'cloudflare', 'github-models',
+            'gemini', 'groq', 'cloudflare',
             'mistral', 'cerebras', 'sambanova', 'openrouter', 'huggingface',
         ]);
+        // The default order's ranks match the registry's priorities, so no row
+        // shows a "Default position" note before an operator reorders.
+        expect(response.providers.every((row) => row.rank === row.priority)).toBe(true);
     });
 
     it('reveals exactly one credential per request', async () => {
@@ -179,10 +191,10 @@ describe('Super Admin callables', () => {
         )).rejects.toMatchObject({ code: 'not-found' });
     });
 
-    it('refuses to configure the retired provider', async () => {
+    it('refuses to configure a provider removed from the registry', async () => {
         await expect(callables.saveAiCredential(
             requestOf({ providerId: 'github-models', field: 'token', value: 'ghp_x' }),
-        )).rejects.toMatchObject({ code: 'failed-precondition' });
+        )).rejects.toMatchObject({ code: 'not-found' });
     });
 
     it('writes a value-free audit record for every reveal', async () => {
