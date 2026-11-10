@@ -275,9 +275,14 @@ fetches PDFs from Storage (signing room, envelope editor), which needs it.
 `cors.json` allows the Production and Testing app sites (custom and default
 domains) with GET and HEAD (owner decision, 2026-11-10); it is applied by hand
 (`npm run storage:set-cors`, or the same file through `gsutil cors set` in Cloud
-Shell), never by CI. Uploads, deletes and metadata go through the Firebase SDK's
-endpoint, which answers CORS by its own fixed policy (read-only check), so they
-do not depend on this file. A new site that reads files needs its origin added.
+Shell), never by CI. **Until the owner applies it, the live bucket keeps the old
+setting** (any origin; GET, PUT, POST, DELETE, HEAD); the tracker's resume point
+(`docs/code-cleanup/README.md`) says when it is applied. Uploads, deletes and
+metadata go through the Firebase SDK's endpoint, which answers CORS by its own
+fixed policy (read-only check), so they do not depend on this file. A new site
+that reads files needs its origin added. `localhost` is deliberately not listed:
+a local server with the real configuration cannot load a stored PDF in the
+envelope editor.
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
@@ -1777,8 +1782,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   `visitedCompanyIds`, `dailyLeadQuota`). **Job board / saved jobs** (rules
   deleted; old documents unreachable). **`/join/:companyId`** (use Create Portal User).
 - **GitHub Models** as an AI provider: removed from the registry. A leftover
-  `ai_provider_config/github-models` document, a saved routing order naming it
-  and old log entries are skipped, not errors.
+  `ai_provider_config/github-models` document and a saved routing order naming it
+  are ignored, not errors. Logs recorded before the removal still show its
+  turns, by its id, for as long as logs are kept.
 - **The `GROQ_API_KEY` deploy binding** and *Migrate legacy key*: no function binds
   or reads it; Groq's key is `SAFEHAUL_AI_GROQ_APIKEY`. The secret still exists in
   Secret Manager, unused, until the owner deletes it.
