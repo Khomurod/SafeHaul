@@ -25,7 +25,7 @@
  */
 
 const {
-    PROVIDERS, isRetired, resolveModels, missingRequiredConfig, credentialReadiness,
+    PROVIDERS, resolveModels, missingRequiredConfig, credentialReadiness,
 } = require('../registry/providers');
 const { CAPABILITIES } = require('../registry/capabilities');
 const store = require('../credentials/store');
@@ -63,10 +63,6 @@ function catalogueContains(catalogue, model) {
 
 async function checkProvider(provider, { fetchImpl = fetch, deps = {} } = {}) {
     const base = { providerId: provider.id, displayName: provider.displayName };
-
-    if (isRetired(provider)) {
-        return { ...base, status: 'retired', pins: [] };
-    }
 
     if (!CATALOGUES[provider.id]) {
         return {
@@ -167,9 +163,7 @@ async function diagnoseModelPins(options = {}) {
     // separately is what stops "0 stale" being reported as "all clear" after a
     // run that checked almost nothing.
     const checked = providers.filter((entry) => entry.status === 'ok' || entry.status === 'stale');
-    const unchecked = providers.filter((entry) => (
-        entry.status !== 'ok' && entry.status !== 'stale' && entry.status !== 'retired'
-    ));
+    const unchecked = providers.filter((entry) => entry.status !== 'ok' && entry.status !== 'stale');
 
     return {
         providers,

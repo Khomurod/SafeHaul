@@ -272,7 +272,6 @@ exports.runBlogPublicationNow = onCall({
     cors: true,
     timeoutSeconds: 540,
     memory: '512MiB',
-    secrets: ['GROQ_API_KEY'],
 }, async (request) => {
     await guardPrivileged(request, 'mutate', ACTIONS.UPDATE, { integration: 'Blog publication' });
 

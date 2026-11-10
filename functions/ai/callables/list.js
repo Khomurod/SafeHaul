@@ -4,7 +4,7 @@
  *
  * Part of the AI Integrations callable surface. `onCall`, `HttpsError` and the
  * shared options and guards come from `./options` — see the note there about
- * why the `firebase-functions/v2` import lives beside the `secrets:` literal.
+ * why the `firebase-functions/v2` import lives beside the options.
  */
 
 const { MASK, callableOptions, onCall, safeFailure } = require('./options');
@@ -50,16 +50,7 @@ async function buildProviderRow(provider, configs, rank) {
         unreadable: provider.secretFields.map((f) => f.name),
     }));
     const unreadable = Array.isArray(credentials.unreadable) ? credentials.unreadable : [];
-
-    // Groq may still be served by the pre-migration deploy binding — including
-    // when the managed read *failed*, which is exactly when the rollback path
-    // earns its keep. `resolveCredentials` makes the same allowance.
-    let credentialSource = credentials.complete ? 'secret-manager' : null;
-    let configured = credentials.complete;
-    if (!configured && store.legacyCredential(provider.id, 'apiKey')) {
-        configured = true;
-        credentialSource = store.legacySource(unreadable.includes('apiKey'));
-    }
+    const configured = credentials.complete;
 
     const cooldown = store.cooldownState(config);
     const missingConfig = missingRequiredConfig(provider, config).map((field) => field.name);
@@ -74,7 +65,6 @@ async function buildProviderRow(provider, configs, rank) {
         priority: provider.priority,
         rank: typeof rank === 'number' ? rank : provider.priority,
         docsUrl: provider.docsUrl,
-        retired: provider.retired || null,
         capabilities: provider.capabilities.map((capability) => ({
             id: capability,
             label: CAPABILITY_LABELS[capability],
@@ -84,8 +74,7 @@ async function buildProviderRow(provider, configs, rank) {
             label: field.label,
             description: field.description,
             required: field.required,
-            configured: Boolean(credentials.values[field.name])
-                || (credentialSource === 'legacy-env' && Boolean(store.legacyCredential(provider.id, field.name))),
+            configured: Boolean(credentials.values[field.name]),
             // Always the same fixed mask. Never a real value or its length.
             maskedValue: MASK,
         })),
@@ -111,13 +100,11 @@ async function buildProviderRow(provider, configs, rank) {
         unreadableCredentials: unreadable,
         credentialAccess: unreadable.length > 0 ? 'unreadable' : 'ok',
         missingConfig,
-        credentialSource,
-        enabled: config.enabled !== false && !provider.retired,
-        health: provider.retired
-            ? 'retired'
-            : (unreadable.length > 0 && !configured
-                ? 'credential_error'
-                : (config.health || (configured ? 'unknown' : 'unconfigured'))),
+        credentialSource: configured ? 'secret-manager' : null,
+        enabled: config.enabled !== false,
+        health: unreadable.length > 0 && !configured
+            ? 'credential_error'
+            : (config.health || (configured ? 'unknown' : 'unconfigured')),
         // Per lane, because a provider's text and image lanes fail independently
         // and one scalar could describe neither. This is what lets the row say
         // "articles fine, document images broken" instead of a single badge that
@@ -157,9 +144,9 @@ async function buildProviderRow(provider, configs, rank) {
  * The two capability sets worth showing an operator, because they route
  * differently and the difference is the thing people get wrong.
  *
- * Every SafeHaul AI task is one of these two shapes. Text tasks can reach all
- * nine providers; document-image tasks can only reach the four that declare
- * vision, whatever order they are put in. Showing both lanes is what makes
+ * Every SafeHaul AI task is one of these two shapes. Text tasks can reach every
+ * provider; document-image tasks can only reach those that declare vision,
+ * whatever order they are put in. Showing both lanes is what makes
  * "I promoted Cerebras to first and CDL parsing did not change" explainable on
  * the screen instead of in a support conversation.
  */

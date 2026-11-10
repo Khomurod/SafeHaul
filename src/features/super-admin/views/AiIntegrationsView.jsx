@@ -21,7 +21,6 @@ import {
     diagnoseAiModelPins,
     listAiProviders,
     listMediaProviders,
-    migrateGroqCredential,
     revealAiCredential,
     saveAiCredential,
     saveMediaCredential,
@@ -142,16 +141,12 @@ export function AiIntegrationsView() {
         }
     }, [revealed.error, showError]);
 
-    const summary = useMemo(() => {
-        const usable = providers.filter((provider) => !provider.retired);
-        return {
-            total: providers.length,
-            configured: usable.filter((provider) => provider.configured).length,
-            enabled: usable.filter((provider) => provider.configured && provider.enabled).length,
-            cooldown: usable.filter((provider) => provider.cooldown.active).length,
-            retired: providers.filter((provider) => provider.retired).length,
-        };
-    }, [providers]);
+    const summary = useMemo(() => ({
+        total: providers.length,
+        configured: providers.filter((provider) => provider.configured).length,
+        enabled: providers.filter((provider) => provider.configured && provider.enabled).length,
+        cooldown: providers.filter((provider) => provider.cooldown.active).length,
+    }), [providers]);
 
     const handleTest = useCallback(async (provider) => {
         setTestingId(provider.id);
@@ -250,21 +245,6 @@ export function AiIntegrationsView() {
         }
     }, [configDrafts, load, runGuarded, showError, showSuccess]);
 
-    const handleMigrateGroq = useCallback(async () => {
-        setBusyId('groq');
-        try {
-            const result = await runGuarded(() => migrateGroqCredential());
-            if (result.verified) showSuccess(result.message);
-            else showError(result.message);
-            await load();
-        } catch (error) {
-            if (isReauthCancelled(error)) return;
-            showError(describeAiError(error, 'The Groq credential could not be migrated.'));
-        } finally {
-            setBusyId(null);
-        }
-    }, [load, runGuarded, showError, showSuccess]);
-
     /**
      * Asks each vendor whether the models the registry pins still exist.
      *
@@ -342,7 +322,6 @@ export function AiIntegrationsView() {
     const columns = useMemo(() => buildProviderColumns({
         busyId,
         configDrafts,
-        handleMigrateGroq,
         handleSaveConfig,
         handleTest,
         handleToggleEnabled,
@@ -355,7 +334,7 @@ export function AiIntegrationsView() {
         setDeleteError,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
     }), [
-        busyId, configDrafts, handleMigrateGroq, handleSaveConfig, handleTest,
+        busyId, configDrafts, handleSaveConfig, handleTest,
         handleToggleEnabled, revealed, testingId,
     ]);
 

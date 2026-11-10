@@ -233,25 +233,6 @@ describe('an unreadable credential is not a missing one', () => {
             .find((row) => row.textContent.includes('Cerebras'));
         expect(cerebrasRow.textContent).toContain('Needs API key');
     });
-
-    it('marks a provider still working only because of the legacy binding', async () => {
-        stubCallables({
-            listAiProviders: vi.fn().mockResolvedValue({
-                data: {
-                    providers: PROVIDERS.map((row) => (row.id === 'groq'
-                        ? { ...row, credentialSource: 'legacy-env-after-read-failure' }
-                        : row)),
-                    routing: routingFor(PROVIDERS),
-                    telemetry: [],
-                    generatedAt: '2026-08-02T12:00:00Z',
-                },
-            }),
-        });
-
-        await renderView();
-
-        expect(screen.getByText(/managed\s+credential could not be read/i)).toBeTruthy();
-    });
 });
 
 
@@ -279,8 +260,6 @@ describe('credential access check', () => {
                     providers: [{
                         providerId: 'gemini',
                         displayName: 'Google Gemini',
-                        retired: false,
-                        legacyBinding: false,
                         secrets: [{
                             field: 'apiKey',
                             label: 'API key',

@@ -45,7 +45,6 @@ describe('provider ordering', () => {
             'gemini',
             'groq',
             'cloudflare',
-            'github-models',
             'mistral',
             'cerebras',
             'sambanova',
@@ -64,8 +63,8 @@ describe('provider ordering', () => {
     });
 
     it('falls back to Groq second, then the registry order after that', async () => {
-        // Gemini, Groq and Cloudflare all fail; the next *eligible* provider
-        // must be Mistral, because GitHub Models is retired.
+        // Gemini, Groq and Cloudflare all fail; Mistral is next in the
+        // registry order.
         mockExecute.mockImplementation(async (providerId) => {
             if (providerId === 'mistral') return { text: 'ok', model: 'm' };
             throw new AiError('provider_unavailable', 'down', { providerId });
@@ -78,16 +77,6 @@ describe('provider ordering', () => {
         expect(result.fallbackCount).toBe(3);
     });
 
-    it('never attempts the retired GitHub Models provider', async () => {
-        mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'huggingface') return { text: 'ok', model: 'h' };
-            throw new AiError('provider_unavailable', 'down', { providerId });
-        });
-
-        await runAiTask(textTask());
-
-        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('github-models');
-    });
 });
 
 describe('the operator-chosen routing order', () => {
@@ -127,12 +116,27 @@ describe('the operator-chosen routing order', () => {
             .map((call) => call[0])
             .filter((id, index, all) => id !== all[index - 1]);
 
-        // Hugging Face first, then the registry order minus Hugging Face and
-        // minus the retired row, which is skipped rather than attempted.
+        // Hugging Face first, then the registry order minus Hugging Face.
         expect(walk).toEqual([
             'huggingface', 'gemini', 'groq', 'cloudflare',
             'mistral', 'cerebras', 'sambanova', 'openrouter',
         ]);
+    });
+
+    it('skips a stored id the registry no longer has, without failing the task', async () => {
+        // GitHub Models was removed from the registry; an order saved while it
+        // was listed still names it, here first.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'cerebras') return { text: 'ok', model: 'c' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        const result = await runAiTask(textTask(), { providerOrder: ['github-models', 'mistral', 'cerebras'] });
+
+        expect(providersAsked()).toEqual(['mistral', 'cerebras']);
+        expect(result.providerId).toBe('cerebras');
+        const recorded = mockRecordTelemetry.mock.calls.at(-1)[0];
+        expect(recorded.attempts.map((attempt) => attempt.providerId)).not.toContain('github-models');
     });
 
     it('falls back to the registry order when the stored order is unusable', async () => {

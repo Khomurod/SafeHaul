@@ -109,19 +109,14 @@ function requireProvider(providerId) {
     return provider;
 }
 
-function isRetired(provider) {
-    return Boolean(provider && provider.retired);
-}
-
 /**
- * Whether a provider can satisfy every capability a task requires. Retired
- * providers answer `false` for everything.
+ * Whether a provider can satisfy every capability a task requires.
  *
  * @param {object} provider
  * @param {string[]} capabilities
  */
 function supportsAllCapabilities(provider, capabilities) {
-    if (!provider || isRetired(provider)) return false;
+    if (!provider) return false;
     return capabilities.every((capability) => provider.capabilities.includes(capability));
 }
 
@@ -240,7 +235,6 @@ module.exports = {
     STRUCTURED_MODE,
     getProvider,
     requireProvider,
-    isRetired,
     supportsAllCapabilities,
     resolveModels,
     builtInModels,

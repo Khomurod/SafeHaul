@@ -31,7 +31,7 @@ export function AiProviderStatus({ provider }) {
         <div className="flex flex-col gap-ds-1">
             <Badge tone={state.tone}>{state.label}</Badge>
             <span className="text-ds-xs text-ds-content-secondary">{state.detail}</span>
-            {provider.laneHealth && !provider.retired && (
+            {provider.laneHealth && (
                 <div className="flex flex-wrap items-center gap-ds-1">
                     {LANES.map((lane) => {
                         const laneState = describeLaneHealth(provider.laneHealth[lane.id]);
@@ -43,25 +43,6 @@ export function AiProviderStatus({ provider }) {
                         );
                     })}
                 </div>
-            )}
-            {provider.credentialSource === 'legacy-env' && (
-                // Worth surfacing: this provider is still served by the
-                // pre-migration deploy binding rather than the managed
-                // credential, so a rollback would still work and the migration
-                // has not been run.
-                <span className="text-ds-xs text-ds-content-secondary">
-                    Using the legacy deploy binding, not the managed credential.
-                </span>
-            )}
-            {provider.credentialSource === 'legacy-env-after-read-failure' && (
-                // A different sentence, because this is a fault rather than a
-                // migration state. The legacy binding is masking an unreadable
-                // managed credential — the provider works, and it is one
-                // rollback away from not working.
-                <span className="text-ds-xs text-ds-content-secondary">
-                    Falling back to the legacy deploy binding because the managed
-                    credential could not be read. Fix Secret Manager access.
-                </span>
             )}
         </div>
     );

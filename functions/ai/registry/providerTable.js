@@ -180,39 +180,9 @@ const PROVIDER_LIST = [
         healthTest: { capability: TEXT },
     },
     {
-        id: 'github-models',
-        displayName: 'GitHub Models',
-        priority: 4,
-        docsUrl: 'https://github.blog/changelog/2026-07-30-github-models-is-now-retired/',
-        apiBaseUrl: 'https://models.github.ai/inference',
-        adapter: 'githubModels',
-        capabilities: [...TEXT_SUITE, STRUCTURED_JSON],
-        structuredMode: STRUCTURED_MODE.OPENAI_JSON_SCHEMA,
-        supportsVision: false,
-        secretFields: [
-            secretField('token', 'Personal access token', 'GitHub token with the models permission.'),
-        ],
-        configFields: [],
-        timeoutMs: 45000,
-        retryPolicy: SINGLE_ATTEMPT,
-        quotaDetection: DEFAULT_QUOTA_DETECTION,
-        healthTest: { capability: TEXT },
-        // GitHub retired Models on 2026-07-30: the playground, catalogue,
-        // inference API and BYOK were withdrawn from every customer. The row
-        // stays so the documented fallback order keeps its shape and so the
-        // console can explain the gap honestly, but the provider can never be
-        // selected, configured or enabled. If GitHub ever restores an
-        // inference API, clearing `retired` re-enables it.
-        retired: Object.freeze({
-            since: '2026-07-30',
-            reason: 'GitHub retired GitHub Models on 30 July 2026. The inference API, model catalogue and bring-your-own-key access were withdrawn from all customers.',
-            reference: 'https://github.blog/changelog/2026-07-30-github-models-is-now-retired/',
-        }),
-    },
-    {
         id: 'mistral',
         displayName: 'Mistral',
-        priority: 5,
+        priority: 4,
         docsUrl: 'https://docs.mistral.ai/',
         apiBaseUrl: 'https://api.mistral.ai/v1',
         adapter: 'mistral',
@@ -239,7 +209,7 @@ const PROVIDER_LIST = [
     {
         id: 'cerebras',
         displayName: 'Cerebras',
-        priority: 6,
+        priority: 5,
         docsUrl: 'https://inference-docs.cerebras.ai/',
         apiBaseUrl: 'https://api.cerebras.ai/v1',
         adapter: 'cerebras',
@@ -258,7 +228,7 @@ const PROVIDER_LIST = [
     {
         id: 'sambanova',
         displayName: 'SambaNova',
-        priority: 7,
+        priority: 6,
         docsUrl: 'https://docs.sambanova.ai/cloud/docs/get-started/overview',
         apiBaseUrl: 'https://api.sambanova.ai/v1',
         adapter: 'sambanova',
@@ -277,7 +247,7 @@ const PROVIDER_LIST = [
     {
         id: 'openrouter',
         displayName: 'OpenRouter',
-        priority: 8,
+        priority: 7,
         docsUrl: 'https://openrouter.ai/docs',
         apiBaseUrl: 'https://openrouter.ai/api/v1',
         adapter: 'openrouter',
@@ -311,7 +281,7 @@ const PROVIDER_LIST = [
     {
         id: 'huggingface',
         displayName: 'Hugging Face',
-        priority: 9,
+        priority: 8,
         docsUrl: 'https://huggingface.co/docs/inference-providers',
         apiBaseUrl: 'https://router.huggingface.co/v1',
         adapter: 'huggingface',

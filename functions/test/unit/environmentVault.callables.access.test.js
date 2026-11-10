@@ -20,7 +20,7 @@ const vault = require('../../environmentVault');
 const {
     mock, nowSeconds, superAdmin, request, auditRecords, resetVaultState, restoreVaultState,
     CLIENT_ID_PLAINTEXT, CLIENT_SECRET_PLAINTEXT, LINE_JWT_PLAINTEXT,
-    SMTP_PASSWORD_PLAINTEXT, PAGE_TOKEN_PLAINTEXT, GROQ_KEY_PLAINTEXT,
+    SMTP_PASSWORD_PLAINTEXT, PAGE_TOKEN_PLAINTEXT, FACEBOOK_SECRET_PLAINTEXT,
 } = require('./environmentVault.callables.support');
 
 beforeEach(resetVaultState);
@@ -31,7 +31,7 @@ afterEach(restoreVaultState);
 describe('authorization', () => {
     const callables = [
         ['listEnvironmentAndIntegrations', {}],
-        ['revealEnvironmentValue', { entryId: 'secret-manager:GROQ_API_KEY' }],
+        ['revealEnvironmentValue', { entryId: 'secret-manager:FACEBOOK_APP_SECRET' }],
         ['updateEnvironmentValue', { entryId: 'company:co-alpha:sms_provider:clientSecret', value: 'x' }],
         ['addEnvironmentValue', { entryId: 'company:co-alpha:sms_provider:senderId', value: 'x' }],
         ['deleteEnvironmentValue', { entryId: 'company:co-alpha:sms_provider:jwt', confirmation: 'jwt' }],
@@ -67,13 +67,13 @@ describe('authorization', () => {
 
     it('records a value-free denial for every rejected call', async () => {
         const auth = { uid: 'user-1', token: { auth_time: nowSeconds() } };
-        await expect(vault.revealEnvironmentValue(request(auth, { entryId: 'secret-manager:GROQ_API_KEY' })))
+        await expect(vault.revealEnvironmentValue(request(auth, { entryId: 'secret-manager:FACEBOOK_APP_SECRET' })))
             .rejects.toMatchObject({ code: 'permission-denied' });
 
         const records = auditRecords();
         expect(records).toHaveLength(1);
         expect(records[0]).toMatchObject({ action: 'reveal', result: 'denied', reason: 'not-super-admin' });
-        expect(JSON.stringify(records[0])).not.toContain(GROQ_KEY_PLAINTEXT);
+        expect(JSON.stringify(records[0])).not.toContain(FACEBOOK_SECRET_PLAINTEXT);
     });
 });
 
@@ -81,7 +81,7 @@ describe('recent authentication', () => {
     const stale = superAdmin({ auth_time: nowSeconds() - (60 * 60) });
 
     it('is required to reveal', async () => {
-        await expect(vault.revealEnvironmentValue(request(stale, { entryId: 'secret-manager:GROQ_API_KEY' })))
+        await expect(vault.revealEnvironmentValue(request(stale, { entryId: 'secret-manager:FACEBOOK_APP_SECRET' })))
             .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('REAUTH_REQUIRED') });
     });
 
@@ -99,7 +99,7 @@ describe('recent authentication', () => {
 
     it('is not satisfied by a missing auth_time claim', async () => {
         const noAuthTime = { uid: 'super-3', token: { globalRole: 'super_admin' } };
-        await expect(vault.revealEnvironmentValue(request(noAuthTime, { entryId: 'secret-manager:GROQ_API_KEY' })))
+        await expect(vault.revealEnvironmentValue(request(noAuthTime, { entryId: 'secret-manager:FACEBOOK_APP_SECRET' })))
             .rejects.toMatchObject({ code: 'failed-precondition' });
     });
 });
@@ -111,7 +111,7 @@ describe('inventory listing', () => {
 
         for (const secret of [
             CLIENT_ID_PLAINTEXT, CLIENT_SECRET_PLAINTEXT, LINE_JWT_PLAINTEXT,
-            SMTP_PASSWORD_PLAINTEXT, PAGE_TOKEN_PLAINTEXT, GROQ_KEY_PLAINTEXT,
+            SMTP_PASSWORD_PLAINTEXT, PAGE_TOKEN_PLAINTEXT, FACEBOOK_SECRET_PLAINTEXT,
         ]) {
             expect(payload).not.toContain(secret);
         }
@@ -132,7 +132,7 @@ describe('inventory listing', () => {
 
         expect(ids).toEqual(expect.arrayContaining([
             'secret-manager:SMS_ENCRYPTION_KEY',
-            'secret-manager:GROQ_API_KEY',
+            'secret-manager:FACEBOOK_APP_SECRET',
             'vite-build:VITE_FIREBASE_API_KEY',
             'github-actions-secret:GITHUB_TOKEN',
             'company:co-alpha:sms_provider:clientId',
@@ -147,7 +147,7 @@ describe('inventory listing', () => {
         const { entries } = await vault.listEnvironmentAndIntegrations(request(superAdmin()));
         const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
-        expect(byId.get('secret-manager:GROQ_API_KEY').status).toBe('configured');
+        expect(byId.get('secret-manager:FACEBOOK_APP_SECRET').status).toBe('configured');
         expect(byId.get('functions-env:APP_BASE_URL').status).toBe('missing');
         // The Cloud Functions runtime cannot see the browser bundle's values.
         expect(byId.get('vite-build:VITE_FIREBASE_API_KEY').status).toBe('unknown');

@@ -46,7 +46,7 @@ jest.mock('../../ops/modelRefresh', () => ({
 
 const aiCallables = require('../../ai/callables');
 const { ACTIONS, RESULTS } = require('../../environmentVault/audit');
-const { PROVIDERS, isRetired } = require('../../ai/registry/providers');
+const { PROVIDERS } = require('../../ai/registry/providers');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
 const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const { orderProviders } = jest.requireActual('../../ai/router/order');
@@ -129,12 +129,11 @@ describe('getAiModelVersions', () => {
         expect(mockStore.readAllConfigs).not.toHaveBeenCalled();
     });
 
-    it('lists every unretired provider in routing order, with the check\'s own state', async () => {
+    it('lists every provider in routing order, with the check\'s own state', async () => {
         const result = await aiCallables.getAiModelVersions(request());
 
-        const expected = orderProviders(PROVIDERS, []).filter((provider) => !isRetired(provider)).map((provider) => provider.id);
+        const expected = orderProviders(PROVIDERS, []).map((provider) => provider.id);
         expect(result.providers.map((provider) => provider.id)).toEqual(expected);
-        expect(result.providers.map((provider) => provider.id)).not.toContain('github-models');
         expect(result).toMatchObject({ autoSelect: true, running: false, lastRunAt: CHECKED_AT });
     });
 

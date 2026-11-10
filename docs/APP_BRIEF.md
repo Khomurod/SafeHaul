@@ -1776,7 +1776,12 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Lead Distribution Engine** (no `isPlatformLead`, `distributedAt`,
   `visitedCompanyIds`, `dailyLeadQuota`). **Job board / saved jobs** (rules
   deleted; old documents unreachable). **`/join/:companyId`** (use Create Portal User).
-- **GitHub Models** as an AI provider.
+- **GitHub Models** as an AI provider: removed from the registry. A leftover
+  `ai_provider_config/github-models` document, a saved routing order naming it
+  and old log entries are skipped, not errors.
+- **The `GROQ_API_KEY` deploy binding** and *Migrate legacy key*: no function binds
+  or reads it; Groq's key is `SAFEHAUL_AI_GROQ_APIKEY`. The secret still exists in
+  Secret Manager, unused, until the owner deletes it.
 - **Smart Segments** — triggers go at the next promotion; data stays unread.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.

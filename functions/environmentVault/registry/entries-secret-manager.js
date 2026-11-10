@@ -45,15 +45,6 @@ const SECRET_MANAGER_ENTRIES = [
         consumers: ['functions/releaseManagement/github.js'],
     },
     {
-        key: 'GROQ_API_KEY',
-        displayName: 'Groq API key (legacy deploy binding)',
-        description: 'The original deploy-time Groq binding. Superseded by SAFEHAUL_AI_GROQ_APIKEY, which is managed from Super Admin → AI Integrations. This row is retained as the rollback path during the AI credential migration and is read only when the managed credential is absent.',
-        category: CATEGORIES.GLOBAL_INTEGRATION,
-        integration: 'Groq (AI)',
-        sensitivity: SENSITIVITY.CRITICAL,
-        consumers: ['functions/cdlParser.js', 'functions/ai/credentials/store.js'],
-    },
-    {
         key: 'BULK_WORKER_SECRET',
         displayName: 'Bulk worker shared secret',
         description: 'Shared secret authenticating Cloud Tasks calls into processBulkBatch. The worker rejects every request when it is unset.',
