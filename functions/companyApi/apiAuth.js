@@ -9,6 +9,7 @@
 
 const { db } = require('../firebaseAdmin');
 const { checkRateLimit } = require('../shared/rateLimiter');
+const { trustedClientIp } = require('../shared/clientIp');
 const {
     ADDRESS_LIMIT,
     BASE_SCOPE,
@@ -36,9 +37,7 @@ const RATE_LIMITED = (window) => new ApiError(
 
 /** The caller's address, as a rate-limit key may hold it. */
 function clientAddress(req) {
-    const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
-    const address = String(req.ip || forwarded || 'unknown');
-    return address.replace(/[^0-9A-Za-z:.]/g, '_').slice(0, 64) || 'unknown';
+    return trustedClientIp(req).replace(/[^0-9A-Za-z:.]/g, '_').slice(0, 64);
 }
 
 /** The key from `Authorization: Bearer <key>`, or null. */
