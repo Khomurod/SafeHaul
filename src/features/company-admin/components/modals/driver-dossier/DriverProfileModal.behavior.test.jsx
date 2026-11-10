@@ -239,7 +239,7 @@ describe('DriverProfileModal header', () => {
   it("shows the application's confirmation number, never its document id", () => {
     viewState = { ...baseView(), appData: { ...baseView().appData, confirmationNumber: 'SAF-2026-AB3CD' } };
     renderFromTrigger();
-    expect(screen.getByText('Confirmation Number: SAF-2026-AB3CD')).toBeInTheDocument();
+    expect(screen.getByText(/^Confirmation Number:/)).toHaveTextContent(/^Confirmation Number: SAF-2026-AB3CD$/);
     expect(screen.queryByText(/App ID|app-1234/)).toBeNull();
   });
 

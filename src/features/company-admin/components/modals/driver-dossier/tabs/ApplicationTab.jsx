@@ -215,53 +215,58 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                 </Notice>
             )}
 
-            {/* Edit controls */}
-            {canEdit && (
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    {!editing ? (
-                        <Button variant="secondary" size="sm" onClick={startEdit}>
-                            <Icon icon={Pencil} size="sm" /> Edit application
-                        </Button>
-                    ) : (
-                        <>
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={handlePropose}
-                                disabled={proposing}
-                                loading={proposing}
-                            >
-                                Propose changes for approval
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>
-                                Cancel
-                            </Button>
-                            <span className="text-ds-xs text-ds-content-secondary">
-                                Edits become pending changes the driver must approve. {DISPLAY_ONLY_REASON}
-                            </span>
-                        </>
-                    )}
-                </div>
-            )}
+            {/* The view switch, and beside it what can be done to the record.
+                One row that wraps: the edit controls drop under the switch
+                when the panel is narrow. */}
+            <div className="flex flex-wrap items-center justify-between gap-ds-3">
+                {/*
+                  Toggle Header — the design system's `SegmentedControl`:
+                  `role="group"` + `aria-pressed`, not a radiogroup, by design. The
+                  icon size comes from the control-icon token, not from this call
+                  site.
+                */}
+                <SegmentedControl
+                    ariaLabel="Application view"
+                    columns={3}
+                    className="w-fit"
+                    value={resolvedViewMode}
+                    onChange={setViewMode}
+                    options={VIEW_MODES.map((mode) => ({
+                        value: mode.id,
+                        label: mode.label,
+                        icon: mode.Icon || undefined,
+                    }))}
+                />
 
-            {/*
-              Toggle Header — the design system's `SegmentedControl`:
-              `role="group"` + `aria-pressed`, not a radiogroup, by design. The
-              icon size comes from the control-icon token, not from this call
-              site.
-            */}
-            <SegmentedControl
-                ariaLabel="Application view"
-                columns={3}
-                className="w-fit"
-                value={resolvedViewMode}
-                onChange={setViewMode}
-                options={VIEW_MODES.map((mode) => ({
-                    value: mode.id,
-                    label: mode.label,
-                    icon: mode.Icon || undefined,
-                }))}
-            />
+                {/* Edit controls */}
+                {canEdit && (
+                    <div className="flex w-full flex-wrap items-center gap-ds-2 sm:w-auto">
+                        {!editing ? (
+                            <Button variant="secondary" size="sm" onClick={startEdit}>
+                                <Icon icon={Pencil} size="sm" /> Edit application
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handlePropose}
+                                    disabled={proposing}
+                                    loading={proposing}
+                                >
+                                    Propose changes for approval
+                                </Button>
+                                <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>
+                                    Cancel
+                                </Button>
+                                <span className="text-ds-xs text-ds-content-secondary">
+                                    Edits become pending changes the driver must approve. {DISPLAY_ONLY_REASON}
+                                </span>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/*
               Each view says which record it is. The provenance notice used to sit
@@ -292,30 +297,30 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                     : <PreservedApplicationView record={submissionRecord} />
             ) : resolvedViewMode === 'summary' ? (
                 /* Summary View (Cards) — the CURRENT record, at a glance */
-                <div className="grid grid-cols-1 gap-ds-6 md:grid-cols-12 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 gap-ds-6 xl:grid-cols-12 animate-in fade-in duration-300">
 
                     {/* 1. Identity Card (Col Span 6) */}
-                    <div className="md:col-span-6">
+                    <div className="xl:col-span-6">
                         <IdentityCard appData={appData} />
                     </div>
 
                     {/* 2. License Card (Col Span 6) */}
-                    <div className="md:col-span-6">
+                    <div className="xl:col-span-6">
                         <LicenseCard appData={appData} fileUrls={fileUrls} filesPending={filesPending} isLead={collectionName === 'leads'} />
                     </div>
 
                     {/* 3. Stats / Summary (Col Span 12) */}
-                    <div className="md:col-span-12">
+                    <div className="xl:col-span-12">
                         <SafetyCard appData={appData} />
                     </div>
 
                     {/* 4. Experience Timeline (Col Span 12) */}
-                    <div className="md:col-span-12">
+                    <div className="xl:col-span-12">
                         <ExperienceTimeline appData={appData} />
                     </div>
 
                     {/* 5. Consent & Signature (Col Span 12) */}
-                    <div className="md:col-span-12">
+                    <div className="xl:col-span-12">
                         <ConsentCard appData={appData} />
                     </div>
                 </div>

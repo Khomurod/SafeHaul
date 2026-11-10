@@ -369,11 +369,13 @@ section has one name, the tab's (`dossierSections.js`); a lead's first is "Lead"
 application PDF. The left column shows the phone and email as text, Applied (application) or
 Added (lead), and the last call: its result, and its time unless a campaign message moved
 `lastContactedAt`. The Summary's CDL expiry says it is from the application or lead; the DQ
-file may hold another date. Beside the phone, **Do not text** (any staff member who can edit;
+file may hold another date. Under the phone, **Do not text** (any staff member who can edit;
 asks first) adds the number to the opt-out list, and a listed number reads "Texts off".
-**Log call** beside Call opens the list's call window (same rules) and the dossier reads the
-record, Activity and Notes again. On a phone only Close, the name and status, and the tab
-strip stay fixed; the rest scrolls. Previous Employment shows its counts on one line and
+**Log call** between Call (the one filled button) and Email opens the list's call window
+(same rules) and the dossier reads the record, Activity and Notes again. An incomplete DQ
+file reads "Incomplete" beside its section. On a phone only Close, the name and status, and
+the tab strip (one row that scrolls sideways) stay fixed; the rest scrolls. Below 1440px
+the header's Status and Assigned to take a row under the title and its actions. Previous Employment shows its counts on one line and
 claims no compliance status. Notes marks the call window's notes as calls; Notes and
 Activity stay separate tabs.
 **The bell.** A status change on an assigned application tells its assignee only (an

@@ -18,13 +18,25 @@ import { lastCallOf, recordDayOf } from './dossierFacts';
  * Settings → Text messages.
  */
 
-function Fact({ label, children }) {
+/**
+ * One fact: its label over its value. Stacked rather than side by side, so the
+ * value has the column's whole width and an address does not break mid-word in
+ * a 150px cell. `wide` spans both columns of the facts grid.
+ */
+function Fact({ label, wide = false, children }) {
     return (
-        <div className="flex items-baseline gap-ds-2">
-            <dt className="w-16 shrink-0 text-ds-xs font-semibold text-ds-content-secondary">{label}</dt>
-            <dd className="min-w-0 flex-1 text-ds-sm text-ds-content [overflow-wrap:anywhere]">{children}</dd>
+        <div className={`min-w-0 ${wide ? 'col-span-2' : ''}`}>
+            <dt className="text-ds-xs font-semibold text-ds-content-secondary">{label}</dt>
+            <dd className="mt-ds-1 text-ds-sm text-ds-content [overflow-wrap:anywhere]">{children}</dd>
         </div>
     );
+}
+
+/** An address that breaks, when it must, before its `@` rather than mid-word. */
+function EmailText({ email }) {
+    const at = email.lastIndexOf('@');
+    if (at <= 0) return email;
+    return <>{email.slice(0, at)}<wbr />{email.slice(at)}</>;
 }
 
 /**
@@ -117,16 +129,18 @@ export function DossierKeyFacts({ appData, collectionName, companyId, canEdit = 
     const lastCall = lastCallOf(appData);
 
     return (
-        <dl className="mt-ds-4 space-y-ds-2">
+        // Phone and the record's day side by side; the email and the last call,
+        // the two long values, across both columns.
+        <dl className="grid grid-cols-2 gap-x-ds-4 gap-y-ds-3">
             {phone && (
                 <Fact label="Phone">
-                    <span className="mr-ds-2 tabular-nums">{phoneShown}</span>
+                    <span className="block tabular-nums">{phoneShown}</span>
                     <DoNotText companyId={companyId} phone={phone} phoneShown={phoneShown} canEdit={canEdit} />
                 </Fact>
             )}
-            {email && <Fact label="Email">{email}</Fact>}
             {recordDay && <Fact label={recordDay.label}>{recordDay.day}</Fact>}
-            <Fact label="Last call">
+            {email && <Fact label="Email" wide><EmailText email={email} /></Fact>}
+            <Fact label="Last call" wide>
                 {lastCall
                     ? [lastCall.outcome, lastCall.at].filter(Boolean).join(' · ')
                     : <span className="text-ds-content-muted">None logged</span>}

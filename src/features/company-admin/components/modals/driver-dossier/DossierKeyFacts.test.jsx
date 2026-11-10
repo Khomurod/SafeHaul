@@ -107,6 +107,15 @@ describe('what matters, as text', () => {
         expect(lastCallOf(null)).toBeNull();
     });
 
+    it('lets a long email break before its @ rather than inside a word', () => {
+        renderFacts({ appData: lead({ email: 'max.castellanos-whitfield@example.test' }), companyId: undefined });
+        const value = factValue('Email');
+        // The text is the address, unchanged; the only break offered is before the `@`.
+        expect(value).toHaveTextContent('max.castellanos-whitfield@example.test');
+        expect(value.querySelectorAll('wbr')).toHaveLength(1);
+        expect(value.querySelector('wbr').nextSibling.textContent).toBe('@example.test');
+    });
+
     it('leaves out a phone or email the record does not have', () => {
         renderFacts({ appData: lead({ phone: '', email: undefined }) });
         expect(screen.queryByText('Phone', { selector: 'dt' })).toBeNull();

@@ -469,6 +469,9 @@ test.describe('Driver Dossier on a loaded record', () => {
 
     // Then the section strip, then the tab panel: the one part that scrolls.
     expect(layout.orientation).toBe('horizontal');
+    // One row that scrolls sideways: wrapped, the six sections took three rows.
+    const tabTops = await dialog.getByRole('tab').evaluateAll((tabs) => [...new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().top)))]);
+    expect(tabTops, 'every section tab sits on one row').toHaveLength(1);
     expect(layout.tablist.top).toBeGreaterThanOrEqual(layout.close.bottom);
     expect(layout.panel.top).toBeGreaterThanOrEqual(layout.tablist.bottom - 1);
     const scrolled = await dialog.getByRole('tabpanel').evaluate((panel) => {
@@ -530,5 +533,26 @@ test.describe('Driver Dossier on a loaded record', () => {
     // Another section's data: the employers to verify.
     await dialog.getByRole('tab', { name: /^Previous Employment/ }).click();
     await expect(dialog.getByText('Lone Star Refrigerated Logistics Cooperative').first()).toBeVisible();
+  });
+
+  test('at the end of a long section the last card keeps the panel padding under it', async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name.startsWith('mobile'),
+      'Device-emulation lanes own their own viewport; this test sets one explicitly.',
+    );
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const dialog = await openLoadedDossier(page);
+    await dialog.getByRole('button', { name: 'Full Application' }).click();
+    await expect(dialog.getByRole('button', { name: 'Full Application' })).toHaveAttribute('aria-pressed', 'true');
+    // Scrolled to the end, nothing in the panel reaches its bottom edge: the
+    // panel's own padding is under the last card. A full-height wrapper used to
+    // let the record run past it, so the last border sat on the dialog's edge.
+    const gap = await dialog.getByRole('tabpanel').evaluate((panel) => {
+      panel.scrollTop = panel.scrollHeight;
+      const lowest = Math.max(...[...panel.querySelectorAll('*')].map((el) => el.getBoundingClientRect().bottom));
+      return { scrolled: panel.scrollTop > 0, space: Math.round(panel.getBoundingClientRect().bottom - lowest) };
+    });
+    expect(gap.scrolled, 'the full application is longer than the panel').toBe(true);
+    expect(gap.space, 'space under the last card at the end of the section').toBeGreaterThanOrEqual(16);
   });
 });
