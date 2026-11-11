@@ -77,7 +77,26 @@ describe('design tokens', () => {
     ['content-muted', 'status-neutral-bg'],
     ['content-muted', 'status-accent-bg'],
     ['content-inverse', 'action-primary'],
+    ['content-inverse', 'action-primary-hover'],
     ['content-inverse', 'action-danger'],
+    // The action colour is also TEXT: a pressed button's label, the selected tab,
+    // the current rail item's glyph — on the surface, the canvas and the tint
+    // that marks what is selected.
+    ['action-primary', 'surface'],
+    ['action-primary', 'canvas'],
+    ['action-primary', 'surface-selected'],
+    // A selected row or rail item keeps its ordinary text on the tint.
+    ['content', 'surface-selected'],
+    ['content-muted', 'surface-selected'],
+    // The brand navy as text: the page eyebrow on the canvas and on a card, and
+    // the initials on the brand tint (`Avatar tone="brand"`).
+    ['brand-primary', 'canvas'],
+    ['brand-primary', 'surface'],
+    ['brand-primary', 'brand-primary-subtle'],
+    // The frame's blue: the logo tile's letter and the signed-in person's
+    // initials are white on it, and the active item's glyph sits on the surface.
+    ['content-inverse', 'navigation-accent'],
+    ['navigation-accent', 'surface'],
     ['status-info-fg', 'status-info-bg'],
     ['status-accent-fg', 'status-accent-bg'],
     ['status-success-fg', 'status-success-bg'],
@@ -139,6 +158,85 @@ describe('design tokens', () => {
       resolveToken(`ds-color-${background}`),
     );
     expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /*
+   * The C2 colour decisions, pinned where a palette edit would move them.
+   * Actions are the brand navy; links and the focus ring stay blue, so a link
+   * still reads as different from an action; the application frame keeps its
+   * own blue; what is selected wears the brand tint.
+   */
+  describe('the brand-led action colour', () => {
+    it('makes the brand navy the action colour, with a darker hover step', () => {
+      expect(resolveToken('ds-color-action-primary')).toBe(resolveToken('ds-color-brand-primary'));
+      const hover = luminance(resolveToken('ds-color-action-primary-hover'));
+      expect(hover).toBeLessThan(luminance(resolveToken('ds-color-action-primary')));
+    });
+
+    it('keeps links, the focus ring and the frame accent blue, apart from the action colour', () => {
+      const action = resolveToken('ds-color-action-primary');
+      for (const role of ['content-link', 'focus', 'navigation-accent']) {
+        expect(resolveToken(`ds-color-${role}`), role).not.toBe(action);
+      }
+      expect(resolveToken('ds-color-navigation-accent')).toBe(resolveToken('ds-color-blue-600'));
+      expect(resolveToken('ds-color-focus')).toBe(resolveToken('ds-color-blue-600'));
+    });
+
+    it('paints what is selected with the brand tint', () => {
+      expect(resolveToken('ds-color-surface-selected')).toBe(resolveToken('ds-color-brand-primary-subtle'));
+      expect(resolveToken('ds-color-brand-primary-subtle')).toBe(resolveToken('ds-color-brand-deep-tint'));
+    });
+
+    /*
+     * The focus ring is drawn 2px outside what it surrounds, on the light
+     * canvas: there it must clear 3:1 (WCAG 2.2 SC 1.4.11). Against the navy
+     * fill it surrounds it measures about 1.8:1, which is not what is asked.
+     */
+    it('keeps the focus ring visible on the canvas', () => {
+      expect(contrast(resolveToken('ds-color-focus'), resolveToken('ds-color-canvas'))).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  /*
+   * The page and table geometry of the C2 canvas: one 1200px content column
+   * between 40px gutters, a 30px display title, and the table's sentence-case
+   * header and 68px rows.
+   */
+  describe('the page canvas and table geometry', () => {
+    it.each([
+      ['ds-page-content-width', '1200px'],
+      ['ds-page-gutter', '40px'],
+      ['ds-page-gutter-mobile', '16px'],
+      ['ds-font-size-heading-2xl', '30px'],
+      ['ds-table-header-height', '44px'],
+      ['ds-table-row-height-comfortable', '68px'],
+      ['ds-table-cell-padding-inline', '16px'],
+      ['ds-card-radius', '16px'],
+    ])('publishes %s as %s', (token, value) => {
+      expect(resolveToken(token)).toBe(value);
+    });
+
+    it('puts the table header on the card surface', () => {
+      expect(resolveToken('ds-table-header-bg')).toBe(resolveToken('ds-color-surface'));
+    });
+
+    it('keeps the type scale in order, the display step the largest', () => {
+      const steps = ['xs', 'sm', 'body', 'body-lg', 'heading-sm', 'heading-md', 'heading-lg', 'heading-xl', 'heading-2xl']
+        .map((step) => Number.parseFloat(resolveToken(`ds-font-size-${step}`)));
+      expect(steps).toEqual([...steps].sort((a, b) => a - b));
+      expect(new Set(steps).size).toBe(steps.length);
+    });
+
+    it('sets display type tighter than headings, and headings tighter than body', () => {
+      const display = Number(resolveToken('ds-line-height-display'));
+      expect(display).toBeLessThan(Number(resolveToken('ds-line-height-tight')));
+      expect(Number(resolveToken('ds-line-height-tight'))).toBeLessThan(Number(resolveToken('ds-line-height-body')));
+      expect(display).toBeGreaterThanOrEqual(1);
+    });
+
+    it('lifts the table card with the soft shadow, a real shadow value', () => {
+      expect(resolveToken('ds-shadow-soft')).toMatch(/^0 1px 2px rgb\(/);
+    });
   });
 
   /**
@@ -281,7 +379,6 @@ describe('design tokens', () => {
     'ds-page-gutter-mobile',
     'ds-section-gap',
     'ds-field-gap',
-    'ds-metric-icon-size',
   ])('publishes %s as a surface geometry role', (token) => {
     expect(resolveToken(token)).toBeTruthy();
   });
@@ -292,9 +389,9 @@ describe('design tokens', () => {
       .replace(/\/\*[\s\S]*?\*\//g, '');
     expect(cardCss).toMatch(/border-radius:\s*var\(--ds-card-radius\)/);
     expect(cardCss).toMatch(/padding:\s*var\(--ds-card-padding\)/);
-    // The MetricCard chip must not follow the control height: it is an
-    // illustration, and it silently grew when `md` went from 40px to 44px.
-    expect(cardCss).toMatch(/width:\s*var\(--ds-metric-icon-size\)/);
+    // MetricCard has no icon tile any more, so nothing in it may size itself by
+    // the retired chip role or by a control height: it is not something you press.
+    expect(cardCss).not.toMatch(/--ds-metric-icon-size/);
     expect(cardCss).not.toMatch(/\.ds-metric-card__icon\s*\{[^}]*--ds-control-height/);
   });
 
@@ -421,6 +518,9 @@ describe('design tokens', () => {
     expect(colors['ds-action-primary']).toBe('var(--ds-color-action-primary)');
     expect(tailwindConfig.theme.extend.spacing['ds-4']).toBe('var(--ds-space-4)');
     expect(tailwindConfig.theme.fontSize['ds-body'][0]).toBe('var(--ds-font-size-body)');
+    expect(tailwindConfig.theme.fontSize['ds-heading-2xl']).toEqual([
+      'var(--ds-font-size-heading-2xl)', { lineHeight: 'var(--ds-line-height-display)' },
+    ]);
   });
 
   /*
@@ -448,6 +548,7 @@ describe('design tokens', () => {
     const kept = [
       ...values.map(([utility, value]) => `${utility}-${value}`),
       'bg-ds-surface', 'text-ds-sm', 'text-ds-control-mobile', 'rounded-ds-md', 'shadow-ds-sm', 'z-ds-modal',
+      'text-ds-heading-2xl', 'bg-ds-brand-primary-subtle', 'text-ds-navigation-accent',
     ];
     const css = await compileWithAppTheme('@tailwind utilities;', kept);
     expect(selectorsOf(css).sort()).toEqual([...kept].sort());
@@ -465,6 +566,8 @@ describe('design tokens', () => {
    */
   it.each([
     ['ds-content-danger', '--ds-color-content-danger'],
+    ['ds-brand-primary-subtle', '--ds-color-brand-primary-subtle'],
+    ['ds-navigation-accent', '--ds-color-navigation-accent'],
     ['ds-surface-hover', '--ds-color-surface-hover'],
     ['ds-surface-selected', '--ds-color-surface-selected'],
     ['ds-border-strong', '--ds-color-border-strong'],
@@ -518,6 +621,9 @@ describe('design tokens', () => {
   it('names the brand colours and keeps them pinned to the mark', () => {
     expect(resolveToken('ds-color-brand-primary')).toBe('#004C68');
     expect(resolveToken('ds-color-brand-accent')).toBe('#0BE2A4');
+    // The interface steps derived from the navy, which are not the mark.
+    expect(resolveToken('ds-color-brand-deep-strong')).toBe('#003A50');
+    expect(resolveToken('ds-color-brand-deep-tint')).toBe('#E6F0F3');
 
     const colors = tailwindConfig.theme.colors;
     expect(colors['ds-brand-primary']).toBe('var(--ds-color-brand-primary)');

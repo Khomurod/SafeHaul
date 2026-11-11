@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon, Archive, FileText, LayoutTemplate, Send } from '@design-system/icons';
+import { Archive, FileText, LayoutTemplate, Send } from '@design-system/icons';
 import { Badge, Card, TabList, TabNav, TabPanel } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
 
@@ -81,7 +81,7 @@ const meta = {
           'cheap and reversible — and is what all nine copies already did, so migrating them',
           'changes no behaviour.',
           '',
-          '### Two shapes, and why they are props',
+          '### The shapes, and why they are props',
           '',
           'Eleven hand-rolled strips carried at least three appearances between them. A',
           'primitive expressing only the page-level underline would have left the others',
@@ -91,11 +91,15 @@ const meta = {
           '| Shape | For |',
           '| --- | --- |',
           '| `underline` (default) | A page-level view switcher |',
-          '| `variant="pill"` | A secondary strip INSIDE a panel, where an underline would read as a second page-level strip |',
+          '| `variant="segmented"` | The page strip drawn as a tray with the chosen tab dark, the look a list\'s segments have (`ListToolbar`); a count goes in `badge` and reads muted. Icons step aside under 768px, and every tab stays in view in equal rows |',
+          '| `variant="pill"` | A secondary strip INSIDE a panel: bordered pills, the chosen one on the selected tint with an action-coloured border and text |',
           '| `fitted` | A strip that must span a narrow container — a popover — instead of leaving a ragged gap |',
           '',
           'They differ in the selected treatment and nothing else: same height, same icon',
-          'size, same keyboard model. `pill` with `orientation="vertical"` throws rather than',
+          'size, same keyboard model. `segmented` and `pill` share their drawing with',
+          '`ListToolbar` and `TabNav` (`segmentedGroup.css`), and the chosen item is also',
+          'semibold, so the choice never rests on colour alone. `segmented` or `pill` with',
+          '`orientation="vertical"` throws rather than',
           'being silently ignored — nothing wants it, and a quietly-dropped prop is how a',
           'component starts lying about what it supports.',
           '',
@@ -124,7 +128,8 @@ const meta = {
           'the browser offers "open in a new tab", and the page shown is `aria-current="page"`.',
           'No arrow keys and no panel: a page change keeps neither promise a tablist makes.',
           'Routing stays with the caller, which passes each item an `href` and, for an in-app',
-          'move, an `onClick`. See the Navigation story.',
+          'move, an `onClick`. See the Navigation story. `variant="segmented"` draws the',
+          'tray, for a scope switch in a list\'s toolbar row (`ListToolbar`\'s `lead`).',
           '',
           '### Not a tab strip',
           '',
@@ -210,5 +215,70 @@ export const Navigation = {
         ]}
       />
     </Card>
+  ),
+};
+
+/** Page strips sit on the canvas, not in a card. */
+function PageStrip({ variant, tabs = TABS, initial = 'documents' }) {
+  const [active, setActive] = useState(initial);
+  const idBase = `sb-page-${variant}`;
+  return (
+    <Stack gap="md">
+      <TabList
+        ariaLabel="Workspace views"
+        idBase={idBase}
+        tabs={tabs}
+        activeTab={active}
+        onChange={setActive}
+        variant={variant}
+      />
+      <TabPanel idBase={idBase} tabId={active}>
+        <Card>
+          Content for <strong>{tabs.find((t) => t.id === active)?.label}</strong>.
+        </Card>
+      </TabPanel>
+    </Stack>
+  );
+}
+
+const SEGMENTED_TABS = [
+  { id: 'documents', label: 'Documents', icon: FileText },
+  { id: 'sent', label: 'Sent', icon: Send, badge: 6 },
+  { id: 'templates', label: 'Templates', icon: LayoutTemplate },
+  { id: 'archive', label: 'Archive', icon: Archive },
+];
+
+/**
+ * `variant="segmented"` — the page strip as a tray, the chosen tab dark, the
+ * same drawing as a list's segments. A count is the tab's `badge` and reads
+ * muted ("Sent 6").
+ */
+export const Segmented = { render: () => <PageStrip variant="segmented" tabs={SEGMENTED_TABS} initial="sent" /> };
+
+/**
+ * The segmented strip on a phone: icons step aside and the four tabs make a
+ * 2 × 2 grid, every one in view and 44px tall.
+ */
+export const SegmentedNarrowViewport = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => <PageStrip variant="segmented" tabs={SEGMENTED_TABS} initial="sent" />,
+};
+
+/**
+ * `TabNav variant="segmented"` — scope links drawn as the tray, still a named
+ * `<nav>` of links with `aria-current="page"`. Three make thirds on a phone.
+ */
+export const NavigationSegmented = {
+  render: () => (
+    <TabNav
+      ariaLabel="Record lists"
+      currentId="all"
+      variant="segmented"
+      items={[
+        { id: 'all', label: 'All', href: '#all' },
+        { id: 'mine', label: 'Assigned to me', href: '#mine' },
+        { id: 'open', label: 'Unassigned', href: '#open' },
+      ]}
+    />
   ),
 };

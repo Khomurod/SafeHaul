@@ -1,28 +1,50 @@
 /*
- * One row above the list. Segments on the left, the switch, search, Filters
- * and the page's actions on the right; the open filters a second row below.
- * The bar wraps the tools under the segments when both do not fit.
+ * One row above the list. A scope control and the segments on the left; the
+ * search, the switch, Filters and the page's actions on the right; the open
+ * filters a second row below.
+ *
+ * `data-placement='card'` is the top strip inside the list's card, as it has
+ * always been drawn. `data-placement='page'` is a row of its own above the
+ * table card, with no surface: the segments are a segmented tray
+ * (`segmentedGroup.css`) and the tools end on the table's right edge. When the
+ * tools do not fit beside the segments, `useToolsWrap` measures it and sets
+ * `data-wrapped`: the tools take a whole second row starting at the left, the
+ * search growing, rather than hanging right under the segments.
+ *
+ * `data-search-first` marks the layouts whose tools start with the search (the
+ * page row, and a card strip without segments); a card strip with segments
+ * keeps its switch first.
  */
-.ds-list-toolbar {
+.ds-list-toolbar[data-placement='card'] {
   background: var(--ds-color-surface);
 }
 
 .ds-list-toolbar__bar {
   display: flex;
-  min-height: 60px;
   flex-wrap: wrap;
   align-items: stretch;
   column-gap: var(--ds-space-3);
+}
+
+.ds-list-toolbar[data-placement='card'] .ds-list-toolbar__bar {
+  min-height: 64px;
   border-bottom: 1px solid var(--ds-color-border-subtle);
   padding-inline: var(--ds-space-2) var(--ds-space-4);
 }
 
+.ds-list-toolbar__lead {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+}
+
 /*
- * Scrolls sideways rather than wrapping when there are more segments than room.
- * Its own height, because once the tools wrap under it, as on a tablet, the row
- * is no longer as tall as the search beside it, and the scrolling clips.
+ * The underlined segments of a card strip: they scroll sideways rather than
+ * wrapping when there are more than fit. Their own height, because once the
+ * tools wrap under them the row is no longer as tall as the search beside it.
  */
-.ds-list-toolbar__segments {
+.ds-list-toolbar__segments[data-variant='underline'] {
   display: flex;
   min-width: 0;
   min-height: 48px;
@@ -32,10 +54,11 @@
   scrollbar-width: thin;
 }
 
-.ds-list-toolbar__segment {
+.ds-list-toolbar__segments[data-variant='underline'] .ds-list-toolbar__segment {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
+  justify-content: center;
   gap: var(--ds-space-1);
   border: 0;
   padding: 0 var(--ds-space-3);
@@ -48,7 +71,7 @@
   cursor: pointer;
 }
 
-.ds-list-toolbar__segment:hover {
+.ds-list-toolbar__segments[data-variant='underline'] .ds-list-toolbar__segment:hover {
   color: var(--ds-color-content);
 }
 
@@ -57,21 +80,37 @@
  * depends on colour alone. A shadow, not a border, so pressing does not move
  * the text.
  */
-.ds-list-toolbar__segment[aria-pressed='true'] {
+.ds-list-toolbar__segments[data-variant='underline'] .ds-list-toolbar__segment[aria-pressed='true'] {
   box-shadow: inset 0 -2px 0 var(--ds-color-action-primary);
-  color: var(--ds-color-content-link);
+  color: var(--ds-color-action-primary);
   font-weight: var(--ds-font-weight-semibold);
 }
 
 /* Inside, because the segments clip what overflows them. */
-.ds-list-toolbar__segment:focus-visible {
+.ds-list-toolbar__segments[data-variant='underline'] .ds-list-toolbar__segment:focus-visible {
   outline: 2px solid var(--ds-color-focus);
   outline-offset: -2px;
 }
 
-.ds-list-toolbar__segment-count {
+.ds-list-toolbar__segments[data-variant='underline'] .ds-list-toolbar__segment-count {
   font-variant-numeric: tabular-nums;
   font-weight: var(--ds-font-weight-semibold);
+}
+
+/*
+ * Pills or a tray in a card strip sit centred in it, 16px from its edge. A
+ * tray keeps its own padding and border, so it is spaced by its margin.
+ */
+.ds-list-toolbar[data-placement='card'] .ds-list-toolbar__segments[data-variant='pill'] {
+  align-self: center;
+  padding-block: var(--ds-space-3);
+  padding-inline-start: var(--ds-space-2);
+}
+
+.ds-list-toolbar[data-placement='card'] .ds-list-toolbar__segments[data-variant='segmented'] {
+  align-self: center;
+  margin-block: var(--ds-space-2);
+  margin-inline-start: var(--ds-space-2);
 }
 
 /*
@@ -109,6 +148,23 @@
   transform: translateY(-50%);
 }
 
+/* The switch in a box of the control height, beside the search and Filters. */
+.ds-list-toolbar[data-search-first] .ds-list-toolbar__toggle {
+  min-height: var(--ds-control-height-md);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  padding-inline: var(--ds-space-3);
+  background: var(--ds-color-surface);
+}
+
+.ds-list-toolbar__actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
 .ds-list-toolbar__filter-count {
   display: inline-flex;
   min-width: 20px;
@@ -123,6 +179,78 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * A card strip with no segments: the search leads and grows to 420px, and the
+ * switch, Filters and actions sit at the strip's right edge.
+ */
+.ds-list-toolbar[data-placement='card']:not([data-has-segments]) .ds-list-toolbar__bar {
+  padding-inline: var(--ds-space-4);
+}
+
+.ds-list-toolbar[data-placement='card']:not([data-has-segments]) .ds-list-toolbar__tools {
+  flex: 1 1 auto;
+  margin-inline-start: 0;
+  padding-block: var(--ds-space-2);
+}
+
+.ds-list-toolbar[data-placement='card']:not([data-has-segments]) .ds-list-toolbar__search {
+  width: auto;
+  max-width: 420px;
+  flex: 1 1 260px;
+  margin-inline-end: auto;
+}
+
+/* The page row: no surface, everything centred on one line. */
+.ds-list-toolbar[data-placement='page'] .ds-list-toolbar__bar {
+  align-items: center;
+  row-gap: var(--ds-space-3);
+}
+
+/*
+ * One line until `useToolsWrap` sets `data-wrapped`. Left to wrap, the browser
+ * breaks the line at the tools' natural width, a little more than the minimum
+ * the hook measures (the search at 236px), and hangs them at the right under
+ * the segments. Held on one line, the search gives way first, down to the
+ * width the hook counted; past it the whole row of tools moves down.
+ */
+.ds-list-toolbar[data-placement='page']:not([data-wrapped]) .ds-list-toolbar__bar {
+  flex-wrap: nowrap;
+}
+
+.ds-list-toolbar[data-placement='page'] .ds-list-toolbar__segments {
+  flex: none;
+  max-width: 100%;
+}
+
+.ds-list-toolbar[data-placement='page'] .ds-list-toolbar__tools {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  padding-block: 0;
+}
+
+.ds-list-toolbar[data-placement='page'] .ds-list-toolbar__tools > :not(.ds-list-toolbar__search) {
+  flex: none;
+}
+
+.ds-list-toolbar[data-placement='page'] .ds-list-toolbar__search {
+  width: auto;
+  min-width: 236px;
+  max-width: 320px;
+  flex: 1 1 240px;
+}
+
+.ds-list-toolbar[data-placement='page'][data-wrapped] .ds-list-toolbar__tools {
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-inline-start: 0;
+}
+
+.ds-list-toolbar[data-placement='page'][data-wrapped] .ds-list-toolbar__search {
+  max-width: none;
+}
+
 /* The open filters: one row of fields, "Clear filters" at its end. */
 .ds-list-toolbar__filters {
   display: flex;
@@ -132,6 +260,15 @@
   border-bottom: 1px solid var(--ds-color-border-subtle);
   padding: var(--ds-space-3) var(--ds-space-4) var(--ds-space-4);
   background: var(--ds-color-canvas);
+}
+
+/* On the page, the open filters are a surface of their own above the table. */
+.ds-list-toolbar[data-placement='page'] .ds-list-toolbar__filters {
+  margin-top: var(--ds-space-3);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-card-radius);
+  padding: var(--ds-space-4);
+  background: var(--ds-color-surface);
 }
 
 .ds-list-toolbar__filter-fields {
@@ -146,45 +283,149 @@
 }
 
 /*
- * Phones: segments, then the switch, then the search with Filters beside it,
- * which is also the order Tab takes. Every target is at least 44px tall.
+ * Phones. Every option stays in view and every target is at least 44px tall:
+ * the segments wrap into equal rows (`segmentedGroup.css` for a tray or pills;
+ * underlined segments the same way), then the tools in the order Tab takes
+ * them: the search with Filters beside it, or, when a switch follows the
+ * search, the search alone and the switch beside Filters; then any actions. A
+ * card strip with segments keeps its switch above the search.
  */
-@media (max-width: 639px) {
-  /*
-   * `nowrap`: in a wrapping column each part would be as wide as its own
-   * content rather than the card, and the segments would push past the edge
-   * instead of scrolling.
-   */
-  .ds-list-toolbar__bar {
+@media (max-width: 767px) {
+  /* Every part as wide as the row, the page row's centring included. */
+  .ds-list-toolbar[data-placement] .ds-list-toolbar__bar {
     flex-direction: column;
     flex-wrap: nowrap;
+    align-items: stretch;
+    row-gap: var(--ds-space-3);
+  }
+
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__bar,
+  .ds-list-toolbar[data-placement='card']:not([data-has-segments]) .ds-list-toolbar__bar {
+    min-height: 0;
+    row-gap: 0;
     padding: 0;
   }
 
-  .ds-list-toolbar__segments {
-    min-height: 44px;
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__bar > .ds-list-toolbar__segments:not([data-variant='segmented']) {
+    align-self: stretch;
     border-bottom: 1px solid var(--ds-color-border-subtle);
-    padding-inline: var(--ds-space-2);
-  }
-
-  .ds-list-toolbar__tools {
-    flex-wrap: wrap;
-    margin-inline-start: 0;
     padding: var(--ds-space-3) var(--ds-space-4);
   }
 
-  .ds-list-toolbar__toggle {
-    min-height: 44px;
-    flex-basis: 100%;
+  /* A tray is its own bordered box: inset by its margin, the tools' padding under it. */
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__bar > .ds-list-toolbar__segments[data-variant='segmented'] {
+    width: auto;
+    align-self: stretch;
+    margin: var(--ds-space-3) var(--ds-space-4) 0;
   }
 
-  .ds-list-toolbar__search {
+  .ds-list-toolbar__lead > * {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__lead {
+    padding: var(--ds-space-3) var(--ds-space-4) 0;
+  }
+
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__bar > .ds-list-toolbar__segments:not([data-variant='segmented']):last-child {
+    border-bottom: 0;
+  }
+
+  /*
+   * Underlined segments make the same equal rows as a segmented tray; a label
+   * longer than its share wraps between its words.
+   */
+  .ds-list-toolbar__segments[data-variant='underline'] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(min-content, 1fr));
+    overflow: visible;
+  }
+
+  .ds-list-toolbar__segments[data-variant='underline'][data-phone-columns='2'] {
+    grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  }
+
+  .ds-list-toolbar__segments[data-variant='underline'] .ds-list-toolbar__segment {
+    min-height: var(--ds-control-height-md);
+    padding: 0 var(--ds-space-2);
+    white-space: normal;
+  }
+
+  .ds-list-toolbar__tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--ds-space-3) var(--ds-space-2);
+    margin-inline-start: 0;
+  }
+
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__tools,
+  .ds-list-toolbar[data-placement='card']:not([data-has-segments]) .ds-list-toolbar__tools {
+    padding: var(--ds-space-3) var(--ds-space-4);
+  }
+
+  /*
+   * Every part takes a whole row, except Filters, which shares the row of the
+   * control before it: the search, or a switch that follows the search (the
+   * search then takes its row alone). Nothing is reordered, so the rows are
+   * read in the order Tab takes the controls.
+   */
+  .ds-list-toolbar__tools > * {
+    grid-column: 1 / -1;
+  }
+
+  .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search {
     width: auto;
-    flex: 1 1 160px;
+    min-width: 0;
+    max-width: none;
+    grid-column: 1;
+    margin-inline-end: 0;
+  }
+
+  .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search:has(+ .ds-list-toolbar__toggle) {
+    grid-column: 1 / -1;
+  }
+
+  .ds-list-toolbar__toggle:has(+ .ds-list-toolbar__filters-button) {
+    grid-column: 1;
+  }
+
+  .ds-list-toolbar__search ~ .ds-list-toolbar__filters-button,
+  .ds-list-toolbar__toggle + .ds-list-toolbar__filters-button {
+    grid-column: 2;
+  }
+
+  .ds-list-toolbar__toggle {
+    min-height: var(--ds-control-height-md);
+  }
+
+  /*
+   * Beside Filters, a long switch label ("Needs attention only") wraps inside
+   * its box rather than running under the button. The words are the Switch's
+   * own `<label>`; the box around them is this toolbar's.
+   */
+  .ds-list-toolbar[data-search-first] .ds-list-toolbar__toggle {
+    padding-block: calc(var(--ds-space-1) / 2);
+  }
+
+  .ds-list-toolbar[data-search-first] .ds-list-toolbar__toggle > label {
+    white-space: normal;
   }
 
   .ds-list-toolbar__filter-fields {
     flex-basis: 100%;
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * Narrow phones: the search needs the whole row for its placeholder, so
+ * Filters right after it takes the next row; after a switch it still shares
+ * the switch's row.
+ */
+@media (max-width: 383px) {
+  .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search,
+  .ds-list-toolbar__search + .ds-list-toolbar__filters-button {
+    grid-column: 1 / -1;
   }
 }

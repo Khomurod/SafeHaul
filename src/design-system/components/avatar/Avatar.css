@@ -122,6 +122,32 @@
   --ds-avatar-bg: var(--ds-color-action-primary);
   --ds-avatar-fg: var(--ds-color-content-inverse);
 }
+/* A person in a list row: initials in the brand navy on its tint (8.1:1). */
+.ds-avatar[data-tone='brand'] {
+  --ds-avatar-bg: var(--ds-color-brand-primary-subtle);
+  --ds-avatar-fg: var(--ds-color-brand-primary);
+}
+/*
+ * The signed-in person in the application frame. The frame's accent, not the
+ * action colour: the sidebar and top bar stayed blue when actions became the
+ * brand navy, and the disc belongs to the frame.
+ */
+.ds-avatar[data-tone='navigation'] {
+  --ds-avatar-bg: var(--ds-color-navigation-accent);
+  --ds-avatar-fg: var(--ds-color-content-inverse);
+}
+/*
+ * An empty place for a person — the assignee of an unassigned row — so the names
+ * in a column start at one edge whether or not a person is there. A dashed ring
+ * and nothing in it; the text beside it says what it means, so the ring is
+ * decoration and needs no contrast of its own. The border sits inside the disc
+ * (border-box), so the step's size holds.
+ */
+.ds-avatar[data-tone='placeholder'] {
+  --ds-avatar-bg: transparent;
+  --ds-avatar-fg: transparent;
+  border: 1.5px dashed var(--ds-color-border);
+}
 /* On the console-dark panel, where the light tints are close to invisible. */
 .ds-avatar[data-tone='inverse'] {
   --ds-avatar-bg: var(--ds-color-surface-inverse-subtle);

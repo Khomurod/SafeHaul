@@ -122,3 +122,29 @@
     border-radius: 0;
   }
 }
+
+/*
+ * `mobile="sheet"`: a centred dialog on a wide screen, a bottom sheet on a
+ * phone (C2 — Add person, Create an API key). Below 640px it takes the
+ * `placement="bottom"` shape: full width, flush with the bottom edge, rounded
+ * at the top only, capped at `--ds-sheet-max-height` so the page stays visible
+ * above it. The panel does not pad the home-indicator inset: the dialog's last
+ * row adds `env(safe-area-inset-bottom)` to its own bottom padding (as
+ * `SignatureSheet` does), so a footer band's background reaches the edge
+ * rather than leaving a strip of panel under it.
+ */
+@media (max-width: 639px) {
+  .ds-modal[data-mobile='sheet'] {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .ds-modal[data-mobile='sheet'] .ds-modal__panel {
+    max-width: none;
+    max-height: var(--ds-sheet-max-height);
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: var(--ds-radius-xl) var(--ds-radius-xl) 0 0;
+  }
+}

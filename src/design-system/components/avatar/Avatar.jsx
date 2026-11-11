@@ -75,9 +75,21 @@ function normalizeSize(size) {
  */
 const SHAPES = new Set(['circle', 'square']);
 
+/**
+ * `brand` is the person disc in a list row: initials on the brand tint.
+ * `navigation` is the application frame's own blue, for the signed-in person in
+ * the top bar — the frame kept its colour when actions moved to the brand navy.
+ * `placeholder` is an empty dashed ring holding a person's place (an unassigned
+ * row), so the names beside the discs start at one edge; it shows no initials,
+ * and the text beside it ("Unassigned") carries the meaning.
+ */
 const TONES = new Set([
   'neutral', 'info', 'success', 'warning', 'danger', 'accent', 'primary', 'inverse',
+  'brand', 'navigation', 'placeholder',
 ]);
+
+const hasContent = (children) => React.Children.toArray(children)
+  .some((child) => !(typeof child === 'string' && child.trim() === ''));
 
 export function Avatar({
   children,
@@ -94,6 +106,13 @@ export function Avatar({
   }
   if (!TONES.has(tone)) {
     contractViolation(`Unsupported Avatar tone: ${tone}.`);
+  }
+  const placeholder = tone === 'placeholder';
+  if (placeholder && hasContent(children)) {
+    // In a production build the ring is drawn and the stray content left out.
+    contractViolation(
+      'Avatar tone="placeholder" is an empty ring and shows no initials; pass a name\'s initials with another tone.',
+    );
   }
 
   return (
@@ -113,7 +132,7 @@ export function Avatar({
       data-tone={tone}
       data-bordered={bordered || undefined}
     >
-      {children}
+      {placeholder ? null : children}
     </span>
   );
 }

@@ -48,10 +48,13 @@ button.ds-selectable-card:hover:not(:disabled):not([data-state]) {
  * they TELL assistive technology, not in what they look like — a person looking
  * at the screen wants one answer ("this is the one"), and inventing a second
  * visual language for the difference would be a distinction nobody asked for.
+ *
+ * The fill is `--ds-color-surface-selected` — the brand tint every selected
+ * surface wears (C2) — not the info status tint: being chosen is not a status.
  */
 .ds-selectable-card[data-state='on'] {
   border-color: var(--ds-color-action-primary);
-  background: var(--ds-color-status-info-bg);
+  background: var(--ds-color-surface-selected);
   box-shadow: inset 0 0 0 1px var(--ds-color-action-primary);
 }
 
@@ -103,6 +106,11 @@ button.ds-selectable-card[data-surface='inverse']:hover:not([data-state]) {
 }
 .ds-selectable-card[data-surface='inverse'][data-tone='danger'] {
   --ds-selectable-border: var(--ds-color-status-danger-fg-on-inverse);
+}
+
+/* Forced colours paint the tint as `Canvas`; a `Highlight` border keeps the choice. */
+@media (forced-colors: active) {
+  .ds-selectable-card[data-state='on'] { border-color: Highlight; }
 }
 
 @media (prefers-reduced-motion: reduce) {

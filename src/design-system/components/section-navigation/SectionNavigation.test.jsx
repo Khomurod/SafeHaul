@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
@@ -206,6 +208,121 @@ describe('SectionNavigation', () => {
         />,
       );
       expect((await axe(container)).violations).toEqual([]);
+    });
+  });
+
+  describe('item descriptions', () => {
+    const described = [{
+      id: 'company',
+      label: 'Company',
+      items: [
+        { id: 'profile', label: 'Profile', description: 'Name, logo and address' },
+        { id: 'team', label: 'Team', description: 'Who works here' },
+        { id: 'plain', label: 'Plain' },
+        // `null` is how React spells "none"; it is no description, not a bad one.
+        { id: 'empty', label: 'Empty', description: null },
+      ],
+    }];
+
+    it('draws a second line and keeps the item named by its label alone', () => {
+      // Every caller — and every speech-input user — finds the item by its
+      // label; the line is its description, not part of its name.
+      render(<SectionNavigation groups={described} currentId="team" onSelect={vi.fn()} />);
+      const team = screen.getByRole('button', { name: 'Team' });
+      expect(team).toHaveAccessibleDescription('Who works here');
+      expect(team).toHaveAttribute('aria-current', 'page');
+      expect(team.querySelector('.ds-section-navigation__description')).toHaveTextContent('Who works here');
+      expect(team).toHaveAttribute('data-described');
+    });
+
+    it.each(['Plain', 'Empty'])('leaves an item without a description (%s) exactly as it was', (name) => {
+      render(<SectionNavigation groups={described} currentId="team" onSelect={vi.fn()} />);
+      const plain = screen.getByRole('button', { name });
+      expect(plain).not.toHaveAttribute('aria-labelledby');
+      expect(plain).not.toHaveAttribute('aria-describedby');
+      expect(plain).not.toHaveAttribute('data-described');
+      expect(plain.querySelector('.ds-section-navigation__label')).not.toHaveAttribute('id');
+      expect(plain.querySelector('.ds-section-navigation__description')).toBeNull();
+    });
+
+    it('keeps a step\'s completion in its name when it has a description', () => {
+      const steps = [{
+        id: 'wizard',
+        items: [{ id: 'audience', label: 'Audience', status: 'complete', description: 'Who receives it' }],
+      }];
+      render(<SectionNavigation groups={steps} currentId="audience" currentType="step" onSelect={vi.fn()} />);
+      const audience = screen.getByRole('button', { name: 'Audience (completed)' });
+      expect(audience).toHaveAccessibleDescription('Who receives it');
+    });
+
+    it('still selects on activation', () => {
+      const onSelect = vi.fn();
+      render(<SectionNavigation groups={described} currentId="team" onSelect={onSelect} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
+      expect(onSelect).toHaveBeenCalledWith('profile');
+    });
+
+    it.each([[''], ['  '], [7]])('refuses a description of %j', (description) => {
+      const bad = [{ id: 'g', items: [{ id: 'a', label: 'A', description }] }];
+      expect(() => render(<SectionNavigation groups={bad} onSelect={vi.fn()} />))
+        .toThrow(/SectionNavigation item description must be a non-empty string \(a\)/);
+    });
+
+    it('has no axe violations with descriptions', async () => {
+      const { container } = render(
+        <SectionNavigation label="Settings sections" groups={described} currentId="team" onSelect={vi.fn()} />,
+      );
+      expect((await axe(container)).violations).toEqual([]);
+    });
+  });
+
+  /* jsdom lays nothing out; the C2 rail is pinned as rules. */
+  describe('stylesheet', () => {
+    const css = readFileSync(path.join(__dirname, 'SectionNavigation.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = (selector) => {
+      const start = css.indexOf(`${selector} {`);
+      return start < 0 ? '' : css.slice(start, css.indexOf('}', start));
+    };
+
+    it('tints the current item and inks it in the action navy, not the link blue', () => {
+      const current = rule(".ds-section-navigation__item[data-current='true']");
+      expect(current).toMatch(/background:\s*var\(--ds-color-surface-selected\)/);
+      expect(current).toMatch(/color:\s*var\(--ds-color-action-primary\)/);
+      expect(css).not.toMatch(/--ds-color-content-link/);
+    });
+
+    it('keeps a cue that is not a colour: a semibold label, and a Highlight bar in forced colours', () => {
+      expect(rule(".ds-section-navigation__item[data-current='true'] .ds-section-navigation__label"))
+        .toMatch(/font-weight:\s*var\(--ds-font-weight-semibold\)/);
+      expect(css).toMatch(/@media \(forced-colors: active\)[\s\S]*\[data-current='true'\]\s*\{\s*border-left-color:\s*Highlight/);
+    });
+
+    it('draws the rail as a card, from the card roles', () => {
+      const frame = rule('.ds-section-navigation');
+      expect(frame).toMatch(/border:\s*1px solid var\(--ds-card-border\)/);
+      expect(frame).toMatch(/border-radius:\s*var\(--ds-card-radius\)/);
+      expect(frame).toMatch(/box-shadow:\s*var\(--ds-card-shadow\)/);
+    });
+
+    it('puts a description in the label\'s column, wrapping', () => {
+      const description = rule('.ds-section-navigation__description');
+      expect(description).toMatch(/grid-row:\s*2/);
+      expect(description).toMatch(/grid-column:\s*2/);
+      expect(description).toMatch(/text-wrap:\s*pretty/);
+      expect(description).not.toMatch(/ellipsis|nowrap/);
+    });
+
+    it('keeps a label and its description together in the phone grid: only the column gap tightens', () => {
+      const phone = css.slice(css.indexOf('@media (max-width: 767px)'));
+      const item = phone.slice(phone.indexOf('.ds-section-navigation__item {'));
+      const body = item.slice(0, item.indexOf('}'));
+      expect(body).toMatch(/column-gap:\s*var\(--ds-space-2\)/);
+      expect(body).not.toMatch(/(^|[^-])gap:/);
+    });
+
+    it('gives an item with no glyph no glyph column', () => {
+      expect(rule('.ds-section-navigation__item:not(:has(> .ds-section-navigation__icon))'))
+        .toMatch(/grid-template-columns:\s*minmax\(0, 1fr\)/);
     });
   });
 });

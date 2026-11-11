@@ -4,6 +4,12 @@ import { contractViolation } from '../../contract';
 import './Notice.css';
 
 const SIZES = new Set(['md', 'sm']);
+/*
+ * `flush` is a notice that is the last row of a card — a note under a table,
+ * a warning under a list: no box of its own, only a rule in its tone across
+ * the top, so it is not a box inside a box (C2's "one container level").
+ */
+const FRAMES = new Set(['box', 'flush']);
 const ANNOUNCE = { off: undefined, polite: 'status', assertive: 'alert' };
 const TITLE_ELEMENTS = new Set(['p', 'h2', 'h3', 'h4', 'h5', 'h6']);
 
@@ -120,6 +126,7 @@ export const Notice = /* @__PURE__ */ React.forwardRef(function Notice({
   icon,
   actions,
   size = 'md',
+  frame = 'box',
   announce = 'off',
   className = '',
   children,
@@ -130,6 +137,10 @@ export const Notice = /* @__PURE__ */ React.forwardRef(function Notice({
   }
   if (!SIZES.has(size)) {
     contractViolation(`Unsupported Notice size: ${size}`);
+  }
+  if (!FRAMES.has(frame)) {
+    contractViolation(`Unsupported Notice frame: ${frame}`);
+    frame = 'box';
   }
   if (!(announce in ANNOUNCE)) {
     contractViolation(`Unsupported Notice announce: ${announce}`);
@@ -157,6 +168,7 @@ export const Notice = /* @__PURE__ */ React.forwardRef(function Notice({
       className={`ds-notice ${className}`.trim()}
       data-tone={tone}
       data-size={size === 'md' ? undefined : size}
+      data-frame={frame === 'box' ? undefined : frame}
     >
       {Glyph && <DsIcon icon={Glyph} className="ds-notice__icon" />}
       <div className="ds-notice__body">

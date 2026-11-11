@@ -1,10 +1,15 @@
+/*
+ * The rail is a card: the card roles' border, radius and elevation, so it sits
+ * beside the page's other cards as one of them (C2 — the settings rail). Its
+ * width and stickiness are the consumer's.
+ */
 .ds-section-navigation {
   min-width: 0;
-  border: 1px solid var(--ds-color-border-subtle);
-  border-radius: var(--ds-radius-xl);
+  border: 1px solid var(--ds-card-border);
+  border-radius: var(--ds-card-radius);
   padding: var(--ds-space-2);
   background: var(--ds-color-surface);
-  box-shadow: var(--ds-shadow-sm);
+  box-shadow: var(--ds-card-shadow);
 }
 
 .ds-section-navigation__groups {
@@ -20,11 +25,11 @@
 .ds-section-navigation__heading {
   margin: 0;
   padding: var(--ds-space-1) var(--ds-space-3) var(--ds-space-2);
-  color: var(--ds-color-content-secondary);
+  color: var(--ds-color-content-muted);
   font-size: var(--ds-font-size-xs);
   font-weight: var(--ds-font-weight-semibold);
   line-height: var(--ds-line-height-body);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -50,13 +55,13 @@
   min-height: var(--ds-control-height-md);
   grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 0 var(--ds-space-3);
   border: 0;
   border-left: 3px solid transparent;
   border-radius: var(--ds-radius-md);
   padding: var(--ds-space-2) var(--ds-space-3);
   background: transparent;
-  color: var(--ds-color-content-secondary);
+  color: var(--ds-color-content);
   font-family: inherit;
   font-size: var(--ds-font-size-body);
   font-weight: var(--ds-font-weight-medium);
@@ -70,15 +75,24 @@
     box-shadow var(--ds-duration-fast) var(--ds-ease-standard);
 }
 
-.ds-section-navigation__item:hover:not(:disabled) {
+/* The current item keeps its tint under the pointer; hover marks the others. */
+.ds-section-navigation__item:hover:not(:disabled):not([data-current='true']) {
   background: var(--ds-color-surface-hover);
   color: var(--ds-color-content);
 }
 
+/*
+ * The current item (C2): the brand tint and the action navy, label and glyph,
+ * and a semibold label — the weight is the cue that is not a colour. The 3px
+ * left border stays transparent here and becomes `Highlight` in forced colours
+ * (below), where the tint and the navy are both replaced.
+ */
 .ds-section-navigation__item[data-current='true'] {
-  border-left-color: var(--ds-color-action-primary);
   background: var(--ds-color-surface-selected);
-  color: var(--ds-color-content-link);
+  color: var(--ds-color-action-primary);
+}
+
+.ds-section-navigation__item[data-current='true'] .ds-section-navigation__label {
   font-weight: var(--ds-font-weight-semibold);
 }
 
@@ -106,6 +120,44 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * `item.description`: a second line under the label, in the label's column.
+ * The glyph spans both lines and sits level with the first; the line wraps
+ * (never cut) and stays muted on the current item, as C2 draws it.
+ * `font-weight: normal` rather than a weight token: the button is medium, the
+ * line is body text, and the scale has no regular step, deliberately.
+ */
+.ds-section-navigation__item[data-described] {
+  align-items: start;
+}
+
+.ds-section-navigation__item[data-described] .ds-section-navigation__icon {
+  grid-row: 1 / span 2;
+  margin-top: 1px;
+}
+
+.ds-section-navigation__description {
+  grid-row: 2;
+  grid-column: 2;
+  min-width: 0;
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-xs);
+  font-weight: normal;
+  line-height: var(--ds-line-height-tight);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+@media (forced-colors: active) {
+  .ds-section-navigation__item {
+    border-left-color: Canvas;
+  }
+
+  .ds-section-navigation__item[data-current='true'] {
+    border-left-color: Highlight;
+  }
+}
+
 @media (min-width: 768px) and (max-width: 1279px) {
   .ds-section-navigation[data-mobile-layout='grid']
     .ds-section-navigation__groups {
@@ -123,9 +175,10 @@
     gap: var(--ds-space-4) var(--ds-space-2);
   }
 
+  /* Only the column gap tightens: the label and its description stay one block. */
   .ds-section-navigation[data-mobile-layout='grid']
     .ds-section-navigation__item {
-    gap: var(--ds-space-2);
+    column-gap: var(--ds-space-2);
     padding-inline: var(--ds-space-2);
   }
 }
@@ -183,4 +236,22 @@
 
 .ds-section-navigation__item[data-status='complete'] .ds-section-navigation__status {
   color: var(--ds-color-status-success-fg);
+}
+
+/*
+ * An item with no glyph has no glyph column. Without this its label was
+ * auto-placed into the 20px track and broke after every second letter (the
+ * catalog's `Default` story showed it). Written after the `[data-status]`
+ * template so a step item with no glyph keeps its trailing status track.
+ */
+.ds-section-navigation__item:not(:has(> .ds-section-navigation__icon)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ds-section-navigation__item[data-status]:not(:has(> .ds-section-navigation__icon)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ds-section-navigation__item:not(:has(> .ds-section-navigation__icon)) .ds-section-navigation__description {
+  grid-column: 1;
 }

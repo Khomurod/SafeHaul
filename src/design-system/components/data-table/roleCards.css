@@ -1,0 +1,301 @@
+/*
+ * PHONE CARDS BY ROLE for `DataTable`: `mobilePresentation="cards"` with a
+ * `mobileRole` on its columns (`mobileRoles.js` says which part goes where).
+ *
+ * Under 768px each record row (`tr.ds-data-table__row`; loading and state rows
+ * keep the plain card of `mobileCards.css`) is one card: a wrapping flex row,
+ * padded, with its leading slots placed absolutely in the start padding — the
+ * row's checkbox (a 24px slot, 44px to press) and the `lead` avatar or icon
+ * (32px) — so every line after the title starts at the same text edge. On the
+ * first line the title takes what the `status` cell leaves; an empty flex item
+ * (`::after`) ends that line; `meta` items follow inline, each after its
+ * `mobileLabel`; `line` and `actions` cells take whole lines. The row, not its
+ * cells, carries the surface, tones and selection, so a tone's bar runs down
+ * the card's edge.
+ *
+ * At 768px and up only the `lead` column is touched: a narrow leading slot as
+ * wide as its avatar, the next cell's padding its gap. It is the first column
+ * and not what names the row, so the pin skips it (`pinnedColumn.css`).
+ */
+
+.ds-data-table[data-mobile-roles] col[data-mobile-role='lead'] {
+  width: calc(var(--ds-table-cell-padding-inline) + var(--ds-avatar-size-sm));
+}
+
+.ds-data-table[data-mobile-roles] :is(th, td)[data-mobile-role='lead'] {
+  padding-inline-end: 0;
+}
+
+/*
+ * A plain card with a selection: its checkbox is the card's first line, at the
+ * card's start rather than centred as in a table column.
+ */
+@media (max-width: 767px) {
+  .ds-data-table[data-mobile-presentation='cards']:not([data-mobile-roles]) tbody > tr > .ds-data-table__selection-cell {
+    padding-bottom: 0;
+    text-align: start;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row {
+    --ds-card-slots: 0px;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    column-gap: var(--ds-space-3);
+    border-bottom: 1px solid var(--ds-table-divider);
+    padding: var(--ds-space-4);
+    padding-inline-start: calc(var(--ds-space-4) + var(--ds-card-slots));
+    background: var(--ds-table-row-bg);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles][data-mobile-lead] tbody > tr.ds-data-table__row {
+    --ds-card-slots: calc(var(--ds-avatar-size-sm) + var(--ds-space-3));
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles][data-has-selection] tbody > tr.ds-data-table__row {
+    --ds-card-slots: calc(var(--ds-space-6) + var(--ds-space-3));
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles][data-has-selection][data-mobile-lead] tbody > tr.ds-data-table__row {
+    --ds-card-slots: calc(var(--ds-space-6) + var(--ds-avatar-size-sm) + 2 * var(--ds-space-3));
+  }
+
+  /* Tall enough for its leading slots when the text beside them is short. */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles]:is([data-mobile-lead], [data-has-selection]) tbody > tr.ds-data-table__row {
+    min-height: calc(var(--ds-avatar-size-sm) + 2 * var(--ds-space-4));
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row:last-child {
+    border-bottom: 0;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row[data-tone='warning'] {
+    background: var(--ds-table-row-warning-bg);
+    box-shadow: inset 4px 0 0 var(--ds-table-row-warning-accent);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row[data-tone='danger'] {
+    background: var(--ds-table-row-danger-bg);
+    box-shadow: inset 4px 0 0 var(--ds-table-row-danger-accent);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row[data-selected='true'] {
+    background: var(--ds-table-row-selected-bg);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row[data-interactive='true']:hover {
+    background: var(--ds-table-row-hover-bg);
+  }
+
+  /* Ends the title's line, so what follows starts a line of its own. */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row::after {
+    content: '';
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > :is(th, td) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    overflow: visible;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    font-weight: inherit;
+    text-align: start;
+    white-space: normal;
+  }
+
+  /*
+   * The leading slots. `!important` only because the selection cell's table
+   * padding is, so a checkbox column stays narrow in every table.
+   */
+  /*
+   * The cell is the 44px hit area, centred on the 24px slot (and on the
+   * avatar beside it), so the box sits where the slot is and nothing overflows.
+   */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > .ds-data-table__selection-cell {
+    position: absolute;
+    top: calc(var(--ds-space-4) + (var(--ds-avatar-size-sm) - var(--ds-control-height-md)) / 2);
+    inset-inline-start: calc(var(--ds-space-4) + (var(--ds-space-6) - var(--ds-control-height-md)) / 2);
+    display: flex;
+    width: var(--ds-control-height-md);
+    height: var(--ds-control-height-md);
+    padding: 0 !important;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > .ds-data-table__selection-cell .ds-data-table__selection-control {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='lead'] {
+    position: absolute;
+    top: var(--ds-space-4);
+    inset-inline-start: var(--ds-space-4);
+    display: flex;
+    width: var(--ds-avatar-size-sm);
+    min-height: var(--ds-avatar-size-sm);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles][data-has-selection] tbody > tr.ds-data-table__row > [data-mobile-role='lead'] {
+    inset-inline-start: calc(var(--ds-space-4) + var(--ds-space-6) + var(--ds-space-3));
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='title'] {
+    order: 1;
+    flex: 1 1 0;
+  }
+
+  /*
+   * The status corner, its badges one under another. One `status` column per
+   * table (`tableColumnContract.js`): several statuses go in its one cell.
+   */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='status'] {
+    display: flex;
+    max-width: 60%;
+    flex: 0 1 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--ds-space-2);
+    order: 2;
+    text-align: end;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='meta'] {
+    flex: 0 1 auto;
+    order: 4;
+    margin-top: var(--ds-space-2);
+    color: var(--ds-color-content-secondary);
+    overflow-wrap: anywhere;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='line'] {
+    flex-basis: 100%;
+    order: 5;
+    margin-top: var(--ds-space-2);
+    overflow-wrap: anywhere;
+  }
+
+  /* One space after the words, whatever the label ends with. */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-label]::before {
+    content: attr(data-mobile-label) ' ';
+    color: var(--ds-color-content-muted);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='actions'] {
+    display: flex;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: var(--ds-space-2);
+    order: 6;
+    margin-top: var(--ds-space-3);
+  }
+
+  /* The buttons the cell holds share the card's width. */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='actions'] > * {
+    flex: 1 1 auto;
+  }
+
+  /*
+   * Out of sight, not out of the table: the header row keeps every column, so
+   * a cell taken out of the accessibility tree (`display: none`) would put each
+   * cell after it under the wrong header. Clipped to nothing, 1px tall and out
+   * of the flow, but as wide as the card, so its content wraps inside it rather
+   * than overflowing a 1px box (which `check:table-layout` would rightly read
+   * as a cell too narrow for its content).
+   */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='hidden'],
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-empty]:is([data-mobile-role='meta'], [data-mobile-role='line']) {
+    position: absolute;
+    inset-inline: 0;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    pointer-events: none;
+  }
+}
+
+/*
+ * The strip above the cards: "Select all" at the start, "Sort by" at the end,
+ * each 44px to press. `DataTable` renders it only while the cards are on
+ * screen. One row while both fit with the whole order showing; otherwise
+ * "Sort by" takes the next row, at the end, rather than clipping the order
+ * ("Updated — Newe…") at the phone's 16px control size. Measured on the strip
+ * itself: in a column too narrow for the label beside its list (under 300px),
+ * the label goes above the list, which takes the row.
+ */
+.ds-data-table__card-strip {
+  container-type: inline-size;
+  display: flex;
+  min-height: 56px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-1) var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-table-divider);
+  padding: var(--ds-space-1) var(--ds-space-4);
+  background: var(--ds-color-surface);
+}
+
+.ds-data-table__select-all {
+  display: inline-flex;
+  min-height: var(--ds-control-height-md);
+  flex: none;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--ds-color-content);
+  cursor: pointer;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+}
+
+.ds-data-table__select-all input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ds-color-action-primary);
+  cursor: pointer;
+}
+
+.ds-data-table__select-all input:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+/* Its own width on the row, so the row wraps before the order is clipped. */
+.ds-data-table__card-strip .ds-data-table__card-sort {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+}
+
+/* The label stays one line; the list is as wide as its longest order. */
+.ds-data-table__card-strip .ds-data-table__card-sort .ds-label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.ds-data-table__card-strip .ds-data-table__card-sort .ds-form-control {
+  width: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+@container (max-width: 299px) {
+  .ds-data-table__card-strip .ds-data-table__card-sort {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

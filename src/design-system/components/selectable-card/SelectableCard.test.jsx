@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -115,5 +117,23 @@ describe('SelectableCard', () => {
             </ul>,
         );
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+/* jsdom lays nothing out; the selected treatment is pinned as a rule. */
+describe('SelectableCard selected treatment', () => {
+    const css = readFileSync(path.join(__dirname, 'SelectableCard.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    it('fills a chosen card with the selected-surface tint, not a status tint', () => {
+        const on = css.slice(css.indexOf(".ds-selectable-card[data-state='on'] {"));
+        const rule = on.slice(0, on.indexOf('}'));
+        expect(rule).toMatch(/background:\s*var\(--ds-color-surface-selected\)/);
+        expect(rule).toMatch(/border-color:\s*var\(--ds-color-action-primary\)/);
+        expect(rule).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--ds-color-action-primary\)/);
+        expect(css).not.toMatch(/--ds-color-status-info-bg/);
+    });
+
+    it('keeps the choice visible in forced colours', () => {
+        expect(css).toMatch(/@media \(forced-colors: active\)\s*\{\s*\.ds-selectable-card\[data-state='on'\]\s*\{\s*border-color:\s*Highlight/);
     });
 });

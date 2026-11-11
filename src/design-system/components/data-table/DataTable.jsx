@@ -1,15 +1,18 @@
-import React, { memo, useEffect, useMemo, useRef } from 'react';
+import React, { memo, useMemo } from 'react';
 import { AlertTriangle, Icon, Inbox } from '../../icons';
 import { Button } from '../button';
 import { defineTableColumns } from './tableColumnContract';
 import { useCardsLayout } from './useCardsLayout';
 import { ariaSortOf, checkSort } from './sorting';
-import { CardSortControl, SortButton } from './SortControls';
+import { SortButton } from './SortControls';
+import { CardStrip, SelectionCheckbox } from './SelectionControls';
 import { TablePagination } from './TablePagination';
+import { cardLabelOf, cardRoleOf, isEmptyCellContent, usesMobileRoles } from './mobileRoles';
 import { contractViolation } from '../../contract';
 import './DataTable.css';
 import './pinnedColumn.css';
 import './mobileCards.css';
+import './roleCards.css';
 
 /**
  * The narrowest a table may get before its region scrolls sideways. `none` sets
@@ -56,26 +59,6 @@ function usablePageSizes(pagination) {
 function mobileLabelOf(column) {
   if (column.mobileLabel !== undefined) return column.mobileLabel || undefined;
   return (typeof column.header === 'string' && column.header) || column.headerLabel || undefined;
-}
-
-function SelectionCheckbox({ checked, indeterminate = false, label, onChange }) {
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (inputRef.current) inputRef.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-
-  return (
-    <label className="ds-data-table__selection-control">
-      <input
-        ref={inputRef}
-        type="checkbox"
-        checked={checked}
-        aria-label={label}
-        onChange={onChange}
-      />
-    </label>
-  );
 }
 
 function StateContent({ state, empty, error, loadingLabel }) {
@@ -176,11 +159,13 @@ function LoadingRows({ columns, showSelection, loadingLabel, role }) {
  *
  * `mobilePresentation="cards"` is the other shape that rule allows, for rows
  * worked one record at a time: under 768px each row is a card, its row header
- * the title and every value under its column's label (`mobileCards.css`). The
- * table then states its roles itself, since `display: block` can drop them, and a
- * card pins nothing; at 768px and up it is the table it always was, its first
- * column pinned. It takes no `selection`: a list worked one record at a time has
- * no bulk action, and a card has no header row to hold "select all".
+ * the title and every value under its column's label (`mobileCards.css`), or,
+ * once its columns state a `mobileRole`, laid out by role (`mobileRoles.js`,
+ * `roleCards.css`). The table then states its roles itself, since
+ * `display: block` can drop them, and a card pins nothing; at 768px and up it is
+ * the table it always was, its first column pinned. With a `selection`, each
+ * card leads with its checkbox and a strip above the cards holds "Select all"
+ * beside "Sort by", since the header row is hidden.
  *
  * `maxHeight` caps a table that shares its space, such as one inside a panel or
  * a dialog: its rows scroll under the sticky header. A parent of bounded height
@@ -221,6 +206,13 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   const allRowsSelected = rowIds.length > 0 && selectedOnPage === rowIds.length;
   const someRowsSelected = selectedOnPage > 0 && !allRowsSelected;
   const showSelection = Boolean(selection);
+  /** The header's checkbox; on cards it sits in the strip above them. */
+  const selectAll = showSelection ? {
+    checked: allRowsSelected,
+    indeterminate: someRowsSelected,
+    label: selection.selectAllLabel || 'Select all rows on this page',
+    onChange: (event) => selection.onToggleAll?.(!allRowsSelected, event),
+  } : null;
   const normalizedError = typeof error === 'string' ? { message: error } : error;
   const showInlineError = normalizedError && data.length > 0 && !isLoading;
   let bodyState = null;
@@ -235,8 +227,9 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   const statePanel = cards ? null : bodyState;
   /** Cards on screen now; at 768px and up the same table can scroll sideways. */
   const cardsOnScreen = useCardsLayout(cards);
-  if (cards && showSelection) {
-    contractViolation('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
+  const roles = usesMobileRoles(cards, normalizedColumns);
+  if (!cards && normalizedColumns.some((column) => column.mobileRole !== undefined)) {
+    contractViolation('A DataTable column mobileRole places a value on a phone card; it needs mobilePresentation="cards".');
   }
   checkSort(normalizedColumns, sort, onSortChange);
   let tableMinWidth = minWidth;
@@ -266,7 +259,10 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       className="ds-data-table"
       data-density={density}
       data-mobile-presentation={mobilePresentation}
-      data-pin-first-column={pinFirstColumn || undefined}
+      data-mobile-roles={roles || undefined}
+      data-mobile-lead={(roles && normalizedColumns.some((column) => column.mobileRole === 'lead')) || undefined}
+      /* A card pins nothing: the pin is for a table that scrolls sideways. */
+      data-pin-first-column={(pinFirstColumn && !cardsOnScreen) || undefined}
       data-has-selection={showSelection || undefined}
       data-embedded={embedded || undefined}
       data-max-height={tableMaxHeight}
@@ -284,7 +280,12 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       )}
 
       {cardsOnScreen && (
-        <CardSortControl columns={normalizedColumns} sort={sort} onSortChange={onSortChange} />
+        <CardStrip
+          selectAll={showSelection && !bodyState && !isLoading ? selectAll : null}
+          columns={normalizedColumns}
+          sort={sort}
+          onSortChange={onSortChange}
+        />
       )}
 
       {mobilePresentation === 'scroll' && (
@@ -304,19 +305,15 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
           <colgroup>
             {showSelection && <col data-width="selection" />}
             {normalizedColumns.map((column) => (
-              <col key={column.key} data-width={column.width} />
+              <col key={column.key} data-width={column.width} data-mobile-role={roles ? cardRoleOf(column) : undefined} />
             ))}
           </colgroup>
           <thead role={role('rowgroup')}>
             <tr role={role('row')}>
               {showSelection && (
                 <th className="ds-data-table__selection-cell" scope="col" role={role('columnheader')}>
-                  <SelectionCheckbox
-                    checked={allRowsSelected}
-                    indeterminate={someRowsSelected}
-                    label={selection.selectAllLabel || 'Select all rows on this page'}
-                    onChange={(event) => selection.onToggleAll?.(!allRowsSelected, event)}
-                  />
+                  {/* On cards the box moves to the strip above them, under the same name. */}
+                  {cardsOnScreen ? <span className="sr-only">Select</span> : <SelectionCheckbox {...selectAll} />}
                 </th>
               )}
               {normalizedColumns.map((column) => (
@@ -327,6 +324,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                   data-align={column.align}
                   data-width={column.width}
                   data-truncate={column.truncate || undefined}
+                  data-mobile-role={roles ? cardRoleOf(column) : undefined}
                   aria-sort={ariaSortOf(column, sort)}
                 >
                   {column.headerLabel && !column.header ? (
@@ -363,6 +361,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                 return (
                   <tr
                     key={rowId}
+                    className="ds-data-table__row"
                     role={role('row')}
                     data-interactive={Boolean(onRowActivate)}
                     data-selected={isSelected || undefined}
@@ -388,12 +387,17 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                     )}
                     {normalizedColumns.map((column) => {
                       const Cell = column.rowHeader ? 'th' : 'td';
+                      const content = column.render(row);
+                      const cardRole = roles ? cardRoleOf(column) : undefined;
                       return (
                         <Cell
                           key={column.key}
                           scope={column.rowHeader ? 'row' : undefined}
                           role={role(column.rowHeader ? 'rowheader' : 'cell')}
-                          data-label={cards && !column.rowHeader ? mobileLabelOf(column) : undefined}
+                          data-label={cards && !roles && !column.rowHeader ? mobileLabelOf(column) : undefined}
+                          data-mobile-role={cardRole}
+                          data-mobile-label={cardRole ? cardLabelOf(column, cardRole) : undefined}
+                          data-mobile-empty={(cardRole && isEmptyCellContent(content)) || undefined}
                           data-align={column.align}
                           data-width={column.width}
                           data-truncate={column.truncate || undefined}
@@ -401,7 +405,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                             ? (event) => event.stopPropagation()
                             : undefined}
                         >
-                          {column.render(row)}
+                          {content}
                         </Cell>
                       );
                     })}

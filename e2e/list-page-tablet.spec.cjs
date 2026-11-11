@@ -1,8 +1,8 @@
 /**
  * A list page on a tablet: wider than the phone layout (639px and below), too
- * narrow for the toolbar's one row or for a page's actions beside a long
- * description. The visual contract measures 412 and 1440 only, so these widths
- * are held here.
+ * narrow for the toolbar's one row. A page's actions stay on its title row
+ * here. The visual contract measures 412 and 1440 only, so these widths are
+ * held here.
  */
 const { test, expect } = require('@playwright/test');
 
@@ -29,20 +29,25 @@ test.describe('a list page on a tablet', () => {
     }
   });
 
-  test("puts a page's actions under its description when both do not fit beside each other", async ({ page }) => {
+  test("keeps a page's actions on the title row on a tablet, with the description below both", async ({ page }) => {
+    const title = page.getByRole('heading', { level: 1, name: 'Referral Links' });
     const description = page.getByText(/^A link for a driver who sends you others\./);
     const action = page.getByRole('button', { name: 'Create link' });
 
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/company/referral-links${AUTH}`);
-    await expect(action).toBeVisible({ timeout: 15_000 });
-    let [text, button] = await Promise.all([description.boundingBox(), action.boundingBox()]);
-    expect(button.y).toBeLessThan(text.y + text.height);
-
-    await page.setViewportSize({ width: 820, height: 900 });
-    await expect(async () => {
-      [text, button] = await Promise.all([description.boundingBox(), action.boundingBox()]);
-      expect(button.y).toBeGreaterThanOrEqual(text.y + text.height);
-    }).toPass();
+    for (const width of [1440, 820]) {
+      await page.setViewportSize({ width, height: 900 });
+      if (width === 1440) await page.goto(`/company/referral-links${AUTH}`);
+      await expect(action).toBeVisible({ timeout: 15_000 });
+      await expect(async () => {
+        const [heading, text, button] = await Promise.all([
+          title.boundingBox(), description.boundingBox(), action.boundingBox(),
+        ]);
+        const buttonMiddle = button.y + button.height / 2;
+        expect(buttonMiddle).toBeGreaterThanOrEqual(heading.y);
+        expect(buttonMiddle).toBeLessThanOrEqual(heading.y + heading.height);
+        expect(text.y).toBeGreaterThanOrEqual(heading.y + heading.height);
+        expect(button.x).toBeGreaterThan(heading.x + heading.width);
+      }).toPass();
+    }
   });
 });

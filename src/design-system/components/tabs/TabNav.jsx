@@ -1,6 +1,11 @@
 import React from 'react';
 import { contractViolation } from '../../contract';
 import './Tabs.css';
+// After `Tabs.css`, so the shared drawing wins a tie with the underlined tab.
+import { phoneColumnsFor } from './segmentedGroup';
+
+/** `underline`, the strip `TabList` draws by default, or the segmented tray. */
+const VARIANTS = new Set(['underline', 'segmented']);
 
 /**
  * The tab strip's look, made of links: a page's views that are pages of their
@@ -13,7 +18,9 @@ import './Tabs.css';
  * this is a named `<nav>` holding a list of links: each link is its own Tab
  * stop, Enter follows it, the browser offers "open in a new tab", and the page
  * shown is `aria-current="page"`. It reuses `Tabs.css`, so it looks exactly like
- * the underlined strip.
+ * the underlined strip — or, with `variant="segmented"`, like `TabList`'s and
+ * `ListToolbar`'s segmented tray (`segmentedGroup.css`), for a scope switch that
+ * sits in a list's toolbar row.
  *
  * Routing is the caller's: an item carries its `href` and, for an in-app move
  * without a reload, an `onClick` (a router's link click handler).
@@ -22,8 +29,9 @@ import './Tabs.css';
  * @param {string} props.ariaLabel Names the navigation. Required — "navigation" is not a name.
  * @param {Array<{id: string, label: string, href: string, onClick?: (event: object) => void}>} props.items
  * @param {string} [props.currentId] The item for the page shown.
+ * @param {'underline'|'segmented'} [props.variant='underline']
  */
-export function TabNav({ ariaLabel, items, currentId, className = '', ...props }) {
+export function TabNav({ ariaLabel, items, currentId, variant = 'underline', className = '', ...props }) {
   if (typeof ariaLabel !== 'string' || ariaLabel.trim() === '') {
     contractViolation('TabNav requires an ariaLabel naming what its links move between.');
   }
@@ -31,10 +39,20 @@ export function TabNav({ ariaLabel, items, currentId, className = '', ...props }
     contractViolation('TabNav requires at least one item.');
     if (!Array.isArray(items)) items = [];
   }
+  if (!VARIANTS.has(variant)) {
+    contractViolation(`Unsupported TabNav variant: ${variant}`);
+    variant = 'underline';
+  }
+  const segmented = variant === 'segmented';
 
   return (
     <nav {...props} aria-label={ariaLabel} className={`ds-tab-nav ${className}`.trim()}>
-      <ul className="ds-tab-list" data-orientation="horizontal" data-variant="underline">
+      <ul
+        className={segmented ? 'ds-tab-list ds-segmented-group' : 'ds-tab-list'}
+        data-orientation="horizontal"
+        data-variant={variant}
+        data-phone-columns={segmented ? phoneColumnsFor(items.length) : undefined}
+      >
         {items.map((item) => {
           if (typeof item.href !== 'string' || item.href.trim() === '') {
             contractViolation(`TabNav item "${item.id}" requires an href. For a panel switched in place, use TabList.`);
@@ -45,7 +63,7 @@ export function TabNav({ ariaLabel, items, currentId, className = '', ...props }
               <a
                 href={item.href}
                 onClick={item.onClick}
-                className="ds-tab"
+                className={segmented ? 'ds-tab ds-segmented-group__item' : 'ds-tab'}
                 data-selected={isCurrent || undefined}
                 aria-current={isCurrent ? 'page' : undefined}
               >

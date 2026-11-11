@@ -40,6 +40,9 @@ const meta = {
           '  `ChoiceGroup`, and always with a shared `name`.',
           '- `ChoiceGroup` — the `<fieldset>`/`<legend>` wrapper that asks the question the',
           '  options answer. Orientation is `vertical` (default) or `horizontal`.',
+          '  `appearance="card"` draws each option as a bordered card with its description',
+          '  under the title; a chosen card wears the selected treatment `SelectableCard`',
+          '  wears. They stay native radios, so the group keeps the browser\'s keyboard model.',
           '',
           '### Why native inputs',
           '',
@@ -160,6 +163,68 @@ export const HorizontalGroup = {
     <ChoiceGroup legend="Include archived records?" orientation="horizontal">
       <Radio name="story-archived" value="yes" label="Yes" onChange={fn()} />
       <Radio name="story-archived" value="no" label="No" defaultChecked onChange={fn()} />
+    </ChoiceGroup>
+  ),
+};
+
+/**
+ * `appearance="card"`: each option a bordered card — the label as its title,
+ * the description under it — pressable anywhere. A chosen card wears the
+ * selected treatment (action border, inset ring, brand tint). Still native
+ * radios in a real `<fieldset>`: arrow keys move and choose, Tab leaves.
+ */
+export const RadioCards = {
+  render: () => (
+    <div style={{ maxWidth: 592 }}>
+      <ChoiceGroup legend="Access" required appearance="card" orientation="horizontal">
+        <Radio
+          name="story-access"
+          value="standard"
+          label="Standard"
+          description="Sees their own records."
+          required
+          requiredMark={false}
+          defaultChecked
+          onChange={fn()}
+        />
+        <Radio
+          name="story-access"
+          value="full"
+          label="Full access"
+          description="Sees everything and changes settings."
+          required
+          requiredMark={false}
+          onChange={fn()}
+        />
+      </ChoiceGroup>
+    </div>
+  ),
+};
+
+/** The same cards on a phone: one a row, each still pressable anywhere. */
+export const RadioCardsNarrow = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => (
+    <ChoiceGroup legend="Access" required appearance="card" orientation="horizontal">
+      <Radio
+        name="story-access-narrow"
+        value="standard"
+        label="Standard"
+        description="Sees their own records."
+        required
+        requiredMark={false}
+        defaultChecked
+        onChange={fn()}
+      />
+      <Radio
+        name="story-access-narrow"
+        value="full"
+        label="Full access"
+        description="Sees everything and changes settings."
+        required
+        requiredMark={false}
+        onChange={fn()}
+      />
     </ChoiceGroup>
   ),
 };

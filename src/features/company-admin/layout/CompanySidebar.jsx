@@ -87,7 +87,7 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
         min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
         focus-visible:outline-none focus-visible:shadow-ds-focus
         ${isActive
-          ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-action-primary'
+          ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-navigation-accent'
           : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
         ${isChild ? 'pl-9 text-ds-body' : ''}
         ${!isExpanded && !isChild ? 'justify-center' : ''}
@@ -105,7 +105,7 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
             icon={item.icon}
             size="xl"
             className={isActive
-              ? 'text-ds-action-primary'
+              ? 'text-ds-navigation-accent'
               : 'text-ds-content-muted group-hover:text-ds-content'}
           />
 
@@ -220,7 +220,7 @@ export const CompanySidebar = ({
       {/* Top Header */}
       <div className="min-h-16 flex items-center px-4 border-b border-ds-border-subtle">
         <div className="flex items-center gap-3 w-full overflow-hidden">
-          <div className="flex-shrink-0 w-8 h-8 bg-ds-action-primary rounded-ds-md flex items-center justify-center text-ds-content-inverse font-bold" aria-hidden="true">
+          <div className="flex-shrink-0 w-8 h-8 bg-ds-navigation-accent rounded-ds-md flex items-center justify-center text-ds-content-inverse font-bold" aria-hidden="true">
             {(currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'C').charAt(0)}
           </div>
 
@@ -286,7 +286,7 @@ export const CompanySidebar = ({
                   <Icon
                     icon={GroupIcon}
                     size="xl"
-                    className={hasActiveChild ? 'text-ds-action-primary' : 'text-ds-content-muted'}
+                    className={hasActiveChild ? 'text-ds-navigation-accent' : 'text-ds-content-muted'}
                   />
                   {isExpanded && (
                     <>

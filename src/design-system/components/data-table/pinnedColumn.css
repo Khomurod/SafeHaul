@@ -36,6 +36,7 @@
  * With `DataTable` selection, the checkbox column is first and the identifying
  * column second: both pin, the second offset by `--ds-table-selection-width`,
  * so a bulk action stays reachable and the row label stays readable at once.
+ * A leading avatar column (`lead`) is skipped: the column after it pins.
  *
  * A state row (`<td colSpan>`) is never pinned: it already spans the table, and
  * a seam at its far edge would be a stray line on an empty table.
@@ -65,6 +66,35 @@
 
 .ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2),
 .ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2) {
+  left: var(--ds-table-selection-width);
+}
+
+/*
+ * A leading avatar or icon column (`mobileRole: 'lead'`, which the column
+ * contract keeps first, right before the row header) does not name the row:
+ * the pin skips it and holds the column after it, at the same offsets. The
+ * lead scrolls away under the pinned cells, so no offset depends on how wide
+ * the lead column is drawn. Such a table is cards under 768px, where nothing
+ * pins, so its seam never shows.
+ */
+.ds-data-table[data-pin-first-column][data-mobile-roles][data-mobile-lead] :is(thead, tbody) > tr > [data-mobile-role='lead'] {
+  position: static;
+  z-index: auto;
+}
+
+.ds-data-table[data-pin-first-column][data-mobile-roles][data-mobile-lead] thead > tr > [data-mobile-role='lead'] + * {
+  position: sticky;
+  left: 0;
+  z-index: var(--ds-z-layer-2);
+}
+
+.ds-data-table[data-pin-first-column][data-mobile-roles][data-mobile-lead] tbody > tr > [data-mobile-role='lead'] + * {
+  position: sticky;
+  left: 0;
+  z-index: var(--ds-z-layer-1);
+}
+
+.ds-data-table[data-pin-first-column][data-mobile-roles][data-mobile-lead][data-has-selection] :is(thead, tbody) > tr > [data-mobile-role='lead'] + * {
   left: var(--ds-table-selection-width);
 }
 

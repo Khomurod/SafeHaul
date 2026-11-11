@@ -25,7 +25,7 @@ variation — so what a caller may vary is six enumerated props:
 | `size` | `sm` `md` `lg` `xl` `2xl` `4xl` `5xl` `7xl` | `lg` | panel width |
 | `scroll` | `panel` `body` | `panel` | `body` pins a header and footer inside the panel |
 | `fill` | boolean | `false` | fixes the height, for a viewer that must not resize |
-| `mobile` | `inset` `fullscreen` | `inset` | below 640px |
+| `mobile` | `inset` `fullscreen` `sheet` | `inset` | below 640px; `sheet` is a bottom sheet there |
 | `placement` | `center` `bottom` | `center` | `bottom` is a sheet |
 | `tone` | `neutral` `danger` | `neutral` | borders a destructive dialog |
 
@@ -41,6 +41,22 @@ thirty spellings accumulated without anyone noticing.
 content grows scrolls its footer out of reach on a short viewport, and the
 confirm button becomes unreachable. It is the commonest dialog layout defect
 there is.
+
+### `mobile="sheet"`: centred on a wide screen, a bottom sheet on a phone
+
+Added for C2's two settings dialogs (Add person, Create an API key): a short
+form that is a centred dialog at a desk and, below 640px, rises from the bottom
+edge — full width, rounded at the top only, capped at `--ds-sheet-max-height`
+(80vh) so the page stays visible above it — the `placement="bottom"` shape, but
+only on a phone. The panel does not pad the home-indicator inset: the dialog's
+last row (its footer) sits on the bottom edge of the screen, so it adds
+`env(safe-area-inset-bottom, 0px)` to its own bottom padding — for example
+`paddingBottom: 'calc(var(--ds-space-4) + env(safe-area-inset-bottom, 0px))'`,
+as `SignatureSheet` does — and its background then reaches the edge instead of
+leaving a strip of white panel under a grey footer band. Combine it with `scroll="body"` so
+the header and footer stay pinned while the fields scroll. The header and footer
+themselves are still each dialog's own markup; there is no dialog header/footer
+primitive yet.
 
 ### The legacy props are gone
 

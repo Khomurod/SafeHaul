@@ -1,3 +1,7 @@
+/*
+ * A table on its own is the card that holds it: the card radius and the soft
+ * shadow a table card has. `embedded` hands both to the `Card` around it.
+ */
 .ds-data-table {
   display: flex;
   min-height: 0;
@@ -5,9 +9,9 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--ds-color-border-subtle);
-  border-radius: var(--ds-radius-lg);
+  border-radius: var(--ds-card-radius);
   background: var(--ds-color-surface);
-  box-shadow: var(--ds-shadow-xs);
+  box-shadow: var(--ds-shadow-soft);
   color: var(--ds-color-content);
 }
 
@@ -100,16 +104,15 @@
   top: 0;
 }
 
+/* Sentence case, as written: a quiet label over the column, not a second heading. */
 .ds-data-table thead th {
   height: var(--ds-table-header-height);
   border-bottom: 1px solid var(--ds-table-divider);
   background: var(--ds-table-header-bg);
   color: var(--ds-table-header-fg);
   font-size: var(--ds-font-size-xs);
-  font-weight: var(--ds-font-weight-semibold);
-  letter-spacing: 0.04em;
+  font-weight: var(--ds-font-weight-medium);
   line-height: var(--ds-line-height-tight);
-  text-transform: uppercase;
 }
 
 /*
@@ -396,22 +399,23 @@
   margin: auto;
 }
 
+/*
+ * The footer: the feature's label ("8 total") on the left, the pager on the
+ * right, on the table's own surface; its text lines up with the first column.
+ */
 .ds-data-table__pagination {
   display: flex;
   min-height: 56px;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ds-space-4);
+  gap: var(--ds-space-2) var(--ds-space-4);
   border-top: 1px solid var(--ds-table-divider);
-  padding: var(--ds-space-2) var(--ds-space-5);
-  background: var(--ds-color-surface-subtle);
-  color: var(--ds-color-content-secondary);
+  padding: var(--ds-space-2) var(--ds-table-cell-padding-inline);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-content-muted);
   font-size: var(--ds-font-size-xs);
-}
-
-.ds-data-table__pagination-label {
-  font-weight: var(--ds-font-weight-medium);
 }
 
 .ds-data-table__pagination-controls {
@@ -456,10 +460,6 @@
     display: block;
   }
 
-  .ds-data-table {
-    border-radius: var(--ds-radius-md);
-  }
-
   .ds-data-table th,
   .ds-data-table td,
   .ds-data-table__state-panel {
@@ -467,15 +467,13 @@
     padding-left: var(--ds-space-4);
   }
 
+  /* One row with room around the 44px pager, unless "Rows per page" needs one. */
   .ds-data-table__pagination {
-    min-height: 72px;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--ds-space-2);
+    min-height: 68px;
     padding: var(--ds-space-3) var(--ds-space-4);
   }
 
-  .ds-data-table__pagination-controls {
+  .ds-data-table__pagination[data-has-page-size] .ds-data-table__pagination-controls {
     width: 100%;
     flex-wrap: wrap;
     justify-content: space-between;

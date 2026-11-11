@@ -7,7 +7,8 @@ A disc standing for a person or an organisation.
 ```jsx
 import { Avatar } from '@/design-system/components';
 
-<Avatar size="sm" tone="accent">{initials}</Avatar>
+<Avatar size="sm" tone="brand">{initials}</Avatar>
+<Avatar size="xs" tone="placeholder" />
 <Avatar size={{ base: 'lg', sm: 'xl' }} tone="info" bordered>{initials}</Avatar>
 <Avatar shape="square" tone="neutral">{companyInitials}</Avatar>
 ```
@@ -18,8 +19,26 @@ import { Avatar } from '@/design-system/components';
 |---|---|---|
 | `size` | `xs` 20 · `sm` 32 · `md` 40 (default) · `lg` 48 · `xl` 64, or `{ base, sm }` | pixels; the responsive pair swaps at 640px |
 | `shape` | `circle` (default), `square` | a person is a circle |
-| `tone` | `neutral` (default), `info`, `success`, `warning`, `danger`, `accent`, `primary`, `inverse` | |
+| `tone` | `neutral` (default), `info`, `success`, `warning`, `danger`, `accent`, `primary`, `inverse`, `brand`, `navigation`, `placeholder` | see "Tones" below |
 | `bordered` | boolean | a 2px surface ring, for a disc overlapping something |
+
+## Tones
+
+- **`brand`** — a person in a list row: initials in the brand navy on its tint
+  (`--ds-color-brand-primary` on `--ds-color-brand-primary-subtle`, 8.1:1). A
+  person cell is `sm` (32px) beside the name, an assignee `xs` (20px); both are
+  steps of the fixed scale below. Compute the letters with `initialsOf`
+  (`src/shared/utils/initials.js`), not by hand.
+- **`navigation`** — the signed-in person in the application frame's top bar,
+  filled with `--ds-color-navigation-accent`. The frame stayed blue when actions
+  moved to the brand navy, so this disc does not follow `primary`.
+- **`placeholder`** — an empty place for a person, such as the assignee of an
+  unassigned row, so the names in a column start at one edge. A 1.5px dashed
+  `--ds-color-border` ring with no fill and **no initials**: passing children
+  throws (a production build draws the empty ring and reports it). It is
+  decoration — the text beside it ("Unassigned") carries the meaning.
+- **`primary`** fills with the action colour (the brand navy); `inverse` is for
+  the console-dark panel; the status tones tint.
 
 ## The scale is fixed, and it is not ours
 

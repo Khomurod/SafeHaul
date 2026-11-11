@@ -53,6 +53,12 @@ asked for. `check:visual-contract` measures both so they cannot drift apart
 quietly — nothing puts the two stories side by side, so a screenshot never
 would.
 
+The selected fill is `--ds-color-surface-selected`, the brand tint every
+selected surface wears (C2) — not the info status tint, because being chosen is
+not a status. `ChoiceGroup appearance="card"` draws a chosen option the same
+way, so a role picked in a form and a record picked in a list read as one
+answer. In forced colours the border is `Highlight`.
+
 The selected weight is an **inset ring**, not a thicker border. A 2px border on
 selection and 1px otherwise moves the content by a pixel every time the choice
 moves, and in a virtualised list that is a visible twitch. Borrowed from

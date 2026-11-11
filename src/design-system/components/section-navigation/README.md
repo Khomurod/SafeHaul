@@ -14,10 +14,51 @@ The component provides:
 - 44px minimum targets, visible focus, selected, hover, and disabled states;
 - Arrow Up/Down, Home, and End focus movement without replacing native Tab
   order;
-- stack and compact grid mobile layouts without an inner horizontal scroller.
+- stack and compact grid mobile layouts without an inner horizontal scroller;
+- an optional second line per item (`item.description`).
 
 It does not own routes, permissions, feature flags, tab state, data loading, or
 business vocabulary.
+
+## The C2 rail
+
+The rail is a card: border, radius and elevation come from the card roles
+(`--ds-card-border`, `--ds-card-radius`, `--ds-card-shadow`), so it sits beside
+the page's other cards as one of them. Its **width and stickiness are the
+consumer's** — the company settings frame gives it 288px, sticky beside the
+content.
+
+- **Group headings**: 12px semibold capitals, `0.08em`, `content-muted`.
+- **Items**: a 20px glyph column and the label (14px medium, `content`).
+- **The current item**: `--ds-color-surface-selected` (the brand tint) and the
+  action navy (`--ds-color-action-primary`) on the label and the glyph, with a
+  **semibold label** — the cue that is not a colour. Its 3px left border stays
+  transparent, and in forced colours it becomes `Highlight` (the others
+  `Canvas`), where the tint and the navy are both replaced. Hover tints only the
+  items that are not current.
+- **An item with no glyph has no glyph column.** Before, its label was placed in
+  the 20px track and broke after every second letter (the catalog's `Default`
+  story showed it); with no glyph the template is one track (two with a status).
+
+## `item.description`
+
+```jsx
+{ id: 'team', label: 'Team', icon: Users, description: 'Who recruits for you' }
+```
+
+A second line under the label, in the label's column: 12px, `content-muted`
+(also on the current item), `line-height` tight, `text-wrap: pretty`, wrapping
+rather than cut. The glyph spans both lines, level with the first.
+
+It is the item's **description, not part of its name**. The button is named by
+its label (and a step's status suffix) through `aria-labelledby`, and the line is
+linked with `aria-describedby`, so the item is still found and announced as
+"Team" — by a speech-input user and by every caller and test that looks it up —
+followed by its description. An item without one renders exactly as before: no
+ids, no `aria-labelledby`, no `data-described` (`description: null` counts as
+none). A description must be a non-empty string; anything else throws (outside
+a production build). In every layout, the phone `grid` included, the
+description sits tight under its label: only the column gap tightens there.
 
 ## A page rail and a step rail
 

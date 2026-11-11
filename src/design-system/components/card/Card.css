@@ -12,6 +12,11 @@
   color: var(--ds-color-content);
 }
 
+/* A card that holds a table or a list wears the table's soft shadow (C2). */
+.ds-card[data-elevation='soft'] {
+  box-shadow: var(--ds-shadow-soft);
+}
+
 .ds-card[data-padding='none'] {
   padding: 0;
 }
@@ -28,7 +33,14 @@
   padding: var(--ds-card-padding-spacious);
 }
 
+/*
+ * A KPI tile: a sentence-case label and its glyph on the first line, the number
+ * under it, an optional note under that, and the tone as a 4px bar inset on the
+ * left edge. The bar stops `--ds-space-4` short of the top and bottom, so it
+ * reads as a mark inside the card rather than a clipped stripe of its border.
+ */
 .ds-metric-card {
+  position: relative;
   display: flex;
   width: 100%;
   min-width: 0;
@@ -50,6 +62,17 @@
     transform var(--ds-duration-fast) var(--ds-ease-standard);
 }
 
+.ds-metric-card::before {
+  position: absolute;
+  top: var(--ds-space-4);
+  bottom: var(--ds-space-4);
+  left: 0;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--ds-metric-bar);
+  content: '';
+}
+
 .ds-metric-card[data-interactive='true'] {
   cursor: pointer;
 }
@@ -66,92 +89,103 @@
   box-shadow: var(--ds-focus-ring);
 }
 
+/*
+ * The dashboard's chosen filter: a line along the TOP edge, so it never reads
+ * as the tone's bar on the left, which every tile has.
+ */
 .ds-metric-card[data-active='true'] {
   border-color: var(--ds-metric-tone-border);
   box-shadow: inset 0 3px 0 var(--ds-metric-tone-fg), var(--ds-shadow-sm);
 }
 
+/* The text column takes the room the glyph leaves, so a long label wraps. */
 .ds-metric-card__content {
+  display: block;
   min-width: 0;
-}
-
-/*
- * The content is otherwise only as wide as its label, so the placeholder's 50%
- * would be half the label. Loading, it takes the text column, and the bar is
- * half of that.
- */
-.ds-metric-card[data-loading='true'] .ds-metric-card__content {
   flex: 1 1 auto;
 }
 
+/* Nothing is cut: the label wraps and a long value breaks. */
 .ds-metric-card__label {
   display: block;
-  overflow: hidden;
   color: var(--ds-color-content-secondary);
-  font-size: var(--ds-font-size-xs);
-  font-weight: var(--ds-font-weight-bold);
-  letter-spacing: 0.04em;
-  line-height: var(--ds-line-height-tight);
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
 }
 
 .ds-metric-card__value {
   display: block;
   margin-top: var(--ds-space-2);
-  overflow: hidden;
   color: var(--ds-color-content);
-  font-size: var(--ds-font-size-heading-xl);
+  font-size: var(--ds-font-size-heading-2xl);
   font-weight: var(--ds-font-weight-bold);
-  line-height: var(--ds-line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  letter-spacing: -0.02em;
+  line-height: var(--ds-line-height-display);
+  overflow-wrap: anywhere;
+}
+
+.ds-metric-card__description {
+  display: block;
+  margin-top: var(--ds-space-1);
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-body);
+  text-wrap: balance;
 }
 
 /*
- * `--ds-metric-icon-size`, not the control height: this chip is an illustration
- * inside a card, not something you press, so it must not grow when the control
- * scale changes. It followed `--ds-control-height-md` until that became 44px.
+ * The glyph is decoration, drawn bare in the muted ink, and the slot sizes it:
+ * a caller's `size` on the `Icon` is outranked (`Icon.css` sizes through a
+ * zero-specificity `:where()`), so every tile's glyph is the same size.
  */
 .ds-metric-card__icon {
   display: inline-flex;
-  width: var(--ds-metric-icon-size);
-  height: var(--ds-metric-icon-size);
-  flex: 0 0 var(--ds-metric-icon-size);
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-metric-tone-bg);
-  color: var(--ds-metric-tone-fg);
+  /* Centred on the label's first line: (21px line - 16px glyph) / 2. */
+  padding-top: 2px;
+  color: var(--ds-color-content-muted);
 }
 
+.ds-metric-card__icon > svg {
+  width: var(--ds-icon-size-md);
+  height: var(--ds-icon-size-md);
+}
+
+/*
+ * The bar colour per tone. `neutral` is the border-strong line, so a tile with
+ * nothing to say (a total, a count at zero) does not wear a colour that means
+ * something; `info` is the brand navy. The `-fg` and `-border` pair still
+ * paint the active state.
+ */
 .ds-metric-card[data-tone='neutral'] {
-  --ds-metric-tone-bg: var(--ds-color-status-neutral-bg);
+  --ds-metric-bar: var(--ds-color-border-strong);
   --ds-metric-tone-fg: var(--ds-color-status-neutral-fg);
   --ds-metric-tone-border: var(--ds-color-status-neutral-border);
 }
 
 .ds-metric-card[data-tone='info'] {
-  --ds-metric-tone-bg: var(--ds-color-status-info-bg);
+  --ds-metric-bar: var(--ds-color-brand-primary);
   --ds-metric-tone-fg: var(--ds-color-status-info-fg);
   --ds-metric-tone-border: var(--ds-color-status-info-border);
 }
 
 .ds-metric-card[data-tone='success'] {
-  --ds-metric-tone-bg: var(--ds-color-status-success-bg);
+  --ds-metric-bar: var(--ds-color-action-success);
   --ds-metric-tone-fg: var(--ds-color-status-success-fg);
   --ds-metric-tone-border: var(--ds-color-status-success-border);
 }
 
 .ds-metric-card[data-tone='warning'] {
-  --ds-metric-tone-bg: var(--ds-color-status-warning-bg);
+  --ds-metric-bar: var(--ds-color-status-warning-fg);
   --ds-metric-tone-fg: var(--ds-color-status-warning-fg);
   --ds-metric-tone-border: var(--ds-color-status-warning-border);
 }
 
 .ds-metric-card[data-tone='accent'] {
-  --ds-metric-tone-bg: var(--ds-color-status-accent-bg);
+  --ds-metric-bar: var(--ds-color-status-accent-fg);
   --ds-metric-tone-fg: var(--ds-color-status-accent-fg);
   --ds-metric-tone-border: var(--ds-color-status-accent-border);
 }
@@ -160,9 +194,42 @@
    dashboard's, which every other tone misrepresents. The tone is never the sole
    signal — the value text still reads "Error". */
 .ds-metric-card[data-tone='danger'] {
-  --ds-metric-tone-bg: var(--ds-color-status-danger-bg);
+  --ds-metric-bar: var(--ds-color-action-danger);
   --ds-metric-tone-fg: var(--ds-color-status-danger-fg);
   --ds-metric-tone-border: var(--ds-color-status-danger-border);
+}
+
+/*
+ * A phone shows two tiles a row, so the number steps down to the page title's
+ * phone size, the padding to `--ds-space-4`, and the tile is as tall as its
+ * content (C2 draws about 90px) rather than the desk's 112px.
+ */
+@media (max-width: 767px) {
+  .ds-metric-card {
+    min-height: 0;
+    padding: var(--ds-space-4);
+  }
+
+  .ds-metric-card__value {
+    font-size: var(--ds-font-size-heading-xl);
+  }
+}
+
+/*
+ * Forced colours would paint the bar's fill as `Canvas` and it would vanish;
+ * `CanvasText` keeps the tile's edge mark, and the active filter keeps a
+ * `Highlight` border. The tone itself is never the only signal: the label and
+ * the number carry the meaning.
+ */
+@media (forced-colors: active) {
+  .ds-metric-card::before {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .ds-metric-card[data-active='true'] {
+    border-color: Highlight;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
