@@ -306,6 +306,11 @@
     white-space: normal;
   }
 
+  /* A status among the actions keeps its own size: only controls share the row. */
+  .ds-page-header__actions > .ds-badge {
+    flex: none;
+  }
+
   /*
    * `mobileActions="sticky"`: the same actions element, pinned to the bottom of
    * the screen as a bar. Page content scrolling beneath the application chrome,

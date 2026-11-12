@@ -158,6 +158,11 @@ describe('Avatar CSS', () => {
     const css = readFileSync(path.join(__dirname, 'Avatar.css'), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '');
 
+    it('keeps two initials on one line, even in the 20px disc', () => {
+        const base = css.slice(css.indexOf('.ds-avatar {'), css.indexOf('}', css.indexOf('.ds-avatar {')));
+        expect(base).toContain('white-space: nowrap');
+    });
+
     it('sizes every step in both the base and the responsive block', () => {
         for (const step of ['xs', 'sm', 'md', 'lg', 'xl']) {
             expect(css).toContain(`.ds-avatar[data-size='${step}']`);

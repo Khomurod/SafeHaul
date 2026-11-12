@@ -403,8 +403,9 @@ describe('PageLayout CSS', () => {
     expect(css.slice(0, css.indexOf('@media'))).not.toContain('position: fixed');
   });
 
-  it('gives each phone action an equal share of the row', () => {
+  it('gives each phone action an equal share of the row, but not a status badge', () => {
     expect(block('.ds-page-header__actions > *', phone)).toContain('flex: 1 1 0');
+    expect(block('.ds-page-header__actions > .ds-badge', phone)).toContain('flex: none');
   });
 
   it('gives the back link a 44px target on a phone', () => {
