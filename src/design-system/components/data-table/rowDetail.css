@@ -31,6 +31,26 @@
   --ds-table-detail-avatar: calc(var(--ds-avatar-size-sm) + var(--ds-space-3));
 }
 
+/* Where the row header's text starts, from the table's edge. */
+.ds-data-table[data-row-details] {
+  --ds-table-detail-start: calc(
+    var(--ds-table-detail-gutter)
+    + var(--ds-table-detail-lead)
+    + var(--ds-table-detail-avatar)
+    + var(--ds-table-cell-padding-inline)
+  );
+}
+
+/*
+ * A table that scrolls sideways keeps a detail's words in view: they stay
+ * under the row header's text (pinned, like the row header) and wrap within
+ * the width the reader sees, not the table's. The region is measured as a
+ * container only where the table takes details.
+ */
+.ds-data-table[data-row-details] .ds-data-table__scroll-region {
+  container-type: inline-size;
+}
+
 /* The record and its detail read as one: the divider goes under the detail. */
 .ds-data-table tbody > tr[data-has-detail] > * {
   border-bottom: 0;
@@ -39,13 +59,13 @@
 .ds-data-table tbody > tr.ds-data-table__detail-row > td.ds-data-table__detail {
   height: auto;
   padding-block: var(--ds-space-2);
-  padding-inline: calc(
-      var(--ds-table-detail-gutter)
-      + var(--ds-table-detail-lead)
-      + var(--ds-table-detail-avatar)
-      + var(--ds-table-cell-padding-inline)
-    )
-    var(--ds-table-cell-padding-inline);
+  padding-inline: var(--ds-table-detail-start) var(--ds-table-cell-padding-inline);
+}
+
+.ds-data-table tbody > tr.ds-data-table__detail-row .ds-data-table__detail-content {
+  position: sticky;
+  left: var(--ds-table-detail-start);
+  max-width: calc(100cqi - var(--ds-table-detail-start) - var(--ds-table-cell-padding-inline));
 }
 
 .ds-data-table__detail[data-detail-tone='neutral'] {

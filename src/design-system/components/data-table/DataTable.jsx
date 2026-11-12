@@ -231,6 +231,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       data-has-selection={showSelection || undefined}
       data-reserve-selection={gutter === 'reserve' || undefined}
       data-mobile-status={(roles && cardStatus !== 'corner' && cardStatus) || undefined}
+      data-row-details={typeof getRowDetail === 'function' || undefined}
       data-row-header-avatar={normalizedColumns.some((column) => column.rowHeader && column.leadingAvatar) || undefined}
       data-embedded={embedded || undefined}
       data-max-height={tableMaxHeight}

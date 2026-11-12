@@ -26,8 +26,10 @@ whose views are the page's own tabs, go in the top strip of the table card:
 ## The six rules
 
 1. **One heading.** `PageHeader` carries the title and the number of records
-   (`count`). There is no second heading above the table and no "Showing X of Y";
-   the table's footer says "N total" and which page.
+   (`count`) — or, on a page whose views are tabs, the tab of the list carries
+   it (E-Docs' "Sent Documents 6"), so the title stays the same on every tab.
+   There is no second heading above the table and no "Showing X of Y"; the
+   table's footer says "N total" and which page.
 2. **One row of controls.** `ListToolbar placement="page"` sits above the table
    card: a scope that is its own page on the left (`lead`, a `TabNav`), then the
    segments; the search, the switch, Filters and any action on the list's

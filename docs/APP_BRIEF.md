@@ -300,12 +300,15 @@ too, go as JPEGs at most 2400 px a side.
 ### Unfinished applications workspace
 
 `/company/drivers/unfinished` (*Unfinished applications*) lists every
-application started and not submitted, by either side, with **+ Start an
-application** first. A call to make, not an ATS record: it stays out of the
-pipeline, reads `listApplicationDrafts` alone (one document, one row), and rows
-never carry answers (`toCompanySummary`). A search and counted filters sit above
-it; a row gives its step, status, last activity and days left
-(`unfinishedWorklist.js`), as a card on a phone. **Copy link** makes and copies
+application started and not submitted, by either side; **Start an application**
+is its header's primary action, beside Refresh. A call to make, not an ATS
+record: it stays out of the pipeline, reads `listApplicationDrafts` alone (one
+document, one row), and rows never carry answers (`toCompanySummary`). Counted
+filters and a search sit on a row above it; a row gives who it is (email, the
+phone to call), its step, status (who prepared it, when its link went), last
+activity (under the status where the list is narrow) and days left
+(`unfinishedWorklist.js`), its actions in fixed places, as a card on a phone.
+**Copy link** makes and copies
 a link, **New link** replaces one sent, **Email link** has the server email it to
 the row's own address instead (a row without one says so); on answers the driver owns, its opener
 must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
@@ -333,11 +336,19 @@ documents, assignment. Leads come by Add lead, CSV / spreadsheet import, the
 Facebook Lead Ads webhook, or a referral quick form. **Leads** is one page with
 three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segments
 are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
-Process, Interested and Declined (`Declined`, `Rejected`). Assign (admins) is on
-All and Unassigned, the Assigned to filter on All and Applications, the Assigned
-to me switch on Applications; the lists' column reads Assignee (no wider column fits at 1440px). **Add lead** (any staff member) assigns a recruiter's lead to them
+Process, Interested and Declined (`Declined`, `Rejected`), pills at the top of the
+table card under the tabs. Assign (admins) is on All and Unassigned, always in the
+toolbar row and unavailable until a lead is ticked; the Assigned to filter is on
+All and Applications, the Assigned to me switch on Applications. Applications and
+every Leads tab show the same columns at the same widths (initials, Driver with the
+number to call under the name, Status, Freight · State, Applied or Added, Last call,
+Assignee), so moving between tabs moves no column. <!-- C2: lead adds … (the reserved selection gutter) --> On a phone each
+driver is a card, All's and Unassigned's led by their checkboxes under "Select all"
+and "Sort by". **Add lead** (any staff member) assigns a recruiter's lead to them
 (Д13; an admin's stays unassigned) and opens it in the dossier on the person's
-list; **Import leads** (admins, `importLeads`) returns there. **Driver referral links**
+list; **Import leads** (admins, `importLeads`) returns there. Both link back to the
+person's list ("← Leads") above their title; the import card has no close of its
+own. **Driver referral links**
 (Referral Links page: any staff member makes one; admins see all, others
 theirs; deactivate only; `referral_links`, team-only). `/apply/<slug>?ref=`
 offers, in the intake chooser's place, the quick form (names, phone, email,
@@ -473,13 +484,14 @@ the newest 100 requests live, older on request; past that, its numbers are serve
 counts and a live list holds those needing attention (`firestore.indexes.json`): an
 unsigned document (`sent`, or the older `opened`) whose send failed, or a failed seal; a
 signed or voided one leaves by itself, and its details keep the old error. Each
-Overview number opens its list; a Needs attention card opens the document: its cause in
+Overview number opens its list; a Needs attention row's **Review** opens the document: its cause in
 plain words (`deliveryFailureCause.js`) and, while `sent`, **Fix recipient and resend**
 (inline: Correct's write for the recipient alone, on the current fields and title;
 refused if it would resend nothing while a send stays failed), **Resend** (Remind) and
 **Void** (records `voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…`
 form is never resent; never Delete). Only admins see a template's Delete; the forms tab
-is *After-application forms* (`?view=forms`).
+is *After-application forms* (`?view=forms`). The Sent Documents tab carries a count on
+every tab: on Sent what its search and filters list, elsewhere every sent document.
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -590,7 +602,7 @@ an unsaved campaign; its draft is created by the first save (or the save before
 Launch), so leaving without saving writes nothing. A sent or live campaign has
 one report (its card's Details): the recipient log with each failure's reason and
 one *Retry failed*. Campaigns lists the newest 50 drafts and campaigns
-(more on request) and every live one (Total Outreach: a server sum once
+(more on request) and every live one (Total outreach: a server sum once
 incomplete). A draft launches once: the editor saves it (a failed
 save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
 refuses a second launch from another tab or person. The batch that writes the
@@ -1710,6 +1722,18 @@ never know what a driver, lead or campaign is; feature folders own content,
 actions and domain-to-visual mapping; hooks and services own data, state and
 business logic; `src/app` owns routing and composition.
 
+**The C2 look (owner-approved for the company screens, 2026-11).** Primary
+buttons, toggles and selected states are the brand navy (the tokens are
+app-wide); links, the focus ring and the company sidebar and top bar stay blue.
+A company page is one centred canvas, 1200px of content: an eyebrow naming its
+section (none on the Dashboard), a 30px title with its actions on its line (a line of their own when they
+do not fit; on a phone a full-width row after the description, or a bar pinned to
+the bottom on the Add lead and Company profile edit forms, with toasts above it),
+16px-round cards and initials discs for people. Up to 1180px wide Settings opens
+its list of sections as a page of its own; wider, a rail sits beside the open
+section. Add person and Create an API key rise from the bottom of a phone screen.
+<!-- C2: lead adds … (settings menu and rail) -->
+
 Reuse approved components and semantic `--ds-*` tokens. Do not add a local
 button, modal, form control, table, status treatment, arbitrary color or
 unsupported font size unless the roadmap records the gap and the code documents
@@ -1724,8 +1748,11 @@ focusable horizontal-scroll region, sticky header, first column pinned
 per-row form controls worked one record at a time — the SMS recruiter-assignment
 matrix — becomes one card per row under 768px
 (`data-mobile-presentation="cards"`), the same elements at every width, as does
-a `DataTable` of such rows (`mobilePresentation="cards"`). Source and guards:
-`src/design-system/components/data-table/README.md`.
+a `DataTable` of such rows (`mobilePresentation="cards"`). Its columns may state a
+`mobileRole`, which lays each card out as one record (avatar or icon, title, status
+in the corner, short facts inline, actions across the card), and it may carry a
+selection: each card led by its checkbox under a "Select all" and "Sort by" strip.
+<!-- C2: lead adds … (DataTable/Avatar) --> Source and guards: `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
 dialog goes through `Modal` and takes its size and shape from the chrome

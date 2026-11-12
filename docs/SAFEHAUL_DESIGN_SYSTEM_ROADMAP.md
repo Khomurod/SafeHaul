@@ -111,13 +111,17 @@ The reverse directions are prohibited — including any `@shared` import inside
   colour (`--ds-color-content-inverse` is a separate white token). Headers that
   moved to the app surface while those roles were missing (`PEVRequestModal`,
   `VOEPreviewModal`, `VerificationPortal`) are correct and need no change.
-- **Brand colours are named.** `--ds-color-brand-primary` (#004C68) and
-  `--ds-color-brand-accent` (#0BE2A4) alias the primitives
-  `--ds-color-brand-deep` and `--ds-color-brand-mint`; with
-  `--ds-color-brand-mint-gradient-start` and `-end` they are the four brand
-  values, and every literal copy is compared by a test (§7). The accent is a
-  foreground on the inverse surface only (about 1.6:1 on a light one). The
-  gradient start sits one unit off `-mint` on purpose: the artwork as authored.
+- **Brand colours are named; the navy is the action colour (§6).**
+  `--ds-color-brand-primary` (#004C68) and `--ds-color-brand-accent` (#0BE2A4)
+  alias `-deep` and `-mint`, with `-mint-gradient-start`/`-end` the mark's four
+  values, each copy compared by a test (§7). Actions are the navy (hover
+  `-deep-strong`), selection its `-deep-tint`, steps outside the mark; links, the
+  focus ring and the frame (`--ds-color-navigation-accent`) stay blue. The
+  accent is for inverse surfaces; the gradient start is off `-mint` on purpose.
+- **A company page is `PageContainer width="standard"` under a `PageHeader`**
+  (`layouts/page/README.md`; editors keep `wide`), one container deep: a table
+  is its card, its note the last row (`Notice frame="flush"`), fields a
+  `FormSection` with its Save in its `footer`, a person `Avatar tone="brand"`.
 - **The Tailwind theme is strict.** Colours, type sizes, radii, shadows and
   stacking layers are the `--ds-*` roles only (plus `transparent`, `current`,
   `inherit`, `none`, `auto`), so a Tailwind default such as `bg-white`,
@@ -138,8 +142,8 @@ The reverse directions are prohibited — including any `@shared` import inside
   screen (`StepNavigation`, `Step9_Consent`, `EmploymentCoveragePrompt`,
   `UploadField`, `LoginScreen`, `VerificationPortal`, `SignatureSheet`,
   `ReviewChangePortal`, `ApplyIdentityCheckScreen`). A thing that is not a
-  control must not read a control height (`--ds-metric-icon-size`,
-  `--ds-table-selection-control-size`). Side-by-side `FormField`s stay level.
+  control must not read a control height
+  (`--ds-table-selection-control-size`). Side-by-side `FormField`s stay level.
 - **`xs` is 24px — the WCAG 2.2 SC 2.5.8 minimum — and icon-only**:
   `IconButton size="xs"` reaches it, `Button` refuses it, `shape="round"` cuts a
   disc for a control on another element's corner. On the PDF overlays a pointer
@@ -174,13 +178,13 @@ The reverse directions are prohibited — including any `@shared` import inside
   binding (`<Glyph />`, `<item.icon />`). Never name a local binding `Icon` — it
   shadows the imported one.
 - **A container sizes the glyph it holds, and owns the gap beside it.**
-  `Button`, `IconButton`, `Tabs`, `Chip`, `SegmentedControl`, `FileInput` and
-  `StatusMedallion` size any contained `svg` (`size={24}` in a button does
-  nothing, deliberately; `Icon.css` sizes through a zero-specificity
-  `:where()`), so a glyph inside one states no size. The gap is `--ds-space-2`
-  on `.ds-button`, inherited by `.ds-button__content`. `StatusMedallion` holds
-  24 at `md` and 32 at `lg`; `Badge` sizes only a glyph passed via its `icon`
-  prop (§5).
+  `Button`, `IconButton`, `Tabs`, `Chip`, `SegmentedControl`, `FileInput`,
+  `StatusMedallion` and `MetricCard` size any contained `svg` (`size={24}` in a
+  button does nothing, deliberately; `Icon.css` sizes through a
+  zero-specificity `:where()`), so a glyph inside one states no size. The gap
+  is `--ds-space-2` on `.ds-button`, inherited by `.ds-button__content`.
+  `StatusMedallion` holds 24 at `md` and 32 at `lg`, `MetricCard` 16; `Badge`
+  sizes only a glyph passed via its `icon` prop (§5).
 - **An off-scale size means a missing container, not a short scale.** Snap a
   1–4px delta to the step. A glyph in a **fixed** frame with real geometry (a
   128px logo frame, a 12px PDF handle) takes its size from the frame, with the
@@ -255,12 +259,10 @@ The reverse directions are prohibited — including any `@shared` import inside
   a labelled, focusable horizontal-scroll region, a sticky header, the first
   column pinned (`DataTable` by default — `pinFirstColumn={false}` opts out, and
   with a selection the checkbox and identifying column pin together). A list or
-  matrix of per-row controls worked one record at a time becomes one card per
-  row under 768px: `mobilePresentation="cards"` (labels from each column's
-  `mobileLabel` or header, the table roles stated explicitly because
-  `display: block` drops them; `mobileCards.css`). Source:
-  `components/data-table/README.md` ("Tables on phones"), `pinnedColumn.css`,
-  the `DataTable/Cards on mobile` story.
+  matrix worked one record at a time is one card per row under 768px
+  (`mobilePresentation="cards"`), laid out by each column's `mobileRole` or each
+  value under its `mobileLabel` or header; with checkboxes each card leads with
+  its own, under "Select all" and "Sort by". See `components/data-table/README.md`. <!-- C2: lead adds the DataTable/Avatar changes … -->
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
@@ -270,21 +272,17 @@ The reverse directions are prohibited — including any `@shared` import inside
   Every column has a width bucket; the import preview, whose rows are compared,
   scrolls on a phone.
 - **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
-  one heading with the count, one `ListToolbar` row, one row per record in a
-  `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
-  Example: the `Patterns/List page` stories; Applications and Leads → Assigned
-  to me follow all six; Leads → All and Unassigned scroll on a phone for their
-  bulk checkboxes, and Unfinished applications and E-Docs Sent Documents (its
-  count in the workspace heading) do not sort from headers. Short lists with no
-  toolbar or sorting take the heading, the rows and the cards: Referral Links
-  and Settings → API Keys (row actions in a last column; every settings
-  section's `PageHeader` is the page's one `<h1>`), and Super Admin's Website
-  Leads, Blog Posts and Features (`PageHeader level={2}`, the masthead holding
-  the `<h1>`). AI Logs and Environment & Integrations have the toolbar, rows and
-  cards; no count, as their consoles show totals. Temporary exception:
-  `ListToolbar` draws its segments as its own buttons until `SegmentedControl`
-  has an underlined, scrolling appearance with counts. Tablet widths, which the
-  visual contract does not measure, are held by `e2e/list-page-tablet.spec.cjs`.
+  Applications and the three Leads tabs follow all six (Leads: its tabs a
+  segmented `TabNav` in the row's `lead`, the status pills in the table card's
+  strip, on All and Unassigned an Assign kept in the row, unavailable until a
+  lead is ticked). <!-- C2: lead adds the reserved selection gutter … --> Unfinished applications and E-Docs
+  Sent Documents (counted in its tab) do not sort from headers. Short lists with
+  no toolbar or sorting take the heading, the rows and the cards: Referral
+  Links, Settings → API Keys (every settings section's `PageHeader` is the
+  page's one `<h1>`) and Super Admin's Website Leads, Blog Posts and Features
+  (`PageHeader level={2}`). AI Logs and Environment & Integrations keep the card
+  strip, no count. Temporary exception: `ListToolbar`'s segments are its own
+  `aria-pressed` buttons, not `SegmentedControl`. Tablets: `e2e/list-page-tablet.spec.cjs`.
 - **A page that saves on a button shows `SaveBar` only while it is dirty**
   (`patterns/save-bar/README.md`); `useUnsavedChanges` guards reload, and the
   company shell's one "Leave without saving?" covers its menu and top bar.
@@ -379,10 +377,11 @@ instead.
 
 | Gap | Status | Call sites, and why the nearest primitive does not fit |
 |---|---|---|
-| **Tinted icon tile** | Open — the largest un-owned shape | A rounded **square** carrying a brand or domain glyph on a brand or status tint: about two dozen sites, 32–80px, e.g. `ReviewChangePortal` (a shield on `bg-ds-action-primary`), `PaywallMessage`, `BrandingSection` (frame-sized glyph), `PersonalLinkCard`. Every rule misses it because each uses correct roles. A status-tinted **circle** around a glyph is `StatusMedallion` today — migrate those. It is also why `Notice`'s `accent`/`neutral` glyph defaults stay recorded guesses |
+| **Tinted icon tile** | Open — the largest un-owned shape | A rounded **square** carrying a brand or domain glyph on a brand or status tint: about two dozen sites, 32–80px, e.g. `ReviewChangePortal` (a shield on `bg-ds-action-primary`), `PaywallMessage`, `BrandingSection` (frame-sized glyph), `SettingsMenu`, the E-Docs attention rows and template cards. Every rule misses it because each uses correct roles. A status-tinted **circle** around a glyph is `StatusMedallion` today — migrate those. It is also why `Notice`'s `accent`/`neutral` glyph defaults stay recorded guesses |
 | **Combobox / Listbox** | Open | `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox (`role="combobox"` with `aria-expanded`, `aria-controls`, `aria-activedescendant` over a `role="listbox"`), correctly; nothing owns a text input that filters a list. Worth promoting |
-| **Step indicator (read, not operated)** | Open | `BulkUploadLayout.jsx` (`<li>`) and `SendTemplateWizard.jsx` (`<span>`) carry `aria-current="step"` on a progress display a person reads. `SelectableCard` is for picking and `SectionNavigation` is a navigation rail; `hand-rolled-current` is scoped to `<button>`, so it leaves them alone |
+| **Step indicator (read, not operated)** | Open | `BulkUploadSteps.jsx` (`<li>`: Import leads' header, the upload dialog) and `SendTemplateWizard.jsx` (`<span>`) carry `aria-current="step"` on a progress display a person reads; Settings' `StepMarker.jsx` and Referral Links' numbered discs wait on it too. `SelectableCard` is for picking and `SectionNavigation` is a navigation rail; `hand-rolled-current` is scoped to `<button>`, so it leaves them alone |
 | **"Badge does not size its glyph"** | Open | `Badge` sizes a glyph passed through its `icon` prop but has no rule for one passed as a child, so `EnvelopeHistory` keeps `size="xs"`; `DataTable` and `SectionNavigation` carry no `> svg` rule either |
+| **Dialog header and footer** | Open | `AddPersonDialog` and `CreateApiKeyDialog` hand-draw the same header and footer band; promote once a third dialog has them |
 | **Notice as a named landmark** | Open (one consumer) | `StatusScreens` (ESIGN consent) is a `<section aria-labelledby>` region a reader can jump back to; `Notice` cannot be a landmark, and one caller is not enough to design a prop around |
 | **Toast promotion** | Open — a missing home, not a missing shape | `ToastProvider` (`src/shared/components/feedback/ToastProvider.jsx`) is the single owner and every consumer uses it, but it sits outside `design-system/` with no story, baseline or catalog entry. Promoting it is a move plus a catalog entry |
 | **Bottom app bar** | Not being built | `EditorMobileBar` (exception above); one consumer |
@@ -405,13 +404,13 @@ are fully approved, §7 is permanent.
 
 | Settled ruling that still binds | What it requires |
 |---|---|
-| Brand and action colours approved (owner, 2026-09-04) | The palette as it stands — the blue-led action colours beside the navy (`#004C68`) and mint (`#0BE2A4`) brand assets. No recolouring is pending |
+| Brand-led action colour (owner, C2 for the company screens, 2026-11) | Primary buttons, selected states and toggles use the brand navy (`--ds-color-action-primary` → `brand-deep`; what is selected sits on its tint), and the roles are app-wide, so public pages and Super Admin take it too. Links and the focus ring stay blue; the company frame stays blue through `--ds-color-navigation-accent`. The mark is unchanged |
 | Inter is served from this repository | `src/design-system/fonts/` holds the two variable faces (SIL OFL 1.1) and the parts the app serves, cut from them by script (`fonts/README.md`, `tests/typeface.test.js`); no stylesheet may `@import` a remote font (`test-ci-plan.mjs` K3) |
 | Visual baselines live in this repository | `playwright.config.cjs` sets `snapshotPathTemplate` so each sits beside its spec; a baseline change is reviewed and approved with its pull request. No external service |
 | Unified Driver Database bulk actions removed | A control that does nothing is not shown; `UnifiedDriverList.bulkSafety.test.jsx` pins the absence. A real action returns with its selection when a recruiter asks — "Export" first, "Archive" only once an archived state is defined (Archive is not delete). `LeadAssignmentModal` is single-company and campaigns own bulk SMS with their own consent rules; both bind the first real action |
 | Employers sign the verification portal by drawing or typing | `SignatureInput` (`shared/components/signature`) wraps the pad in a `SegmentedControl` Draw \| Type choice, Draw by default; a typed name is stored as `TEXT_SIGNATURE:<name>` and never rasterised; the method travels with the response and the server refuses a mislabelled one; the DQ-file PDF prints a typed name in an oblique face under "(typed)"; switching method clears the mark |
 | Editable matrices and tables on phones | The §3 table rule; the SMS recruiter matrix is one card per row under 768px and a table with its name column pinned above it |
-| Work lists on phones (2026-10-08) | `DataTable` `mobilePresentation="cards"`, for rows worked one at a time and never compared: the unfinished-applications list first (`UnfinishedWorklistTable.jsx`, reviewed at 412, 820 and 1440), then the candidate lists, except Company Leads with its checkboxes, and E-Docs Sent Documents. Each cell's label is its column's `mobileLabel`, else its header; `''` gives an actions cell the card's width; no `selection` |
+| Work lists on phones (2026-10-08) | `DataTable` `mobilePresentation="cards"`, laid out by `mobileRole`, for rows worked one at a time and never compared: the candidate lists (Company Leads with its checkboxes, under "Select all" and "Sort by"), Unfinished applications, Referral Links, E-Docs Sent Documents and the settings lists. A cell's label is its column's `mobileLabel` (without roles, else its header); `''` gives an actions cell the card's width |
 | AI Integrations → Logs (`AiLogsPanel.jsx`) | A list page in its tab: `ListToolbar` (feature segments, "Errors only", search, Filters for provider and dates), `DataTable embedded` at `density="compact"`, cards on a phone; full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
 | Guided tour removed (owner) | A reintroduced tour must first answer the dialog question — a blocking backdrop needs `role="dialog"`, a focus move and Escape — starting from a named close control and step progress announced in text |
 | Facebook Integrations flag stays off (owner) | The visible "not production-ready" notice stays with it; `scripts/audit-facebook-lead-tenancy.mjs` is a read-only report |
@@ -426,11 +425,11 @@ delete one without replacing the guarantee. All are blocking, and none may carry
 | Guard | What it refuses | CI job · pinned by |
 |---|---|---|
 | `src/design-system/tests/architecture.test.js` | An import from features, application context, Firebase or `shared` into `src/design-system`, in modules and stylesheets (every `@import` and `url()` is resolved); a story importing features, Firebase, context or domain services | `frontend-quality` |
-| `src/design-system/tests/tokens.test.js`, `src/design-system/tests/tokens.consumers.test.js` | A broken semantic token contract or a contrast pairing below AA (both directions); an unbridged Tailwind utility; a Tailwind default colour, type size, radius, shadow or layer that compiles (the theme is strict), or preflight's border colour moving; a control sizing itself in pixels; stacking layers out of order or without a utility; a removed hand-placed `isolate` (`PdfFieldWorkbench`'s page wrapper); a token nothing reads | `frontend-quality` |
+| `src/design-system/tests/tokens.test.js`, `src/design-system/tests/tokens.consumers.test.js` | A broken semantic token contract or a contrast pairing below AA (both directions); an unbridged Tailwind utility; a Tailwind default colour, type size, radius, shadow or layer that compiles (the theme is strict), or preflight's border colour moving; a control sizing itself in pixels; stacking layers out of order or without a utility; a removed hand-placed `isolate` (`PdfFieldWorkbench`'s page wrapper); a token nothing reads; the brand-led action colour or the page and table geometry moving | `frontend-quality` |
 | `src/design-system/contract.test.js`, `src/design-system/tests/productionFallbacks.test.jsx` | A prop check that does not throw outside a production build, or that throws in one (it reports once, to the console, and returns); a component that, after a reported misuse, crashes or hides content instead of drawing its default | `frontend-quality` |
 | `src/design-system/tests/stackingLayers.test.js` | A `<thead>` on `sticky` or above; the topbar, notifications panel and candidate toolbar layers are pinned individually | `frontend-quality` |
 | `no-alert` = `error` for `src/` outside test files (`eslint.config.js`) | A call to `alert`, `confirm` or `prompt`: bare, through `window` or `globalThis`, in brackets or inside a template literal. A disable comment does not hide one | `frontend-quality` · `scripts/test-lint-rules.mjs` N1–N4b, in `callable-contract` |
-| `src/tests/pageShell.test.js` — *the one class no guard could hold* — and `src/tests/brandAssets.test.jsx` | `index.html`'s `<body>` without exactly one background utility, `bg-ds-canvas`, on a declared role (`raw-palette-class` cannot hold it — a swap to another role passes — and the pixel lane cannot see it); a favicon or `theme-color` literal differing from the brand tokens, favicon paths or gradient geometry differing from the logo's, a hex in `Logo.jsx` or `SafeHaulLoader.jsx`; a raw value in `index.html` | `frontend-quality` |
+| `src/tests/pageShell.test.js` — *the one class no guard could hold* — and `src/tests/brandAssets.test.jsx` | `index.html`'s `<body>` without exactly one background utility, `bg-ds-canvas`, on a declared role (`raw-palette-class` cannot hold it — a swap to another role passes — and the pixel lane cannot see it); a favicon or `theme-color` literal differing from the brand tokens, favicon paths or gradient geometry differing from the logo's, a hex in `Logo.jsx` or `SafeHaulLoader.jsx`; an interface step (`-deep-strong`, `-deep-tint`) in the mark; a raw value in `index.html` | `frontend-quality` |
 | `VOEPreviewModal.export.test.jsx` | A `ds-*` class inside the exported §391.23 document, a missing token outside it, or a frozen `voe-*` value that differs from the Tailwind value it copies | `frontend-quality` |
 | `ds/no-raw-values` = `error` for `src/` outside tests (`scripts/eslint-rules/`) | An arbitrary colour, type size or layer in any syntax Tailwind compiles (`bg-[red]`, `text-[length:10px]`, `z-[calc(100)]`); a raw colour, numeric layer or off-scale size where a style names one | `frontend-quality` · `test-lint-rules.mjs` §O, in `callable-contract` |
 | `ds/native-table`, same scope, off in stories | A `<table>` in a file §5 does not approve, or one whose last class setter may lack `ds-native-table` | as above |
@@ -521,11 +520,11 @@ it does:
 
 | Family | Owned by |
 |---|---|
-| Dialog shell and chrome (`size` / `scroll` / `fill` / `mobile` / `placement` / `tone`); confirmation dialog | `patterns/modal` → `Modal`, `Modal.css`, `ConfirmDialog` |
+| Dialog shell and chrome (`size` / `scroll` / `fill` / `mobile`, `sheet` a bottom sheet under 640px / `placement` / `tone`); confirmation dialog | `patterns/modal` → `Modal`, `Modal.css`, `ConfirmDialog` |
 | Empty / error / loading state | `patterns/page-state` |
 | Stacking layers | `tokens/foundation.css` → `--ds-z-*`; entitlement in `tests/stackingLayers.test.js` |
 | Icons | `icons/` (`Icon` + glyph tokens); one recorded exception, `VOEDocument.jsx` (§5) |
-| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5) |
+| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5) <!-- C2: lead adds the DataTable/Avatar changes … --> |
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
 | Navigation and external links; tab strip; tab strip of links (`TabNav`, views with their own address: the Leads tabs; **Needs review**: no 1440/412 or visual-contract review yet); single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
 | Interactive pill / chip; person or organisation disc; selectable record card (also the rows of one card, `frame="row"`: the settings menu) | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
@@ -533,6 +532,7 @@ it does:
 | Section rail (page and step; an item's description line is drawn beside its button, so its visible text stays its name — WCAG 2.5.3); status notice / callout | `components/section-navigation`; `components/notice` |
 | Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email and Automated texts; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
+| C2: page canvas and header; form section layouts, flush notice, radio cards; KPI tile; segmented tabs; list-page row; person discs (**Needs review**: pixel baselines and the visual-contract snapshot to re-record from CI) | `layouts/page`; `components/form`, `notice`, `card`, `tabs`, `avatar` (`brand`, `placeholder`, `navigation` tones); `patterns/list-toolbar` |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
 and loading shapes (the states are done, `patterns/page-state`) — `Skeleton` serves the
