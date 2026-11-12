@@ -157,14 +157,23 @@ describe('CompanySidebar', () => {
 
     it('turns the folded group blue while one of its items is current, and no other', () => {
         const { unmount } = renderSidebar({ path: '/company/drivers/leads/my', expanded: false });
-        // Folded, the group is its glyph alone: the one button that opens a group.
-        const glyph = () => screen.getByRole('navigation', { name: 'Company sections' })
-            .querySelector('button[aria-expanded]').querySelector('svg');
+        const glyph = () => screen.getByRole('button', { name: 'Driver Applications & Leads' }).querySelector('svg');
         expect(glyph()).toHaveClass('text-ds-navigation-accent');
         unmount();
 
         renderSidebar({ path: '/company/settings', expanded: false });
         expect(glyph()).toHaveClass('text-ds-content-muted');
+    });
+
+    it('names the folded group by its label, and opening it unfolds the menu', async () => {
+        const { container, onExpandedChange } = renderSidebar({ path: '/company/dashboard', expanded: false });
+        const group = screen.getByRole('button', { name: 'Driver Applications & Leads' });
+        expect(group).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(group);
+        expect(onExpandedChange).toHaveBeenCalledWith(true);
+        // Folded, every control still has a name.
+        expect((await axe(container)).violations).toEqual([]);
     });
 
     it('has no structural accessibility violations', async () => {

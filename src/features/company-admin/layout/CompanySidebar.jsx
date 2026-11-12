@@ -290,6 +290,8 @@ export const CompanySidebar = ({
                             ${!isExpanded ? 'justify-center' : ''}
                         `}
                   aria-expanded={isExpanded ? isGroupActive : false}
+                  // Folded, the glyph is all it shows: its name is the group's.
+                  aria-label={isExpanded ? undefined : group.label}
                 >
                   {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
                   {/* The group heads its items in the text colour and only the
