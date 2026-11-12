@@ -33,7 +33,13 @@
   border-inline-end: 1px solid var(--ds-color-border);
 }
 
+/*
+ * Positioned, so text hidden for assistive technology inside a tab (the
+ * dossier's "— incomplete") is placed within the tab: otherwise it escapes a
+ * strip that scrolls sideways and widens whatever holds the strip.
+ */
 .ds-tab {
+  position: relative;
   display: inline-flex;
   /*
    * The shared control height. A tab strip is a row of controls, and one that

@@ -349,3 +349,15 @@ describe('a segmented tray too wide for its row', () => {
     expect(screen.getByRole('tablist')).not.toHaveAttribute('data-wrapped');
   });
 });
+
+describe('Tabs.css', () => {
+  it('positions every tab, so text hidden inside it stays in a strip that scrolls sideways', async () => {
+    const { readFileSync } = await import('node:fs');
+    const path = await import('node:path');
+    const css = readFileSync(path.join(__dirname, 'Tabs.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = css.match(/^\.ds-tab \{[^}]*\}/m)?.[0] ?? '';
+    // The dossier's "— incomplete" is absolutely positioned; unpositioned tabs
+    // let it escape the phone strip and widen the dialog (driver-dossier.spec).
+    expect(rule).toContain('position: relative');
+  });
+});

@@ -349,6 +349,10 @@ test.describe('E-Doc Documents workspace', () => {
   });
 
   test('has no serious/critical or contrast violations on any view @a11y', async ({ page }) => {
+    // The chosen tab fades to its dark fill; with motion reduced it is there at
+    // once, so axe reads the colours a person reads rather than a frame of the
+    // fade (white text on a still-light fill).
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await openDocuments(page);
 
     const check = async () => {

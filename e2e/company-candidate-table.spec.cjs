@@ -247,6 +247,9 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
     // Each card leads with its own checkbox, 44px to press, which never opens the dossier.
     const lena = page.getByRole('checkbox', { name: 'Select Lena Leadsen' });
+    // In view first: ticking scrolls a box below the fold into view, and a
+    // scroll is not a card moving.
+    await lena.scrollIntoViewIfNeeded();
     const box = await lena.locator('xpath=ancestor::*[self::td or self::th][1]').boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44);
     expect(box.height).toBeGreaterThanOrEqual(44);
