@@ -164,12 +164,21 @@ describe('EnvelopeHistory — pagination', () => {
     const manyDocs = (count) => Array.from({ length: count }, (_, index) =>
         makeDoc({ id: `req-${index}`, title: `Doc ${index}`, status: 'sent' }));
 
-    it('shows no pagination for 25 or fewer documents', () => {
+    it('shows 25 or fewer documents on one page, its footer saying so', () => {
         renderHistory();
         emit(manyDocs(25));
-        expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
         // Header row plus every document.
         expect(screen.getAllByRole('row')).toHaveLength(26);
+        expect(screen.getByText('25 total')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 1');
+        expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    });
+
+    it('has no footer while there is nothing to list', () => {
+        renderHistory();
+        emit([]);
+        expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
     });
 
     it('pages beyond 25 documents, saying how many there are and which page shows', () => {
@@ -200,7 +209,7 @@ describe('EnvelopeHistory — pagination', () => {
         // the table must fall back to a page that still exists.
         emit(manyDocs(3));
         expect(screen.getAllByRole('row')).toHaveLength(4);
-        expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 1');
     });
 
     it('does not resurrect a stale page after the list shrinks and grows again', () => {

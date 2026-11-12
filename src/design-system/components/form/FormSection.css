@@ -44,6 +44,19 @@
   --ds-form-section-head-gap: 0;
 }
 
+/*
+ * With no inset a table or a list meets the card's edge, so the card clips it
+ * to its rounded corners: a row's square background would otherwise cover the
+ * curve of the border. `clip`, not `hidden`, so nothing inside gains a scroll
+ * container of its own.
+ */
+.ds-form-section[data-inset='none'] > .ds-form-section__card,
+.ds-form-section[data-inset='none'] > .ds-form-section__columns > .ds-form-section__card,
+.ds-form-section__card[data-inset='none'] {
+  overflow: hidden;
+  overflow: clip;
+}
+
 /* ---- Heading, shared by every layout ---- */
 
 .ds-form-section__heading {

@@ -126,7 +126,7 @@ export const CompanyTopbar = ({
                 <div className="hidden md:flex">
                     <ButtonLink href={PROFILE_PATH} variant="ghost" onClick={openProfile}>
                         <span className="sr-only">Your profile: </span>
-                        <span className="flex flex-col items-end">
+                        <span className="flex flex-col items-start">
                             <span className="text-ds-body font-semibold text-ds-content">
                                 {displayName}
                             </span>{' '}

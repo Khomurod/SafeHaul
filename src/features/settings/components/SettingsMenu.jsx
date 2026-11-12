@@ -4,12 +4,11 @@ import { PageHeader, Stack } from '@/design-system/layouts';
 import { Icon, ChevronRight } from '@design-system/icons';
 
 /**
- * Settings on a phone or a tablet: every section, grouped, each a way in with
- * what it holds (`item.description`). Up to 1279px there is no room for the
- * rail beside a section, so this list is a page of its own; a wider screen
- * never shows it. Each group is one card, its sections rows divided by a line
- * (`SelectableCard frame="row"`); each row stays a button named by its label
- * and its line.
+ * Settings' own page, at every width: every section, grouped, each a way in
+ * with what it holds (`item.description`). From 1280px an open section also
+ * has the rail beside it. Each group is one card, its sections rows divided by
+ * a line (`SelectableCard frame="row"`); each row stays a button named by its
+ * label and its line.
  */
 export function SettingsMenu({ groups, onSelect }) {
     return (

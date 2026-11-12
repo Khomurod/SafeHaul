@@ -49,6 +49,9 @@ function useWorklistLayout() {
     return { boxRef, ...layout, shape: cards ? 'cards' : layout.shape };
 }
 
+/** One page, so Previous and Next have nowhere to go. */
+const noPage = () => {};
+
 /**
  * Every application that has been started and not submitted, in one list.
  *
@@ -115,9 +118,10 @@ export function UnfinishedWorklistTable({
             key: 'actions',
             header: 'Actions',
             align: 'end',
-            // What the others leave: the three places of the actions need 322px,
-            // wider than any of the table's widths.
-            width: 'auto',
+            // The three places of the actions (`3xl`) beside their own Last
+            // activity column, which then takes what the others leave; folded,
+            // what the others leave.
+            width: shape === 'full' ? '3xl' : 'auto',
             render: (entry) => (
                 <RowActions
                     entry={entry}
@@ -199,8 +203,9 @@ export function UnfinishedWorklistTable({
             {
                 key: 'status',
                 header: 'Status',
-                // At least `lg`: a `Badge` does not wrap, and "Driver is filling it
-                // in" is the widest this column holds.
+                // `lg`: a `Badge` does not wrap, and "Driver is filling it in" is
+                // the widest this column holds; "Prepared by Rae Recruiter" fits
+                // on one line beside the tight padding.
                 width: statusWidth,
                 render: (entry) => (
                     <CellTop>
@@ -216,13 +221,26 @@ export function UnfinishedWorklistTable({
             ...(shape === 'full' ? [{
                 key: 'activity',
                 header: 'Last activity',
-                // `lg`: "Yesterday, 4:20 PM" on one line.
-                width: 'lg',
+                // What the others leave, at least "Yesterday, 4:20 PM" on one
+                // line (`worklistLayoutOf`).
+                width: 'auto',
                 render: (entry) => <CellTop>{activity(entry, false)}</CellTop>,
             }] : []),
             actions,
         ];
     }, [hasCustomQuestions, linkState, now, onDelete, onEdit, onOpen, progressWidth, retentionDays, shape, statusWidth, viewer]);
+
+    // The list page's footer (C2): how many rows the list holds, on its one
+    // page. The list is never paged (it stops at 200 rows and says so above).
+    const pagination = useMemo(() => (rows.length > 0 ? {
+        label: `${rows.length.toLocaleString('en-US')} total`,
+        currentPage: 1,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+        onPrev: noPage,
+        onNext: noPage,
+    } : undefined), [rows.length]);
 
     return (
         // The box the layout is measured from: as wide as the table's card.
@@ -230,6 +248,9 @@ export function UnfinishedWorklistTable({
             <DataTable
                 ariaLabel="Unfinished applications"
                 density="comfortable"
+                // 12px between columns, as C2 draws this list: every column on one
+                // line at 1440px.
+                cellPadding="tight"
                 mobilePresentation="cards"
                 embedded
                 data={rows}
@@ -238,6 +259,7 @@ export function UnfinishedWorklistTable({
                 isLoading={loading}
                 loadingLabel="Loading unfinished applications"
                 empty={empty}
+                pagination={pagination}
             />
         </div>
     );

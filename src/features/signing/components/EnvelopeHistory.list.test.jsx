@@ -85,7 +85,7 @@ describe('EnvelopeHistory — status presentation', () => {
         ['signed', 'Signed', 'success'],
         ['sent', 'Awaiting signature', 'info'],
         ['opened', 'Awaiting signature', 'info'],
-        ['voided', 'Voided', 'danger'],
+        ['voided', 'Voided', 'neutral'],
         ['pending_seal', 'Sealing', 'warning'],
         ['error_sealing', 'Seal failed', 'danger'],
         ['processing', 'Processing', 'warning'],

@@ -85,6 +85,9 @@ const KEYS_BY_ORIENTATION = {
  * @param {boolean} [props.fitted] Tabs share the strip's width equally. For a
  *   strip that spans a narrow panel — a notification popover — where tabs
  *   hugging their labels leaves a ragged gap.
+ * @param {boolean} [props.phoneIcons=true] `segmented` on a phone keeps each
+ *   tab's glyph, as C2 draws it. `false` for labels too long to share a
+ *   phone's half-row with one ("After-application forms").
  */
 export function TabList({
   ariaLabel,
@@ -95,6 +98,7 @@ export function TabList({
   orientation = 'horizontal',
   variant = 'underline',
   fitted = false,
+  phoneIcons = true,
   className = '',
   ...props
 }) {
@@ -161,6 +165,7 @@ export function TabList({
       data-variant={variant}
       data-fitted={fitted || undefined}
       data-phone-columns={segmented ? phoneColumnsFor(tabs.length) : undefined}
+      data-phone-icons={segmented && !phoneIcons ? 'hidden' : undefined}
       data-wrapped={segmented && trayWrapped ? 'true' : undefined}
     >
       {tabs.map((tab) => {

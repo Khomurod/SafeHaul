@@ -60,6 +60,17 @@ describe('FileInput', () => {
     expect(container.querySelector('.ds-file-input__control')).toHaveAttribute('data-disabled', 'true');
   });
 
+  it('draws a small picker only on the button, and refuses a size it cannot draw', () => {
+    const { container, rerender } = render(<FileInput label="Company logo" size="sm" onChange={() => {}} />);
+    expect(container.querySelector('.ds-file-input__control')).toHaveAttribute('data-size', 'sm');
+
+    rerender(<FileInput label="Company logo" onChange={() => {}} />);
+    expect(container.querySelector('.ds-file-input__control')).not.toHaveAttribute('data-size');
+
+    expect(() => render(<FileInput label="Logo" size="xl" onChange={() => {}} />)).toThrow(/Unsupported FileInput size/);
+    expect(() => render(<FileInput label="Logo" variant="dropzone" size="sm" onChange={() => {}} />)).toThrow(/for the dropzone variant/);
+  });
+
   it('has no accessibility violations', async () => {
     const { container } = render(
       <FileInput label="Driver licence" description="PDF or JPEG." onChange={vi.fn()} />,

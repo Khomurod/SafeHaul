@@ -249,19 +249,20 @@ describe('the filters', () => {
  */
 describe('the table layout', () => {
     it('folds Last activity under the status until the box holds every column', () => {
-        expect(worklistLayoutOf(1085)).toEqual({ shape: 'fold', progress: 'lg', status: 'xl' });
-        expect(worklistLayoutOf(1086)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
-        // A 1440px window, with no scrollbar taking room.
-        expect(worklistLayoutOf(1102)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
+        expect(worklistLayoutOf(1067)).toEqual({ shape: 'fold', progress: 'lg', status: 'lg' });
+        expect(worklistLayoutOf(1068)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
     });
 
-    it('widens How far they got first, then Status', () => {
-        expect(worklistLayoutOf(1118)).toEqual({ shape: 'full', progress: 'lg', status: 'lg' });
-        expect(worklistLayoutOf(1161)).toEqual({ shape: 'full', progress: 'lg', status: 'lg' });
-        expect(worklistLayoutOf(1162)).toEqual({ shape: 'full', progress: 'lg', status: 'xl' });
-        expect(worklistLayoutOf(941)).toEqual({ shape: 'fold', progress: 'md', status: 'lg' });
-        expect(worklistLayoutOf(942)).toEqual({ shape: 'fold', progress: 'lg', status: 'lg' });
-        expect(worklistLayoutOf(986)).toEqual({ shape: 'fold', progress: 'lg', status: 'xl' });
+    it('holds every column on one line at 1440px beside the menu, as C2 draws it', () => {
+        // A 1440px window, with no scrollbar taking room: a 1102px box.
+        expect(worklistLayoutOf(1102)).toEqual({ shape: 'full', progress: 'lg', status: 'lg' });
+        expect(worklistLayoutOf(1100)).toEqual({ shape: 'full', progress: 'lg', status: 'lg' });
+        expect(worklistLayoutOf(1099)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
+    });
+
+    it('widens How far they got when the folded table has room', () => {
+        expect(worklistLayoutOf(943)).toEqual({ shape: 'fold', progress: 'md', status: 'lg' });
+        expect(worklistLayoutOf(944)).toEqual({ shape: 'fold', progress: 'lg', status: 'lg' });
     });
 
     it('keeps the narrow widths where the table scrolls in its card', () => {
@@ -273,3 +274,4 @@ describe('the table layout', () => {
         expect(worklistLayoutOf(0, { foldByWindow: true })).toEqual({ shape: 'fold', progress: 'md', status: 'lg' });
     });
 });
+

@@ -91,11 +91,11 @@ describe('the list', () => {
         };
         try {
             // A wide box: the dates have their full columns.
-            expect(await columnsAt(776)).toEqual({ widths: ['auto', 'xl', 'lg', 'sm'], minWidth: 'none' });
+            expect(await columnsAt(776)).toEqual({ widths: ['auto', 'xl', 'lg', 'md'], minWidth: 'none' });
             // A laptop's 614px box: a step less each, and still no sideways scroll.
             expect(await columnsAt(616)).toEqual({ widths: ['auto', 'lg', 'md', 'sm'], minWidth: 'none' });
             // Narrower than that it scrolls, with the dates at full width again.
-            expect(await columnsAt(534)).toEqual({ widths: ['auto', 'xl', 'lg', 'sm'], minWidth: 'standard' });
+            expect(await columnsAt(534)).toEqual({ widths: ['auto', 'xl', 'lg', 'md'], minWidth: 'standard' });
         } finally {
             Element.prototype.getBoundingClientRect = original;
         }

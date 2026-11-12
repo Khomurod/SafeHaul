@@ -195,8 +195,8 @@ export function ReferralLinksTable({ links, counts, loading, error, onCopy, onDe
                 {
                     key: 'created',
                     header: 'Created',
-                    // `md`: "by Rae Recruiter" on one line.
-                    width: 'md',
+                    // `sm`: "by Rae Recruiter" on one line beside the tight padding.
+                    width: 'sm',
                     render: (link) => <Made link={link} dateClassName="text-ds-body" />,
                 },
             ] : [{
@@ -228,6 +228,9 @@ export function ReferralLinksTable({ links, counts, loading, error, onCopy, onDe
         <DataTable
             ariaLabel="Referral links"
             density="comfortable"
+            // 12px between columns, as C2 draws this list: the room goes to the
+            // driver's name.
+            cellPadding="tight"
             mobilePresentation="cards"
             embedded
             data={links}

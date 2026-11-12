@@ -83,8 +83,9 @@ function movedSectionTarget(searchParams) {
 }
 
 /**
- * The menu of sections, a page of its own up to 1279px (phones, tablets and
- * narrow windows, `useIsCompact`): shown when the address names no section.
+ * The menu of sections, a page of its own at every width (C2): shown when the
+ * address names no section. Up to 1279px (`useIsCompact`) it is also the only
+ * way between sections; wider, a section has the rail beside it.
  */
 const MENU = 'menu';
 
@@ -113,20 +114,18 @@ export function CompanySettings() {
 function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigationType = useNavigationType();
-    // Up to 1279px there is no room for the rail beside a section: the menu
-    // of sections is its own page and every section links back to it.
+    // Up to 1279px there is no room for the rail beside a section: every
+    // section links back to the menu instead.
     const isCompact = useIsCompact();
     const guard = useUnsavedChangesGuard();
 
     const groups = settingsGroups(currentCompanyProfile);
     // The section is in the address (`?section=team`), so a reload, Back and a
-    // shared link keep it. With none, or one this company does not show, a
-    // phone or a tablet opens the menu of sections and a wider screen opens
-    // Company profile.
-    const home = isCompact ? MENU : 'company';
+    // shared link keep it. With none, or one this company does not show, the
+    // menu of sections opens, at every width.
     const sectionIds = groups.flatMap((group) => group.items.map((item) => item.id));
     const requestedSection = searchParams.get('section');
-    const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : home;
+    const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : MENU;
     const setActiveTab = (section) => setSearchParams((params) => {
         const next = new URLSearchParams(params);
         if (section === MENU) next.delete('section');
@@ -156,19 +155,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [heldByHistory, addressedSection]);
     const activeTab = heldByHistory ? shownSection : addressedSection;
-
-    // A wide screen names Company profile in the address (replacing the entry), so
-    // narrowing the window or turning a tablet keeps it, edits and all, rather than
-    // swapping it for the menu.
-    const namesHome = !isCompact && !sectionIds.includes(requestedSection) && !heldByHistory;
-    useEffect(() => {
-        if (!namesHome) return;
-        setSearchParams((params) => {
-            const next = new URLSearchParams(params);
-            next.set('section', 'company');
-            return next;
-        }, { replace: true });
-    }, [namesHome, setSearchParams]);
 
     // The way back to the menu keeps every other parameter (`e2eAuth`).
     const menuParams = new URLSearchParams(searchParams);
@@ -226,7 +212,8 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         <div className="min-h-full min-w-0 bg-ds-canvas text-ds-content" data-testid="company-settings-shell">
             <PageContainer width="standard">
                 <div className="flex min-w-0 items-start gap-ds-10">
-                    {!isCompact && (
+                    {/* The rail beside a section, from 1280px; the menu is its own page. */}
+                    {!isCompact && activeTab !== MENU && (
                         <aside className="sticky top-ds-8 w-72 shrink-0">
                             <SectionNavigation
                                 label="Company settings sections"

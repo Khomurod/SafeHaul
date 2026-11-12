@@ -323,4 +323,31 @@ describe('DataTable header and selected row', () => {
     expect(screen.getByRole('columnheader', { name: 'Role' })).toHaveAttribute('data-width', '2xl');
     expect(declarationsFor(stylesheet('DataTable.css'), "col[data-width='2xl']")).toMatch(/width:\s*256px/);
   });
+
+  it('takes the 3xl width, 324px: three buttons side by side', () => {
+    const wide = defineTableColumns([{ key: 'actions', header: 'Actions', width: '3xl', render: () => 'x' }]);
+    render(<DataTable ariaLabel="Records" columns={wide} data={rows} />);
+
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toHaveAttribute('data-width', '3xl');
+    expect(declarationsFor(stylesheet('DataTable.css'), "col[data-width='3xl']")).toMatch(/width:\s*324px/);
+  });
+
+  it('pads a tight table 12px between columns and 16px at its edges, from 768px', () => {
+    const { container, rerender } = render(<DataTable ariaLabel="Records" columns={plainColumns} data={rows} cellPadding="tight" />);
+    expect(container.querySelector('.ds-data-table')).toHaveAttribute('data-cell-padding', 'tight');
+
+    rerender(<DataTable ariaLabel="Records" columns={plainColumns} data={rows} />);
+    expect(container.querySelector('.ds-data-table')).not.toHaveAttribute('data-cell-padding');
+
+    const css = stylesheet('DataTable.css');
+    const root = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, selector]) => selector.trim() === ".ds-data-table[data-cell-padding='tight']");
+    expect(root?.[2]).toMatch(/--ds-table-cell-padding-inline:\s*var\(--ds-space-3\)/);
+    expect(declarationsFor(css, ".ds-data-table[data-cell-padding='tight'] tr > :first-child")).toMatch(/padding-left:\s*var\(--ds-space-4\)/);
+    expect(declarationsFor(css, ".ds-data-table[data-cell-padding='tight'] tr > :last-child")).toMatch(/padding-right:\s*var\(--ds-space-4\)/);
+  });
+
+  it('refuses a cell padding it does not draw', () => {
+    expect(() => render(<DataTable ariaLabel="Records" columns={plainColumns} data={rows} cellPadding="loose" />))
+      .toThrow(/Unsupported DataTable cellPadding "loose"/);
+  });
 });

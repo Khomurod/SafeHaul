@@ -176,6 +176,11 @@
     text-align: end;
   }
 
+  /* A status that is one button (Agreements' Read) stands level with the title's middle. */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='status']:has(> .ds-button:only-child) {
+    align-self: center;
+  }
+
   .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='meta'] {
     flex: 0 1 auto;
     order: 4;

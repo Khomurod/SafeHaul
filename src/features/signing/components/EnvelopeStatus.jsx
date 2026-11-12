@@ -10,8 +10,9 @@ import {
  *
  * The design system only knows generic Badge tones; this feature owns which
  * status maps to which tone, icon and label. Tones preserve the previous
- * appearance: signed=success (green), sent=info (blue), voided/seal-failed=
- * danger (red), sealing/processing=warning (yellow/amber), unknown=neutral.
+ * appearance: signed=success (green), sent=info (blue), seal-failed=danger
+ * (red), sealing/processing=warning (yellow/amber), voided and unknown=neutral
+ * (grey: a document the company withdrew is closed, not failing, as C2 draws it).
  * A sent document whose link ran out (`isLinkExpired`) is warning, like the
  * dossier's. Every badge pairs its tone with an icon and text, so status is
  * never communicated by colour alone.
@@ -21,7 +22,7 @@ const STATUS_PRESENTATION = {
     signed: { tone: 'success', label: STATUS_NAMES.signed, icon: CheckCircle },
     sent: { tone: 'info', label: STATUS_NAMES.sent, icon: Clock },
     opened: { tone: 'info', label: STATUS_NAMES.opened, icon: Clock },
-    voided: { tone: 'danger', label: STATUS_NAMES.voided, icon: Ban },
+    voided: { tone: 'neutral', label: STATUS_NAMES.voided, icon: Ban },
     pending_seal: { tone: 'warning', label: STATUS_NAMES.pending_seal, icon: Loader2, spin: true },
     error_sealing: { tone: 'danger', label: STATUS_NAMES.error_sealing, icon: AlertCircle },
     processing: { tone: 'warning', label: STATUS_NAMES.processing, icon: Loader2, spin: true },

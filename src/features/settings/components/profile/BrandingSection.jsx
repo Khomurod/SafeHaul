@@ -68,6 +68,7 @@ export function BrandingSection({
                         label="Company logo"
                         labelHidden
                         accept="image/*"
+                        size="sm"
                         loading={logoUploading}
                         aria-describedby={helpId}
                         onChange={onLogoUpload}

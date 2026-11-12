@@ -119,11 +119,18 @@ describe('the filters', () => {
     it('narrow the list to their rows, and say how many of all are showing', async () => {
         await renderWorklist();
 
+        // The table's footer (C2): the rows shown, on their one page.
+        const footer = () => screen.getByRole('navigation', { name: 'Unfinished applications pagination' });
+        expect(footer()).toHaveTextContent(/^6 total/);
+        expect(footer()).toHaveTextContent('Page 1 of 1');
+        expect(within(footer()).getByRole('button', { name: 'Next page' })).toBeDisabled();
+
         fireEvent.click(filter('Almost done 1'));
         expect(shownNames()).toEqual(['Dana Whitfield']);
         expect(filter('Almost done 1')).toHaveAttribute('aria-pressed', 'true');
         expect(filter('All 6')).toHaveAttribute('aria-pressed', 'false');
         expect(headingCount()).toHaveTextContent(/^1 unfinished application$/);
+        expect(footer()).toHaveTextContent(/^1 total/);
 
         fireEvent.click(filter('Prepared by us 3'));
         expect(shownNames()).toEqual(['Priya Raman', 'Marcus Iyer', 'Tomas Okafor']);
@@ -174,6 +181,8 @@ describe('the search', () => {
 
         expect(await screen.findByText('Nothing is unfinished.')).toBeInTheDocument();
         expect(headingCount()).toHaveTextContent(/^0 unfinished applications$/);
+        // No footer under an empty list.
+        expect(screen.queryByRole('navigation', { name: /pagination/ })).toBeNull();
     });
 });
 

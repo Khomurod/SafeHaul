@@ -254,7 +254,7 @@
   },
   "mobile \u00b7 the dialog overlay, whose stacking layer is not a caller decision \u00b7 overlay": {
     "zIndex": "60",
-    "backgroundColor": "rgba(15, 23, 42, 0.6)",
+    "backgroundColor": "rgba(15, 23, 42, 0.45)",
     "paddingTop": "16px",
     "alignItems": "center"
   },
@@ -1003,7 +1003,7 @@
   },
   "desktop \u00b7 the dialog overlay, whose stacking layer is not a caller decision \u00b7 overlay": {
     "zIndex": "60",
-    "backgroundColor": "rgba(15, 23, 42, 0.6)",
+    "backgroundColor": "rgba(15, 23, 42, 0.45)",
     "paddingTop": "16px",
     "alignItems": "center"
   },

@@ -109,8 +109,14 @@ const SCREENS = [
     {
         name: 'company-settings',
         url: '/company/settings?e2eAuth=company_admin',
-        // Company profile beside the rail; on a phone, the menu of sections.
-        ready: (page) => page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ }),
+        // The menu of sections, at every width.
+        ready: (page) => page.getByRole('heading', { level: 1, name: 'Settings' }),
+    },
+    {
+        name: 'company-settings-profile',
+        url: '/company/settings?section=company&e2eAuth=company_admin',
+        // Company profile beside the rail; on a phone, with its way back to the menu.
+        ready: (page) => page.getByRole('heading', { level: 1, name: 'Company profile' }),
     },
     {
         name: 'company-profile',

@@ -56,24 +56,35 @@ export function TemplateLibraryPanel({
         [templates, search, sort],
     );
 
+    const newTemplate = (
+        <Button variant="secondary" onClick={onCreate} className="shrink-0">
+            <Icon icon={Plus} size="sm" /> New template
+        </Button>
+    );
+
     return (
         <Stack gap="md">
             {/* One row without a frame: the heading and how many are shown, then
                 the search, Sort by and New template. When they do not fit beside
-                the heading, the tools take a row of their own from the left. */}
+                the heading, the tools take a row of their own from the left. On a
+                phone New template stays beside the heading (C2), and the search
+                and Sort by take a row each. */}
             <section aria-labelledby={controlsHeadingId}>
                 <ListToolbar
                     placement="page"
                     lead={(
-                        <div className="flex min-w-0 flex-col">
-                            <h2 id={controlsHeadingId} className="text-ds-heading-md font-semibold text-ds-content">
-                                Template library
-                            </h2>
-                            <p role="status" className="text-ds-xs text-ds-content-secondary">
-                                {templatesLoading
-                                    ? 'Loading templates…'
-                                    : `Showing ${visibleTemplates.length} of ${templates.length} template${templates.length === 1 ? '' : 's'}.`}
-                            </p>
+                        <div className="flex min-w-0 items-start justify-between gap-ds-3">
+                            <div className="flex min-w-0 flex-col">
+                                <h2 id={controlsHeadingId} className="text-ds-heading-md font-semibold text-ds-content">
+                                    Template library
+                                </h2>
+                                <p role="status" className="text-ds-xs text-ds-content-secondary">
+                                    {templatesLoading
+                                        ? 'Loading templates…'
+                                        : `Showing ${visibleTemplates.length} of ${templates.length} template${templates.length === 1 ? '' : 's'}.`}
+                                </p>
+                            </div>
+                            {isMobile && newTemplate}
                         </div>
                     )}
                     search={{
@@ -84,7 +95,7 @@ export function TemplateLibraryPanel({
                     }}
                     actions={(
                         <>
-                            {/* On a phone the list takes the row, and New template the next. */}
+                            {/* On a phone the list takes the row. */}
                             <div className="flex min-w-0 items-center gap-ds-2 max-md:basis-full">
                                 <Label htmlFor={sortId} className="whitespace-nowrap">Sort by</Label>
                                 <div className="w-[12.5rem] max-md:w-auto max-md:min-w-0 max-md:flex-1">
@@ -95,9 +106,7 @@ export function TemplateLibraryPanel({
                                     </Select>
                                 </div>
                             </div>
-                            <Button variant="secondary" fullWidth={isMobile} onClick={onCreate}>
-                                <Icon icon={Plus} size="sm" /> New template
-                            </Button>
+                            {!isMobile && newTemplate}
                         </>
                     )}
                 />

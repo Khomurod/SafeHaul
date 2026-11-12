@@ -35,6 +35,14 @@ const CARD_ACTION_INDENT = 'max-md:ms-ds-6';
  * table has its four columns.
  */
 const ITEM_LIST_QUERY = '(min-width: 768px) and (max-width: 1279px)';
+/**
+ * Where the table's two text columns, sharing what the fixed ones leave, are
+ * each wide enough for a long address ("ana.ferreira-montgomery@example.test",
+ * about 337px with the initials): from 1366px beside the menu. Narrower, the
+ * document takes `xl` and the recipient the rest, as C2 gives the recipient its
+ * room, so an address does not break after its "@".
+ */
+const ROOMY_TABLE_QUERY = '(min-width: 1366px)';
 
 /** A break opportunity after the "@", so an address that must wrap wraps there first. */
 function breakableContact(contact) {
@@ -163,6 +171,7 @@ export default function EnvelopeHistory({
     const isMobile = useIsMobile();
     const quickActionSize = isMobile ? 'md' : 'sm';
     const itemList = useMediaQuery(ITEM_LIST_QUERY);
+    const roomyTable = useMediaQuery(ROOMY_TABLE_QUERY);
     const actions = useSentDocumentActions({ companyId, companyName, onCorrect });
     const { copyingId, copyLink: handleCopyLink, download: handleDownload, openDetails: setDetailsDocument, signedCopy } = actions;
 
@@ -322,7 +331,9 @@ export default function EnvelopeHistory({
             key: 'title',
             header: 'Document',
             rowHeader: true,
-            width: 'auto',
+            // Under 1366px the recipient's address needs the room more than the
+            // title does: a title wraps between its words (`ROOMY_TABLE_QUERY`).
+            width: roomyTable ? 'auto' : 'xl',
             render: (docItem) => <DocumentCell document={docItem} />,
         },
         {
@@ -348,7 +359,8 @@ export default function EnvelopeHistory({
      * Display-only pagination over the live list. The page is clamped against
      * the current document count, so a filter change or live deletion that
      * shrinks the list can never leave the table on a page that no longer
-     * exists. 25 or fewer documents render exactly as before, unpaged.
+     * exists. 25 or fewer documents fit one page; the footer still says how
+     * many there are and "Page 1 of 1", as on every list page (C2).
      */
     const totalPages = Math.max(1, Math.ceil(docs.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -359,7 +371,7 @@ export default function EnvelopeHistory({
     if (currentPage !== page) setPage(currentPage);
     const paged = docs.length > PAGE_SIZE;
     const visibleDocs = paged ? docs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE) : docs;
-    const pagination = paged
+    const pagination = docs.length > 0
         ? {
             label: `${docs.length.toLocaleString('en-US')} total`,
             currentPage,

@@ -8,6 +8,14 @@ describe('initialsOf', () => {
         expect(initialsOf('E2E Admin')).toBe('EA');
     });
 
+    it('counts each name a hyphen joins as a word, as people shorten them', () => {
+        expect(initialsOf('Jean-Baptiste Okonkwo-Fairweather')).toBe('JB');
+        expect(initialsOf('Maria-Annunziata Delacroix-Whitfield')).toBe('MA');
+        expect(initialsOf('Ana Lucia Ferreira-Montgomery')).toBe('AL');
+        // A hyphen standing alone, or at either end, is no word.
+        expect(initialsOf('- Maria - Garcia -')).toBe('MG');
+    });
+
     it('shows one letter for one word', () => {
         expect(initialsOf('company_admin')).toBe('C');
         expect(initialsOf('Cher')).toBe('C');

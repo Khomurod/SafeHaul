@@ -40,6 +40,16 @@ function stripEdgeDividers(entries) {
 }
 
 /**
+ * Whether the menu shows an item as where you are: its address or one under it,
+ * as `NavLink` decides, or a page it opens (`nav.alsoCurrentOn`), which then
+ * looks current without being announced as the page.
+ */
+function isCurrentAt(item, pathname) {
+  const under = (path) => pathname === path || pathname.startsWith(`${path}/`);
+  return under(item.path) || item.alsoCurrentOn.some(under);
+}
+
+/**
  * One menu link. Declared here, not inside the sidebar: a component declared
  * in its parent's render is a new type at every render, so React replaced each
  * link whenever the menu re-rendered (every navigation, group toggle and
@@ -83,12 +93,13 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
         `e2e/a11y.spec.cjs` checks it, because axe cannot see the difference
         between one focus ring and another.
       */
+      // The current item is a pill inset 8px from the sidebar's edges (C2).
       className={({ isActive }) => `
         min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
         focus-visible:outline-none focus-visible:shadow-ds-focus
-        ${isActive
-          ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-navigation-accent'
-          : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
+        ${isActive || isCurrentAt(item, pathname)
+          ? 'bg-ds-status-info-bg text-ds-status-info-fg'
+          : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle'}
         ${isChild ? 'pl-9 text-ds-body' : ''}
         ${!isExpanded && !isChild ? 'justify-center' : ''}
       `}
@@ -103,8 +114,8 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
           */}
           <Icon
             icon={item.icon}
-            size="xl"
-            className={isActive
+            size="lg"
+            className={isActive || isCurrentAt(item, pathname)
               ? 'text-ds-navigation-accent'
               : 'text-ds-content-muted group-hover:text-ds-content'}
           />
@@ -173,6 +184,7 @@ export const CompanySidebar = ({
     label: route.nav.label,
     icon: ICON_MAP[route.nav.icon] || FileText,
     path: `/company/${route.path}`,
+    alsoCurrentOn: (route.nav.alsoCurrentOn || []).map((path) => `/company/${path}`),
   }), []);
 
   const menuEntries = useMemo(() => {
@@ -218,7 +230,7 @@ export const CompanySidebar = ({
   return (
     <div className="h-full bg-ds-surface flex flex-col" data-testid="company-sidebar">
       {/* Top Header */}
-      <div className="min-h-16 flex items-center px-4 border-b border-ds-border-subtle">
+      <div className="min-h-16 flex items-center px-4">
         <div className="flex items-center gap-3 w-full overflow-hidden">
           <div className="flex-shrink-0 w-8 h-8 bg-ds-navigation-accent rounded-ds-md flex items-center justify-center text-ds-content-inverse font-bold" aria-hidden="true">
             {(currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'C').charAt(0)}
@@ -226,7 +238,7 @@ export const CompanySidebar = ({
 
           {isExpanded && (
             <div className="flex flex-col min-w-0">
-              <span className="text-ds-content font-medium truncate">
+              <span className="text-ds-body font-bold text-ds-content truncate">
                 {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Company'}
               </span>
               {/* Who you are in this company, by the role's name (as Settings →
@@ -250,22 +262,20 @@ export const CompanySidebar = ({
 
       {/* Navigation */}
       <nav
-        className="flex-1 py-4 overflow-y-auto overflow-x-hidden space-y-1 custom-scrollbar"
+        className="flex-1 px-2 py-4 overflow-y-auto overflow-x-hidden space-y-1 custom-scrollbar"
         aria-label="Company sections"
       >
         {menuEntries.map((entry, idx) => {
           if (entry.type === 'divider') {
-            return <div key={`divider-${idx}`} className="my-2 border-t border-ds-border-subtle" aria-hidden="true" />;
+            // A divider spans the whole sidebar, past the items' 8px inset.
+            return <div key={`divider-${idx}`} className="-mx-2 my-2 border-t border-ds-border-subtle" aria-hidden="true" />;
           }
 
           if (entry.type === 'group') {
             const group = entry.group;
             const isGroupActive = expandedGroups[group.id];
-            // As `NavLink` decides an item is current: its address or one under
-            // it, so Leads stays current on each of its tabs.
-            const hasActiveChild = entry.children.some((child) => (
-                location.pathname === child.path || location.pathname.startsWith(`${child.path}/`)
-            ));
+            // Leads stays current on each of its tabs, and on Add lead and Import leads.
+            const hasActiveChild = entry.children.some((child) => isCurrentAt(child, location.pathname));
             const GroupIcon = ICON_MAP[group.icon] || Users;
 
             return (
@@ -276,21 +286,23 @@ export const CompanySidebar = ({
                   justify="start"
                   onClick={() => toggleGroup(group.id)}
                   className={`
-                            rounded-none px-3
+                            px-3
                             ${!isExpanded ? 'justify-center' : ''}
-                            ${hasActiveChild ? 'text-ds-status-info-fg' : ''}
                         `}
                   aria-expanded={isExpanded ? isGroupActive : false}
                 >
                   {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
+                  {/* The group heads its items in the text colour and only the
+                      current item is blue (C2); folded, the group's glyph is
+                      all there is to say where you are, so it turns blue. */}
                   <Icon
                     icon={GroupIcon}
-                    size="xl"
-                    className={hasActiveChild ? 'text-ds-navigation-accent' : 'text-ds-content-muted'}
+                    size="lg"
+                    className={hasActiveChild && !isExpanded ? 'text-ds-navigation-accent' : 'text-ds-content-muted'}
                   />
                   {isExpanded && (
                     <>
-                      <span className="flex-1 text-left font-medium text-ds-body">{group.label}</span>
+                      <span className="flex-1 text-left font-semibold text-ds-body text-ds-content">{group.label}</span>
                       <Icon icon={ChevronRight}
                         className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'} />
                     </>
