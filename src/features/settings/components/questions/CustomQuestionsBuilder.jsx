@@ -1,13 +1,19 @@
-import React, { useState, useRef } from 'react';
-import { Icon, Plus, Eye, EyeOff, HelpCircle, Shield } from '@design-system/icons';
+import React, { useId, useState, useRef } from 'react';
+import { Icon, Plus, Eye, EyeOff, Shield } from '@design-system/icons';
 import {
     Badge, Button, Card, FieldMessage, Input, Select, Textarea,
 } from '@/design-system/components';
 import { EmptyState } from '@design-system/patterns';
 import { QuestionEditor } from './QuestionEditor';
-import { INITIAL_QUESTION_STATE } from './QuestionConfig';
+import { CUSTOM_QUESTIONS_DESCRIPTION, INITIAL_QUESTION_STATE } from './QuestionConfig';
 
+/**
+ * Application questions → Custom Questions: the section, its heading included,
+ * since the heading row holds the count and the Preview switch the builder
+ * owns. One card: the empty state, or the questions one after another.
+ */
 export function CustomQuestionsBuilder({ questions = [], onChange }) {
+    const headingId = `custom-questions-heading-${useId().replace(/:/g, '')}`;
     const [previewMode, setPreviewMode] = useState(false);
     /**
      * Replaces a blocking `alert()` with an inline, non-blocking message,
@@ -135,40 +141,49 @@ export function CustomQuestionsBuilder({ questions = [], onChange }) {
     };
 
     return (
-        <div className="space-y-ds-6">
-
-            <Card className="sticky top-0 z-ds-raised flex flex-col items-start justify-between gap-ds-4 sm:flex-row sm:items-center">
-                <div>
-                    <h4 className="text-ds-body font-bold text-ds-content">Custom Questions</h4>
-                    <p className="text-ds-sm text-ds-content-muted" role="status">{questions.length} questions added</p>
-                </div>
-                <div className="flex gap-ds-3">
-                    <Button
-                        variant="secondary"
-                        size="md"
-                        onClick={() => setPreviewMode(!previewMode)}
-                        aria-pressed={previewMode}
+        <section aria-labelledby={headingId} className="grid min-w-0 gap-ds-3">
+            {/* The heading row: the title and its count, Preview at the end of
+                the row (on a phone too); the description under both. The
+                count sits beside the heading, not in it, so the heading keeps
+                its name; it is a polite status, read with its words. */}
+            <header className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-ds-4 gap-y-ds-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-ds-2">
+                    <h2 id={headingId} className="text-ds-heading-sm font-semibold text-ds-content">
+                        Custom Questions
+                    </h2>
+                    <span
+                        role="status"
+                        className="inline-flex min-h-ds-5 items-center rounded-ds-full border border-ds-border bg-ds-surface px-ds-2 text-ds-xs font-semibold tabular-nums text-ds-content-secondary"
                     >
-                        {previewMode ? <Icon icon={EyeOff} size="lg" /> : <Icon icon={Eye} size="lg" />}
-                        {previewMode ? 'Edit Mode' : 'Preview'}
-                    </Button>
-
+                        {questions.length}
+                        <span className="ds-visually-hidden"> questions added</span>
+                    </span>
                 </div>
-            </Card>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setPreviewMode(!previewMode)}
+                    aria-pressed={previewMode}
+                >
+                    {previewMode ? <Icon icon={EyeOff} /> : <Icon icon={Eye} />}
+                    {previewMode ? 'Edit Mode' : 'Preview'}
+                </Button>
+                <p className="col-span-2 max-w-[80ch] text-ds-body text-ds-content-muted [text-wrap:pretty]">
+                    {CUSTOM_QUESTIONS_DESCRIPTION}
+                </p>
+            </header>
 
             {blockedDeleteMessage && (
                 <FieldMessage tone="error">{blockedDeleteMessage}</FieldMessage>
             )}
 
-            <div className="min-h-[200px] space-y-ds-4">
+            <div className="space-y-ds-4">
                 {questions.length === 0 && (
                     <EmptyState
-                        surface="bare"
-                        icon={HelpCircle}
                         headingLevel={3}
                         title="No questions yet."
                         actions={(
-                            <Button variant="ghost" size="sm" onClick={addQuestion}>
+                            <Button variant="primary" size="sm" onClick={addQuestion}>
                                 <Icon icon={Plus} /> Add your first question
                             </Button>
                         )}
@@ -230,6 +245,6 @@ export function CustomQuestionsBuilder({ questions = [], onChange }) {
                     </Button>
                 </div>
             )}
-        </div>
+        </section>
     );
 }

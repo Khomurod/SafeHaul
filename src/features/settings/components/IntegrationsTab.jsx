@@ -155,31 +155,31 @@ export function IntegrationsTab({ companyId }) {
                 description="Bring in leads from your Facebook Lead Ads forms."
             />
 
-            <Card padding="md">
-                <div className="flex flex-col items-start justify-between gap-ds-4 sm:flex-row">
-                    <div className="flex min-w-0 items-start gap-ds-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-[#1877F2]/10 text-[#1877F2]">
-                            <Icon icon={Megaphone} size="2xl" />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="flex flex-wrap items-center gap-ds-2 font-bold text-ds-content">
-                                Facebook Lead Ads
-                                {connectedPage && <Badge tone="success">Connected</Badge>}
-                            </h2>
-                            <p className="mt-ds-1 max-w-md text-ds-sm text-ds-content-muted">
-                                Automatically import leads from your Facebook Lead Gen forms.
-                                We&apos;ll sync new leads directly to your dashboard in real-time.
+            {/* One card: the mark, what it does, and the button. On a phone the
+                words take the card's width under the mark's row. */}
+            <Card padding="md" elevation="soft">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-ds-4 gap-y-ds-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-x-ds-5">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-[#1877F2]/10 text-[#1877F2]">
+                        <Icon icon={Megaphone} size="2xl" />
+                    </div>
+                    <div className="min-w-0 max-md:contents">
+                        <h2 className="flex flex-wrap items-center gap-x-ds-3 gap-y-ds-1 text-ds-heading-sm font-semibold text-ds-content">
+                            Facebook Lead Ads
+                            {connectedPage && <Badge tone="success" icon={CheckCircle}>Connected</Badge>}
+                        </h2>
+                        <p className="mt-ds-1 max-w-[68ch] text-ds-body text-ds-content-secondary [text-wrap:pretty] max-md:col-span-2 max-md:mt-0">
+                            Automatically import leads from your Facebook Lead Gen forms.
+                            We&apos;ll sync new leads directly to your dashboard in real-time.
+                        </p>
+                        {connectedPage && (
+                            <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-muted max-md:col-span-2 max-md:mt-0">
+                                <Icon icon={CheckCircle} size="xs" className="text-ds-status-success-fg" />
+                                Active Page: <span className="truncate font-medium text-ds-content">{connectedPage}</span>
                             </p>
-                            {connectedPage && (
-                                <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-muted">
-                                    <Icon icon={CheckCircle} size="xs" className="text-ds-status-success-fg" />
-                                    Active Page: <span className="truncate font-medium text-ds-content">{connectedPage}</span>
-                                </p>
-                            )}
-                        </div>
+                        )}
                     </div>
 
-                    <div className="w-full shrink-0 sm:w-auto">
+                    <div className="max-md:col-span-2">
                         {connectedPage ? (
                             <Button variant="secondary" disabled fullWidth>
                                 Connected

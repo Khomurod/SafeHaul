@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
-    Icon, Building, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
+    Building, Blocks, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
 } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
@@ -14,15 +14,18 @@ import { EmailSettingsTab } from './EmailSettingsTab';
 import { IntegrationsTab } from './IntegrationsTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { SettingsMenu } from './SettingsMenu';
-import { ButtonLink, SectionNavigation } from '@/design-system/components';
+import { SectionNavigation } from '@/design-system/components';
+import { PageContainer, PageEyebrow } from '@/design-system/layouts';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
-import { useIsMobile } from '@shared/hooks/useIsMobile';
+import { useIsCompact } from '@shared/hooks/useIsCompact';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * The sections, grouped. Every id is also its `?section=` value, so a link to a
- * section keeps working when its label changes.
+ * section keeps working when its label changes. Each says in one line what it
+ * holds: the second line of its row in the menu and in the rail. In the rail
+ * the line describes the item, whose name stays its label ("Team").
  */
 function settingsGroups(profile) {
     return [
@@ -30,18 +33,18 @@ function settingsGroups(profile) {
             id: 'company',
             label: 'Company',
             items: [
-                { id: 'company', label: 'Company profile', icon: Building },
-                { id: 'application', label: 'Application questions', icon: ClipboardList },
-                { id: 'team', label: 'Team', icon: Users },
+                { id: 'company', label: 'Company profile', icon: Building, description: 'Name, logo, contact details and address' },
+                { id: 'application', label: 'Application questions', icon: ClipboardList, description: 'Questions, rules, agreements and report uploads' },
+                { id: 'team', label: 'Team', icon: Users, description: 'Who recruits for you' },
             ],
         },
         {
             id: 'messaging',
             label: 'Messaging',
             items: [
-                { id: 'email', label: 'Email', icon: Mail },
-                { id: 'sms', label: 'Text messages (SMS)', icon: MessageSquare },
-                { id: 'automated_sms', label: 'Automated texts', icon: Send },
+                { id: 'email', label: 'Email', icon: Mail, description: 'Sending from your own mailbox' },
+                { id: 'sms', label: 'Text messages (SMS)', icon: MessageSquare, description: 'Phone lines and who texts from them' },
+                { id: 'automated_sms', label: 'Automated texts', icon: Send, description: 'Messages sent at each contact attempt' },
             ],
         },
         {
@@ -50,9 +53,9 @@ function settingsGroups(profile) {
             items: [
                 // Every company may make keys. Facebook leads shows only where a
                 // super admin switched it on (stored as `features.callTracking`).
-                { id: 'api_keys', label: 'API keys', icon: KeyRound },
+                { id: 'api_keys', label: 'API keys', icon: KeyRound, description: 'Let another service read your applications' },
                 ...(isFeatureOn(profile, 'callTracking')
-                    ? [{ id: 'integrations', label: 'Facebook leads', icon: Blocks }]
+                    ? [{ id: 'integrations', label: 'Facebook leads', icon: Blocks, description: 'Leads from Facebook Lead Ads' }]
                     : []),
             ],
         },
@@ -79,7 +82,10 @@ function movedSectionTarget(searchParams) {
     return { pathname: moved.pathname, search: search ? `?${search}` : '' };
 }
 
-/** The phone's menu of sections: shown when the address names no section. */
+/**
+ * The menu of sections, a page of its own up to 1279px (phones, tablets and
+ * narrow windows, `useIsCompact`): shown when the address names no section.
+ */
 const MENU = 'menu';
 
 export function CompanySettings() {
@@ -107,14 +113,17 @@ export function CompanySettings() {
 function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigationType = useNavigationType();
-    const isPhone = useIsMobile();
+    // Up to 1279px there is no room for the rail beside a section: the menu
+    // of sections is its own page and every section links back to it.
+    const isCompact = useIsCompact();
     const guard = useUnsavedChangesGuard();
 
     const groups = settingsGroups(currentCompanyProfile);
     // The section is in the address (`?section=team`), so a reload, Back and a
     // shared link keep it. With none, or one this company does not show, a
-    // phone opens its menu of sections and a wider screen opens Company profile.
-    const home = isPhone ? MENU : 'company';
+    // phone or a tablet opens the menu of sections and a wider screen opens
+    // Company profile.
+    const home = isCompact ? MENU : 'company';
     const sectionIds = groups.flatMap((group) => group.items.map((item) => item.id));
     const requestedSection = searchParams.get('section');
     const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : home;
@@ -149,9 +158,9 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const activeTab = heldByHistory ? shownSection : addressedSection;
 
     // A wide screen names Company profile in the address (replacing the entry), so
-    // narrowing the window or turning a phone keeps it, edits and all, rather than
-    // swapping it for the phone's menu.
-    const namesHome = !isPhone && !sectionIds.includes(requestedSection) && !heldByHistory;
+    // narrowing the window or turning a tablet keeps it, edits and all, rather than
+    // swapping it for the menu.
+    const namesHome = !isCompact && !sectionIds.includes(requestedSection) && !heldByHistory;
     useEffect(() => {
         if (!namesHome) return;
         setSearchParams((params) => {
@@ -161,7 +170,7 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         }, { replace: true });
     }, [namesHome, setSearchParams]);
 
-    // The phone's way back to its menu keeps every other parameter (`e2eAuth`).
+    // The way back to the menu keeps every other parameter (`e2eAuth`).
     const menuParams = new URLSearchParams(searchParams);
     menuParams.delete('section');
     const menuQuery = menuParams.toString();
@@ -198,51 +207,49 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         }
     };
 
+    // Above every section: "Settings" beside the rail, or the way back to the
+    // menu where the menu is a page. The menu has its own eyebrow.
+    const eyebrow = isCompact
+        ? {
+            back: {
+                label: 'Settings',
+                href: menuHref,
+                onClick: (event) => {
+                    event.preventDefault();
+                    selectSection(MENU);
+                },
+            },
+        }
+        : { eyebrow: 'Settings' };
+
     return (
         <div className="min-h-full min-w-0 bg-ds-canvas text-ds-content" data-testid="company-settings-shell">
-            <div className="mx-auto max-w-7xl p-3 sm:p-6">
-                <div className="flex min-w-0 flex-col gap-ds-6 xl:flex-row xl:gap-ds-8">
-                    {/* A phone has no room for the rail beside the content or above
-                        it: its menu of sections is the way to every section. */}
-                    {!isPhone && (
-                        <aside className="w-full min-w-0 flex-shrink-0 xl:w-64">
+            <PageContainer width="standard">
+                <div className="flex min-w-0 items-start gap-ds-10">
+                    {!isCompact && (
+                        <aside className="sticky top-ds-8 w-72 shrink-0">
                             <SectionNavigation
                                 label="Company settings sections"
                                 groups={groups}
                                 currentId={activeTab}
                                 onSelect={selectSection}
                                 controlsId="company-settings-content"
-                                mobileLayout="grid"
-                                className="xl:sticky xl:top-6"
                             />
                         </aside>
                     )}
 
+                    {/* A size container: a section lays itself out by the room
+                        it has beside the rail, not by the window. */}
                     <section
                         id="company-settings-content"
-                        className="flex min-w-0 flex-1 flex-col gap-ds-4"
+                        className="min-w-0 flex-1 [container-type:inline-size]"
                         aria-label="Company settings content"
                     >
-                        {isPhone && activeTab !== MENU && (
-                            <div>
-                                <ButtonLink
-                                    href={menuHref}
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        selectSection(MENU);
-                                    }}
-                                >
-                                    <Icon icon={ArrowLeft} />
-                                    Settings
-                                </ButtonLink>
-                            </div>
-                        )}
+                        {activeTab !== MENU && <PageEyebrow {...eyebrow} className="mb-ds-2" />}
                         {renderContent()}
                     </section>
                 </div>
-            </div>
+            </PageContainer>
         </div>
     );
 }

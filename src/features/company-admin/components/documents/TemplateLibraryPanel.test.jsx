@@ -57,6 +57,18 @@ describe('library controls', () => {
         expect(props.setSort).toHaveBeenCalledWith('title');
     });
 
+    it('names the search without a visible label and puts Sort by beside its list, in one bar (C2)', () => {
+        renderPanel();
+        const library = screen.getByRole('region', { name: 'Template library' });
+        const search = within(library).getByRole('searchbox', { name: 'Search templates' });
+        expect(search).toHaveAttribute('placeholder', 'Template title');
+        expect(within(library).queryByText('Search templates')).not.toBeInTheDocument();
+        const sort = within(library).getByRole('combobox', { name: 'Sort by' });
+        expect(within(library).getByText('Sort by').closest('label').parentElement).toContainElement(sort);
+        // No framed card around the bar.
+        expect(library).not.toHaveClass('border');
+    });
+
     it('reports how many templates are visible', () => {
         renderPanel({ templates: [template({ id: 'a' }), template({ id: 'b', title: 'W-9' })] });
         expect(screen.getByRole('status')).toHaveTextContent('Showing 2 of 2 templates');
@@ -217,5 +229,26 @@ describe('states', () => {
     it('has no accessibility violations', async () => {
         const { container } = renderPanel({ postSubmitTemplateIds: ['tpl-1'] });
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('template card (C2)', () => {
+    it('lays the four actions out as an even two-by-two grid, Send first', () => {
+        renderPanel();
+        const send = screen.getByRole('button', { name: 'Send Artificial Offer Letter' });
+        const grid = send.parentElement;
+        expect(grid).toHaveClass('grid', 'grid-cols-2');
+        expect(within(grid).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+            'Send Artificial Offer Letter',
+            'Edit Artificial Offer Letter',
+            'Duplicate Artificial Offer Letter',
+            'Configure Artificial Offer Letter',
+        ]);
+        expect(within(grid).getAllByRole('button').every((button) => button.getAttribute('data-full-width') === 'true')).toBe(true);
+    });
+
+    it('shows the field count in the accent tone under the title', () => {
+        renderPanel();
+        expect(screen.getByText('2 fields').closest('.ds-badge')).toHaveAttribute('data-tone', 'accent');
     });
 });

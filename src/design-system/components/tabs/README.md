@@ -35,22 +35,26 @@ profile modal owns the panel. Both derive their ids from `idBase` through
 `tabIds`, so the `aria-controls` / `aria-labelledby` pair cannot drift apart by
 hand.
 
-## Two shapes
+## The shapes
 
 | Shape | For |
 |---|---|
-| `underline` (default) | A page-level view switcher. Nine of the eleven call sites |
-| `variant="pill"` | A secondary strip *inside* a panel, where an underline would read as a second page-level strip. The campaign audience builder's import-method chooser |
+| `underline` (default) | A page-level view switcher in a card or a panel |
+| `variant="segmented"` | A page's views on the canvas, drawn as a white tray of 36px items with the chosen tab dark — the look of a list's segments (`ListToolbar`), so a page's tabs and a list's segments read as one kind of control. A count goes in `badge` (`badge: 6`) and reads muted after the label ("Sent Documents 6"). Icons step aside under 768px, where the tabs make equal rows: two in halves, three in thirds, four in a 2 × 2 grid, six in rows of three, any other number as rows of whole labels, each 44px tall. A tray too wide for its row on a larger screen (E-Docs' four tabs beside the menu on a tablet) takes the same layout, measured on the row (`data-wrapped`), instead of wrapping three and one. Every tab keeps the width of its semibold label, so choosing one never moves the others |
+| `variant="pill"` | A secondary strip *inside* a panel: bordered pills with a full radius, the chosen one on the selected tint with an action-coloured border and text. The campaign audience builder's import-method chooser |
 | `fitted` | A strip that must span a narrow container instead of leaving a ragged gap. The notification popover |
 
-They differ in the selected treatment and nothing else — same control height,
-same icon size, same keyboard model. A primitive that could express only the
-first shape would have left the other two hand-rolled, which is exactly how a
-primitive ends up with no consumers.
+They differ in the drawing and nothing else — same keyboard model, same
+semantics. `segmented` and `pill` share `segmentedGroup.css` with `TabNav` and
+`ListToolbar`'s segments; the chosen item there is also semibold, so the choice
+never rests on colour alone, and under `forced-colors` it is outlined in
+`Highlight`. A primitive that could express only the first shape would have
+left the others hand-rolled, which is exactly how a primitive ends up with no
+consumers.
 
-`variant="pill"` with `orientation="vertical"` **throws**. Nothing wants it, and
-a silently-ignored prop combination is how a component starts lying about what it
-supports.
+`segmented` or `pill` with `orientation="vertical"` **throws**. Nothing wants it,
+and a silently-ignored prop combination is how a component starts lying about
+what it supports.
 
 ## Keyboard
 
@@ -118,8 +122,9 @@ as a named `<nav>` holding a list of links.
   an `href`, and an `onClick` (a router's link click handler) for an in-app move
   without a reload. The leads list's All · Assigned to me · Unassigned is the
   consumer.
-- Underline variant only, horizontal only, no icons or badges: nothing asks for
-  more yet.
+- `variant="segmented"` draws the segmented tray, for a scope switch in a list's
+  toolbar row (`ListToolbar`'s `lead`); `underline` is the default. Horizontal
+  only, no icons or badges: nothing asks for more yet.
 
 ## Not this component
 

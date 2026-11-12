@@ -1,7 +1,7 @@
 /*
  * A sortable header: the whole label is the button, and one arrow says how the
- * list is ordered. The button takes the header's own type (size, weight,
- * capitals, letter-spacing) so a sortable header reads like any other.
+ * list is ordered. The button takes the header's own type (size, weight, case
+ * and spacing) so a sortable header reads like any other.
  */
 .ds-data-table__sort {
   display: inline-flex;
@@ -40,19 +40,27 @@
   opacity: 0;
 }
 
-/* An unsorted column shows the order a press would ask for, when asked. */
+/*
+ * Pointed at or focused, a sortable header darkens to say it can be pressed,
+ * and an unsorted one shows the order a press would ask for.
+ */
+.ds-data-table__sort:hover,
+.ds-data-table__sort:focus-visible {
+  color: var(--ds-color-content);
+}
+
 .ds-data-table__sort:hover > svg,
 .ds-data-table__sort:focus-visible > svg {
   opacity: 1;
 }
 
-/* The sorted column always shows its direction, in the label's own colour. */
-.ds-data-table__sort[data-active] {
-  color: var(--ds-color-content);
-}
-
+/*
+ * The sorted column always shows its direction, in the label's own colour: at
+ * rest it is the colour of every other header, so the arrow alone says which
+ * column orders the list.
+ */
 .ds-data-table__sort[data-active] > svg {
-  color: var(--ds-color-content);
+  color: inherit;
   opacity: 1;
 }
 
@@ -61,12 +69,10 @@
   flex-direction: row-reverse;
 }
 
-/* On a phone the header row is behind the cards, and the sort sits above them. */
-.ds-data-table__card-sort {
-  border-bottom: 1px solid var(--ds-table-divider);
-  padding: var(--ds-space-3) var(--ds-space-4);
-  background: var(--ds-color-surface);
-}
+/*
+ * On a phone the header row is behind the cards, and the sort sits above them,
+ * in the strip `roleCards.css` draws ("Select all", then "Sort by").
+ */
 
 @media (prefers-reduced-motion: no-preference) {
   .ds-data-table__sort > svg {

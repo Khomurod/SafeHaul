@@ -40,9 +40,10 @@ describe('AddPersonDialog', () => {
         mocks.createFn.mockResolvedValue({ data: { success: true } });
     });
 
-    it('is a dialog named "Add person"', () => {
+    it('is a dialog named "Add person", described by how new people sign in', () => {
         renderDialog();
-        expect(screen.getByRole('dialog', { name: 'Add person' })).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: 'Add person' }))
+            .toHaveAccessibleDescription('New people sign in with this email and password.');
     });
 
     it('renders empty fields, the default role, and exactly the two exposed role options', () => {
@@ -51,10 +52,14 @@ describe('AddPersonDialog', () => {
         expect(screen.getByRole('textbox', { name: /Email/i })).toHaveValue('');
         expect(screen.getByLabelText(/Password/i)).toHaveValue('');
 
-        const role = screen.getByRole('combobox', { name: /Role/i });
-        expect(role).toHaveValue('hr_user');
-        const options = Array.from(role.querySelectorAll('option')).map((o) => `${o.value}:${o.textContent}`);
-        expect(options).toEqual(['hr_user:Recruiter (Standard)', 'company_admin:Company Admin (Full Access)']);
+        // The role is a group of two radio cards, each saying what the role sees.
+        const role = screen.getByRole('group', { name: /Role/i });
+        const options = within(role).getAllByRole('radio');
+        expect(options.map((o) => o.value)).toEqual(['hr_user', 'company_admin']);
+        expect(within(role).getByRole('radio', { name: /Recruiter \(Standard\)/ })).toBeChecked();
+        expect(within(role).getByRole('radio', { name: /Company Admin \(Full Access\)/ })).not.toBeChecked();
+        expect(within(role).getByText('Sees their own leads.')).toBeInTheDocument();
+        expect(within(role).getByText('Sees everything and changes settings.')).toBeInTheDocument();
     });
 
     it('exposes required, typed inputs with safe autocomplete', () => {
@@ -73,7 +78,7 @@ describe('AddPersonDialog', () => {
     it('submits the exact createPortalUser request', async () => {
         renderDialog();
         fillForm();
-        fireEvent.change(screen.getByRole('combobox', { name: /Role/i }), { target: { value: 'company_admin' } });
+        fireEvent.click(screen.getByRole('radio', { name: /Company Admin \(Full Access\)/ }));
         submit();
 
         await waitFor(() => expect(mocks.createFn).toHaveBeenCalledWith({

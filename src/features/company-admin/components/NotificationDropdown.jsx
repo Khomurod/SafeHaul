@@ -177,7 +177,7 @@ export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments,
                         )}
                         {loading ? (
                             <div className="p-8 text-center">
-                                <div className="animate-spin w-6 h-6 border-2 border-ds-action-primary border-t-transparent rounded-ds-full mx-auto"></div>
+                                <div className="animate-spin w-6 h-6 border-2 border-ds-navigation-accent border-t-transparent rounded-ds-full mx-auto"></div>
                                 <p className="text-ds-body text-ds-content-muted mt-2">Loading...</p>
                             </div>
                         ) : notifications.length === 0 && !error ? (
@@ -213,7 +213,7 @@ export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments,
                                             </span>
                                         </span>
                                         {!notif.read && (
-                                            <span aria-hidden="true" className="w-2 h-2 bg-ds-action-primary rounded-ds-full mt-2"></span>
+                                            <span aria-hidden="true" className="w-2 h-2 bg-ds-navigation-accent rounded-ds-full mt-2"></span>
                                         )}
                                     </>
                                 );

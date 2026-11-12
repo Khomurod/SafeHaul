@@ -203,10 +203,14 @@ test.describe('a Company Admin and an unfinished application', () => {
         for (const name of ['Copy link', 'Open the application', 'Edit answers', 'Delete everything']) {
             await expect(page.getByRole('button', { name: `${name} for Dana Whitfield` })).toBeVisible();
         }
-        // A card's values sit under their column's name, which the table's header
-        // no longer shows.
+        // A card is titled by the driver's name alone, its status in the corner;
+        // how to reach them is a line of its own under it, and every other fact
+        // reads without its column's name.
         const card = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: /^Dana Whitfield/ }) });
-        await expect(card.getByRole('cell').first()).toHaveAttribute('data-label', 'Phone');
+        await expect(card.getByRole('rowheader')).toHaveAccessibleName('Dana Whitfield');
+        await expect(card.getByRole('cell').filter({ has: page.getByText('Started by driver') })).toHaveAttribute('data-mobile-role', 'status');
+        await expect(card.getByRole('cell').filter({ has: call })).toHaveAttribute('data-mobile-role', 'line');
+        await expect(card.getByText(/^Last activity/)).toBeVisible();
         // Inside the screen, measured where it could spill: the workspace clips its
         // own overflow, so the page's width would never show a card wider than it.
         const spill = await page.evaluate(() => {

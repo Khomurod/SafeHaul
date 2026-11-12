@@ -230,6 +230,15 @@ describe('ToastProvider — presentation guarantees', () => {
         expect(alert.className).toContain('max-w-md');
         expect(within(alert).getByText(/Something broke/).className).toContain('break-words');
     });
+
+    it('stands above a page\'s sticky action bar on a phone, so it never covers Save', () => {
+        renderProvider();
+        fireEvent.click(screen.getByRole('button', { name: 'fire error' }));
+
+        // `PageHeader mobileActions="sticky"` sets the bar's height on the root.
+        expect(screen.getByRole('alert').parentElement.className)
+            .toContain('bottom-[calc(var(--ds-page-sticky-bar-height,0px)+var(--ds-space-6))]');
+    });
 });
 
 describe('ToastProvider — accessibility', () => {

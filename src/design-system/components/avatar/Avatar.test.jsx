@@ -1,7 +1,7 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { Avatar } from './Avatar';
@@ -75,8 +75,50 @@ describe('Avatar', () => {
     it('refuses a shape or tone it has no rule for', () => {
         expect(() => render(<Avatar shape="pill">M</Avatar>))
             .toThrow(/Unsupported Avatar shape: pill/);
-        expect(() => render(<Avatar tone="brand">M</Avatar>))
-            .toThrow(/Unsupported Avatar tone: brand/);
+        expect(() => render(<Avatar tone="loud">M</Avatar>))
+            .toThrow(/Unsupported Avatar tone: loud/);
+    });
+
+    it.each(['brand', 'navigation'])('takes the %s tone', (tone) => {
+        const { container } = render(<Avatar size="sm" tone={tone}>MG</Avatar>);
+        expect(container.firstChild).toHaveAttribute('data-tone', tone);
+        expect(container.firstChild).toHaveTextContent('MG');
+    });
+
+    /*
+     * The empty place in an assignee column: a ring with nothing in it, so the
+     * names beside the discs start at one edge. The text beside it carries the
+     * meaning, and the ring stays hidden like every avatar.
+     */
+    it('draws the placeholder as an empty, hidden ring', async () => {
+        const { container } = render(<p><Avatar size="xs" tone="placeholder" /> Unassigned</p>);
+        const ring = container.querySelector('.ds-avatar');
+        expect(ring).toHaveAttribute('data-tone', 'placeholder');
+        expect(ring).toHaveAttribute('aria-hidden', 'true');
+        expect(ring).toBeEmptyDOMElement();
+        expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('refuses initials in a placeholder, and accepts blank children', () => {
+        expect(() => render(<Avatar tone="placeholder">MG</Avatar>))
+            .toThrow(/placeholder" is an empty ring/);
+        expect(() => render(<Avatar tone="placeholder">{' '}{null}{false}</Avatar>)).not.toThrow();
+    });
+
+    describe('in a production build', () => {
+        afterEach(() => {
+            vi.unstubAllEnvs();
+            vi.restoreAllMocks();
+        });
+
+        it('draws a placeholder given initials as the empty ring, and reports it once', () => {
+            vi.stubEnv('PROD', true);
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const { container } = render(<Avatar tone="placeholder">ZZ</Avatar>);
+            expect(container.firstChild).toBeEmptyDOMElement();
+            expect(container.firstChild).toHaveAttribute('data-tone', 'placeholder');
+            expect(consoleError).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('marks a bordered disc for CSS and omits the flag otherwise', () => {
@@ -116,6 +158,11 @@ describe('Avatar CSS', () => {
     const css = readFileSync(path.join(__dirname, 'Avatar.css'), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '');
 
+    it('keeps two initials on one line, even in the 20px disc', () => {
+        const base = css.slice(css.indexOf('.ds-avatar {'), css.indexOf('}', css.indexOf('.ds-avatar {')));
+        expect(base).toContain('white-space: nowrap');
+    });
+
     it('sizes every step in both the base and the responsive block', () => {
         for (const step of ['xs', 'sm', 'md', 'lg', 'xl']) {
             expect(css).toContain(`.ds-avatar[data-size='${step}']`);
@@ -134,6 +181,34 @@ describe('Avatar CSS', () => {
      * consumer that needed one had already picked the lighter content role by
      * hand and recorded why.
      */
+    const rule = (selector) => {
+        const start = css.indexOf(selector);
+        expect(start, `${selector} has a rule`).toBeGreaterThanOrEqual(0);
+        return css.slice(start, css.indexOf('}', start));
+    };
+
+    it('tints the brand disc from the brand roles', () => {
+        const brand = rule("[data-tone='brand']");
+        expect(brand).toContain('--ds-avatar-bg: var(--ds-color-brand-primary-subtle)');
+        expect(brand).toContain('--ds-avatar-fg: var(--ds-color-brand-primary)');
+    });
+
+    /*
+     * The frame's disc must not follow the action colour: the sidebar and top
+     * bar stayed blue when actions became the brand navy.
+     */
+    it('fills the navigation disc with the frame accent, not the action colour', () => {
+        const navigation = rule("[data-tone='navigation']");
+        expect(navigation).toContain('var(--ds-color-navigation-accent)');
+        expect(navigation).not.toContain('action-primary');
+    });
+
+    it('draws the placeholder as a dashed ring with no fill', () => {
+        const placeholder = rule("[data-tone='placeholder']");
+        expect(placeholder).toMatch(/border:\s*1\.5px dashed var\(--ds-color-border\)/);
+        expect(placeholder).toContain('--ds-avatar-bg: transparent');
+    });
+
     it('rings an inverse avatar with a colour that reads on a dark panel', () => {
         const rule = css.slice(css.indexOf("[data-tone='inverse'][data-bordered]"));
         expect(rule.slice(0, rule.indexOf('}'))).toContain('--ds-color-content-on-inverse-muted');

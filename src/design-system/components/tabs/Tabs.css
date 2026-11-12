@@ -22,30 +22,9 @@
 }
 
 /*
- * `pill`: a secondary strip that sits inside a panel. No bottom rule on the
- * strip, because it is not separating itself from page content — the panel
- * already does that — and an underline here would read as a second page-level
- * strip.
+ * `segmented` and `pill` are drawn by `segmentedGroup.css`, which `TabNav` and
+ * `ListToolbar` share; the element also carries `ds-segmented-group`.
  */
-.ds-tab-list[data-variant='pill'] {
-  border-bottom: 0;
-  gap: var(--ds-space-2);
-}
-
-.ds-tab-list[data-variant='pill'] .ds-tab {
-  border-bottom: 0;
-  border-radius: var(--ds-radius-md);
-}
-
-.ds-tab-list[data-variant='pill'] .ds-tab[data-selected] {
-  background: var(--ds-color-status-info-bg);
-  color: var(--ds-color-status-info-fg);
-}
-
-.ds-tab-list[data-variant='pill'] .ds-tab:hover:not([data-selected]) {
-  background: var(--ds-color-surface-subtle);
-  color: var(--ds-color-content);
-}
 
 .ds-tab-list[data-orientation='vertical'] {
   flex-direction: column;
@@ -54,7 +33,13 @@
   border-inline-end: 1px solid var(--ds-color-border);
 }
 
+/*
+ * Positioned, so text hidden for assistive technology inside a tab (the
+ * dossier's "— incomplete") is placed within the tab: otherwise it escapes a
+ * strip that scrolls sideways and widens whatever holds the strip.
+ */
 .ds-tab {
+  position: relative;
   display: inline-flex;
   /*
    * The shared control height. A tab strip is a row of controls, and one that
@@ -118,8 +103,12 @@
  */
 .ds-tab-nav .ds-tab-list {
   margin: 0;
-  padding: 0;
   list-style: none;
+}
+
+/* The segmented tray keeps its own padding (`segmentedGroup.css`). */
+.ds-tab-nav .ds-tab-list:not(.ds-segmented-group) {
+  padding: 0;
 }
 
 .ds-tab-nav__item {
@@ -188,10 +177,5 @@ a.ds-tab {
 
   .ds-tab-list[data-orientation='vertical'] .ds-tab[data-selected] {
     border-inline-start-color: Highlight;
-  }
-
-  .ds-tab-list[data-variant='pill'] .ds-tab[data-selected] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
   }
 }

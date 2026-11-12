@@ -159,7 +159,8 @@ describe('listing', () => {
             .toHaveAttribute('href', 'tel:+12145550147');
         // The wizard's own step name, not an index the recruiter has to decode.
         expect(screen.getByText('Step 3 of 9')).toBeTruthy();
-        expect(screen.getByText(/· License & credentials/)).toBeTruthy();
+        // The page's name on a line of its own, under the bar.
+        expect(screen.getByText('License & credentials')).toBeTruthy();
         expect(screen.getByRole('progressbar', { name: 'How far Dana Alvarez got' }))
             .toHaveAttribute('aria-valuetext', 'Step 3 of 9, License & credentials');
     });

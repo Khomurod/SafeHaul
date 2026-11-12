@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { ProfileAvatarField } from './ProfileAvatarField';
@@ -144,5 +144,18 @@ describe('ProfileAvatarField', () => {
 
         const fallback = setup({ photoURL: '', initials: 'AB' });
         expect((await axe(fallback.container)).violations).toEqual([]);
+    });
+    it('shows "Profile photo" above the preview and names their group, the input keeping the one label', () => {
+        const { container } = setup({ photoURL: '', initials: 'AB' });
+
+        const group = screen.getByRole('group', { name: 'Profile photo' });
+        // Named by visible text, not by the picker's hidden label.
+        const name = document.getElementById(group.getAttribute('aria-labelledby'));
+        expect(name).toHaveTextContent('Profile photo');
+        expect(name).not.toHaveClass('ds-visually-hidden');
+        expect(group.firstElementChild).toBe(name);
+        expect(within(group).getByRole('img', { name: 'No profile photo set' })).toBeInTheDocument();
+        expect(container.querySelectorAll('label')).toHaveLength(1);
+        expect(container.querySelector('input[type="file"]')).toHaveAccessibleName('Profile photo');
     });
 });

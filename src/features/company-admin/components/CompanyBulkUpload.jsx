@@ -1,6 +1,7 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { Icon, Wrench } from '@design-system/icons';
 import { useBulkImport } from '@shared/hooks';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { useCompanyLeadUpload } from '../hooks/useCompanyLeadUpload';
 import { BulkUploadLayout } from '@shared/components/admin/BulkUploadLayout';
 import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
@@ -10,6 +11,15 @@ import {
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
+
+/** What a file needs, one sentence per bullet. Frozen wording. */
+const UPLOAD_INSTRUCTIONS = [
+    'Format: CSV, XLS, or XLSX.',
+    'Required: First Name + Last Name (or just "Name"), Phone.',
+    'We automatically detect headers.',
+    'Phone numbers are normalized automatically.',
+    'Emails are optional — placeholders are auto-generated when missing.',
+];
 
 /**
  * Company lead bulk import.
@@ -34,11 +44,21 @@ import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
  *     messages with the same text — never a blocking `alert()`.
  *
  * Frozen: `uploadLeads(csvData, importMethod)`, the CSV template headers /
- * sample row / filename, the accepted formats, the instructions text, the
- * assignment values, the team-member ids and round-robin behaviour, and every
- * user-facing string.
+ * sample row / filename, the accepted formats, the instructions text (five
+ * sentences, now a list of five), the assignment values, the team-member ids
+ * and round-robin behaviour, and every user-facing string. The card's one line
+ * under its title ("…You see a preview before anything is added.") is the
+ * owner-approved C2 wording: the preview shows the first rows before anything
+ * is written.
+ *
+ * `onStepChange` is for a page that shows where the import is itself, in its
+ * header (`ImportLeadsPage`): it hears every step ('upload', 'preview',
+ * 'success') and the card leaves its own step list out.
  */
-export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbedded = false }) {
+export function CompanyBulkUpload({
+    companyId, onClose, onUploadComplete, isEmbedded = false, onStepChange,
+}) {
+    const isMobile = useIsMobile();
     const instanceId = useId().replace(/:/g, '');
     const repairTitleId = `bulk-upload-repair-title-${instanceId}`;
     const recipientsLabelId = `bulk-upload-recipients-${instanceId}`;
@@ -83,6 +103,10 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
     });
 
     const currentStep = uploadStep !== 'upload' ? uploadStep : importStep;
+
+    useEffect(() => {
+        onStepChange?.(currentStep);
+    }, [currentStep, onStepChange]);
 
     const handleConfirm = async () => {
         clearFeedback();
@@ -217,10 +241,12 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
         </Card>
     );
 
+    // On the card's header row; on a phone, a full-width row of its own.
     const RepairButton = currentStep === 'upload' && !uploading ? (
         <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
+            size={isMobile ? 'md' : 'sm'}
+            fullWidth={isMobile}
             onClick={handleRepairClick}
             title="Fix leads where phone numbers were pasted into the email field"
         >
@@ -234,20 +260,13 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
         downloadCsv('leads_template.csv', toCsvText([headers, sampleRow]));
     };
 
-    const uploadInstructions = `
-      Format: CSV, XLS, or XLSX.
-      Required: First Name + Last Name (or just "Name"), Phone.
-
-      - We automatically detect headers.
-      - Phone numbers are normalized automatically.
-      - Emails are optional — placeholders are auto-generated when missing.
-  `;
-
     return (
         <>
             <BulkUploadLayout
                 title="Import Private Leads"
+                description="Upload a spreadsheet of leads. You see a preview before anything is added."
                 step={currentStep}
+                showSteps={!onStepChange}
                 importMethod={importMethod}
                 setImportMethod={setImportMethod}
                 sheetUrl={sheetUrl}
@@ -265,7 +284,7 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
                 stats={stats}
                 headerAction={RepairButton}
                 onDownloadTemplate={handleDownloadTemplate}
-                instructions={uploadInstructions}
+                instructions={UPLOAD_INSTRUCTIONS}
                 isEmbedded={isEmbedded}
                 error={feedback.tone === 'error' ? feedback.message : ''}
                 notice={feedback.tone === 'info' ? feedback.message : ''}

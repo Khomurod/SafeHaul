@@ -119,11 +119,41 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByText('Lena Leadsen')).toBeVisible();
     await expect(page.getByText('Omar Attempt')).toHaveCount(0);
     await expect(page.getByRole('checkbox')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Assign \(/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Assign/ })).toHaveCount(0);
     // The tab names its assignee: no "My leads" switch, no Assigned to filter.
     await expect(page.getByRole('switch')).toHaveCount(0);
     await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await expect(page.getByLabel('Assigned to', { exact: true })).toHaveCount(0);
+  });
+
+  test('keeps every column where All draws it on Assigned to me, under a 44px header band', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop column geometry.');
+    const columnsAt = async (path) => {
+      await openCandidatePage(page, path, 'Leads');
+      const table = page.getByRole('table', { name: 'Leads table' });
+      const header = table.locator('thead tr');
+      const status = table.getByRole('columnheader', { name: 'Status' });
+      const assignee = table.getByRole('columnheader', { name: 'Assignee' });
+      const added = table.getByRole('columnheader', { name: 'Added' });
+      return {
+        band: Math.round((await header.boundingBox()).height),
+        status: (await status.boundingBox()).x,
+        assignee: (await assignee.boundingBox()).x,
+        // The sorted header rests in the colour of every other header.
+        colours: await Promise.all([added.getByRole('button'), status].map((el) => el.evaluate((node) => getComputedStyle(node).color))),
+      };
+    };
+    for (const width of [1440, 1024]) {
+      await page.setViewportSize({ width, height: 900 });
+      // All has the checkbox column; Assigned to me keeps its place, empty.
+      const all = await columnsAt('/company/drivers/leads/company');
+      const mine = await columnsAt('/company/drivers/leads/my');
+      expect(Math.abs(mine.status - all.status)).toBeLessThanOrEqual(1);
+      expect(Math.abs(mine.assignee - all.assignee)).toBeLessThanOrEqual(1);
+      expect([all.band, mine.band]).toEqual([44, 44]);
+      expect(all.colours[0]).toBe(all.colours[1]);
+    }
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
   });
 
   test('lists the leads nobody is assigned to on Unassigned, which an admin can assign', async ({ page }) => {
@@ -170,48 +200,89 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByLabel('Sort by')).toHaveValue('addedDate:desc');
 
     const maria = page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
-    // Each value sits under its column's label (drawn from `data-label`).
-    await expect(maria.locator('[data-label="Assignee"]')).toHaveText('E2E Admin');
-    await expect(maria.locator('[data-label="Applied"]')).toHaveText('Jul 10, 2026');
-    // The number starts where the other values do, not centred in its column.
+    // One record per card: the name with its number under it, the facts
+    // inline after their words, the assignee on a line of their own.
+    await expect(maria.locator('[data-mobile-label="Applied"]')).toHaveText('Jul 10, 2026');
+    await expect(maria.getByRole('cell', { name: 'E2E Admin', exact: true })).toBeVisible();
+    // A call never made is left off the card, not shown as "Last call: —".
+    await expect(maria.locator('[data-mobile-label="Last call:"]')).toHaveAttribute('data-mobile-empty', 'true');
+    const name = maria.getByRole('rowheader').getByText('Maria Garcia', { exact: true });
     const call = maria.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true });
-    const [callBox, statusBox] = await Promise.all([
+    const [nameBox, callBox, appliedBox] = await Promise.all([
+      name.boundingBox(),
       call.getByText('(512) 555-0134').boundingBox(),
-      maria.locator('[data-label="Status"] > *').first().boundingBox(),
+      maria.locator('[data-mobile-label="Applied"]').boundingBox(),
     ]);
-    expect(Math.abs(callBox.x - statusBox.x)).toBeLessThanOrEqual(1);
+    // The number sits under the name, and the facts start where they do.
+    expect(callBox.y).toBeGreaterThanOrEqual(nameBox.y + nameBox.height - 1);
+    expect(Math.abs(callBox.x - nameBox.x)).toBeLessThanOrEqual(1);
+    expect(appliedBox.y).toBeGreaterThanOrEqual(callBox.y + callBox.height - 1);
 
     // The number calls; the name opens the dossier.
     await call.click();
     await expect(page.getByRole('dialog', { name: 'Log call result' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Close call result' }).click();
-    await maria.getByRole('rowheader').click();
+    await name.click();
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
   });
 
-  test('keeps All leads, with its checkboxes, a table that scrolls on a phone @mobile', async ({ page }, testInfo) => {
+  test('shows All leads, with its checkboxes, as cards under "Select all" on a phone @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation is verified in a mobile project.');
     await openCandidatePage(page, '/company/drivers/leads/company', 'Leads');
 
-    const region = page.getByRole('region', {
-      name: 'Leads table. Scroll horizontally to view all columns.',
-    });
-    const dimensions = await region.evaluate((element) => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-      overflowX: getComputedStyle(element).overflowX,
-      tabIndex: element.tabIndex,
-    }));
+    const region = page.getByRole('region', { name: 'Leads table', exact: true });
+    expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await expect(page.getByText('Swipe horizontally to view all columns and actions.')).toHaveCount(0);
 
-    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth);
-    expect(dimensions.overflowX).toBe('auto');
-    expect(dimensions.tabIndex).toBe(0);
-    await expect(page.getByText('Swipe horizontally to view all columns and actions.')).toBeVisible();
+    // The header row's checkbox moves to a strip above the cards, its name
+    // kept and "Select all" written beside it, with Sort by.
+    const selectAll = page.getByRole('checkbox', { name: 'Select all candidates on this page' });
+    await expect(selectAll).toHaveCount(1);
+    await expect(selectAll).toBeVisible();
+    await expect(page.getByText('Select all', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Sort by')).toHaveValue('addedDate:desc');
+
+    // Each card leads with its own checkbox, 44px to press, which never opens the dossier.
+    const lena = page.getByRole('checkbox', { name: 'Select Lena Leadsen' });
+    // In view first: ticking scrolls a box below the fold into view, and a
+    // scroll is not a card moving.
+    await lena.scrollIntoViewIfNeeded();
+    const box = await lena.locator('xpath=ancestor::*[self::td or self::th][1]').boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    // Assign is already in its place, unavailable, so ticking a card moves no
+    // card: the next box is where the finger expects it.
+    await expect(page.getByRole('button', { name: 'Assign', exact: true })).toBeDisabled();
+    await lena.check();
+    await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Assign (1)' })).toBeEnabled();
+    expect((await lena.locator('xpath=ancestor::*[self::td or self::th][1]').boundingBox()).y).toBeCloseTo(box.y, 0);
+    expect(await selectAll.evaluate((element) => element.indeterminate)).toBe(true);
+    await selectAll.check();
+    await expect(page.getByRole('button', { name: 'Assign (2)' })).toBeVisible();
+    await selectAll.uncheck();
+
     await expect(page.getByRole('button', { name: 'Call Lena Leadsen at (408) 555-0110', exact: true })).toBeVisible();
+    // Under 412px a lead's status leaves the corner for a line under its number,
+    // so every lead card keeps one shape; from 412px it is the corner again.
+    const lenaCard = page.getByRole('row', { name: 'Open driver dossier for Lena Leadsen' });
+    const statusBelowNumber = async () => {
+      const [call, status] = await Promise.all([
+        lenaCard.getByRole('button', { name: 'Call Lena Leadsen at (408) 555-0110', exact: true }).boundingBox(),
+        lenaCard.locator('[data-mobile-role="status"]').boundingBox(),
+      ]);
+      return status.y >= call.y + call.height - 1;
+    };
+    await page.setViewportSize({ width: 360, height: 800 });
+    expect(await statusBelowNumber()).toBe(true);
+    await page.setViewportSize({ width: 412, height: 915 });
+    expect(await statusBelowNumber()).toBe(false);
 
-    await page.getByRole('row', { name: 'Open driver dossier for Lena Leadsen' }).getByRole('rowheader').click();
+    await page.getByRole('row', { name: 'Open driver dossier for Lena Leadsen' })
+      .getByRole('rowheader').getByText('Lena Leadsen', { exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);

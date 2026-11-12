@@ -29,8 +29,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-/** Bytes, gzip. 267,920 measured; the headroom is 3%. Move it DOWN, never up, without a measurement. */
-export const FIRST_DOWNLOAD_GZIP_CEILING = 276_000;
+/**
+ * Bytes, gzip. 281,198 measured after the C2 redesign, whose shared design-system
+ * layer (page header, segmented tabs, list toolbar, table cards and row detail)
+ * every screen loads: 270,268 before it, +10.9 KB. The headroom is 3%. Move it
+ * DOWN, never up, without a measurement.
+ */
+export const FIRST_DOWNLOAD_GZIP_CEILING = 290_000;
 
 /** A preload of any of these is the regression this check was written for. */
 export const MUST_NOT_PRELOAD = Object.freeze([{ pattern: /pdfjs/i, why: 'the pdf.js chunk belongs to the PDF features, not to every route' }]);
@@ -59,10 +64,12 @@ export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
 
 /**
  * Bytes over the wire for `/apply/:slug` before its first screen: scripts and
- * stylesheets gzip, the font as served (WOFF2 is compressed already). 477,651
- * measured; the headroom is 3%. Move it DOWN, never up, without a measurement.
+ * stylesheets gzip, the font as served (WOFF2 is compressed already). 493,715
+ * measured after the C2 redesign (482,824 before it: the same shared layer as
+ * the first download); the headroom is 3%. Move it DOWN, never up, without a
+ * measurement.
  */
-export const APPLY_PAGE_CEILING = 492_000;
+export const APPLY_PAGE_CEILING = 509_000;
 
 /** The chunk the bundler names after the route's screen (`src/app/routes/applyScreenLoader.js`). */
 export const APPLY_ROUTE_CHUNK = /^PublicApplyHandler-[\w-]+\.js$/;

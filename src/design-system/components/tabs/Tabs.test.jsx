@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Inbox } from '../../icons';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TabList, TabPanel, tabIds } from './Tabs';
 
 const TABS = [
@@ -103,29 +103,86 @@ describe('TabList shapes', () => {
     expect(screen.getByRole('tablist')).toHaveAttribute('data-fitted', 'true');
   });
 
-  it('keeps the same keyboard model in every shape', () => {
+  it.each(['pill', 'segmented'])('keeps the same keyboard model in the %s shape', (variant) => {
     // The shapes differ in the selected treatment and nothing else. If a variant
     // ever changed the interaction it would stop being the same control.
-    render(<Harness variant="pill" fitted />);
+    render(<Harness variant={variant} fitted />);
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'End' });
     expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName('Archive');
+    expect(screen.getAllByRole('tab').filter((tab) => tab.getAttribute('tabindex') === '0')).toHaveLength(1);
   });
 
   it('refuses an unsupported variant rather than ignoring it', () => {
     expect(() => render(<Harness variant="ghost" />)).toThrow(/Unsupported TabList variant/i);
   });
 
-  it('refuses the one combination it does not support', () => {
+  it('refuses the combinations it does not support', () => {
     // A silently-ignored combination is how a component starts lying about what
     // it supports.
     expect(() => render(<Harness variant="pill" orientation="vertical" />))
       .toThrow(/does not support variant="pill"/i);
+    expect(() => render(<Harness variant="segmented" orientation="vertical" />))
+      .toThrow(/does not support variant="segmented"/i);
   });
 
-  it('has no accessibility violations in either shape', async () => {
+  /*
+   * `segmented` and `pill` share their drawing with `ListToolbar`'s segments
+   * and `TabNav` (`segmentedGroup.css`), so the strip and its tabs carry the
+   * shared classes as well as their own.
+   */
+  it('draws segmented and pill strips with the shared segmented group', () => {
+    const { unmount } = render(<Harness variant="segmented" />);
+    const strip = screen.getByRole('tablist');
+    expect(strip).toHaveClass('ds-tab-list', 'ds-segmented-group');
+    expect(strip).toHaveAttribute('data-variant', 'segmented');
+    screen.getAllByRole('tab').forEach((tab) => expect(tab).toHaveClass('ds-tab', 'ds-segmented-group__item'));
+    unmount();
+
+    render(<Harness variant="pill" />);
+    expect(screen.getByRole('tablist')).toHaveClass('ds-segmented-group');
+    expect(screen.getByRole('tablist')).not.toHaveAttribute('data-phone-columns');
+  });
+
+  it('keeps the underlined strip out of the shared group', () => {
+    render(<Harness />);
+    expect(screen.getByRole('tablist')).not.toHaveClass('ds-segmented-group');
+    expect(screen.getAllByRole('tab')[0]).not.toHaveClass('ds-segmented-group__item');
+  });
+
+  it.each([[2, '2'], [3, '3'], [4, '2'], [5, 'wrap'], [6, '3'], [7, 'wrap']])(
+    'lays %i segmented tabs out in rows of %s on a phone',
+    (count, columns) => {
+      const tabs = Array.from({ length: count }, (_, i) => ({ id: `t${i}`, label: `View ${i + 1}` }));
+      render(<TabList ariaLabel="Views" idBase="views" tabs={tabs} activeTab="t0" onChange={vi.fn()} variant="segmented" />);
+      expect(screen.getByRole('tablist')).toHaveAttribute('data-phone-columns', columns);
+    },
+  );
+
+  it('draws a segmented badge as the muted count, inside the name with a space', () => {
+    render(
+      <TabList
+        ariaLabel="Views"
+        idBase="views"
+        tabs={[{ id: 'sent', label: 'Sent', badge: 6 }, { id: 'drafts', label: 'Drafts', badge: 0 }, { id: 'all', label: 'All' }]}
+        activeTab="sent"
+        onChange={vi.fn()}
+        variant="segmented"
+      />,
+    );
+    const sent = screen.getByRole('tab', { name: 'Sent 6' });
+    expect(sent.querySelector('.ds-segmented-group__count')).toHaveTextContent('6');
+    // A count of none is still a count.
+    expect(screen.getByRole('tab', { name: 'Drafts 0' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'All' }).querySelector('.ds-tab__badge')).toBeNull();
+  });
+
+  it('has no accessibility violations in any shape', async () => {
     const pill = render(<Harness variant="pill" />);
     expect((await axe(pill.container)).violations).toEqual([]);
     pill.unmount();
+    const segmented = render(<Harness variant="segmented" />);
+    expect((await axe(segmented.container)).violations).toEqual([]);
+    segmented.unmount();
     const fitted = render(<Harness fitted />);
     expect((await axe(fitted.container)).violations).toEqual([]);
   });
@@ -242,5 +299,65 @@ describe('TabPanel wiring', () => {
   it('has no accessibility violations', async () => {
     const { container } = render(<Harness />);
     expect((await axe(container)).violations).toEqual([]);
+  });
+});
+
+describe('a segmented item keeps its width whether chosen or not', () => {
+  it('reserves the semibold width of a plain label, outside the name', () => {
+    render(
+      <TabList
+        ariaLabel="Views"
+        idBase="steady"
+        tabs={[{ id: 'a', label: 'Overview' }, { id: 'b', label: 'Templates', badge: 3 }]}
+        activeTab="a"
+        onChange={vi.fn()}
+        variant="segmented"
+      />,
+    );
+    const overview = screen.getByRole('tab', { name: 'Overview' });
+    expect(overview.querySelector('.ds-segmented-group__label')).toHaveAttribute('data-text', 'Overview');
+    // The reserved copy is generated content with empty alternative text, so
+    // the name is still the label and its count.
+    expect(screen.getByRole('tab', { name: 'Templates 3' })).toBeInTheDocument();
+  });
+
+  it('leaves the underlined strip as it was', () => {
+    render(<TabList ariaLabel="Views" idBase="plain" tabs={[{ id: 'a', label: 'Overview' }]} activeTab="a" onChange={vi.fn()} />);
+    expect(screen.getByRole('tab', { name: 'Overview' }).querySelector('[data-text]')).toBeNull();
+  });
+});
+
+describe('a segmented tray too wide for its row', () => {
+  const sized = (width) => vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width);
+  const rangeWidth = (width) => vi.spyOn(Range.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 });
+  const tabs = ['Overview', 'Sent Documents', 'Templates', 'After-application forms'].map((label, i) => ({ id: `t${i}`, label }));
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('takes its full-row layout when its items do not fit on one row', () => {
+    sized(400);
+    rangeWidth(120);
+    render(<TabList ariaLabel="Views" idBase="fit" tabs={tabs} activeTab="t0" onChange={vi.fn()} variant="segmented" />);
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-wrapped', 'true');
+  });
+
+  it('stays one row when they fit', () => {
+    sized(1200);
+    rangeWidth(120);
+    render(<TabList ariaLabel="Views" idBase="fit" tabs={tabs} activeTab="t0" onChange={vi.fn()} variant="segmented" />);
+    expect(screen.getByRole('tablist')).not.toHaveAttribute('data-wrapped');
+  });
+});
+
+describe('Tabs.css', () => {
+  it('positions every tab, so text hidden inside it stays in a strip that scrolls sideways', async () => {
+    const { readFileSync } = await import('node:fs');
+    const path = await import('node:path');
+    const css = readFileSync(path.join(__dirname, 'Tabs.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = css.match(/^\.ds-tab \{[^}]*\}/m)?.[0] ?? '';
+    // The dossier's "— incomplete" is absolutely positioned; unpositioned tabs
+    // let it escape the phone strip and widen the dialog (driver-dossier.spec).
+    expect(rule).toContain('position: relative');
   });
 });

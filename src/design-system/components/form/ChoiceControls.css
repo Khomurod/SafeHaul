@@ -108,3 +108,97 @@
   flex-wrap: wrap;
   gap: var(--ds-space-2) var(--ds-space-6);
 }
+
+/*
+ * `appearance="card"`: each option is a bordered card, label as its title and
+ * description under it, and the label's hit area stretched over the whole card
+ * (a pseudo-element of the `<label>`, so a press anywhere on the card is a
+ * press on the label, and the native input does the rest).
+ *
+ * A chosen card wears the selected treatment `SelectableCard` wears — the
+ * action border, an inset ring rather than a thicker border so nothing shifts,
+ * and `--ds-color-surface-selected` — so a role picked here and a record picked
+ * there read as the same answer.
+ */
+.ds-choice-group[data-appearance='card'] .ds-choice-group__options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-3);
+}
+
+/* Side by side while each card keeps 240px; one a row on a phone. */
+.ds-choice-group[data-appearance='card'][data-orientation='horizontal'] .ds-choice-group__options {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--ds-space-4);
+}
+
+.ds-choice-group[data-appearance='card'] .ds-choice {
+  position: relative;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  background: var(--ds-color-surface);
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-choice-group[data-appearance='card'] .ds-choice__label {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.ds-choice-group[data-appearance='card'] .ds-choice__label::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+}
+
+.ds-choice-group[data-appearance='card'] .ds-choice__description {
+  text-wrap: pretty;
+}
+
+/*
+ * Above the stretched hit area: a link or a button in a description, and the
+ * error message, which a reader may want to select. A press on the rest of the
+ * card still chooses it.
+ */
+.ds-choice-group[data-appearance='card'] .ds-choice__description :is(a, button),
+.ds-choice-group[data-appearance='card'] .ds-choice .ds-field-message {
+  position: relative;
+  z-index: var(--ds-z-layer-1);
+}
+
+/*
+ * Hover marks a card that is neither chosen nor disabled. A chosen card keeps
+ * its action border under the pointer: without `:not(:has(:checked))` this rule
+ * (one `:has()` heavier) would grey the outer edge around the navy ring.
+ */
+.ds-choice-group[data-appearance='card'] .ds-choice:hover:not(:has(.ds-choice__control:disabled)):not(:has(.ds-choice__control:checked)) {
+  border-color: var(--ds-color-border-strong);
+}
+
+.ds-choice-group[data-appearance='card'] .ds-choice:has(.ds-choice__control:checked) {
+  border-color: var(--ds-color-action-primary);
+  background: var(--ds-color-surface-selected);
+  box-shadow: inset 0 0 0 1px var(--ds-color-action-primary);
+}
+
+.ds-choice-group[data-appearance='card'] .ds-choice:has(.ds-choice__control:disabled) .ds-choice__label {
+  cursor: not-allowed;
+}
+
+/* Forced colours paint the tint as `Canvas`; a `Highlight` border keeps the choice. */
+@media (forced-colors: active) {
+  .ds-choice-group[data-appearance='card'] .ds-choice:has(.ds-choice__control:checked) {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-choice-group[data-appearance='card'] .ds-choice {
+    transition: none;
+  }
+}

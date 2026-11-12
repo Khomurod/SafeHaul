@@ -16,6 +16,25 @@ describe('ApplicationRulesPanel', () => {
         }
     });
 
+    it('heads each group of rules as a section of its own, after the panel that explains them', () => {
+        render(<ApplicationRulesPanel rules={{}} onChange={vi.fn()} />);
+        expect(screen.getByRole('region', { name: 'Application Rules' })).toHaveTextContent(/Nothing here changes which questions are asked/);
+        for (const group of APPLICATION_RULES_CATALOG.groups) {
+            const section = screen.getByRole('region', { name: group.title });
+            expect(within(section).getByRole('heading', { level: 2, name: group.title })).toBeInTheDocument();
+        }
+    });
+
+    it('keeps each set of choices a group named by its rule and described by its help', () => {
+        render(<ApplicationRulesPanel rules={{}} onChange={vi.fn()} />);
+        for (const rule of APPLICATION_RULES_CATALOG.rules.filter((one) => ['enforcement', 'choice', 'hiddenOptions'].includes(one.type))) {
+            const group = screen.getByRole('group', { name: rule.label });
+            if (rule.help) expect(group).toHaveAccessibleDescription(rule.help);
+        }
+        const years = APPLICATION_RULES_CATALOG.rules.find((rule) => rule.type === 'number');
+        expect(screen.getByRole('spinbutton', { name: years.label })).toHaveAccessibleDescription(years.help);
+    });
+
     it('shows every rule on its platform default when the company has configured nothing', () => {
         render(<ApplicationRulesPanel rules={undefined} onChange={vi.fn()} />);
         expect(screen.getByRole('switch', { name: /Require previous addresses/ })).toHaveAttribute('aria-checked', 'true');

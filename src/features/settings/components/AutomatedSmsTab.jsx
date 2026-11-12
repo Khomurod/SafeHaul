@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { Icon, Loader2 } from '@design-system/icons';
+import { Icon, Loader2, RefreshCw } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import {
     Button,
-    FieldMessage,
     FormField,
     FormSection,
     Notice,
@@ -21,6 +20,13 @@ const TEMPLATES = [
     { field: 'templateContactAttempt1', id: 'automated-sms-contact-attempt-1', label: 'Contact Attempt 1' },
     { field: 'templateContactAttempt2', id: 'automated-sms-contact-attempt-2', label: 'Contact Attempt 2' },
     { field: 'templateContactAttempt3', id: 'automated-sms-contact-attempt-3', label: 'Contact Attempt 3' },
+];
+
+/** What a message may say in braces, and what each becomes when it is sent. */
+const PLACEHOLDERS = [
+    { token: '{driver name}', meaning: 'The applicant’s name' },
+    { token: '{user name}', meaning: 'The recruiter’s name' },
+    { token: '{application link}', meaning: 'Your application page with the recruiter’s personal link' },
 ];
 
 const NONE = { templateContactAttempt1: '', templateContactAttempt2: '', templateContactAttempt3: '' };
@@ -143,6 +149,7 @@ export function AutomatedSmsTab({ companyId }) {
                     title="The saved templates could not be loaded."
                     actions={(
                         <Button variant="secondary" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+                            <Icon icon={RefreshCw} />
                             Retry
                         </Button>
                     )}
@@ -152,30 +159,33 @@ export function AutomatedSmsTab({ companyId }) {
                 </Notice>
             )}
             <FormSection
+                layout="aside"
                 title="Contact-attempt messages"
-                description={(
+                description="Use these in a message:"
+                actions={(
                     <>
-                        Use{' '}
-                        <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
-                            {`{driver name}`}
-                        </code>{' '}
-                        and{' '}
-                        <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
-                            {`{user name}`}
-                        </code>{' '}
-                        for the applicant and recruiter names, and{' '}
-                        <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
-                            {`{application link}`}
-                        </code>{' '}
-                        for your application page with the recruiter&rsquo;s personal link.
+                        <ul className="flex w-full flex-col gap-ds-3">
+                            {PLACEHOLDERS.map(({ token, meaning }) => (
+                                // Each word under its own chip beside the card; on one line with it
+                                // where the section is too narrow for a side column (under 760px).
+                                <li
+                                    key={token}
+                                    className="flex flex-col items-start gap-ds-1 text-ds-body text-ds-content-secondary [text-wrap:pretty] [@container_ds-form-section_(max-width:759px)]:flex-row [@container_ds-form-section_(max-width:759px)]:flex-wrap [@container_ds-form-section_(max-width:759px)]:items-baseline [@container_ds-form-section_(max-width:759px)]:gap-x-ds-2"
+                                >
+                                    <code className="whitespace-nowrap rounded-ds-sm border border-ds-border-subtle bg-ds-surface-subtle px-ds-1 text-ds-xs text-ds-content">
+                                        {token}
+                                    </code>
+                                    <span>{meaning}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="mt-ds-2 w-full text-ds-body text-ds-content-secondary [text-wrap:pretty]">
+                            Requires an active SMS integration and a valid phone on the record.
+                            Duplicate sends are prevented when the status does not change.
+                        </p>
                     </>
                 )}
             >
-                <FieldMessage tone="help">
-                    Requires an active SMS integration and a valid phone on the record.
-                    Duplicate sends are prevented when the status does not change.
-                </FieldMessage>
-
                 {TEMPLATES.map(({ field, id, label }) => (
                     <FormField key={id} id={id} label={label}>
                         <Textarea

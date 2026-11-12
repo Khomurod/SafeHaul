@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Notice } from '@design-system/components';
+import { Button, Card, Notice } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
 
 const meta = {
@@ -36,6 +36,11 @@ const meta = {
           '"warning icon, warning:". Each tone has a default chosen from what the',
           'application already reaches for. `null` hides it; `undefined` takes the',
           'tone-s own.',
+          '',
+          '### `frame="flush"`',
+          '',
+          'The last row of a card: a rule in its tone across the top, no box of its',
+          'own, the card inset at the sides. The default `box` is unchanged.',
         ].join('\n'),
       },
     },
@@ -161,5 +166,33 @@ export const NarrowViewport = {
       </Notice>
       <Notice tone="success" size="sm">Saved.</Notice>
     </Stack>
+  ),
+};
+
+/**
+ * `frame="flush"`: the last row of a card, under the rows it is about. No box
+ * of its own — a rule in its tone across the top, the card's inset at the
+ * sides, and bottom corners that follow the card's.
+ */
+export const FlushInCard = {
+  render: () => (
+    <Card padding="none" style={{ maxWidth: 560 }}>
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+        {['Reference number', 'Date of record', 'Secondary contact'].map((row, index) => (
+          <li
+            key={row}
+            style={{
+              padding: 'var(--ds-space-4) var(--ds-card-padding)',
+              borderTop: index ? '1px solid var(--ds-color-border-subtle)' : undefined,
+            }}
+          >
+            {row}
+          </li>
+        ))}
+      </ul>
+      <Notice tone="warning" frame="flush">
+        Hiding a required field may make the form incomplete for review.
+      </Notice>
+    </Card>
   ),
 };

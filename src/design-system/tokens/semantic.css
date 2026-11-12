@@ -4,7 +4,9 @@
   --ds-color-surface: var(--ds-color-white);
   --ds-color-surface-subtle: var(--ds-color-slate-100);
   --ds-color-surface-hover: var(--ds-color-slate-100);
-  --ds-color-surface-selected: var(--ds-color-blue-50);
+  /* What is selected or current — a selected row, a pressed toggle, the current
+     rail item — wears the brand tint, the same family as the action colour. */
+  --ds-color-surface-selected: var(--ds-color-brand-primary-subtle);
   --ds-color-overlay: rgb(15 23 42 / 0.6);
 
   /* Inverse (dark) surface role, for console/log output surfaces, which the
@@ -35,8 +37,12 @@
      `tests/tokens.test.js`) and is deliberately NOT offered as a colour for text
      on a light surface: at 1.6:1 on white it fails AA badly, which is exactly the
      mistake a named token invites if nobody says so. `brand-primary` is the deep
-     mark colour, for artwork and solid brand fills. */
+     mark colour, for artwork and solid brand fills, and also safe as TEXT on the
+     light surfaces (9.4:1 on `surface`, 9.0:1 on `canvas`): the page eyebrow
+     uses it. `brand-primary-subtle` is its tint — the initials disc
+     (`Avatar tone="brand"`) and everything `surface-selected` paints. */
   --ds-color-brand-primary: var(--ds-color-brand-deep);
+  --ds-color-brand-primary-subtle: var(--ds-color-brand-deep-tint);
   --ds-color-brand-accent: var(--ds-color-brand-mint);
   /* The accent at chip strength. A literal rgba rather than a Tailwind `/20`
      modifier: an opacity modifier needs a computable colour, and a `var()` is not
@@ -72,9 +78,26 @@
   --ds-color-focus: var(--ds-color-blue-600);
   --ds-focus-ring: 0 0 0 3px rgb(37 99 235 / 0.35);
 
-  /* Actions. Blue 600 is the default so inverse text meets WCAG AA. */
-  --ds-color-action-primary: var(--ds-color-blue-600);
-  --ds-color-action-primary-hover: var(--ds-color-blue-700);
+  /* The application frame's own accent — the company sidebar's active item and
+     group icon, its logo tile and the signed-in person's disc in the top bar.
+     It stays blue while actions moved to the brand navy, so the frame looks
+     exactly as it did; nothing outside the frame reads it. */
+  --ds-color-navigation-accent: var(--ds-color-blue-600);
+
+  /* A progress bar's fill: how far something has got is information, not an
+     action, so it keeps the blue C2 draws rather than the action navy. */
+  --ds-color-progress: var(--ds-color-blue-600);
+
+  /*
+   * Actions. The brand navy is the primary action colour (owner, C2 redesign):
+   * white on it measures 9.4:1, on its hover step 12.2:1. Links
+   * (`content-link`) and the focus ring (`focus`) stay blue, so a link still
+   * reads as different from an action and the ring still shows on the canvas
+   * (4.9:1 on the canvas, 5.2:1 on a card; it is 1.8:1 against a navy fill it
+   * surrounds, which WCAG 2.2 AA does not ask of a ring that clears the canvas).
+   */
+  --ds-color-action-primary: var(--ds-color-brand-deep);
+  --ds-color-action-primary-hover: var(--ds-color-brand-deep-strong);
   --ds-color-action-secondary: var(--ds-color-white);
   --ds-color-action-secondary-hover: var(--ds-color-slate-100);
   --ds-color-action-danger: var(--ds-color-red-600);
@@ -105,8 +128,10 @@
   --ds-color-status-neutral-fg: var(--ds-color-slate-700);
   --ds-color-status-neutral-border: var(--ds-color-slate-300);
 
-  /* Data-presentation roles. Component APIs will own alignment and density. */
-  --ds-table-header-bg: var(--ds-color-surface-subtle);
+  /* Data-presentation roles. Component APIs will own alignment and density.
+     The header sits on the card's own white (C2): the rule under it, not a grey
+     band, separates it from the rows. */
+  --ds-table-header-bg: var(--ds-color-surface);
   --ds-table-header-fg: var(--ds-color-content-secondary);
   --ds-table-row-bg: var(--ds-color-surface);
   --ds-table-row-hover-bg: var(--ds-color-surface-hover);
@@ -116,10 +141,10 @@
   --ds-table-row-warning-accent: var(--ds-color-amber-700);
   --ds-table-row-danger-bg: #fef2f2;
   --ds-table-row-danger-accent: var(--ds-color-red-600);
-  --ds-table-header-height: 48px;
+  --ds-table-header-height: 44px;
   --ds-table-row-height-compact: 56px;
-  --ds-table-row-height-comfortable: 72px;
-  --ds-table-cell-padding-inline: var(--ds-space-5);
+  --ds-table-row-height-comfortable: 68px;
+  --ds-table-cell-padding-inline: var(--ds-space-4);
   --ds-table-cell-padding-block-compact: var(--ds-space-2);
   --ds-table-cell-padding-block-comfortable: var(--ds-space-3);
   --ds-table-selection-width: 56px;
@@ -152,7 +177,7 @@
    * hand-picked `p-4`/`p-6`/`rounded-lg` produced cards that were visibly
    * different sizes beside one another on the same screen.
    */
-  --ds-card-radius: var(--ds-radius-lg);
+  --ds-card-radius: var(--ds-radius-xl);
   --ds-card-padding: var(--ds-space-5);
   --ds-card-padding-compact: var(--ds-space-3);
   --ds-card-padding-spacious: var(--ds-space-6);
@@ -179,13 +204,17 @@
   --ds-opacity-disabled: 0.55;
   --ds-opacity-disabled-soft: 0.72;
 
-  --ds-page-gutter: var(--ds-space-6);
+  /*
+   * The page canvas (`PageContainer`): `standard` is 1200px of CONTENT centred
+   * between the two gutters, so its left edge is the same on every page that
+   * uses it at every width — the gutters are added to the width, not taken out
+   * of it. Under 768px the gutter is `-mobile`.
+   */
+  --ds-page-content-width: 1200px;
+  --ds-page-gutter: var(--ds-space-10);
   --ds-page-gutter-mobile: var(--ds-space-4);
   --ds-section-gap: var(--ds-space-6);
   --ds-field-gap: var(--ds-space-5);
-  /* MetricCard's icon chip. Its own role so it does not follow the control
-     height — it is an illustration inside a card, not something you press. */
-  --ds-metric-icon-size: 40px;
 
   /*
    * Dialog geometry, as roles rather than as 30 hand-written class lists.

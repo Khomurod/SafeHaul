@@ -2,6 +2,8 @@ import React, { forwardRef, useCallback, useRef } from 'react';
 import { Icon as DsIcon } from '../../icons';
 import { contractViolation } from '../../contract';
 import './Tabs.css';
+// After `Tabs.css`, so the shared drawing wins a tie with the underlined tab.
+import { phoneColumnsFor, reservedText, useTrayWraps } from './segmentedGroup';
 
 /**
  * The WAI-ARIA tab pattern.
@@ -39,21 +41,30 @@ export function tabIds(idBase, tabId) {
 
 const ORIENTATIONS = new Set(['horizontal', 'vertical']);
 
+/** A badge worth drawing: a count of 0 is a count; nothing, false and '' are not. */
+const hasBadge = (badge) => badge !== undefined && badge !== null && badge !== false && badge !== '';
+
 /**
- * The two strip shapes the product actually uses.
+ * The strip shapes the product actually uses.
  *
- * `underline` is the page-level strip. `pill` is the secondary strip that sits
- * *inside* a panel — the campaign audience builder's import-method chooser is
- * one — where an underline would compete with the page strip above it for the
- * same meaning. Both are the same control: same roving `tabIndex`, same keyboard
- * model, same height, same icon size. Only the selected treatment differs.
+ * `underline` is the page-level strip. `segmented` is the same choice drawn as
+ * a tray of items with the chosen one dark — the look a list's segments have
+ * (`ListToolbar`), for a page whose tabs sit beside or above a list. `pill` is
+ * the secondary strip that sits *inside* a panel — the campaign audience
+ * builder's import-method chooser is one — where an underline would compete
+ * with the page strip above it for the same meaning. All are the same control:
+ * same roving `tabIndex`, same keyboard model. Only the drawing differs; the
+ * last two share `segmentedGroup.css` with `ListToolbar` and `TabNav`.
  *
  * This exists because the alternative was worse. Eleven hand-rolled strips
  * carried at least three treatments between them, and a primitive that could
  * express only one of them would have left the others hand-rolled — which is
  * how a primitive ends up with no consumers.
  */
-const VARIANTS = new Set(['underline', 'pill']);
+const VARIANTS = new Set(['underline', 'segmented', 'pill']);
+
+/** The shapes drawn by the shared segmented group rather than by `Tabs.css` alone. */
+const GROUP_VARIANTS = new Set(['segmented', 'pill']);
 
 /** Arrow keys follow the strip's orientation; Home/End always work. */
 const KEYS_BY_ORIENTATION = {
@@ -66,10 +77,11 @@ const KEYS_BY_ORIENTATION = {
  * @param {string} props.ariaLabel Names the strip. Required — "tab list" is not a name.
  * @param {string} props.idBase Shared with the matching `TabPanel`.
  * @param {Array<{id: string, label: string, icon?: React.ElementType, badge?: React.ReactNode}>} props.tabs
+ *   In `segmented`, `badge` is the count itself (`6`), drawn as a muted count.
  * @param {string} props.activeTab
  * @param {(id: string) => void} props.onChange
  * @param {'horizontal'|'vertical'} [props.orientation='horizontal']
- * @param {'underline'|'pill'} [props.variant='underline']
+ * @param {'underline'|'segmented'|'pill'} [props.variant='underline']
  * @param {boolean} [props.fitted] Tabs share the strip's width equally. For a
  *   strip that spans a narrow panel — a notification popover — where tabs
  *   hugging their labels leaves a ragged gap.
@@ -99,13 +111,18 @@ export function TabList({
   }
   if (!VARIANTS.has(variant)) {
     contractViolation(`Unsupported TabList variant: ${variant}`);
+    variant = 'underline';
   }
-  if (variant === 'pill' && orientation === 'vertical') {
+  if (GROUP_VARIANTS.has(variant) && orientation === 'vertical') {
     // Not a limitation worth designing around: nothing in the product wants it,
     // and a silently-ignored combination is how a component starts lying about
     // what it supports.
-    contractViolation('TabList does not support variant="pill" with orientation="vertical".');
+    contractViolation(`TabList does not support variant="${variant}" with orientation="vertical".`);
+    variant = 'underline';
   }
+  const grouped = GROUP_VARIANTS.has(variant);
+  const segmented = variant === 'segmented';
+  const [trayRef, trayWrapped] = useTrayWraps(segmented);
 
   const buttonRefs = useRef({});
 
@@ -134,14 +151,17 @@ export function TabList({
   return (
     <div
       {...props}
+      ref={segmented ? trayRef : undefined}
       role="tablist"
       aria-label={ariaLabel}
       aria-orientation={orientation === 'vertical' ? 'vertical' : undefined}
       onKeyDown={handleKeyDown}
-      className={`ds-tab-list ${className}`.trim()}
+      className={`ds-tab-list${grouped ? ' ds-segmented-group' : ''} ${className}`.trim()}
       data-orientation={orientation}
       data-variant={variant}
       data-fitted={fitted || undefined}
+      data-phone-columns={segmented ? phoneColumnsFor(tabs.length) : undefined}
+      data-wrapped={segmented && trayWrapped ? 'true' : undefined}
     >
       {tabs.map((tab) => {
         const isSelected = tab.id === activeTab;
@@ -168,12 +188,25 @@ export function TabList({
             /* Roving tabIndex: one stop for the whole strip, then arrow keys. */
             tabIndex={isSelected ? 0 : -1}
             onClick={() => onChange?.(tab.id)}
-            className="ds-tab"
+            className={grouped ? 'ds-tab ds-segmented-group__item' : 'ds-tab'}
             data-selected={isSelected || undefined}
           >
             {Icon && <DsIcon icon={Icon} size="md" />}
-            <span className="ds-tab__label">{tab.label}</span>
-            {tab.badge}
+            <span
+              className={grouped ? 'ds-tab__label ds-segmented-group__label' : 'ds-tab__label'}
+              data-text={grouped ? reservedText(tab.label) : undefined}
+            >
+              {tab.label}
+            </span>
+            {/* The space is the name's: "Sent 6", not "Sent6". */}
+            {hasBadge(tab.badge) && (
+              <>
+                {' '}
+                <span className={variant === 'segmented' ? 'ds-tab__badge ds-segmented-group__count' : 'ds-tab__badge'}>
+                  {tab.badge}
+                </span>
+              </>
+            )}
             {/*
               Selection is carried by `aria-selected`, which is what the ARIA tab
               pattern specifies and what every screen reader announces.

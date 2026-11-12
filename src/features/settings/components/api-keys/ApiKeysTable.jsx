@@ -1,102 +1,139 @@
 import React, { useMemo } from 'react';
 import { Badge, Button, DataTable } from '@/design-system/components';
+import { CheckCircle } from '@design-system/icons';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
+import { settingsTableMinWidth, useSettingsTableWidth } from '../useSettingsTableWidth';
 
-/** What each permission is called on this screen. */
-const PERMISSION_NAMES = Object.freeze({
-    'applications:read': 'Applications',
-    'documents:read': 'Uploaded files',
-    'ssn:read': 'Full SSN',
+/** What each permission is called on this screen, and its tone: the full SSN warns. */
+const PERMISSIONS = Object.freeze({
+    'applications:read': { name: 'Applications', tone: 'info' },
+    'documents:read': { name: 'Uploaded files', tone: 'info' },
+    'ssn:read': { name: 'Full SSN', tone: 'warning' },
 });
 
 const keyIdOf = (key) => key.keyId;
 
+/**
+ * A moment as "Oct 5, 2026, 12:00 PM", its time kept on one line ("12:00 PM"
+ * never splits), or `null` when there is none.
+ */
 function when(iso) {
     if (!iso) return null;
     const date = new Date(iso);
-    return Number.isNaN(date.getTime())
-        ? null
-        : date.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    if (Number.isNaN(date.getTime())) return null;
+    return (
+        <>
+            {date.toLocaleDateString('en-US', { dateStyle: 'medium' })}
+            {', '}
+            <span className="whitespace-nowrap">{date.toLocaleTimeString('en-US', { timeStyle: 'short' })}</span>
+        </>
+    );
+}
+
+/** The narrowest box the table fits: the key's header (174 with its padding) + 176 + 144 + 120 + the card's border. */
+const FITS_FROM = 616;
+
+/**
+ * The fixed columns by the width of the box the table is in: from 740px, and
+ * wherever the table scrolls, the dates have their full columns ("Turned off"
+ * and its date on one line each); between, they take a step less each, so the
+ * key keeps the room for its header and the table still fits.
+ */
+function fixedWidths(width) {
+    return width >= FITS_FROM && width < 740 ? { created: 'lg', status: 'md' } : { created: 'xl', status: 'lg' };
 }
 
 /**
- * A company's API keys, turned-on ones first. On a phone each key is a card:
- * keys are looked at one at a time, never compared.
+ * A company's API keys, turned-on ones first, in four columns at every width
+ * from 768px: the key with what it may read, when it was made and last used,
+ * where it stands, and turning it off (the last column, as on every list).
+ * The key's column takes what the other three leave; the prefix the server
+ * sends (already ending in "…") is shown whole.
  *
- * Where a key stands is its Status; turning it off is in the last column, as on
- * every list. The Settings page leaves the table 830px at 1440, and the six
- * columns come to 824px.
+ * On a phone each key is a card, looked at one at a time: its name with its
+ * status in the corner, the prefix and what it may read, every date on its own
+ * line under one left edge, and Turn off across the card.
  */
 export function ApiKeysTable({ keys, loading, error, onRevoke }) {
+    const [tableBox, tableWidth] = useSettingsTableWidth();
+    const widths = fixedWidths(tableWidth);
+    const minWidth = settingsTableMinWidth(tableWidth, FITS_FROM);
+    // Across a phone card, Turn off is a full-size target.
+    const isPhone = useIsMobile();
     const columns = useMemo(() => [
         {
             key: 'name',
-            header: 'Key',
+            header: 'Key and what it can read',
             rowHeader: true,
-            // `lg`: the prefix keeps to one line, cut at the end, and is whole on hover.
-            width: 'lg',
             render: (key) => (
                 <div className="min-w-0">
-                    <p className="font-semibold text-ds-content [overflow-wrap:anywhere]">{key.name}</p>
-                    <p className="truncate font-mono text-ds-xs text-ds-content-muted" title={key.prefix}>{key.prefix}</p>
-                </div>
-            ),
-        },
-        {
-            key: 'permissions',
-            header: 'Can read',
-            // The widest badge, "Uploaded files", fits; more than one stacks.
-            width: 'md',
-            render: (key) => (
-                <div className="flex flex-wrap gap-ds-1">
-                    {(key.scopes || []).map((scope) => (
-                        <Badge key={scope} tone={scope === 'ssn:read' ? 'warning' : 'neutral'}>
-                            {PERMISSION_NAMES[scope] || scope}
-                        </Badge>
-                    ))}
+                    <p className="font-semibold text-ds-content [overflow-wrap:anywhere] max-md:text-ds-heading-sm">{key.name}</p>
+                    <p className="mt-ds-1 font-mono text-ds-xs font-normal text-ds-content-secondary [overflow-wrap:anywhere]">{key.prefix}</p>
+                    {(key.scopes || []).length > 0 && (
+                        <div className="mt-ds-2 flex flex-wrap gap-ds-2">
+                            {key.scopes.map((scope) => (
+                                <Badge key={scope} tone={PERMISSIONS[scope]?.tone || 'neutral'}>
+                                    {PERMISSIONS[scope]?.name || scope}
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
                 </div>
             ),
         },
         {
             key: 'created',
-            header: 'Created',
-            width: 'md',
+            header: 'Created · last used',
+            width: widths.created,
+            mobileRole: 'line',
             render: (key) => (
-                <div className="text-ds-sm">
-                    <p>{when(key.createdAt) || '—'}</p>
-                    {key.createdByName && <p className="text-ds-xs text-ds-content-muted">by {key.createdByName}</p>}
+                <div className="text-ds-body text-ds-content max-md:text-ds-content-secondary">
+                    <p>
+                        {when(key.createdAt) || '—'}
+                        {key.createdByName && (
+                            <>
+                                <span className="md:hidden" aria-hidden="true">{' · '}</span>
+                                <span className="block text-ds-xs text-ds-content-secondary max-md:inline max-md:text-ds-body">
+                                    by {key.createdByName}
+                                </span>
+                            </>
+                        )}
+                    </p>
+                    <p className="text-ds-xs text-ds-content-secondary max-md:text-ds-body">
+                        Last used: {when(key.lastUsedAt) || 'Never'}
+                    </p>
+                    {/* On a card the date a key was turned off joins the other dates. */}
+                    {key.revokedAt && (
+                        <p className="md:hidden">Turned off: {when(key.revokedAt)}</p>
+                    )}
                 </div>
             ),
         },
         {
-            key: 'lastUsed',
-            header: 'Last used',
-            width: 'sm',
-            render: (key) => <span className="text-ds-sm">{when(key.lastUsedAt) || 'Never'}</span>,
-        },
-        {
             key: 'status',
             header: 'Status',
-            width: 'sm',
+            // In `md` a turned-off key's date takes two lines under its badge.
+            width: widths.status,
+            mobileRole: 'status',
             // A key turned off keeps when under its badge.
             render: (key) => (key.revokedAt ? (
-                <div className="text-ds-sm">
+                <div className="flex flex-col items-start gap-ds-1 max-md:items-end">
                     <Badge tone="neutral">Turned off</Badge>
-                    <p className="mt-ds-1 text-ds-xs text-ds-content-muted">{when(key.revokedAt)}</p>
+                    <p className="text-ds-xs text-ds-content-secondary max-md:hidden">{when(key.revokedAt)}</p>
                 </div>
-            ) : <Badge tone="success">On</Badge>),
+            ) : <Badge tone="success" icon={CheckCircle}>On</Badge>),
         },
         {
             key: 'actions',
-            headerLabel: 'Actions',
+            header: 'Actions',
             align: 'end',
-            // No label on a card: its button is the card's last line.
-            mobileLabel: '',
             width: 'sm',
+            mobileRole: 'actions',
             render: (key) => (key.revokedAt ? null : (
                 <Button
                     variant="secondary"
                     tone="danger"
-                    size="sm"
+                    size={isPhone ? 'md' : 'sm'}
                     aria-label={`Turn off ${key.name}`}
                     onClick={() => onRevoke(key)}
                 >
@@ -104,26 +141,26 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
                 </Button>
             )),
         },
-    ], [onRevoke]);
+    ], [onRevoke, isPhone, widths.created, widths.status]);
 
     return (
-        <DataTable
-            ariaLabel="API keys"
-            density="compact"
-            minWidth="standard"
-            mobilePresentation="cards"
-            embedded
-            data={keys}
-            columns={columns}
-            getRowId={keyIdOf}
-            isLoading={loading}
-            loadingLabel="Loading API keys"
-            error={error}
-            empty={{
-                title: 'No API keys yet',
-                description: 'Create one when a service, such as your TMS, needs to read your applications.',
-            }}
-        />
+        <div ref={tableBox} className="min-w-0">
+            <DataTable
+                ariaLabel="API keys"
+                minWidth={minWidth}
+                mobilePresentation="cards"
+                data={keys}
+                columns={columns}
+                getRowId={keyIdOf}
+                isLoading={loading}
+                loadingLabel="Loading API keys"
+                error={error}
+                empty={{
+                    title: 'No API keys yet',
+                    description: 'Create one when a service, such as your TMS, needs to read your applications.',
+                }}
+            />
+        </div>
     );
 }
 

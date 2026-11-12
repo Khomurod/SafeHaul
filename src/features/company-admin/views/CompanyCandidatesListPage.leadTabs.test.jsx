@@ -21,9 +21,10 @@ const fx = vi.hoisted(() => ({
 }));
 
 vi.mock('@features/companies', () => ({
+    // The toolbar row draws the page's lead tabs (`lead`) at its start.
     DashboardToolbar: (props) => {
         fx.toolbarProps.push(props);
-        return null;
+        return props.lead ?? null;
     },
     useCompanyDashboard: (_companyId, options) => ({
         activeTab: options?.initialTab, setActiveTab: fx.noop,
@@ -120,6 +121,22 @@ describe('the Leads page', () => {
 });
 
 describe('the toolbar on the Leads tabs', () => {
+    it('leads the row with the lead tabs on a lead list, and with the segments on Applications', () => {
+        renderAt('/company/drivers/leads/company');
+        expect(lastToolbar().lead).toBeTruthy();
+        expect(lastToolbar().segments).toBeUndefined();
+        // The status segments are the pills at the top of the table card.
+        const pills = screen.getByRole('group', { name: 'Pipeline segment' });
+        expect(within(pills).getByRole('button', { name: 'All Leads' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('gives Applications its segments in the row, and no lead tabs', () => {
+        renderAt('/company/drivers/applications');
+        expect(lastToolbar().lead).toBeUndefined();
+        expect(lastToolbar().segments.items.map((item) => item.label)[0]).toBe('All Applications');
+        expect(screen.queryByRole('group', { name: 'Pipeline segment' })).toBeNull();
+    });
+
     it.each([
         ['/company/drivers/applications', true, true],
         ['/company/drivers/leads/company', false, true],
@@ -154,5 +171,40 @@ describe('assigning leads', () => {
 
         expect(lastToolbar().canAssign).toBe(false);
         expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+});
+
+describe('the columns between the Leads tabs', () => {
+    const tableOf = () => screen.getByRole('table', { name: /table$/ }).closest('.ds-data-table');
+
+    it.each([
+        ['/company/drivers/leads/company', 'selection'],
+        ['/company/drivers/leads/unassigned', 'selection'],
+        // No checkboxes on Assigned to me, but their column's place, so no column moves.
+        ['/company/drivers/leads/my', 'reserved'],
+        ['/company/drivers/applications', 'none'],
+    ])('a company admin\'s %s keeps the checkbox column: %s', (url, column) => {
+        renderAt(url);
+
+        const table = tableOf();
+        expect(table.hasAttribute('data-has-selection')).toBe(column === 'selection');
+        expect(table.hasAttribute('data-reserve-selection')).toBe(column === 'reserved');
+        expect(table.querySelectorAll('col[data-width="selection"]')).toHaveLength(column === 'none' ? 0 : 1);
+    });
+
+    it.each(LEAD_LIST_TABS.map((tab) => tab.path))('keeps no checkbox column for a recruiter, on %s', (url) => {
+        fx.claims = { roles: { 'company-1': 'recruiter' } };
+        renderAt(url);
+
+        expect(tableOf().querySelector('col[data-width="selection"]')).toBeNull();
+    });
+
+    it('puts a lead card\'s status under its number on a narrow phone, and keeps the corner on Applications', () => {
+        const { unmount } = renderAt('/company/drivers/leads/my');
+        expect(tableOf()).toHaveAttribute('data-mobile-status', 'below');
+        unmount();
+
+        renderAt('/company/drivers/applications');
+        expect(tableOf()).not.toHaveAttribute('data-mobile-status');
     });
 });

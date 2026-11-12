@@ -4,7 +4,6 @@ import React, {
   isValidElement,
   useId,
 } from 'react';
-import { Card } from '../card';
 import { contractViolation } from '../../contract';
 import './FormControls.css';
 
@@ -292,37 +291,6 @@ export const Select = /* @__PURE__ */ forwardRef(function Select({
   );
 });
 
-export function FormSection({
-  title,
-  description,
-  actions,
-  children,
-  className = '',
-  ...props
-}) {
-  const generatedId = useId().replace(/:/g, '');
-  const titleId = props['aria-label'] ? undefined : `ds-form-section-${generatedId}`;
-
-  if (!props['aria-label'] && (typeof title !== 'string' || title.trim() === '')) {
-    contractViolation('FormSection requires a title or aria-label.');
-  }
-
-  return (
-    <Card
-      {...props}
-      className={`ds-form-section ${className}`.trim()}
-      aria-labelledby={titleId}
-    >
-      {(title || description || actions) && (
-        <header className="ds-form-section__header">
-          <div>
-            {title && <h2 id={titleId}>{title}</h2>}
-            {description && <p>{description}</p>}
-          </div>
-          {actions && <div className="ds-form-section__actions">{actions}</div>}
-        </header>
-      )}
-      <div className="ds-form-section__body">{children}</div>
-    </Card>
-  );
-}
+// Its own file since the C2 layouts (`card`, `stacked`, `aside`) and the footer;
+// re-exported so an import from here keeps working.
+export { FormSection } from './FormSection';

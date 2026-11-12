@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Icon, FileText, Download, AlertCircle, Copy, Info } from '@design-system/icons';
+import { Icon, FileText, Download, Copy, Eye } from '@design-system/icons';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
-import { Button, DataTable, defineTableColumns } from '@/design-system/components';
+import { useMediaQuery } from '@shared/hooks/useMediaQuery';
+import { Avatar, Button, DataTable, defineTableColumns } from '@/design-system/components';
+import { initialsOf } from '@shared/utils/initials';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { formatSentDate, hasDeliveryFailure, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { useSentDocumentActions } from '@features/signing/hooks/useSentDocumentActions';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
 import { SignedCopyButton, SignedCopyStatus } from './SignedCopy';
-import { DeliveryMethodBadges, EnvelopeStatusBadge } from './EnvelopeStatus';
+import { EnvelopeStatusCell } from './EnvelopeStatus';
 import { SentDocumentDialogs } from './SentDocumentDialogs';
 
 /**
@@ -17,6 +19,109 @@ import { SentDocumentDialogs } from './SentDocumentDialogs';
  * real-time updates keep flowing into whichever page is visible.
  */
 const PAGE_SIZE = 25;
+
+/*
+ * On a phone card every line after the title starts where the title's text
+ * does: after the 16px document glyph and its 8px gap.
+ */
+const CARD_INDENT = 'max-md:ps-ds-6';
+const CARD_ACTION_INDENT = 'max-md:ms-ds-6';
+
+/*
+ * From 768px to 1279px the four columns would leave the title under 230px (the
+ * table scrolled sideways there), so each row is one item instead: the
+ * document, its status and its recipient in one column, and the quick action in
+ * a fixed column beside it. Under 768px the rows are cards, from 1280px the
+ * table has its four columns.
+ */
+const ITEM_LIST_QUERY = '(min-width: 768px) and (max-width: 1279px)';
+
+/** A break opportunity after the "@", so an address that must wrap wraps there first. */
+function breakableContact(contact) {
+    const at = contact.indexOf('@');
+    if (at < 0) return contact;
+    return <>{contact.slice(0, at + 1)}<wbr />{contact.slice(at + 1)}</>;
+}
+
+/**
+ * The document's title, whole, with the day it was sent under it. In the table
+ * the glyph is centred on the two; on a card it stays on the title's first line,
+ * and the title breaks as prose there rather than into even lines.
+ */
+function DocumentCell({ document: docItem }) {
+    const date = formatSentDate(docItem.createdAt);
+    return (
+        <span className="flex items-center gap-ds-2 max-md:items-start">
+            <Icon icon={FileText} className="shrink-0 text-ds-status-info-fg max-md:mt-0.5" />
+            <span className="min-w-0">
+                <span className="block font-semibold text-ds-content [overflow-wrap:anywhere] [text-wrap:balance] max-md:[text-wrap:pretty]">
+                    {docItem.title || 'Untitled'}
+                </span>
+                {date && (
+                    <span className="block text-ds-xs font-normal text-ds-content-secondary max-md:text-ds-body">
+                        Sent {date}
+                    </span>
+                )}
+            </span>
+        </span>
+    );
+}
+
+/** The recipient's name and, under it, how to reach them. */
+function RecipientLines({ document: docItem }) {
+    const contact = docItem.recipientEmail || docItem.recipientPhone;
+    return (
+        <span className="block min-w-0">
+            <span className="block font-semibold text-ds-content [overflow-wrap:anywhere]">{docItem.recipientName}</span>
+            <span className="block text-ds-body font-normal text-ds-content-secondary [overflow-wrap:anywhere]">
+                {contact ? breakableContact(contact) : 'No email or phone'}
+            </span>
+        </span>
+    );
+}
+
+/**
+ * Who it went to: initials, then the name and contact. On a card, the name and
+ * contact only. The 8px gap leaves the contact the room a long address needs
+ * on one line at a 1366px laptop.
+ */
+function RecipientCell({ document: docItem }) {
+    const initials = initialsOf(docItem.recipientName);
+    return (
+        <div className={`flex min-w-0 items-center gap-ds-2 ${CARD_INDENT}`}>
+            <span className="flex shrink-0 max-md:hidden">
+                {initials
+                    ? <Avatar size="sm" tone="brand">{initials}</Avatar>
+                    : <Avatar size="sm" tone="placeholder" />}
+            </span>
+            <RecipientLines document={docItem} />
+        </div>
+    );
+}
+
+/**
+ * One row of the tablet list (`ITEM_LIST_QUERY`): the glyph, then the title
+ * and the day it was sent, the status with its delivery chips and any reason,
+ * and the recipient, one under another.
+ */
+function DocumentItem({ document: docItem, status }) {
+    const date = formatSentDate(docItem.createdAt);
+    return (
+        <span className="flex items-start gap-ds-3">
+            <Icon icon={FileText} className="mt-0.5 shrink-0 text-ds-status-info-fg" />
+            <span className="flex min-w-0 flex-col gap-ds-2 font-normal">
+                <span className="block">
+                    <span className="block font-semibold text-ds-content [overflow-wrap:anywhere] [text-wrap:pretty]">
+                        {docItem.title || 'Untitled'}
+                    </span>
+                    {date && <span className="block text-ds-body text-ds-content-secondary">Sent {date}</span>}
+                </span>
+                {status}
+                <RecipientLines document={docItem} />
+            </span>
+        </span>
+    );
+}
 
 /**
  * Company-side sent-documents table.
@@ -52,11 +157,12 @@ export default function EnvelopeHistory({
     embedded = false,
 }) {
     const [page, setPage] = useState(1);
-    // Quick actions stay `sm` on desktop for row density but grow to the 44px
-    // `lg` control on a phone, where each row is a card and a 36px target is
-    // too small.
+    // Quick actions stay `sm` on desktop for row density and take the 44px
+    // control height on a phone, where each row is a card and a 36px target is
+    // too small. Each fills its column, so the actions line up as one.
     const isMobile = useIsMobile();
-    const quickActionSize = isMobile ? 'lg' : 'sm';
+    const quickActionSize = isMobile ? 'md' : 'sm';
+    const itemList = useMediaQuery(ITEM_LIST_QUERY);
     const actions = useSentDocumentActions({ companyId, companyName, onCorrect });
     const { copyingId, copyLink: handleCopyLink, download: handleDownload, openDetails: setDetailsDocument, signedCopy } = actions;
 
@@ -85,13 +191,15 @@ export default function EnvelopeHistory({
                 <Button
                     variant="secondary"
                     size={quickActionSize}
+                    fullWidth
+                    className={CARD_ACTION_INDENT}
                     aria-label={`Review details for ${title}`}
                     title={isLinkExpired(docItem) && !hasDeliveryFailure(docItem)
                         ? 'The signing link expired'
                         : 'Review the delivery or sealing failure'}
                     onClick={() => setDetailsDocument(docItem)}
                 >
-                    <Icon icon={AlertCircle} size="sm" /> Review
+                    <Icon icon={Eye} size="sm" /> Review
                 </Button>
             );
         } else if (canSendSignedCopy(docItem, copyRecord)) {
@@ -100,6 +208,8 @@ export default function EnvelopeHistory({
                     title={title}
                     retry={isSignedCopyRetry(copyRecord)}
                     size={quickActionSize}
+                    fullWidth
+                    className={CARD_ACTION_INDENT}
                     onClick={() => signedCopy.request(docItem)}
                 />
             );
@@ -108,6 +218,8 @@ export default function EnvelopeHistory({
                 <Button
                     variant="secondary"
                     size={quickActionSize}
+                    fullWidth
+                    className={CARD_ACTION_INDENT}
                     aria-label={`Download ${title}`}
                     title="Download the signed document"
                     onClick={() => handleDownload(docItem.signedPdfUrl || docItem.storagePath)}
@@ -120,6 +232,8 @@ export default function EnvelopeHistory({
                 <Button
                     variant="secondary"
                     size={quickActionSize}
+                    fullWidth
+                    className={CARD_ACTION_INDENT}
                     loading={copyingId === docItem.id}
                     aria-label={`Link for ${title}`}
                     title="Copy full signing link"
@@ -133,11 +247,13 @@ export default function EnvelopeHistory({
                 <Button
                     variant="secondary"
                     size={quickActionSize}
+                    fullWidth
+                    className={CARD_ACTION_INDENT}
                     aria-label={`View details for ${title}`}
                     title="Open document details"
                     onClick={() => setDetailsDocument(docItem)}
                 >
-                    <Icon icon={Info} size="sm" /> View details
+                    <Icon icon={Eye} size="sm" /> View details
                 </Button>
             );
         }
@@ -145,100 +261,87 @@ export default function EnvelopeHistory({
         return action;
     };
 
+    /** Where it stands and how it was delivered, with where a signed copy stands. */
+    const renderStatus = (docItem, layout) => {
+        const copyRecord = hasCompanySignature(docItem) ? signedCopy.recordFor(docItem) : null;
+        return (
+            <EnvelopeStatusCell
+                document={docItem}
+                layout={layout}
+                extra={copyRecord
+                    ? <SignedCopyStatus record={copyRecord} size={layout === 'item' ? 'text-ds-body' : 'text-ds-xs max-md:text-ds-body'} />
+                    : null}
+            />
+        );
+    };
+
     /*
-     * One fact per column: the document, who it went to (the name, and under it,
-     * quieter, how to reach them), how it was delivered, where it stands, when it
-     * was sent, and the one quick action. The status keeps a failed delivery's
-     * reason under its badge, because the reason explains the status.
+     * "Send signed copy" is the longest quick action: where a listed document
+     * offers it, the column takes the next step so the label stays on one line
+     * in its button.
      */
-    const columns = defineTableColumns([
+    const offersSignedCopy = docs.some((docItem) => canSendSignedCopy(docItem, signedCopy.recordFor(docItem)));
+
+    /** The one quick action, in a column of its own at every width but a phone's. */
+    const actionsColumn = {
+        key: 'actions',
+        header: 'Actions',
+        align: 'end',
+        // 'lg', not 'actions': one labelled quick action needs a real column,
+        // and the old 64px 'actions' width is what stacked buttons vertically.
+        width: offersSignedCopy ? 'xl' : 'lg',
+        mobileRole: 'actions',
+        // A quick action must never also activate the row.
+        stopPropagation: true,
+        render: renderQuickAction,
+    };
+
+    /*
+     * The document, with when it was sent under it; who it went to; where it
+     * stands and how it was delivered ("Status · Delivery", the reason under a
+     * failed delivery's badge, because the reason explains the status); and the
+     * one quick action. The two text columns share what the fixed ones leave,
+     * and nothing is cut: titles, names and addresses wrap.
+     *
+     * On a tablet (`ITEM_LIST_QUERY`) the first three are one column, read as
+     * one item, beside the action. On a phone each row is a card: the title,
+     * the status and delivery chips, the recipient, then the action across the
+     * card, each line starting where the title's text does, after the glyph.
+     */
+    const columns = defineTableColumns(itemList ? [
+        {
+            key: 'title',
+            header: 'Document · Status · Recipient',
+            rowHeader: true,
+            width: 'auto',
+            render: (docItem) => <DocumentItem document={docItem} status={renderStatus(docItem, 'item')} />,
+        },
+        actionsColumn,
+    ] : [
         {
             key: 'title',
             header: 'Document',
             rowHeader: true,
-            /*
-             * A width of its own, not `auto`, like every column here: an `auto`
-             * column gets what is left, which on a tablet, where the table scrolls
-             * at its narrowest, was a few letters. With every column sized the
-             * table never goes narrower than their sum (1,080px, inside the
-             * 1,134px a 1440px window leaves it) and shares out any room above.
-             */
-            width: 'xl',
-            render: (docItem) => {
-                const title = docItem.title || 'Untitled';
-                return (
-                    <span className="flex items-start gap-ds-2 font-medium text-ds-content" title={title}>
-                        <Icon icon={FileText} className="mt-0.5 shrink-0 text-ds-action-primary" />
-                        <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{title}</span>
-                    </span>
-                );
-            },
+            width: 'auto',
+            render: (docItem) => <DocumentCell document={docItem} />,
         },
         {
             key: 'recipient',
             header: 'Recipient',
-            width: 'xl',
-            render: (docItem) => (
-                <div className="min-w-0">
-                    <div
-                        className="line-clamp-1 font-medium text-ds-content [overflow-wrap:anywhere]"
-                        title={docItem.recipientName || undefined}
-                    >
-                        {docItem.recipientName}
-                    </div>
-                    <div
-                        className="line-clamp-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]"
-                        title={docItem.recipientEmail || docItem.recipientPhone || undefined}
-                    >
-                        {docItem.recipientEmail || docItem.recipientPhone || 'No email or phone'}
-                    </div>
-                </div>
-            ),
-        },
-        {
-            key: 'delivery',
-            header: 'Delivery',
-            // 'lg': "Email" and "SMS" side by side on one line.
-            width: 'lg',
-            render: (docItem) => <DeliveryMethodBadges document={docItem} />,
+            width: 'auto',
+            mobileRole: 'line',
+            render: (docItem) => <RecipientCell document={docItem} />,
         },
         {
             key: 'status',
-            header: 'Status',
+            header: 'Status · Delivery',
             // `lg`: the widest status ("Awaiting signature") is a non-wrapping badge.
             width: 'lg',
-            render: (docItem) => (hasCompanySignature(docItem) && signedCopy.recordFor(docItem) ? (
-                <div className="flex flex-col items-start gap-ds-1">
-                    <EnvelopeStatusBadge document={docItem} />
-                    <SignedCopyStatus record={signedCopy.recordFor(docItem)} />
-                </div>
-            ) : <EnvelopeStatusBadge document={docItem} />),
+            // Right under the title on a card, before the recipient.
+            mobileRole: 'meta',
+            render: (docItem) => <div className={CARD_INDENT}>{renderStatus(docItem, 'table')}</div>,
         },
-        {
-            key: 'createdAt',
-            // Not "Sent", which is also a status.
-            header: 'Date sent',
-            width: 'md',
-            render: (docItem) => {
-                const date = formatSentDate(docItem.createdAt);
-                return date
-                    ? <span className="whitespace-nowrap tabular-nums">{date}</span>
-                    : <span className="text-ds-content-muted">—</span>;
-            },
-        },
-        {
-            key: 'actions',
-            headerLabel: 'Actions',
-            align: 'end',
-            // No label on a card: its button is the card's last line.
-            mobileLabel: '',
-            // 'lg', not 'actions': one labelled quick action needs a real column,
-            // and the old 64px 'actions' width is what stacked buttons vertically.
-            width: 'lg',
-            // A quick action must never also activate the row.
-            stopPropagation: true,
-            render: renderQuickAction,
-        },
+        actionsColumn,
     ]);
 
     /**
@@ -258,7 +361,7 @@ export default function EnvelopeHistory({
     const visibleDocs = paged ? docs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE) : docs;
     const pagination = paged
         ? {
-            label: `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, docs.length)} of ${docs.length} documents`,
+            label: `${docs.length.toLocaleString('en-US')} total`,
             currentPage,
             totalPages,
             hasPrev: currentPage > 1,
@@ -273,6 +376,8 @@ export default function EnvelopeHistory({
             <DataTable
                 ariaLabel="Document history"
                 mobilePresentation="cards"
+                // Two columns on a tablet fit its width; four need the table's 920px.
+                minWidth={itemList ? 'none' : 'wide'}
                 embedded={embedded}
                 data={visibleDocs}
                 columns={columns}

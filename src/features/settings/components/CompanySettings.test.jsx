@@ -47,9 +47,10 @@ vi.mock('./IntegrationsTab', () => ({
 vi.mock('./api-keys/ApiKeysTab', () => ({
     ApiKeysTab: () => <h1>API Keys Content</h1>,
 }));
-const isMobileMock = vi.hoisted(() => vi.fn(() => false));
-vi.mock('@shared/hooks/useIsMobile', () => ({
-    useIsMobile: () => isMobileMock(),
+/** Up to 1279px — a phone, a tablet, a narrow window — the menu of sections is its own page. */
+const isCompactMock = vi.hoisted(() => vi.fn(() => false));
+vi.mock('@shared/hooks/useIsCompact', () => ({
+    useIsCompact: () => isCompactMock(),
 }));
 
 /** A section that holds an unsaved edit while its box is ticked. */
@@ -124,8 +125,8 @@ function renderSettings({
 describe('CompanySettings shell', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => false);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => false);
     });
 
     it('opens on Company profile, with no Overview page, and names it in the address', () => {
@@ -137,11 +138,11 @@ describe('CompanySettings shell', () => {
         expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?section=company$/);
     });
 
-    it('keeps Company profile and its edit when the window narrows to phone width', () => {
+    it('keeps Company profile and its edit when the window narrows to a tablet or a phone', () => {
         renderSettings({ path: '/company/dashboard' });
         fireEvent.click(screen.getByRole('button', { name: 'App menu Settings' }));
         // The edit re-renders the page at the narrower width.
-        isMobileMock.mockImplementation(() => true);
+        isCompactMock.mockImplementation(() => true);
 
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved profile edit' }));
 
@@ -167,6 +168,26 @@ describe('CompanySettings shell', () => {
         expect(team).toHaveAttribute('aria-current', 'page');
         expect(companyProfile).not.toHaveAttribute('aria-current');
         expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
+    });
+
+    it('names each section in the rail by its label, and describes it by its one line', () => {
+        // The line sits beside the button, so the button's visible text is its
+        // name (WCAG 2.5.3) and every test and speech-input user still finds "Team".
+        renderSettings();
+        const nav = screen.getByRole('navigation', { name: 'Company settings sections' });
+        const team = within(nav).getByRole('button', { name: 'Team' });
+        expect(team).toHaveAccessibleDescription('Who recruits for you');
+        expect(team).toHaveTextContent(/^Team$/);
+        expect(within(nav).getByText('Who recruits for you')).toBeVisible();
+        expect(within(nav).getByRole('button', { name: 'Application questions' }))
+            .toHaveAccessibleDescription('Questions, rules, agreements and report uploads');
+    });
+
+    it('heads every section beside the rail with the Settings eyebrow, not a way back', () => {
+        renderSettings({ path: '/company/settings?section=team' });
+        const content = screen.getByRole('region', { name: 'Company settings content' });
+        expect(within(content).getByText('Settings')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
     });
 
     it('has no My profile: a person changes their own name and link on Profile', () => {
@@ -249,8 +270,8 @@ describe('CompanySettings shell', () => {
 describe('leaving a section with unsaved changes', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => false);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => false);
     });
 
     function openDirtyTeam() {
@@ -344,11 +365,11 @@ describe('leaving a section with unsaved changes', () => {
     });
 });
 
-describe('Settings on a phone', () => {
+describe('Settings on a phone or a tablet', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => true);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => true);
     });
 
     it('shows no rail: a menu of every section is the way in', () => {
@@ -356,11 +377,34 @@ describe('Settings on a phone', () => {
 
         expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        // The menu's own eyebrow: the account area it belongs to.
+        expect(screen.getByText('Account')).toBeInTheDocument();
+        // Nothing cut: each way in says in full what it holds.
+        expect(screen.getByRole('button', { name: /^Application questions Questions, rules, agreements and report uploads$/ }))
+            .toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
         for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
         expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
+    });
+
+    it('draws each group as one card of rows, in order, each row still a way in', () => {
+        const { container } = renderSettings({ path: '/company/settings?e2eAuth=company_admin' });
+
+        const cards = [...container.querySelectorAll('#company-settings-content .ds-card')];
+        const rowsPerCard = cards.map((card) => [...card.querySelectorAll('li > .ds-selectable-card')]
+            .map((row) => row.querySelector('.font-semibold').textContent));
+        expect(rowsPerCard).toEqual([
+            ['Company profile', 'Application questions', 'Team'],
+            ['Email', 'Text messages (SMS)', 'Automated texts'],
+            ['API keys', 'Facebook leads'],
+        ]);
+        // Rows of one card, not a card each: no box of their own.
+        for (const row of container.querySelectorAll('.ds-selectable-card')) {
+            expect(row).toHaveAttribute('data-frame', 'row');
+        }
+        expect(screen.getByRole('button', { name: 'Team Who recruits for you' })).toBeInTheDocument();
     });
 
     it('opens the menu for a section this company does not show', () => {
@@ -405,8 +449,8 @@ describe('Settings on a phone', () => {
 describe('the settings section in the address', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => false);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => false);
     });
 
     it('opens the section the address names, old links included', () => {
@@ -438,7 +482,7 @@ describe('the settings section in the address', () => {
     });
 
     it.each([false, true])('opens the Profile page for an old My profile address, keeping the other parameters (phone: %s)', (phone) => {
-        isMobileMock.mockImplementation(() => phone);
+        isCompactMock.mockImplementation(() => phone);
         renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=personal' });
 
         expect(screen.getByRole('heading', { level: 1, name: 'Profile page' })).toBeInTheDocument();
@@ -446,7 +490,7 @@ describe('the settings section in the address', () => {
     });
 
     it.each([false, true])('opens Company profile, where the plan now is, for an old Plan address (phone: %s)', (phone) => {
-        isMobileMock.mockImplementation(() => phone);
+        isCompactMock.mockImplementation(() => phone);
         renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=billing' });
 
         expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();

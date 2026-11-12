@@ -661,6 +661,53 @@ describe('EmailSettingsTab — presentation and accessibility', () => {
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
+    it('opens the setup guides full width under the server section, as the panel its trigger controls', async () => {
+        await renderLoaded();
+        const toggle = screen.getByRole('button', { name: /How to Set Up SMTP/i });
+        expect(screen.queryByText('Gmail / Google Workspace')).toBeNull();
+        fireEvent.click(toggle);
+        const panel = document.getElementById(toggle.getAttribute('aria-controls'));
+        expect(panel).toHaveAccessibleName(/How to Set Up SMTP/);
+        expect(within(panel).getByRole('heading', { level: 3, name: /Gmail \/ Google Workspace/ })).toBeInTheDocument();
+        // Not inside the server section's side column: a section of its own after it.
+        const server = screen.getByRole('region', { name: 'SMTP Server Configuration' });
+        expect(server).not.toContainElement(panel);
+        expect(server.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByText('Gmail / Google Workspace')).toBeNull();
+    });
+
+    it('brings the opened guides into view, and not again when they close', async () => {
+        const original = Element.prototype.scrollIntoView;
+        const scrollIntoView = vi.fn();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        try {
+            await renderLoaded();
+            const toggle = screen.getByRole('button', { name: /How to Set Up SMTP/i });
+            fireEvent.click(toggle);
+            const panel = document.getElementById(toggle.getAttribute('aria-controls'));
+            await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+            expect(scrollIntoView.mock.contexts[0]).toBe(panel);
+            expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+            // Each guide is a part of one card, its steps and settings with no box of their own.
+            expect(within(panel).getAllByRole('heading', { level: 3 })).toHaveLength(3);
+            expect(panel.querySelectorAll('[class*="border-ds-status"]')).toHaveLength(0);
+            fireEvent.click(toggle);
+            expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        } finally {
+            Element.prototype.scrollIntoView = original;
+        }
+    });
+
+    it('explains each section beside its fields: the connection state and the signature note', async () => {
+        await renderLoaded();
+        const server = screen.getByRole('region', { name: 'SMTP Server Configuration' });
+        expect(within(server).getByRole('group', { name: 'Email connection status' })).toHaveTextContent('Not Connected / Unverified');
+        const signature = screen.getByRole('region', { name: 'Email Signature (Optional)' });
+        expect(signature).toHaveTextContent('This signature will be automatically appended to all outgoing emails.');
+    });
+
     it('associates the password helper text with the password input', async () => {
         await renderLoaded();
         expect(password()).toHaveAccessibleDescription(/App Password/i);

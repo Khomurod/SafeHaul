@@ -103,6 +103,53 @@ describe('BulkUploadLayout — embedded mode (defect 2)', () => {
     });
 });
 
+describe('BulkUploadLayout — the embedded card (C2)', () => {
+    const embedded = (overrides = {}) => render(<BulkUploadLayout {...makeProps({ isEmbedded: true, ...overrides })} />);
+
+    it('has no close control of its own: the page around it has the way back', () => {
+        embedded();
+        expect(screen.queryByRole('button', { name: 'Close import' })).toBeNull();
+    });
+
+    it("puts the description under the title, inside the card's region", () => {
+        embedded({ description: 'Artificial one-line description.' });
+        const region = screen.getByRole('region', { name: 'Import Private Leads' });
+        expect(within(region).getByRole('heading', { level: 2, name: 'Import Private Leads' })).toBeInTheDocument();
+        expect(within(region).getByText('Artificial one-line description.')).toBeInTheDocument();
+    });
+
+    it('leaves the steps to the page when it shows them itself', () => {
+        const { unmount } = embedded();
+        expect(screen.getByRole('list', { name: 'Import steps' })).toBeInTheDocument();
+        unmount();
+
+        embedded({ showSteps: false });
+        expect(screen.queryByRole('list', { name: 'Import steps' })).toBeNull();
+    });
+
+    it('lists the instructions one sentence per item under a level-3 heading', () => {
+        embedded({ instructions: ['Artificial rule one.', 'Artificial rule two.'], showSteps: false });
+
+        expect(screen.getByRole('heading', { level: 3, name: 'Instructions' })).toBeInTheDocument();
+        expect(screen.getByText('What the file needs.')).toBeInTheDocument();
+        const items = within(screen.getByRole('list')).getAllByRole('listitem');
+        expect(items.map((item) => item.textContent)).toEqual(['Artificial rule one.', 'Artificial rule two.']);
+    });
+
+    it('keeps the instructions before the controls in reading order', () => {
+        embedded();
+        const heading = screen.getByRole('heading', { name: 'Instructions' });
+        const method = screen.getByRole('group', { name: 'Import method' });
+        expect(heading.compareDocumentPosition(method) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('keeps Download CSV Template an action, not a link', () => {
+        embedded();
+        expect(screen.getByRole('button', { name: 'Download CSV Template' })).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Download CSV Template' })).toBeNull();
+    });
+});
+
 describe('BulkUploadLayout — named controls (defects 3, 5, 6)', () => {
     it('names the header close control distinctly from the success Close button', () => {
         render(<BulkUploadLayout {...makeProps()} />);
@@ -322,6 +369,10 @@ describe('BulkUploadLayout — axe', () => {
         ['upload', { step: 'upload' }],
         ['preview', { step: 'preview', csvData: PREVIEW_ROWS }],
         ['success', { step: 'success', stats: { created: 1, updated: 0 } }],
+        ['upload / listed instructions, described, steps shown by the page', {
+            step: 'upload', instructions: ['Artificial rule one.', 'Artificial rule two.'],
+            description: 'Artificial one-line description.', showSteps: false,
+        }],
     ])('has no violations: %s (embedded)', async (_name, overrides) => {
         const { container } = render(
             <BulkUploadLayout {...makeProps({ ...overrides, isEmbedded: true })} />,

@@ -1,11 +1,11 @@
 import React from 'react';
 import {
-    Card,
     FieldDisplay,
     FormField,
     FormSection,
     Input,
 } from '@/design-system/components';
+import { Stack } from '@/design-system/layouts';
 import { BrandingSection } from './BrandingSection';
 
 function ProfileField({
@@ -42,6 +42,13 @@ function ProfileField({
     );
 }
 
+/*
+ * C2 Company profile: three sections whose headings sit above their cards.
+ * The layout follows the room the settings content gives it (a size
+ * container), not the window: Contact Info and HQ Address sit side by side
+ * only while the column holds both at 371px or more (HQ's City | State | Zip
+ * row needs that), which is a 1440px window beside the settings rail.
+ */
 export function CompanyInfoSection({
     compData,
     isEditing,
@@ -50,66 +57,72 @@ export function CompanyInfoSection({
     onLogoUpload,
     onFieldChange,
 }) {
-    return (
-        <div
-            className="space-y-ds-6 animate-in slide-in-from-bottom-2"
-            data-testid="company-information"
-        >
-            <Card
-                padding="lg"
-                className="flex min-w-0 flex-col gap-ds-8 md:flex-row"
-                aria-label="Company identity"
-            >
-                <BrandingSection
-                    companyLogoUrl={compData.companyLogoUrl}
-                    isEditing={isEditing}
-                    logoUploading={logoUploading}
-                    onLogoUpload={onLogoUpload}
-                />
+    const companyName = (
+        <ProfileField
+            field="companyName"
+            id="company-profile-company-name"
+            label="Company Name"
+            value={compData.companyName}
+            fallback="Not Set"
+            isEditing={isEditing}
+            onFieldChange={onFieldChange}
+            emphasis="strong"
+        />
+    );
 
-                <div className="grid w-full min-w-0 flex-1 gap-ds-5">
+    return (
+        <Stack gap="xl" data-testid="company-information">
+            <FormSection
+                layout="stacked"
+                title="Company"
+                description="Name and logo, as drivers see them."
+            >
+                {/* The logo with the name beside it; while editing, the upload
+                    beside the logo and the name a field of its own under it.
+                    Tab order: logo, name, MC, DOT. */}
+                <div className="flex min-w-0 items-center gap-ds-4 md:gap-ds-5">
+                    <BrandingSection
+                        companyLogoUrl={compData.companyLogoUrl}
+                        isEditing={isEditing}
+                        logoUploading={logoUploading}
+                        onLogoUpload={onLogoUpload}
+                    />
+                    {!isEditing && <div className="min-w-0 flex-1">{companyName}</div>}
+                </div>
+                {isEditing && companyName}
+
+                {/* MC | DOT share their gutter with the two cards below when those
+                    sit side by side, so MC ends where Contact Info does. */}
+                <div className="grid min-w-0 grid-cols-2 gap-x-ds-4 gap-y-ds-5 md:gap-x-ds-5 [@container_(min-width:766px)]:gap-x-ds-6">
                     <ProfileField
-                        field="companyName"
-                        id="company-profile-company-name"
-                        label="Company Name"
-                        value={compData.companyName}
-                        fallback="Not Set"
+                        field="mcNumber"
+                        id="company-profile-mc-number"
+                        label="MC Number"
+                        value={compData.mcNumber}
+                        fallback="N/A"
                         isEditing={isEditing}
                         onFieldChange={onFieldChange}
-                        emphasis="strong"
                     />
-
-                    <div className="grid min-w-0 grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                        <ProfileField
-                            field="mcNumber"
-                            id="company-profile-mc-number"
-                            label="MC Number"
-                            value={compData.mcNumber}
-                            fallback="N/A"
-                            isEditing={isEditing}
-                            onFieldChange={onFieldChange}
-                        />
-                        <ProfileField
-                            field="dotNumber"
-                            id="company-profile-dot-number"
-                            label="DOT Number"
-                            value={compData.dotNumber}
-                            fallback="N/A"
-                            isEditing={isEditing}
-                            onFieldChange={onFieldChange}
-                        />
-                    </div>
+                    <ProfileField
+                        field="dotNumber"
+                        id="company-profile-dot-number"
+                        label="DOT Number"
+                        value={compData.dotNumber}
+                        fallback="N/A"
+                        isEditing={isEditing}
+                        onFieldChange={onFieldChange}
+                    />
 
                     {/* Read only, so it is not among the fields Edit Profile opens. */}
                     {!isEditing && plan && (
-                        <FieldDisplay label="Plan">
+                        <FieldDisplay label="Plan" className="col-span-2">
                             {plan} — to change it, contact support.
                         </FieldDisplay>
                     )}
                 </div>
-            </Card>
+            </FormSection>
 
-            <div className="grid min-w-0 grid-cols-1 gap-ds-6 lg:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 items-start gap-ds-8 [@container_(min-width:766px)]:grid-cols-2 [@container_(min-width:766px)]:gap-ds-6">
                 <ContactInfoCard
                     compData={compData}
                     isEditing={isEditing}
@@ -121,13 +134,13 @@ export function CompanyInfoSection({
                     onFieldChange={onFieldChange}
                 />
             </div>
-        </div>
+        </Stack>
     );
 }
 
 function ContactInfoCard({ compData, isEditing, onFieldChange }) {
     return (
-        <FormSection title="Contact Info">
+        <FormSection layout="stacked" title="Contact Info" description="How drivers reach you.">
             <ProfileField
                 field="phone"
                 id="company-profile-phone"
@@ -153,7 +166,7 @@ function ContactInfoCard({ compData, isEditing, onFieldChange }) {
 
 function AddressCard({ compData, isEditing, onFieldChange }) {
     return (
-        <FormSection title="HQ Address">
+        <FormSection layout="stacked" title="HQ Address" description="Your main office.">
             <ProfileField
                 field="street"
                 id="company-profile-street"
@@ -163,16 +176,21 @@ function AddressCard({ compData, isEditing, onFieldChange }) {
                 isEditing={isEditing}
                 onFieldChange={onFieldChange}
             />
-            <div className="grid min-w-0 grid-cols-1 gap-ds-4 sm:grid-cols-3">
-                <ProfileField
-                    field="city"
-                    id="company-profile-city"
-                    label="City"
-                    value={compData.city}
-                    fallback="N/A"
-                    isEditing={isEditing}
-                    onFieldChange={onFieldChange}
-                />
+            {/* City takes the room; State holds two letters and Zip five
+                digits. On a phone City has the row and State | Zip share
+                the next. */}
+            <div className="grid min-w-0 grid-cols-2 gap-x-ds-4 gap-y-ds-5 md:grid-cols-[minmax(0,1fr)_4rem_5.5rem] md:gap-x-ds-5">
+                <div className="col-span-2 min-w-0 md:col-span-1">
+                    <ProfileField
+                        field="city"
+                        id="company-profile-city"
+                        label="City"
+                        value={compData.city}
+                        fallback="N/A"
+                        isEditing={isEditing}
+                        onFieldChange={onFieldChange}
+                    />
+                </div>
                 <ProfileField
                     field="state"
                     id="company-profile-state"

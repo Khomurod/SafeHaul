@@ -48,12 +48,11 @@ test.describe('E-Doc envelope history slice', () => {
     await openHistory(page);
 
     const headers = page.getByRole('columnheader');
+    // C2: the date sent is under the title, and the status and delivery read together.
     await expect(headers).toHaveText([
       'Document',
       'Recipient',
-      'Delivery',
-      'Status',
-      'Date sent',
+      'Status · Delivery',
       'Actions',
     ]);
   });

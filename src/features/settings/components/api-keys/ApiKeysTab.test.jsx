@@ -62,17 +62,61 @@ describe('the list', () => {
         expect(within(table).getByText('Artificial TMS')).toBeInTheDocument();
         expect(within(table).getByText('shk_0123456789abcdef_…')).toBeInTheDocument();
         expect(within(table).getAllByText('Applications')).toHaveLength(2);
-        expect(within(table).getAllByText('Never')).toHaveLength(2);
+        expect(within(table).getAllByText('Last used: Never')).toHaveLength(2);
         expect(within(table).getByText('Turned off')).toBeInTheDocument();
+        // What a key may read is in its own cell, under its name: four columns.
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+            .toEqual(['Key and what it can read', 'Created · last used', 'Status', 'Actions']);
         // Only the key that is on can be turned off, from the last column; its
         // Status says only where it stands.
         expect(within(table).getAllByRole('button', { name: /^Turn off / })).toHaveLength(1);
         const row = within(table).getByText('Artificial TMS').closest('tr');
-        const status = row.querySelector('[data-label="Status"]');
+        const status = row.querySelector('[data-mobile-role="status"]');
         expect(within(status).getByText('On')).toBeInTheDocument();
         expect(within(status).queryByRole('button')).toBeNull();
         expect(within(within(row).getAllByRole('cell').at(-1)).getByRole('button', { name: 'Turn off Artificial TMS' }))
             .toBeInTheDocument();
+    });
+
+    it('fits its columns to the box it is in, and scrolls only where the key would be crushed', async () => {
+        const original = Element.prototype.getBoundingClientRect;
+        const columnsAt = async (width) => {
+            Element.prototype.getBoundingClientRect = () => ({ width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 });
+            const { unmount } = await renderTab();
+            const table = screen.getByRole('table', { name: 'API keys' });
+            const widths = within(table).getAllByRole('columnheader').map((th) => th.getAttribute('data-width'));
+            const minWidth = table.getAttribute('data-min-width');
+            unmount();
+            return { widths, minWidth };
+        };
+        try {
+            // A wide box: the dates have their full columns.
+            expect(await columnsAt(776)).toEqual({ widths: ['auto', 'xl', 'lg', 'sm'], minWidth: 'none' });
+            // A laptop's 614px box: a step less each, and still no sideways scroll.
+            expect(await columnsAt(616)).toEqual({ widths: ['auto', 'lg', 'md', 'sm'], minWidth: 'none' });
+            // Narrower than that it scrolls, with the dates at full width again.
+            expect(await columnsAt(534)).toEqual({ widths: ['auto', 'xl', 'lg', 'sm'], minWidth: 'standard' });
+        } finally {
+            Element.prototype.getBoundingClientRect = original;
+        }
+    });
+
+    it('keeps a time on one line: "12:00 PM" never splits', async () => {
+        await renderTab();
+        const row = within(screen.getByRole('table', { name: 'API keys' })).getByText('Old payroll').closest('tr');
+        const status = row.querySelector('[data-mobile-role="status"]');
+        const time = [...status.querySelectorAll('.whitespace-nowrap')].map((part) => part.textContent);
+        expect(time).toHaveLength(1);
+        expect(time[0]).toMatch(/^\d{1,2}:\d{2}\s(AM|PM)$/);
+    });
+
+    it('explains how keys work under the list, not above it', async () => {
+        await renderTab();
+        const table = screen.getByRole('table', { name: 'API keys' });
+        const help = screen.getByRole('region', { name: 'How it works' });
+        expect(table.compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(within(help).getAllByRole('listitem')).toHaveLength(3);
+        expect(within(help).getByRole('link', { name: 'SafeHaul API guide' })).toHaveAttribute('href', '/developers/api');
     });
 
     it('says when the list could not load, and tries again', async () => {

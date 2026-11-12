@@ -6,7 +6,7 @@ import { storage } from '@lib/firebase/storage';
 import { updateProfile, updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Icon, User, Mail, Lock, Save } from '@design-system/icons';
+import { Icon, Mail, Save } from '@design-system/icons';
 import { forgetPortalUser, getPortalUser } from '@features/auth/services/userService';
 import {
     Button,
@@ -15,19 +15,43 @@ import {
     FormSection,
     Input,
 } from '@/design-system/components';
-import { PageHeader, Stack } from '@/design-system/layouts';
+import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useUnsavedChanges } from '@/design-system/patterns';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { ProfileAvatarField } from '@features/company-admin/components/profile/ProfileAvatarField';
 import { PersonalLinkCard } from '@features/company-admin/components/profile/PersonalLinkCard';
+
+/*
+ * Columns by the width of the card, not the window: two (photo | company,
+ * name | email) and three passwords side by side where the card's body is at
+ * least 640px wide, one below that. Each grid sits in a size container of its
+ * own, inside the card.
+ */
+const CARD_GRID = 'min-w-0 [container-type:inline-size]';
+const TWO_UP = 'grid min-w-0 items-start gap-x-ds-6 gap-y-ds-5 [@container_(min-width:640px)]:grid-cols-2';
+const THREE_UP = 'grid min-w-0 items-end gap-x-ds-5 gap-y-ds-5 [@container_(min-width:640px)]:grid-cols-3';
+
+/*
+ * A read-only value on the line an input's text sits on, so Company and Email
+ * read level with Display Name beside them; on a phone, where nothing sits
+ * beside it, just the text.
+ */
+const VALUE_ON_INPUT_LINE = 'mt-ds-1 flex min-h-ds-control items-center max-md:mt-0 max-md:min-h-0';
 
 /**
  * Profile: every staff member's own page — their personal application link,
  * name, photo, sign-in email and password. Settings no longer has a profile
  * section; its old address opens this page.
+ *
+ * The standard page canvas, under the "Account" eyebrow, with three stacked
+ * sections (the heading and what it is for above a full-width card): the
+ * personal link, Profile Information (Save Changes in the card's footer) and
+ * Change Password (its button in the footer).
  */
 export const UserProfilePage = () => {
     const { currentUser, currentCompanyProfile } = useData();
     const { showSuccess, showError } = useToast();
+    const isMobile = useIsMobile();
 
     const [profileData, setProfileData] = useState({
         displayName: '',
@@ -263,25 +287,16 @@ export const UserProfilePage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-ds-surface-subtle">
-            {/* Page Header */}
-            <div className="shrink-0 border-b border-ds-border bg-ds-surface px-6 py-4">
-                <PageHeader
-                    title={(
-                        <span className="inline-flex items-center gap-ds-2">
-                            <Icon icon={User} size="2xl" className="text-ds-action-primary" />
-                            My Profile
-                        </span>
-                    )}
-                    description="Manage your account settings and preferences."
-                />
-            </div>
+        <div className="min-h-full bg-ds-canvas">
+            <PageContainer width="standard">
+                <Stack gap="lg">
+                    <PageHeader
+                        eyebrow="Account"
+                        title="My Profile"
+                        description="Manage your account settings and preferences."
+                    />
 
-            {/* Content */}
-            <div className="min-w-0 flex-1 overflow-auto p-6">
-                <div className="mx-auto w-full max-w-2xl">
-                    <Stack gap="lg">
-
+                    <Stack gap="xl">
                         {/* A link names the company it applies to: with none chosen there is none. */}
                         {currentCompanyProfile?.id && (
                             <PersonalLinkCard
@@ -290,99 +305,11 @@ export const UserProfilePage = () => {
                             />
                         )}
 
-                        {/* Profile Section */}
                         <FormSection
+                            layout="stacked"
                             title="Profile Information"
                             description="Your name, photo, and sign-in email."
-                        >
-                            {/* Avatar */}
-                            <ProfileAvatarField
-                                photoURL={profileData.photoURL}
-                                initials={getInitials(profileData.displayName)}
-                                uploading={isUploadingAvatar}
-                                onFileSelect={handleFileChange}
-                            />
-
-                            <FieldDisplay label="Company">
-                                {currentCompanyProfile?.companyName || 'No Company'}
-                            </FieldDisplay>
-
-                            {/* Name */}
-                            <FormField id="profile-display-name" label="Display Name">
-                                <Input
-                                    type="text"
-                                    name="displayName"
-                                    value={profileData.displayName}
-                                    onChange={handleProfileChange}
-                                    autoComplete="name"
-                                />
-                            </FormField>
-
-                            {/* Email */}
-                            {!isEditingEmail ? (
-                                <div className="flex flex-wrap items-end justify-between gap-ds-3">
-                                    <FieldDisplay label="Email Address" className="min-w-0 flex-1">
-                                        {profileData.email}
-                                    </FieldDisplay>
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() => setIsEditingEmail(true)}
-                                    >
-                                        <Icon icon={Mail} />
-                                        Change Email
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div
-                                    role="group"
-                                    aria-label="Change email address"
-                                    className="flex flex-col gap-ds-4 rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-4"
-                                >
-                                    <FormField id="profile-new-email" label="New Email">
-                                        <Input
-                                            type="email"
-                                            value={newEmail}
-                                            onChange={(e) => setNewEmail(e.target.value)}
-                                            autoComplete="email"
-                                        />
-                                    </FormField>
-                                    <FormField
-                                        id="profile-email-current-password"
-                                        label="Current Password"
-                                        description="Required to change your email."
-                                    >
-                                        <Input
-                                            type="password"
-                                            value={emailPassword}
-                                            onChange={(e) => setEmailPassword(e.target.value)}
-                                            autoComplete="current-password"
-                                        />
-                                    </FormField>
-                                    <div className="flex flex-wrap justify-end gap-ds-2">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleCancelEmailEdit}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="primary"
-                                            size="sm"
-                                            onClick={handleUpdateEmail}
-                                            loading={isSavingProfile}
-                                        >
-                                            Update Email
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex justify-end">
+                            footer={(
                                 <Button
                                     type="button"
                                     variant="primary"
@@ -392,65 +319,174 @@ export const UserProfilePage = () => {
                                     {!isSavingProfile && <Icon icon={Save} size="lg" />}
                                     {isSavingProfile ? 'Saving...' : 'Save Changes'}
                                 </Button>
+                            )}
+                        >
+                            <div className={CARD_GRID}>
+                                <div className={TWO_UP}>
+                                    <ProfileAvatarField
+                                        photoURL={profileData.photoURL}
+                                        initials={getInitials(profileData.displayName)}
+                                        uploading={isUploadingAvatar}
+                                        onFileSelect={handleFileChange}
+                                    />
+
+                                    <FieldDisplay label="Company">
+                                        <span className={VALUE_ON_INPUT_LINE}>
+                                            {currentCompanyProfile?.companyName || 'No Company'}
+                                        </span>
+                                    </FieldDisplay>
+
+                                    <FormField id="profile-display-name" label="Display Name">
+                                        <Input
+                                            type="text"
+                                            name="displayName"
+                                            value={profileData.displayName}
+                                            onChange={handleProfileChange}
+                                            autoComplete="name"
+                                        />
+                                    </FormField>
+
+                                    {!isEditingEmail ? (
+                                        <div className="flex min-w-0 flex-wrap items-end gap-x-ds-3 gap-y-ds-2">
+                                            <FieldDisplay label="Email Address" className="min-w-0 max-w-full">
+                                                <span className={VALUE_ON_INPUT_LINE}>
+                                                    <span className="min-w-0">{emailWithBreak(profileData.email)}</span>
+                                                </span>
+                                            </FieldDisplay>
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                size={isMobile ? 'md' : 'sm'}
+                                                fullWidth={isMobile}
+                                                className="md:mb-ds-1"
+                                                onClick={() => setIsEditingEmail(true)}
+                                            >
+                                                <Icon icon={Mail} />
+                                                Change Email
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            role="group"
+                                            aria-label="Change email address"
+                                            className="col-span-full flex flex-col gap-ds-4 rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-4"
+                                        >
+                                            <FormField id="profile-new-email" label="New Email">
+                                                <Input
+                                                    type="email"
+                                                    value={newEmail}
+                                                    onChange={(e) => setNewEmail(e.target.value)}
+                                                    autoComplete="email"
+                                                />
+                                            </FormField>
+                                            <FormField
+                                                id="profile-email-current-password"
+                                                label="Current Password"
+                                                description="Required to change your email."
+                                            >
+                                                <Input
+                                                    type="password"
+                                                    value={emailPassword}
+                                                    onChange={(e) => setEmailPassword(e.target.value)}
+                                                    autoComplete="current-password"
+                                                />
+                                            </FormField>
+                                            <div className="flex flex-wrap justify-end gap-ds-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleCancelEmailEdit}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="primary"
+                                                    size="sm"
+                                                    onClick={handleUpdateEmail}
+                                                    loading={isSavingProfile}
+                                                >
+                                                    Update Email
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </FormSection>
 
-                        {/* Password Section */}
                         <FormSection
+                            layout="stacked"
                             title="Change Password"
                             description="Update the password you use to sign in."
-                        >
-                            <FormField id="profile-current-password" label="Current Password">
-                                <Input
-                                    type="password"
-                                    name="currentPassword"
-                                    value={passwordData.currentPassword}
-                                    onChange={handlePasswordChange}
-                                    autoComplete="current-password"
-                                    placeholder="••••••••"
-                                />
-                            </FormField>
-                            <div className="grid grid-cols-1 gap-ds-5 md:grid-cols-2">
-                                <FormField id="profile-new-password" label="New Password">
-                                    <Input
-                                        type="password"
-                                        name="newPassword"
-                                        value={passwordData.newPassword}
-                                        onChange={handlePasswordChange}
-                                        autoComplete="new-password"
-                                        placeholder="••••••••"
-                                    />
-                                </FormField>
-                                <FormField id="profile-confirm-password" label="Confirm New Password">
-                                    <Input
-                                        type="password"
-                                        name="confirmPassword"
-                                        value={passwordData.confirmPassword}
-                                        onChange={handlePasswordChange}
-                                        autoComplete="new-password"
-                                        placeholder="••••••••"
-                                    />
-                                </FormField>
-                            </div>
-
-                            <div className="flex justify-end">
+                            footer={(
                                 <Button
                                     type="button"
-                                    variant="primary"
+                                    variant="secondary"
                                     onClick={handleChangePassword}
                                     loading={isSavingPassword}
                                 >
-                                    {!isSavingPassword && <Icon icon={Lock} size="lg" />}
                                     {isSavingPassword ? 'Changing...' : 'Change Password'}
                                 </Button>
+                            )}
+                        >
+                            <div className={CARD_GRID}>
+                                <div className={THREE_UP}>
+                                    <FormField id="profile-current-password" label="Current Password">
+                                        <Input
+                                            type="password"
+                                            name="currentPassword"
+                                            value={passwordData.currentPassword}
+                                            onChange={handlePasswordChange}
+                                            autoComplete="current-password"
+                                            placeholder="••••••••"
+                                        />
+                                    </FormField>
+                                    <FormField id="profile-new-password" label="New Password">
+                                        <Input
+                                            type="password"
+                                            name="newPassword"
+                                            value={passwordData.newPassword}
+                                            onChange={handlePasswordChange}
+                                            autoComplete="new-password"
+                                            placeholder="••••••••"
+                                        />
+                                    </FormField>
+                                    <FormField id="profile-confirm-password" label="Confirm New Password">
+                                        <Input
+                                            type="password"
+                                            name="confirmPassword"
+                                            value={passwordData.confirmPassword}
+                                            onChange={handlePasswordChange}
+                                            autoComplete="new-password"
+                                            placeholder="••••••••"
+                                        />
+                                    </FormField>
+                                </div>
                             </div>
                         </FormSection>
-
                     </Stack>
-                </div>
-            </div>
+                </Stack>
+            </PageContainer>
         </div>
     );
 };
+
+/**
+ * The address with a line-break opportunity after its "@", so a narrow column
+ * breaks it there rather than mid-word. Plain text either side of a `<wbr>`.
+ */
+function emailWithBreak(email) {
+    const at = (email || '').indexOf('@');
+    if (at < 0) return email;
+    return (
+        <>
+            {email.slice(0, at + 1)}
+            <wbr />
+            {email.slice(at + 1)}
+        </>
+    );
+}
 
 export default UserProfilePage;

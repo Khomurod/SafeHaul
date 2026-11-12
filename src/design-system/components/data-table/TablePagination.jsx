@@ -12,7 +12,11 @@ export function TablePagination({ ariaLabel, pagination, pageSizes }) {
   const pageSizeId = `ds-table-page-size-${useId().replace(/:/g, '')}`;
 
   return (
-    <nav className="ds-data-table__pagination" aria-label={`${ariaLabel} pagination`}>
+    <nav
+      className="ds-data-table__pagination"
+      aria-label={`${ariaLabel} pagination`}
+      data-has-page-size={pageSizes ? true : undefined}
+    >
       <span className="ds-data-table__pagination-label">{pagination.label}</span>
       <div className="ds-data-table__pagination-controls">
         {pageSizes && (

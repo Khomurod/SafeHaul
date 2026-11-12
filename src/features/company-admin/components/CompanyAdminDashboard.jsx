@@ -55,7 +55,7 @@ export function CompanyAdminDashboard() {
 
     return (
         <div id="company-admin-container" className="min-h-full bg-ds-canvas">
-            <PageContainer>
+            <PageContainer width="standard">
                 <Stack gap="lg">
                     <PageHeader
                         title={userName ? `Welcome back, ${userName}` : 'Welcome back'}

@@ -1,0 +1,223 @@
+/*
+ * FormSection: a heading, a card, and the card's body and footer.
+ *
+ * The card never pads itself (`Card padding="none"`): the header, the body and
+ * the footer each carry the inset, so the footer's divider runs edge to edge
+ * (C2's "one container level"), a `header="bleed"` divider can too, and
+ * `padding="none"` can make a table or a list the card's body without taking
+ * the header's and footer's inset with it.
+ *
+ * `--ds-form-section-inset` is the card padding role the section was given;
+ * `-body-inset` is the same, or 0 when the body is flush; `-body-gap` is the
+ * space between the body's rows and `-head-gap` the header's divider to the
+ * first field, both 0 when the body is flush (its rows abut: a table, then a
+ * flush `Notice` as its last row). The `-description-*` trio is the
+ * description's size, measure and wrap: the driver application's 13px by
+ * default, C2's 14px, 80ch and pretty wrap in the shapes C2 introduced.
+ * Custom properties, set on each section's own root, so a section nested in
+ * another's body takes none of its parent's.
+ */
+.ds-form-section {
+  --ds-form-section-inset: var(--ds-card-padding);
+  --ds-form-section-body-inset: var(--ds-form-section-inset);
+  --ds-form-section-body-gap: var(--ds-space-5);
+  --ds-form-section-head-gap: var(--ds-space-6);
+  --ds-form-section-description-size: var(--ds-font-size-sm);
+  --ds-form-section-description-measure: none;
+  --ds-form-section-description-wrap: wrap;
+
+  min-width: 0;
+}
+
+.ds-form-section:is([data-header='bleed'], [data-layout='stacked'], [data-layout='aside']) {
+  --ds-form-section-description-size: var(--ds-font-size-body);
+  --ds-form-section-description-measure: 80ch;
+  --ds-form-section-description-wrap: pretty;
+}
+
+.ds-form-section[data-inset='sm'] { --ds-form-section-inset: var(--ds-card-padding-compact); }
+.ds-form-section[data-inset='lg'] { --ds-form-section-inset: var(--ds-card-padding-spacious); }
+
+.ds-form-section[data-inset='none'] {
+  --ds-form-section-body-inset: 0;
+  --ds-form-section-body-gap: 0;
+  --ds-form-section-head-gap: 0;
+}
+
+/* ---- Heading, shared by every layout ---- */
+
+.ds-form-section__heading {
+  min-width: 0;
+}
+
+.ds-form-section__title {
+  margin: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-heading-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-form-section__description {
+  max-width: var(--ds-form-section-description-measure);
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-form-section-description-size);
+  line-height: var(--ds-line-height-body);
+  text-wrap: var(--ds-form-section-description-wrap);
+}
+
+.ds-form-section__actions {
+  flex: 0 0 auto;
+}
+
+.ds-form-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+}
+
+/* ---- The card and what is inside it ---- */
+
+.ds-form-section__card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+/*
+ * `card`: the header is the card's first row, above a divider. By default the
+ * divider stops at the card's padding (a margin, not a padding, so the line is
+ * inset with the words) — the header every driver-application step has always
+ * had. `header="bleed"` moves the inset inside the header so the divider runs
+ * edge to edge, as the footer's does.
+ */
+.ds-form-section__card > .ds-form-section__header {
+  margin: var(--ds-form-section-inset) var(--ds-form-section-inset) 0;
+  padding-bottom: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+.ds-form-section[data-header='bleed'] > .ds-form-section__header {
+  margin: 0;
+  padding: var(--ds-form-section-inset) var(--ds-form-section-inset) var(--ds-space-4);
+}
+
+.ds-form-section__body {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-form-section-body-gap);
+  padding: var(--ds-form-section-body-inset);
+}
+
+/* The header's divider to the first field: the distance it has always had. */
+.ds-form-section__header + .ds-form-section__body {
+  padding-top: var(--ds-form-section-head-gap);
+}
+
+/*
+ * A flush `Notice` last in the body is not the card's last row when a footer
+ * follows, so it stays square rather than rounding into the footer.
+ */
+.ds-form-section__body:not(:last-child) > .ds-notice[data-frame='flush']:last-child {
+  border-radius: 0;
+}
+
+.ds-form-section__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-4) var(--ds-form-section-inset);
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+
+/* ---- `stacked`: heading and description above a full-width card ---- */
+
+.ds-form-section[data-layout='stacked'] {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+
+.ds-form-section[data-layout='stacked'] > .ds-form-section__header {
+  align-items: flex-end;
+}
+
+/*
+ * ---- `aside`: heading and description in a column beside the card ----
+ *
+ * The section is its own size container, so it stacks by the width it is given
+ * rather than by the viewport: the settings content column is 872px at 1440
+ * and 702px at 1366, where the sidebar and the settings rail have taken theirs.
+ * A container cannot query itself, which is why the grid is the inner
+ * `__columns` and not the section.
+ */
+/*
+ * Inline-size containment takes the section's width off its content, so in a
+ * shrink-to-fit parent (a flex column aligned to the start, an `Inline`, an
+ * `auto` track) it would measure 0: `width: 100%` makes it fill its slot.
+ */
+.ds-form-section[data-layout='aside'] {
+  width: 100%;
+  container: ds-form-section / inline-size;
+}
+
+.ds-form-section__columns {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ds-space-8);
+}
+
+/* In the side column the actions follow the description: a status, a guide. */
+.ds-form-section__aside > .ds-form-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--ds-space-3) var(--ds-space-2);
+  margin-top: var(--ds-space-3);
+}
+
+/* Sections that explain themselves beside their card are divided by a rule. */
+.ds-form-section[data-layout='aside'] + .ds-form-section[data-layout='aside'] {
+  padding-top: var(--ds-section-gap);
+  border-top: 1px solid var(--ds-color-border-subtle);
+}
+
+@container ds-form-section (max-width: 759px) {
+  .ds-form-section__columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ds-space-3);
+  }
+}
+
+/* ---- Phones ---- */
+
+@media (max-width: 767px) {
+  /* Each footer action takes an equal share of the row; a label never breaks. */
+  .ds-form-section__footer > * {
+    min-width: fit-content;
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .ds-form-section {
+    --ds-form-section-head-gap: var(--ds-space-5);
+  }
+
+  .ds-form-section__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ds-form-section[data-layout='stacked'] > .ds-form-section__header {
+    align-items: stretch;
+  }
+
+  .ds-form-section__header > .ds-form-section__actions {
+    width: 100%;
+  }
+}

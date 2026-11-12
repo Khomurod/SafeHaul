@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { forgetPortalUser } from '@features/auth/services/userService';
-import { Icon, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
-import { Button, Card } from '@/design-system/components';
+import { Icon, Loader2, Copy, CheckCircle } from '@design-system/icons';
+import { Button, FormSection } from '@/design-system/components';
 import { useToast } from '@shared/components/feedback';
 import { recruiterCodeFor } from '../../utils/recruiterLinkCode';
 
@@ -16,6 +16,12 @@ import { recruiterCodeFor } from '../../utils/recruiterLinkCode';
  * (`recruiterCodeFor`). When the saved code was made for another company, the
  * page offers `?recruiter=<uid>`, which the server checks against this
  * company's team.
+ *
+ * A stacked section (`id="personal-recruiting-link"`): the heading and what the
+ * link does above a card that holds only the link and Copy. The link is shown
+ * whole, never cut: it wraps inside its box, after a "/", before the "?" or
+ * after the "=", and its query ("?recruiter=", the code or id) stays whole on
+ * its line (`withBreaks`).
  */
 export function PersonalLinkCard({ currentUser, currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -83,67 +89,85 @@ export function PersonalLinkCard({ currentUser, currentCompanyProfile }) {
     };
 
     return (
-        <Card
-            className="border-ds-status-info-border bg-ds-status-info-bg"
-            aria-labelledby="personal-recruiting-link-title"
+        <FormSection
+            layout="stacked"
+            id="personal-recruiting-link"
+            title="Your personal link"
+            description={(
+                <>Share this link. Drivers who apply will be <strong className="font-semibold text-ds-content">automatically assigned to you</strong>.</>
+            )}
         >
-            <div className="flex items-start gap-4">
+            {linkLoading ? (
                 <div
-                    className="p-3 rounded-ds-md shadow-ds-xs bg-ds-surface text-ds-status-info-fg shrink-0"
-                    aria-hidden="true"
+                    className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary"
+                    role="status"
                 >
-                    <Icon icon={LinkIcon} size="2xl" />
+                    <Icon icon={Loader2} className="animate-spin" />
+                    Generating unique code...
                 </div>
-                <div className="flex-1 min-w-0">
-                    <h2
-                        id="personal-recruiting-link-title"
-                        className="text-ds-heading-sm font-bold mb-1 text-ds-status-info-fg"
+            ) : !uniqueLink ? (
+                <p className="text-ds-sm text-ds-content-secondary">
+                    {uid && !companySlug
+                        ? "Your company's application page has no address yet, so there is no link to share. SafeHaul support can set one."
+                        : 'Sign in again to see your link.'}
+                </p>
+            ) : (
+                <div className="flex min-w-0 flex-col gap-ds-2 md:flex-row md:items-start md:gap-ds-3">
+                    <div className="flex min-h-ds-control min-w-0 flex-1 items-center rounded-ds-md border border-ds-border bg-ds-surface px-ds-3 py-ds-2">
+                        <code className="min-w-0 break-words font-mono text-ds-body text-ds-content">
+                            {withBreaks(uniqueLink)}
+                        </code>
+                    </div>
+
+                    <Button
+                        variant="primary"
+                        onClick={handleCopyLink}
+                        aria-live="polite"
                     >
-                        Your personal link
-                    </h2>
-
-                    <p className="text-ds-sm text-ds-status-info-fg mb-4">
-                        Share this link. Drivers who apply will be <strong>automatically assigned to you</strong>.
-                    </p>
-
-                    {linkLoading ? (
-                        <div
-                            className="flex items-center gap-2 text-ds-sm text-ds-content-secondary"
-                            role="status"
-                        >
-                            <Icon icon={Loader2} className="animate-spin" />
-                            Generating unique code...
-                        </div>
-                    ) : !uniqueLink ? (
-                        <p className="text-ds-sm text-ds-content-secondary">
-                            {uid && !companySlug
-                                ? "Your company's application page has no address yet, so there is no link to share. SafeHaul support can set one."
-                                : 'Sign in again to see your link.'}
-                        </p>
-                    ) : (
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-ds-surface p-2 rounded-ds-md border border-ds-status-info-border">
-                            <code
-                                className="flex-1 min-w-0 text-ds-xs sm:text-ds-sm font-mono text-ds-content-secondary truncate px-2"
-                                title={uniqueLink}
-                            >
-                                {uniqueLink}
-                            </code>
-
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={handleCopyLink}
-                                aria-live="polite"
-                            >
-                                {copied
-                                    ? <Icon icon={CheckCircle} />
-                                    : <Icon icon={Copy} />}
-                                {copied ? "Copied" : "Copy"}
-                            </Button>
-                        </div>
-                    )}
+                        {copied
+                            ? <Icon icon={CheckCircle} />
+                            : <Icon icon={Copy} />}
+                        {copied ? "Copied" : "Copy"}
+                    </Button>
                 </div>
-            </div>
-        </Card>
+            )}
+        </FormSection>
     );
+}
+
+/*
+ * The longest query piece kept on one line: what the narrowest phone's box
+ * holds (26 characters at 320px), so a longer one (a 28-character id) may
+ * still break rather than run out of the box.
+ */
+const WHOLE_PIECE_MAX = 24;
+
+/**
+ * The link with a line-break opportunity after each "/" (not inside "//"),
+ * before the "?" and after each "=", so a narrow box wraps it at its parts
+ * rather than mid-word. From the "?" on, each piece ("?recruiter=", the id)
+ * is kept whole, so an id is never split at a hyphen of its own; the path
+ * stays plain text, so a long company address can still break at its hyphens.
+ */
+function withBreaks(url) {
+    const parts = [];
+    let part = '';
+    [...url].forEach((character, index) => {
+        if (character === '?' && part) {
+            parts.push(part);
+            part = '';
+        }
+        part += character;
+        if ((character === '/' && url[index + 1] !== '/') || character === '=') {
+            parts.push(part);
+            part = '';
+        }
+    });
+    if (part) parts.push(part);
+    const query = parts.findIndex((piece) => piece.startsWith('?'));
+    return parts.flatMap((piece, index) => {
+        const whole = query !== -1 && index >= query && piece.length <= WHOLE_PIECE_MAX;
+        const shown = whole ? <span key={`piece-${index}`} className="whitespace-nowrap">{piece}</span> : piece;
+        return index === 0 ? [shown] : [<wbr key={index} />, shown];
+    });
 }

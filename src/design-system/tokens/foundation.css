@@ -32,8 +32,16 @@
   --ds-color-brand-mint-gradient-start: #0CE1A5;
   --ds-color-brand-mint-gradient-end: #077B5A;
 
+  /* Brand interface steps — NOT part of the mark. The logo, the loader and the
+     favicon never draw these; they exist because the brand navy became the
+     action colour (owner, C2 redesign), and an action colour needs a darker step
+     for its hover and a light tint for what is selected. Both are derived from
+     `brand-deep`: white on `-strong` measures 12.2:1, and `brand-deep` on
+     `-tint` 8.1:1 (`tests/tokens.test.js`). Use the semantic roles, never these. */
+  --ds-color-brand-deep-strong: #003A50;
+  --ds-color-brand-deep-tint: #E6F0F3;
+
   /* Existing SafeHaul interface palette */
-  --ds-color-blue-50: #eff6ff;
   --ds-color-blue-100: #dbeafe;
   --ds-color-blue-300: #93c5fd;
   --ds-color-blue-600: #2563eb;
@@ -76,6 +84,9 @@
   --ds-font-size-heading-md: 18px;
   --ds-font-size-heading-lg: 20px;
   --ds-font-size-heading-xl: 24px;
+  /* The page title's display step: a level-1 `PageHeader` above 767px. Below
+     that, and under a masthead (`level={2}`), the title is `heading-xl`. */
+  --ds-font-size-heading-2xl: 30px;
   /*
    * Not a step of the type scale — a platform constraint with a number in it.
    *
@@ -92,6 +103,9 @@
    */
   --ds-font-size-control-mobile: 16px;
   --ds-line-height-tight: 1.25;
+  /* For display type (30px and the page title): at that size `tight` leaves a
+     gap between wrapped lines that reads as two headings. */
+  --ds-line-height-display: 1.15;
   --ds-line-height-body: 1.5;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
@@ -107,6 +121,10 @@
   --ds-shadow-sm: 0 1px 3px rgb(15 23 42 / 0.1), 0 1px 2px rgb(15 23 42 / 0.06);
   --ds-shadow-md: 0 4px 6px rgb(15 23 42 / 0.1), 0 2px 4px rgb(15 23 42 / 0.06);
   --ds-shadow-lg: 0 10px 15px rgb(15 23 42 / 0.1), 0 4px 6px rgb(15 23 42 / 0.05);
+  /* The table card's lift: a hairline plus a wide, faint shadow pulled in under
+     the card (the negative spread keeps it off the sides). Lighter than `sm` at
+     the edge, softer than `md` below. */
+  --ds-shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.08);
 
   /*
    * Interaction and layering.

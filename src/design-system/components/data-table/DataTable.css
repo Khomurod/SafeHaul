@@ -1,3 +1,7 @@
+/*
+ * A table on its own is the card that holds it: the card radius and the soft
+ * shadow a table card has. `embedded` hands both to the `Card` around it.
+ */
 .ds-data-table {
   display: flex;
   min-height: 0;
@@ -5,9 +9,9 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--ds-color-border-subtle);
-  border-radius: var(--ds-radius-lg);
+  border-radius: var(--ds-card-radius);
   background: var(--ds-color-surface);
-  box-shadow: var(--ds-shadow-xs);
+  box-shadow: var(--ds-shadow-soft);
   color: var(--ds-color-content);
 }
 
@@ -100,16 +104,22 @@
   top: 0;
 }
 
-.ds-data-table thead th {
+/*
+ * Sentence case, as written: a quiet label over the column, not a second
+ * heading. The band is 44px whatever a header holds: no block padding, so the
+ * sort button (24px) and the "select all" box (40px) sit inside the height
+ * rather than adding the row padding to it.
+ */
+.ds-data-table thead th,
+.ds-data-table thead .ds-data-table__selection-gutter {
   height: var(--ds-table-header-height);
   border-bottom: 1px solid var(--ds-table-divider);
+  padding-block: 0;
   background: var(--ds-table-header-bg);
   color: var(--ds-table-header-fg);
   font-size: var(--ds-font-size-xs);
-  font-weight: var(--ds-font-weight-semibold);
-  letter-spacing: 0.04em;
+  font-weight: var(--ds-font-weight-medium);
   line-height: var(--ds-line-height-tight);
-  text-transform: uppercase;
 }
 
 /*
@@ -188,6 +198,12 @@
   width: 220px;
 }
 
+/* A role and its status badge side by side ("Recruiter  No sign-in account"). */
+.ds-data-table col[data-width='2xl'],
+.ds-data-table [data-width='2xl'] {
+  width: 256px;
+}
+
 .ds-data-table col[data-width='actions'],
 .ds-data-table [data-width='actions'] {
   width: var(--ds-table-actions-width);
@@ -239,39 +255,6 @@
 
 .ds-data-table tbody tr[data-tone='danger'] > *:first-child {
   border-left: 4px solid var(--ds-table-row-danger-accent);
-}
-
-.ds-data-table tbody tr[data-selected='true'] > * {
-  background: var(--ds-table-row-selected-bg);
-}
-
-.ds-data-table__selection-cell {
-  padding-right: var(--ds-space-2) !important;
-  padding-left: var(--ds-space-2) !important;
-  text-align: center;
-}
-
-.ds-data-table__selection-control {
-  display: inline-flex;
-  width: var(--ds-table-selection-control-size);
-  height: var(--ds-table-selection-control-size);
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.ds-data-table__selection-control input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  border-color: var(--ds-color-border);
-  accent-color: var(--ds-color-action-primary);
-  cursor: pointer;
-}
-
-.ds-data-table__selection-control input:focus-visible {
-  outline: 2px solid var(--ds-color-focus);
-  outline-offset: 2px;
 }
 
 .ds-data-table__mobile-hint {
@@ -396,22 +379,23 @@
   margin: auto;
 }
 
+/*
+ * The footer: the feature's label ("8 total") on the left, the pager on the
+ * right, on the table's own surface; its text lines up with the first column.
+ */
 .ds-data-table__pagination {
   display: flex;
   min-height: 56px;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ds-space-4);
+  gap: var(--ds-space-2) var(--ds-space-4);
   border-top: 1px solid var(--ds-table-divider);
-  padding: var(--ds-space-2) var(--ds-space-5);
-  background: var(--ds-color-surface-subtle);
-  color: var(--ds-color-content-secondary);
+  padding: var(--ds-space-2) var(--ds-table-cell-padding-inline);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-content-muted);
   font-size: var(--ds-font-size-xs);
-}
-
-.ds-data-table__pagination-label {
-  font-weight: var(--ds-font-weight-medium);
 }
 
 .ds-data-table__pagination-controls {
@@ -456,10 +440,6 @@
     display: block;
   }
 
-  .ds-data-table {
-    border-radius: var(--ds-radius-md);
-  }
-
   .ds-data-table th,
   .ds-data-table td,
   .ds-data-table__state-panel {
@@ -467,15 +447,13 @@
     padding-left: var(--ds-space-4);
   }
 
+  /* One row with room around the 44px pager, unless "Rows per page" needs one. */
   .ds-data-table__pagination {
-    min-height: 72px;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--ds-space-2);
+    min-height: 68px;
     padding: var(--ds-space-3) var(--ds-space-4);
   }
 
-  .ds-data-table__pagination-controls {
+  .ds-data-table__pagination[data-has-page-size] .ds-data-table__pagination-controls {
     width: 100%;
     flex-wrap: wrap;
     justify-content: space-between;

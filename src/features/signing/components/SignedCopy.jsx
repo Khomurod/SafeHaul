@@ -18,10 +18,18 @@ const LINE_TONE = {
     danger: 'text-ds-status-danger-fg',
 };
 
-export function SignedCopyStatus({ record }) {
+/** `size` is the line's type size: 12px by default, 14px where it sits under a status in a list item. */
+export function SignedCopyStatus({ record, size = 'text-ds-xs' }) {
     const line = signedCopyLine(record);
     if (!line) return null;
-    return <span className={`text-ds-xs ${LINE_TONE[line.tone]} [overflow-wrap:anywhere]`}>{line.text}</span>;
+    // An address breaks before its "@" and between words, never mid-word.
+    const [before, ...after] = line.text.split('@');
+    return (
+        <span className={`${size} ${LINE_TONE[line.tone]} [overflow-wrap:break-word]`}>
+            {before}
+            {after.map((part, index) => <React.Fragment key={index}><wbr />@{part}</React.Fragment>)}
+        </span>
+    );
 }
 
 /**
@@ -29,12 +37,14 @@ export function SignedCopyStatus({ record }) {
  * its name says which document (`title`); inside one document's details it
  * needs none.
  */
-export function SignedCopyButton({ title, retry = false, size, variant = 'secondary', onClick }) {
+export function SignedCopyButton({ title, retry = false, size, variant = 'secondary', fullWidth = false, className = '', onClick }) {
     const named = (label) => (title ? `${label} of ${title}` : undefined);
     return (
         <Button
             variant={variant}
             size={size}
+            fullWidth={fullWidth}
+            className={className}
             aria-label={retry ? named('Try again: send signed copy') : named('Send signed copy')}
             onClick={onClick}
         >

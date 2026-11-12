@@ -44,6 +44,15 @@ const SURFACES = new Set(['default', 'inverse']);
  */
 const TONES = new Set(['default', 'info', 'success', 'warning', 'danger']);
 
+/**
+ * `frame="row"` is one row of a grouped list that a `Card` draws as ONE box
+ * (C2 settings menu: a card per group, a divider between rows). The row has no
+ * border and no radius of its own — the card is the box — so the two options
+ * that only colour or swap that box, `tone` and the inverse `surface`, are
+ * refused with it rather than silently doing nothing.
+ */
+const FRAMES = new Set(['card', 'row']);
+
 export const SelectableCard = /* @__PURE__ */ forwardRef(function SelectableCard({
   as = 'button',
   children,
@@ -52,6 +61,7 @@ export const SelectableCard = /* @__PURE__ */ forwardRef(function SelectableCard
   tone = 'default',
   surface = 'default',
   padding = 'sm',
+  frame = 'card',
   className = '',
   onSelect,
   ...props
@@ -70,6 +80,15 @@ export const SelectableCard = /* @__PURE__ */ forwardRef(function SelectableCard
     contractViolation(
       `Unsupported SelectableCard tone: ${tone}. Expected one of `
       + `${[...TONES].map((t) => `'${t}'`).join(', ')}.`,
+    );
+  }
+  if (!FRAMES.has(frame)) {
+    contractViolation(`Unsupported SelectableCard frame: ${frame}. Expected 'card' or 'row'.`);
+  }
+  if (frame === 'row' && (tone !== 'default' || surface !== 'default')) {
+    contractViolation(
+      'SelectableCard frame="row" has no border of its own and sits on its card\'s surface: '
+      + '`tone` (a border colour) and `surface="inverse"` do not apply to it.',
     );
   }
   if (selected !== undefined && current !== undefined) {
@@ -102,6 +121,7 @@ export const SelectableCard = /* @__PURE__ */ forwardRef(function SelectableCard
       data-surface={surface === 'default' ? undefined : surface}
       data-tone={tone === 'default' ? undefined : tone}
       data-padding={padding}
+      data-frame={frame === 'row' ? 'row' : undefined}
       data-state={selected === true || current === true ? 'on' : undefined}
       aria-pressed={selected === undefined ? undefined : selected === true}
       aria-current={current === true ? 'page' : undefined}

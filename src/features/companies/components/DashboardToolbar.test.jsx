@@ -144,10 +144,27 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('__unassigned__');
     });
 
-    it('offers Assign only to someone who can assign, once rows are selected', () => {
+    it('keeps Assign in its place for someone who can assign, usable once rows are selected', () => {
         const onAssignLeads = vi.fn();
-        const { rerender } = renderToolbar({ canAssign: true, selectedCount: 0, onAssignLeads });
+        const { rerender } = renderToolbar({ canAssign: false, selectedCount: 2, onAssignLeads });
         expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+
+        // Nothing ticked: there, so ticking a row adds no row above the list, but unavailable.
+        rerender(
+            <DashboardToolbar
+                searchQuery=""
+                setSearchQuery={noop}
+                filters={{}}
+                setFilters={noop}
+                canAssign
+                selectedCount={0}
+                onAssignLeads={onAssignLeads}
+            />,
+        );
+        const resting = screen.getByRole('button', { name: 'Assign' });
+        expect(resting).toBeDisabled();
+        fireEvent.click(resting);
+        expect(onAssignLeads).not.toHaveBeenCalled();
 
         rerender(
             <DashboardToolbar
@@ -160,7 +177,9 @@ describe('DashboardToolbar on the list-page toolbar', () => {
                 onAssignLeads={onAssignLeads}
             />,
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Assign (3)' }));
+        const ready = screen.getByRole('button', { name: 'Assign (3)' });
+        expect(ready).toBeEnabled();
+        fireEvent.click(ready);
         expect(onAssignLeads).toHaveBeenCalledTimes(1);
     });
 });

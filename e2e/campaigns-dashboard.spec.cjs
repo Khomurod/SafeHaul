@@ -32,10 +32,13 @@ test.describe('Campaigns dashboard shell slice', () => {
     // Seed: one completed session (processedCount 12) → live 0, outreach 12.
     const live = page.locator('#campaigns-stat-live');
     const outreach = page.locator('#campaigns-stat-outreach');
-    await expect(live).toContainText('Live Campaigns');
+    // Sentence-case labels, each with its note (C2).
+    await expect(live).toContainText('Live campaigns');
     await expect(live).toContainText('0');
-    await expect(outreach).toContainText('Total Outreach');
+    await expect(live).toContainText('Sending right now');
+    await expect(outreach).toContainText('Total outreach');
     await expect(outreach).toContainText('12');
+    await expect(outreach).toContainText('Messages across all campaigns');
   });
 
   test('exposes an accessible tablist and switches selection', async ({ page }) => {
@@ -123,7 +126,7 @@ test.describe('Campaigns dashboard shell slice', () => {
     await loadDrafts.press('Enter');
     await expect(cards).toHaveCount(60);
     await expect(loadDrafts).toHaveCount(0);
-    const draftsDone = page.locator('.ds-notice', { hasText: 'All 60 drafts are shown.' });
+    const draftsDone = page.getByText('All 60 drafts are shown.');
     await expect(draftsDone).toBeVisible();
     await expect(draftsDone).toBeFocused();
 
@@ -134,7 +137,7 @@ test.describe('Campaigns dashboard shell slice', () => {
     await loadOlder.press('Enter');
     await expect(cards).toHaveCount(60);
     await expect(loadOlder).toHaveCount(0);
-    const sessionsDone = page.locator('.ds-notice', { hasText: 'All 60 campaigns are shown.' });
+    const sessionsDone = page.getByText('All 60 campaigns are shown.');
     await expect(sessionsDone).toBeFocused();
 
     // Each tab keeps what the user loaded.
@@ -166,7 +169,7 @@ test.describe('Campaigns dashboard shell slice', () => {
     await page.getByRole('tab', { name: /Sent & live/i }).click();
     await expect(page.getByText('Showing 50 of 60 campaigns, newest first. Live campaigns are always listed.')).toBeVisible();
     await page.getByRole('button', { name: 'Load older campaigns' }).click();
-    await expect(page.locator('.ds-notice', { hasText: 'All 60 campaigns are shown.' })).toBeVisible();
+    await expect(page.getByText('All 60 campaigns are shown.')).toBeVisible();
     geometry = await widths();
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
   });

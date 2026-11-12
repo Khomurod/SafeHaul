@@ -95,8 +95,9 @@ const SCREENS = [
         name: 'company-dossier-loaded',
         url: '/company/drivers/applications?e2eAuth=company_admin&e2eDossier=loaded',
         callables: { checkSmsOptOut: { listed: false } },
+        // The name, not the middle of the cell, which now holds the phone number's button.
         open: (page) => page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' })
-            .getByRole('rowheader').click(),
+            .getByRole('rowheader').getByText('Maria Garcia', { exact: true }).click(),
         ready: (page) => [
             page.getByRole('dialog', { name: 'Driver dossier' })
                 .getByRole('heading', { level: 2, name: 'Maximiliano Alejandro Castellanos-Whitfield' }),
@@ -163,7 +164,7 @@ const SCREENS = [
         url: '/company/settings?section=sms&e2eAuth=company_admin',
         callables: { listSmsOptOuts: SMS_OPT_OUTS },
         ready: (page) => [
-            page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ }),
+            page.getByRole('heading', { level: 3, name: /^Connect RingCentral/ }),
             page.getByRole('button', { name: 'Remove (555) 555-0199' }),
         ],
     },

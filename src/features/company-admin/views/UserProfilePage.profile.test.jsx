@@ -4,7 +4,7 @@
 // `UserProfilePage.support.jsx`; the registrations below delegate to it. All
 // credentials are artificial, non-production test values only.
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/context/DataContext', async () => (await import('./UserProfilePage.support')).dataContextMock());
@@ -282,5 +282,62 @@ describe('UserProfilePage unsaved name', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
         await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Profile updated successfully!'));
         expect(browserWouldAsk()).toBe(false);
+    });
+});
+
+describe('UserProfilePage — C2 layout', () => {
+    it('sits under the Account eyebrow, its heading the words alone', async () => {
+        renderPage();
+        await hydrated();
+
+        const heading = screen.getByRole('heading', { level: 1 });
+        expect(heading).toHaveTextContent(/^My Profile$/);
+        expect(heading.querySelector('svg')).toBeNull();
+        expect(within(heading.closest('header')).getByText('Account')).toBeInTheDocument();
+    });
+
+    it('stacks the profile and password sections, each named by its heading', async () => {
+        renderPage();
+        await hydrated();
+
+        const profile = screen.getByRole('region', { name: 'Profile Information' });
+        expect(within(profile).getByText('Your name, photo, and sign-in email.')).toBeInTheDocument();
+        expect(within(profile).getByRole('textbox', { name: 'Display Name' })).toBeInTheDocument();
+
+        const password = screen.getByRole('region', { name: 'Change Password' });
+        expect(within(password).getByText('Update the password you use to sign in.')).toBeInTheDocument();
+        expect(within(password).getByLabelText('New Password')).toBeInTheDocument();
+    });
+
+    it("puts each section's button in its card's footer, Change Password outlined", async () => {
+        renderPage();
+        await hydrated();
+
+        const save = within(screen.getByRole('region', { name: 'Profile Information' }))
+            .getByRole('button', { name: 'Save Changes' });
+        expect(save.closest('.ds-form-section__footer')).not.toBeNull();
+        expect(save).toHaveAttribute('data-variant', 'primary');
+
+        const change = within(screen.getByRole('region', { name: 'Change Password' }))
+            .getByRole('button', { name: 'Change Password' });
+        expect(change.closest('.ds-form-section__footer')).not.toBeNull();
+        expect(change).toHaveAttribute('data-variant', 'secondary');
+    });
+
+    it('keeps the email whole for search and copy, with a break allowed only after the "@"', async () => {
+        renderPage();
+        await hydrated();
+
+        const email = screen.getByText(CURRENT_EMAIL);
+        expect(email.querySelectorAll('wbr')).toHaveLength(1);
+        expect(email.textContent).toBe(CURRENT_EMAIL);
+    });
+
+    it('opens the email editor across the whole card', async () => {
+        renderPage();
+        await hydrated();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Change Email' }));
+        expect(screen.getByRole('group', { name: 'Change email address' })).toHaveClass('col-span-full');
     });
 });

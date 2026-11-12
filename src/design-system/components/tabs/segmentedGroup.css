@@ -1,0 +1,282 @@
+/*
+ * THE SEGMENTED GROUP: one look for three controls that pick one view of a
+ * list or a page.
+ *
+ * `TabList` (tabs that switch a panel), `TabNav` (links to pages) and
+ * `ListToolbar`'s segments (buttons with `aria-pressed` that narrow one list)
+ * keep their own semantics and keyboard models; they share only this drawing,
+ * so a page's tabs and a list's segments read as the same kind of control.
+ *
+ * Two appearances, chosen by `data-variant` on the group:
+ *
+ * - `segmented`: a white, bordered tray at the control height (44px) holding
+ *   36px items; the chosen item is the inverse (dark) surface. For the one
+ *   strip that switches what a page or list shows.
+ * - `pill`: separate bordered pills with a full radius; the chosen one takes
+ *   the selected surface, an action-coloured border and text. For a second,
+ *   lighter strip under or inside the first.
+ *
+ * The chosen item is also semibold, so the choice never rests on colour alone,
+ * and a `forced-colors` rule outlines it where the system replaces colours.
+ *
+ * Every item keeps the width its label needs when chosen (semibold), so
+ * choosing one never moves the others (`data-text` on the label).
+ *
+ * Under 768px every item is 44px tall and every option stays visible: the
+ * segmented tray takes the whole row (`data-phone-columns`: two items in
+ * halves, three in thirds, four in a 2 × 2 grid, six in rows of three, in equal
+ * columns, a column widening only for a label that needs it; any other number
+ * as rows of whole labels), and pills wrap and fill their rows. Icons step
+ * aside on a phone, where the words carry it. A tray too wide for its row on a
+ * larger screen (`data-wrapped`, measured by `useTrayWraps`) takes the same
+ * full-row layout instead of wrapping three items and one.
+ */
+
+.ds-segmented-group[data-variant='segmented'] {
+  display: inline-flex;
+  /* As wide as its items, even where a column of blocks would stretch it. */
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--ds-control-height-md);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ds-space-1) / 2);
+  margin: 0;
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-lg);
+  /* The tray is the 44px control height, its items the 36px one inside it. */
+  padding: calc((var(--ds-control-height-md) - var(--ds-control-height-sm)) / 2 - 1px);
+  background: var(--ds-color-surface);
+  list-style: none;
+}
+
+.ds-segmented-group[data-variant='pill'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin: 0;
+  border: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * Two classes deep so the shared drawing wins over `.ds-tab`, the underlined
+ * tab the same element also carries.
+ */
+.ds-segmented-group .ds-segmented-group__item {
+  display: inline-flex;
+  min-height: var(--ds-control-height-sm);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding: 0 var(--ds-space-3);
+  background: transparent;
+  color: var(--ds-color-content-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-tight);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-segmented-group[data-variant='pill'] .ds-segmented-group__item {
+  border-color: var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface);
+}
+
+.ds-segmented-group .ds-segmented-group__item:hover:not([data-selected], [aria-pressed='true']) {
+  background: var(--ds-color-surface-hover);
+  color: var(--ds-color-content);
+}
+
+.ds-segmented-group[data-variant='segmented'] .ds-segmented-group__item:is([data-selected], [aria-pressed='true']) {
+  border-color: transparent;
+  background: var(--ds-color-surface-inverse);
+  color: var(--ds-color-content-on-inverse);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.ds-segmented-group[data-variant='pill'] .ds-segmented-group__item:is([data-selected], [aria-pressed='true']) {
+  border-color: var(--ds-color-action-primary);
+  background: var(--ds-color-surface-selected);
+  color: var(--ds-color-action-primary);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+/*
+ * The segmented item's 1px border is transparent, so its padding gives that
+ * pixel back: the tray is as wide as twelve pixels a side draws it.
+ */
+.ds-segmented-group[data-variant='segmented'] .ds-segmented-group__item {
+  padding: 0 calc(var(--ds-space-3) - 1px);
+}
+
+/*
+ * The label reserves its semibold width: an invisible, zero-height copy of
+ * its text, set semibold under it, makes it as wide when it is not chosen as
+ * when it is. The copy has empty alternative text, so it adds nothing to the
+ * item's accessible name.
+ */
+.ds-segmented-group .ds-segmented-group__label[data-text] {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ds-segmented-group .ds-segmented-group__label[data-text]::after {
+  height: 0;
+  overflow: hidden;
+  content: attr(data-text) / '';
+  font-weight: var(--ds-font-weight-semibold);
+  pointer-events: none;
+  user-select: none;
+  visibility: hidden;
+}
+
+.ds-segmented-group .ds-segmented-group__item:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.ds-segmented-group .ds-segmented-group__item > svg {
+  width: var(--ds-control-icon-md);
+  height: var(--ds-control-icon-md);
+  flex: 0 0 auto;
+}
+
+/* A count is quieter than the label it follows: "Sent Documents 6". */
+.ds-segmented-group .ds-segmented-group__count {
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.ds-segmented-group[data-variant='segmented'] .ds-segmented-group__item:is([data-selected], [aria-pressed='true']) .ds-segmented-group__count {
+  color: var(--ds-color-content-on-inverse-muted);
+}
+
+.ds-segmented-group[data-variant='pill'] .ds-segmented-group__item:is([data-selected], [aria-pressed='true']) .ds-segmented-group__count {
+  color: inherit;
+}
+
+/*
+ * The full-row layouts, for a phone and for a tray too wide for its row.
+ * Equal shares, so the edges stay put whichever item is chosen; a column is
+ * only wider when its label needs it, and the others share the rest. A count
+ * the shares do not suit wraps as rows of whole labels, each row filled.
+ */
+.ds-segmented-group[data-variant='segmented'][data-wrapped='true'] {
+  --ds-segmented-columns: 3;
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(var(--ds-segmented-columns), minmax(min-content, 1fr));
+}
+
+.ds-segmented-group[data-variant='segmented'][data-wrapped='true'][data-phone-columns='2'] {
+  --ds-segmented-columns: 2;
+}
+
+.ds-segmented-group[data-variant='segmented'][data-wrapped='true'][data-phone-columns='wrap'] {
+  display: flex;
+}
+
+.ds-segmented-group[data-variant='segmented'][data-wrapped='true'][data-phone-columns='wrap'] > * {
+  flex: 1 1 auto;
+}
+
+.ds-segmented-group[data-variant='segmented'][data-wrapped='true'] .ds-segmented-group__item {
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .ds-segmented-group[data-variant='segmented'] {
+    --ds-segmented-columns: 3;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(var(--ds-segmented-columns), minmax(min-content, 1fr));
+  }
+
+  .ds-segmented-group[data-variant='segmented'][data-phone-columns='2'] {
+    --ds-segmented-columns: 2;
+  }
+
+  .ds-segmented-group[data-variant='segmented'][data-phone-columns='wrap'] {
+    display: flex;
+  }
+
+  .ds-segmented-group[data-variant='segmented'][data-phone-columns='wrap'] > * {
+    flex: 1 1 auto;
+  }
+
+  .ds-segmented-group .ds-segmented-group__item,
+  .ds-segmented-group[data-variant='segmented'] .ds-segmented-group__item {
+    min-height: var(--ds-control-height-md);
+    padding: 0 calc(var(--ds-space-2) - 1px);
+  }
+
+  /* A link in a list item (`TabNav`) fills its cell, as a button does. */
+  .ds-segmented-group > li > .ds-segmented-group__item {
+    flex: 1 1 auto;
+  }
+
+  .ds-segmented-group[data-variant='segmented'] .ds-segmented-group__item > svg {
+    display: none;
+  }
+
+  .ds-segmented-group[data-variant='pill'] .ds-segmented-group__item {
+    flex: 1 1 auto;
+    padding: 0 var(--ds-space-3);
+  }
+}
+
+/*
+ * Narrow phones. Thirds follow their labels — each as wide as its whole label
+ * while all of them fit, the rest shared (Applications' six) — and halves stay
+ * equal. Either way a label that cannot fit wraps between its words rather
+ * than widening its column past the screen; a word is never split. Rows of
+ * whole labels and pills keep their labels whole and wrap between items.
+ */
+@media (max-width: 383px) {
+  .ds-segmented-group[data-variant='segmented'][data-phone-columns='3'] {
+    grid-template-columns: repeat(var(--ds-segmented-columns), minmax(min-content, auto));
+  }
+
+  .ds-segmented-group[data-variant='segmented']:not([data-phone-columns='wrap']) .ds-segmented-group__item {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-segmented-group .ds-segmented-group__item {
+    transition: none;
+  }
+}
+
+/*
+ * Forced colours paint every fill as `Canvas`, so the dark chosen item would
+ * vanish; a `Highlight` outline keeps the choice visible as presence, not hue.
+ */
+@media (forced-colors: active) {
+  .ds-segmented-group .ds-segmented-group__item {
+    border-color: ButtonBorder;
+  }
+
+  .ds-segmented-group .ds-segmented-group__item:is([data-selected], [aria-pressed='true']) {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

@@ -28,6 +28,40 @@ describe('CampaignCard', () => {
         expect(bar).toHaveAttribute('aria-valuemax', '100');
     });
 
+    it('shows the share sent, the leads and the channel on one footer row of a sent card (C2)', () => {
+        render(
+            <CampaignCard
+                campaign={{
+                    id: '1', name: 'Done', status: 'completed', matchCount: 10,
+                    progress: { processedCount: 10, totalCount: 10, failedCount: 0 },
+                    messageConfig: { method: 'sms' },
+                }}
+            />,
+        );
+        expect(screen.getByText('10 / 10').parentElement).toHaveTextContent('10 / 10 · 100%');
+        expect(screen.getByText('10 leads')).toBeInTheDocument();
+        // The stored lower-case channel reads as its label, not by CSS capitals.
+        expect(screen.getByText('SMS')).toBeInTheDocument();
+        expect(screen.queryByText('sms')).not.toBeInTheDocument();
+        // A completed campaign's bar is green; one still sending keeps the default.
+        expect(screen.getByRole('progressbar', { name: 'Send progress' })).toHaveAttribute('data-tone', 'success');
+    });
+
+    it('rounds the share sent and keeps the bar in its default tone while sending', () => {
+        render(
+            <CampaignCard
+                campaign={{ id: '1', name: 'C', status: 'active', progress: { processedCount: 1, totalCount: 3 } }}
+            />,
+        );
+        expect(screen.getByText('1 / 3').parentElement).toHaveTextContent('1 / 3 · 33%');
+        expect(screen.getByRole('progressbar', { name: 'Send progress' })).toHaveAttribute('data-tone', 'info');
+    });
+
+    it('names a stored email channel Email', () => {
+        render(<CampaignCard campaign={draft({ messageConfig: { method: 'email' } })} />);
+        expect(screen.getByText('Email')).toBeInTheDocument();
+    });
+
     it('hides the failed count when there are no failures', () => {
         render(
             <CampaignCard

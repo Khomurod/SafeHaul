@@ -45,7 +45,7 @@ import {
 } from './jsx.mjs';
 
 /** The app's type scale, `theme.fontSize` (`scripts/test-lint-rules.mjs` §O keeps the two the same). */
-const TYPE_SCALE = 'ds-(?:xs|sm|body(?:-lg)?|heading-(?:sm|md|lg|xl)|control-mobile)|voe-(?:xs|sm|lg|xl|2xl|4xl)';
+const TYPE_SCALE = 'ds-(?:xs|sm|body(?:-lg)?|heading-(?:sm|md|lg|xl|2xl)|control-mobile)|voe-(?:xs|sm|lg|xl|2xl|4xl)';
 
 /**
  * Classes that decide a control's geometry or colour rather than its layout,

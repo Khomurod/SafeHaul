@@ -24,6 +24,8 @@
     border-color var(--ds-duration-fast) var(--ds-ease-standard);
 }
 
+/* `frame="row"` (a row of one card, no box of its own) is further down. */
+
 /* A button carries a pointer; the non-interactive twin must not pretend to. */
 button.ds-selectable-card {
   cursor: pointer;
@@ -48,10 +50,13 @@ button.ds-selectable-card:hover:not(:disabled):not([data-state]) {
  * they TELL assistive technology, not in what they look like — a person looking
  * at the screen wants one answer ("this is the one"), and inventing a second
  * visual language for the difference would be a distinction nobody asked for.
+ *
+ * The fill is `--ds-color-surface-selected` — the brand tint every selected
+ * surface wears (C2) — not the info status tint: being chosen is not a status.
  */
 .ds-selectable-card[data-state='on'] {
   border-color: var(--ds-color-action-primary);
-  background: var(--ds-color-status-info-bg);
+  background: var(--ds-color-surface-selected);
   box-shadow: inset 0 0 0 1px var(--ds-color-action-primary);
 }
 
@@ -103,6 +108,62 @@ button.ds-selectable-card[data-surface='inverse']:hover:not([data-state]) {
 }
 .ds-selectable-card[data-surface='inverse'][data-tone='danger'] {
   --ds-selectable-border: var(--ds-color-status-danger-fg-on-inverse);
+}
+
+/*
+ * `frame="row"`: one row of a grouped list, inside a `Card padding="none"` that
+ * is the box (C2 settings menu). The rows sit in a `<ul>` whose dividers are the
+ * list's (`divide-y`); a row draws no border and no radius, and shows the
+ * card's surface.
+ *
+ *   - Hover fills the row (`surface-hover`): with no border there is no edge to
+ *     colour.
+ *   - The focus ring is INSET, so a neighbouring row or the card's edge never
+ *     covers it.
+ *   - The first and last row of the list round their outer corners to the
+ *     card's inner radius (its radius less its 1px border), so the fill and the
+ *     ring follow the card's corner instead of poking through it. That is why
+ *     the row is meant to be a list item's only child.
+ *   - Selected or current: the tint and a 2px inset ring in the action navy —
+ *     the card's 1px border plus 1px ring, as one inset line; in forced colours
+ *     a `Highlight` outline, since there is no border to recolour.
+ */
+.ds-selectable-card[data-frame='row'] {
+  --ds-selectable-bg: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+li:first-child > .ds-selectable-card[data-frame='row'] {
+  border-start-start-radius: calc(var(--ds-card-radius) - 1px);
+  border-start-end-radius: calc(var(--ds-card-radius) - 1px);
+}
+
+li:last-child > .ds-selectable-card[data-frame='row'] {
+  border-end-start-radius: calc(var(--ds-card-radius) - 1px);
+  border-end-end-radius: calc(var(--ds-card-radius) - 1px);
+}
+
+button.ds-selectable-card[data-frame='row']:hover:not(:disabled):not([data-state]) {
+  background: var(--ds-color-surface-hover);
+}
+
+.ds-selectable-card[data-frame='row']:focus-visible {
+  outline-offset: -2px;
+}
+
+.ds-selectable-card[data-frame='row'][data-state='on'] {
+  box-shadow: inset 0 0 0 2px var(--ds-color-action-primary);
+}
+
+/* Forced colours paint the tint as `Canvas`; a `Highlight` border keeps the choice. */
+@media (forced-colors: active) {
+  .ds-selectable-card[data-state='on'] { border-color: Highlight; }
+
+  .ds-selectable-card[data-frame='row'][data-state='on'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

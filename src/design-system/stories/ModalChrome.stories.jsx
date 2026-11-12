@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '@design-system/components';
+import { Button, ChoiceGroup, FormField, Input, Radio } from '@design-system/components';
 import { Inline, Stack } from '@design-system/layouts';
 import { Modal } from '@design-system/patterns';
 
@@ -69,7 +69,7 @@ const meta = {
                     '| `size` | `sm` `md` `lg` `xl` `2xl` `4xl` `5xl` `7xl` | panel width; default `lg` |',
                     '| `scroll` | `panel` `body` | `body` pins a header and footer inside the panel |',
                     '| `fill` | boolean | fixes the height, for a viewer that must not resize |',
-                    '| `mobile` | `inset` `fullscreen` | below 640px |',
+                    '| `mobile` | `inset` `fullscreen` `sheet` | below 640px; `sheet` is a bottom sheet there |',
                     '| `placement` | `center` `bottom` | `bottom` is a sheet |',
                     '| `tone` | `neutral` `danger` | borders a destructive dialog |',
                     '',
@@ -219,4 +219,90 @@ export const FullscreenMobile = {
             body={<p style={{ margin: 0 }}>No inset, no radius, no border — it is the screen.</p>}
         />
     ),
+};
+
+function SheetForm() {
+    const [open, setOpen] = useState(true);
+    const [access, setAccess] = useState('standard');
+    const close = () => setOpen(false);
+    return (
+        <>
+            <Button variant="primary" onClick={() => setOpen(true)}>Open the add-member form</Button>
+            {open && (
+                <Modal labelledBy="sheet-story-title" describedBy="sheet-story-description" mobile="sheet" scroll="body" size="2xl" onClose={close}>
+                    <div style={{ flexShrink: 0, padding: 'var(--ds-space-5) var(--ds-space-5) 0' }}>
+                        <h2 id="sheet-story-title" style={{ margin: 0 }}>Add a member</h2>
+                        <p id="sheet-story-description" style={{ margin: 'var(--ds-space-1) 0 0' }}>
+                            They sign in with this email and password.
+                        </p>
+                    </div>
+                    <div style={{ overflowY: 'auto', padding: 'var(--ds-space-5)' }}>
+                        <Stack gap="md">
+                            <FormField label="Full name" required>
+                                <Input autoComplete="off" />
+                            </FormField>
+                            <FormField label="Email address" required>
+                                <Input type="email" autoComplete="off" />
+                            </FormField>
+                            <ChoiceGroup legend="Access" required appearance="card" orientation="horizontal">
+                                <Radio
+                                    id="sheet-access-standard"
+                                    name="sheet-access"
+                                    value="standard"
+                                    label="Standard"
+                                    description="Sees their own records."
+                                    required
+                                    requiredMark={false}
+                                    checked={access === 'standard'}
+                                    onChange={() => setAccess('standard')}
+                                />
+                                <Radio
+                                    id="sheet-access-full"
+                                    name="sheet-access"
+                                    value="full"
+                                    label="Full access"
+                                    description="Sees everything and changes settings."
+                                    required
+                                    requiredMark={false}
+                                    checked={access === 'full'}
+                                    onChange={() => setAccess('full')}
+                                />
+                            </ChoiceGroup>
+                        </Stack>
+                    </div>
+                    <div
+                        style={{
+                            flexShrink: 0,
+                            borderTop: '1px solid var(--ds-color-border-subtle)',
+                            background: 'var(--ds-color-surface-subtle)',
+                            // A sheet's last row pads the home-indicator inset itself (README).
+                            padding: 'var(--ds-space-4) var(--ds-space-5) calc(var(--ds-space-4) + env(safe-area-inset-bottom, 0px))',
+                        }}
+                    >
+                        <Inline gap="sm">
+                            <Button variant="secondary" onClick={close}>Cancel</Button>
+                            <Button variant="primary" onClick={close}>Add member</Button>
+                        </Inline>
+                    </div>
+                </Modal>
+            )}
+        </>
+    );
+}
+
+/**
+ * `mobile="sheet"` at a phone width: the centred dialog becomes a bottom sheet —
+ * full width, flush with the bottom edge, rounded at the top, capped at 80vh.
+ * Wider than 640px it is the ordinary centred dialog. Its footer, the last
+ * row, adds `env(safe-area-inset-bottom)` to its own bottom padding, so on an
+ * iPhone the grey band reaches the edge under the home indicator.
+ */
+export const SheetOnPhones = {
+    globals: { viewport: { value: 'safehaulMobile' } },
+    render: () => <SheetForm />,
+};
+
+/** The same dialog at a desk: `mobile="sheet"` changes nothing above 640px. */
+export const SheetOnPhonesWide = {
+    render: () => <SheetForm />,
 };

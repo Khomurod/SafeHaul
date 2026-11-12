@@ -19,6 +19,14 @@ import './ChoiceControls.css';
  */
 
 const ORIENTATIONS = new Set(['vertical', 'horizontal']);
+/*
+ * `card` draws each option as a bordered card — its label as a title, its
+ * description under it — and a chosen one in the selected treatment. The
+ * options stay native inputs in a real `<fieldset>`, so a set of radio cards is
+ * still a radio group: arrow keys move and choose, Tab leaves, and `required`
+ * is the browser's. It is not `SelectableCard`, which is a button.
+ */
+const APPEARANCES = new Set(['default', 'card']);
 
 function joinIds(...ids) {
   return ids.filter(Boolean).join(' ') || undefined;
@@ -120,6 +128,7 @@ export function ChoiceGroup({
   error,
   required = false,
   orientation = 'vertical',
+  appearance = 'default',
   children,
   className = '',
   ...props
@@ -127,6 +136,7 @@ export function ChoiceGroup({
   const generatedId = useId().replace(/:/g, '');
   const descriptionId = description ? `ds-choice-group-${generatedId}-description` : undefined;
   const errorId = error ? `ds-choice-group-${generatedId}-error` : undefined;
+  let drawnAppearance = appearance;
 
   if (typeof legend !== 'string' || legend.trim() === '') {
     contractViolation('ChoiceGroup requires a non-empty legend.');
@@ -134,12 +144,17 @@ export function ChoiceGroup({
   if (!ORIENTATIONS.has(orientation)) {
     contractViolation(`Unsupported ChoiceGroup orientation: ${orientation}`);
   }
+  if (!APPEARANCES.has(appearance)) {
+    contractViolation(`Unsupported ChoiceGroup appearance: ${appearance}`);
+    drawnAppearance = 'default';
+  }
 
   return (
     <fieldset
       {...props}
       className={`ds-choice-group ${className}`.trim()}
       data-orientation={orientation}
+      data-appearance={drawnAppearance === 'card' ? 'card' : undefined}
       data-invalid={Boolean(error) || undefined}
       aria-describedby={joinIds(props['aria-describedby'], descriptionId, errorId)}
     >

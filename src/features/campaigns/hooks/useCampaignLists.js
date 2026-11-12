@@ -10,7 +10,7 @@ import { e2eCampaignLists } from '../components/campaignListsMock';
 /** Drafts and campaigns listed at a time: the newest first, more on request. */
 export const CAMPAIGN_LIST_PAGE_SIZE = 50;
 
-// "Live Campaigns" counts these; a paused session is live (listed, cancellable) but not counted.
+// "Live campaigns" counts these; a paused session is live (listed, cancellable) but not counted.
 const COUNTED_AS_LIVE = ['active', 'queued', 'scheduled'];
 const SESSIONS_ERROR = 'Campaigns could not be loaded.';
 const noop = () => {};
