@@ -1,0 +1,40 @@
+/*
+ * The control and its label keep the layout they had: the anchor draws no box
+ * of its own (`display: contents`), so a sidebar item stays the sidebar's flex
+ * child.
+ */
+.ds-tooltip-anchor {
+  display: contents;
+}
+
+/*
+ * The label, on `document.body`: fixed to the viewport beside its control, on
+ * the dropdown layer, so no clipped or scrolling container around the control
+ * can cut it off. The surface, a hairline and the large shadow lift it off
+ * whatever it covers; 12px words on one line.
+ */
+.ds-tooltip {
+  position: fixed;
+  z-index: var(--ds-z-dropdown);
+  max-width: 20rem;
+  padding: var(--ds-space-1) var(--ds-space-2);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-lg);
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-body);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.ds-tooltip[data-placement='right'] {
+  transform: translateY(-50%);
+}
+
+@media (forced-colors: active) {
+  .ds-tooltip {
+    border-color: CanvasText;
+  }
+}

@@ -49,6 +49,21 @@ test.describe('Company workspace shell and dashboard', () => {
     const companyMenu = page.getByRole('navigation', { name: 'Company sections' });
     await expect(companyMenu.getByRole('link', { name: 'Import Leads' })).toHaveCount(0);
     await expect(companyMenu.getByRole('link', { name: /quick add/i })).toHaveCount(0);
+
+    // Folded, an item's name shows beside it on hover, on top of the page: the
+    // menu's own scroll box does not clip it.
+    await companyMenu.getByRole('link', { name: 'Settings' }).hover();
+    const tooltip = page.locator('.ds-tooltip');
+    await expect(tooltip).toHaveText('Settings');
+    const onTop = await tooltip.evaluate((label) => {
+      const box = label.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return label === hit || label.contains(hit);
+    });
+    expect(onTop).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toHaveCount(0);
+
     await companyMenu.getByRole('link', { name: 'Settings' }).click();
     await expect(page).toHaveURL(/\/company\/settings/);
     await expect(page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ })).toBeVisible();

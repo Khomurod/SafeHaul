@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
-import { Button, IconButton } from '@/design-system/components';
+import { Button, IconButton, Tooltip } from '@/design-system/components';
 import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
@@ -79,61 +79,60 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
     }
     onNavigate?.();
   };
+  // Folded, an item is its glyph alone: it names itself, and its name shows
+  // beside it on hover and keyboard focus (`Tooltip`).
   return (
-    <NavLink
-      to={item.path}
-      onClick={follow}
-      /*
-        `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
-        product's focus ring.
+    <Tooltip label={item.label} disabled={isExpanded}>
+      <NavLink
+        to={item.path}
+        onClick={follow}
+        aria-label={isExpanded ? undefined : item.label}
+        /*
+          `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
+          product's focus ring.
 
-        Without it these twelve links would render the browser's own
-        `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
-        colour is blue, on the most-tabbed element there is. A keyboard walk in
-        `e2e/a11y.spec.cjs` checks it, because axe cannot see the difference
-        between one focus ring and another.
-      */
-      // The current item is a pill inset 8px from the sidebar's edges (C2).
-      className={({ isActive }) => `
-        min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
-        focus-visible:outline-none focus-visible:shadow-ds-focus
-        ${isActive || isCurrentAt(item, pathname)
-          ? 'bg-ds-status-info-bg text-ds-status-info-fg'
-          : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle'}
-        ${isChild ? 'pl-9 text-ds-body' : ''}
-        ${!isExpanded && !isChild ? 'justify-center' : ''}
-      `}
-    >
-      {({ isActive }) => (
-        <>
-          {/*
-            `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
-            rather than a bare name — which is why the codemod could neither
-            rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
-            name to match. Rendering a token throws, so it goes through `Icon`.
-          */}
-          <Icon
-            icon={item.icon}
-            size="lg"
-            className={isActive || isCurrentAt(item, pathname)
-              ? 'text-ds-navigation-accent'
-              : 'text-ds-content-muted group-hover:text-ds-content'}
-          />
+          Without it these twelve links would render the browser's own
+          `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
+          colour is blue, on the most-tabbed element there is. A keyboard walk in
+          `e2e/a11y.spec.cjs` checks it, because axe cannot see the difference
+          between one focus ring and another.
+        */
+        // The current item is a pill inset 8px from the sidebar's edges (C2).
+        className={({ isActive }) => `
+          min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
+          focus-visible:outline-none focus-visible:shadow-ds-focus
+          ${isActive || isCurrentAt(item, pathname)
+            ? 'bg-ds-status-info-bg text-ds-status-info-fg'
+            : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle'}
+          ${isChild ? 'pl-9 text-ds-body' : ''}
+          ${!isExpanded && !isChild ? 'justify-center' : ''}
+        `}
+      >
+        {({ isActive }) => (
+          <>
+            {/*
+              `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
+              rather than a bare name — which is why the codemod could neither
+              rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
+              name to match. Rendering a token throws, so it goes through `Icon`.
+            */}
+            <Icon
+              icon={item.icon}
+              size="lg"
+              className={isActive || isCurrentAt(item, pathname)
+                ? 'text-ds-navigation-accent'
+                : 'text-ds-content-muted group-hover:text-ds-content'}
+            />
 
-          {isExpanded && (
-            <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-              {item.label}
-            </span>
-          )}
-
-          {!isExpanded && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-ds-surface text-ds-content text-ds-xs rounded-ds-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none z-ds-dropdown whitespace-nowrap border border-ds-border-subtle shadow-ds-lg">
-              {item.label}
-            </div>
-          )}
-        </>
-      )}
-    </NavLink>
+            {isExpanded && (
+              <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                {item.label}
+              </span>
+            )}
+          </>
+        )}
+      </NavLink>
+    </Tooltip>
   );
 }
 
@@ -280,36 +279,38 @@ export const CompanySidebar = ({
 
             return (
               <div key={group.id} className="mb-2">
-                <Button
-                  variant="ghost"
-                  fullWidth
-                  justify="start"
-                  onClick={() => toggleGroup(group.id)}
-                  className={`
-                            px-3
-                            ${!isExpanded ? 'justify-center' : ''}
-                        `}
-                  aria-expanded={isExpanded ? isGroupActive : false}
-                  // Folded, the glyph is all it shows: its name is the group's.
-                  aria-label={isExpanded ? undefined : group.label}
-                >
-                  {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
-                  {/* The group heads its items in the text colour and only the
-                      current item is blue (C2); folded, the group's glyph is
-                      all there is to say where you are, so it turns blue. */}
-                  <Icon
-                    icon={GroupIcon}
-                    size="lg"
-                    className={hasActiveChild && !isExpanded ? 'text-ds-navigation-accent' : 'text-ds-content-muted'}
-                  />
-                  {isExpanded && (
-                    <>
-                      <span className="flex-1 text-left font-semibold text-ds-body text-ds-content">{group.label}</span>
-                      <Icon icon={ChevronRight}
-                        className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'} />
-                    </>
-                  )}
-                </Button>
+                <Tooltip label={group.label} disabled={isExpanded}>
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    justify="start"
+                    onClick={() => toggleGroup(group.id)}
+                    className={`
+                              px-3
+                              ${!isExpanded ? 'justify-center' : ''}
+                          `}
+                    aria-expanded={isExpanded ? isGroupActive : false}
+                    // Folded, the glyph is all it shows: its name is the group's.
+                    aria-label={isExpanded ? undefined : group.label}
+                  >
+                    {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
+                    {/* The group heads its items in the text colour and only the
+                        current item is blue (C2); folded, the group's glyph is
+                        all there is to say where you are, so it turns blue. */}
+                    <Icon
+                      icon={GroupIcon}
+                      size="lg"
+                      className={hasActiveChild && !isExpanded ? 'text-ds-navigation-accent' : 'text-ds-content-muted'}
+                    />
+                    {isExpanded && (
+                      <>
+                        <span className="flex-1 text-left font-semibold text-ds-body text-ds-content">{group.label}</span>
+                        <Icon icon={ChevronRight}
+                          className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'} />
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
 
                 {/* Children */}
                 {isExpanded && isGroupActive && (

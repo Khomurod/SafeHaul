@@ -12,6 +12,7 @@ export { SelectableCard } from './selectable-card';
 export { Skeleton } from './skeleton';
 export { Switch } from './switch';
 export { TabList, TabNav, TabPanel, tabIds } from './tabs';
+export { Tooltip } from './tooltip';
 export { ProgressBar } from './progress';
 export { SectionNavigation } from './section-navigation';
 export { StatusMedallion } from './status-medallion';

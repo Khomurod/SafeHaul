@@ -528,11 +528,11 @@ it does:
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
 | Navigation and external links; tab strip; tab strip of links (`TabNav`, views with their own address: the Leads tabs; **Needs review**: no 1440/412 or visual-contract review yet); single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
 | Interactive pill / chip; person or organisation disc; selectable record card (also the rows of one card, `frame="row"`: the settings menu) | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
-| Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
+| Editable-in-place value; collapsible section; icon-only control's name on hover/focus | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`); `components/tooltip` (folded sidebar) |
 | Section rail (page and step; an item's description line is drawn beside its button, so its visible text stays its name — WCAG 2.5.3); status notice / callout | `components/section-navigation`; `components/notice` |
 | Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email and Automated texts; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
-| C2: page canvas and header; form section layouts, flush notice, radio cards; KPI tile; segmented tabs (`phoneIcons`); list-page row; person discs (**Needs review**: pixel baselines and the visual-contract snapshot to re-record from CI) | `layouts/page`; `components/form`, `notice`, `card`, `tabs`, `avatar` (`brand`, `placeholder`, `navigation` tones); `patterns/list-toolbar` |
+| C2: page canvas and header; form section layouts, flush notice, radio cards; KPI tile; segmented tabs (`phoneIcons`); list-page row; person discs | `layouts/page`; `components/form`, `notice`, `card`, `tabs`, `avatar` (`brand`, `placeholder`, `navigation` tones); `patterns/list-toolbar` |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
 and loading shapes (the states are done, `patterns/page-state`) — `Skeleton` serves the
