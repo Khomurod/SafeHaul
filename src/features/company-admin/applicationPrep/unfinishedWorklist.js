@@ -214,47 +214,48 @@ export function visibleRows(rows, { filter = 'all', query = '', now, keepKey = n
 }
 
 /*
- * The table's columns from 768px, in pixels: the design system's width steps
- * (`md` 144, `lg` 176, `xl` 220), the initials' slot, and the actions' three
- * places (62 + 108 + 112, two 4px gaps, 16px of padding each side), which take
- * what the others leave.
+ * The table's columns from 768px, in pixels, with the tight cell padding C2
+ * draws this list with (12px between columns, 16px at the edges): the initials'
+ * slot, the driver (`xl`, the longest email on one line), the design system's
+ * width steps (`md` 144, `lg` 176), the least Last activity takes ("Yesterday,
+ * 4:20 PM" on one line) and the actions' three places (`3xl`).
  */
 const INITIALS_PX = 48;
 const DRIVER_PX = 220;
-const ACTIVITY_PX = 176;
-const ACTIONS_PX = 322;
-const STEP_PX = { md: 144, lg: 176, xl: 220 };
+const ACTIVITY_MIN_PX = 156;
+const ACTIONS_PX = 324;
+const STEP_PX = { md: 144, lg: 176 };
 
-/** The width every column needs, `progress` and `status` at the given steps. */
-function neededFor({ progress, status, activity }) {
-    return INITIALS_PX + DRIVER_PX + STEP_PX[progress] + STEP_PX[status] + (activity ? ACTIVITY_PX : 0) + ACTIONS_PX;
+/** The width every column needs, `progress` at the given step. */
+function neededFor({ progress, activity }) {
+    return INITIALS_PX + DRIVER_PX + STEP_PX[progress] + STEP_PX.lg + (activity ? ACTIVITY_MIN_PX : 0) + ACTIONS_PX;
 }
 
 /**
  * How the worklist's table is laid out in a box `width` pixels wide (from 768px;
  * a phone's cards are decided by the window).
  *
- * - `full`: every column, Last activity in its own, once the box holds it.
+ * - `full`: every column, Last activity in its own, once the box holds it. It
+ *   takes what the others leave, and the actions keep their three places.
  * - `fold`: Last activity is read under the status instead, so the actions stay
- *   in view.
+ *   in view; they take what the others leave.
  *
- * Then, as room allows, How far they got takes `lg` (a page name on one line)
- * and Status takes `xl` ("Prepared by Rae Recruiter" on one line); otherwise
- * they are a step narrower and wrap. Below the narrowest fold the table keeps
- * those widths and scrolls inside its card.
+ * Then, as room allows, How far they got takes `lg` ("Agreements & signature"
+ * on one line); otherwise `md`, and a long page name wraps. Status is `lg`
+ * ("Prepared by Rae Recruiter" on one line). Below the narrowest fold the table
+ * keeps those widths and scrolls inside its card. At 1440px beside the menu
+ * (a 1102px box) every column is on one line, as C2 draws it.
  *
  * Measured from the box rather than guessed from the window, so a scrollbar or
  * a collapsed sidebar is counted. `width` 0 (not measured yet) answers the
- * narrow steps of the shape the window suggests (`foldByWindow`).
+ * narrow step of the shape the window suggests (`foldByWindow`).
  *
- * @returns {{ shape: 'full' | 'fold', progress: 'md' | 'lg', status: 'lg' | 'xl' }}
+ * @returns {{ shape: 'full' | 'fold', progress: 'md' | 'lg', status: 'lg' }}
  */
 export function worklistLayoutOf(width, { foldByWindow = false } = {}) {
     const narrow = { progress: 'md', status: 'lg' };
     if (!(width > 0)) return { shape: foldByWindow ? 'fold' : 'full', ...narrow };
-    const activity = width >= neededFor({ ...narrow, activity: true });
-    for (const steps of [{ progress: 'lg', status: 'xl' }, { progress: 'lg', status: 'lg' }]) {
-        if (width >= neededFor({ ...steps, activity })) return { shape: activity ? 'full' : 'fold', ...steps };
-    }
-    return { shape: activity ? 'full' : 'fold', ...narrow };
+    const activity = width >= neededFor({ progress: 'md', activity: true });
+    const progress = width >= neededFor({ progress: 'lg', activity }) ? 'lg' : 'md';
+    return { shape: activity ? 'full' : 'fold', progress, status: 'lg' };
 }

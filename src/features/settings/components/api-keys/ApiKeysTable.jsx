@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Badge, Button, DataTable } from '@/design-system/components';
-import { CheckCircle } from '@design-system/icons';
+import { CheckCircle, Icon, Power } from '@design-system/icons';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { settingsTableMinWidth, useSettingsTableWidth } from '../useSettingsTableWidth';
 
@@ -137,6 +137,7 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
                     aria-label={`Turn off ${key.name}`}
                     onClick={() => onRevoke(key)}
                 >
+                    <Icon icon={Power} size="sm" />
                     Turn off
                 </Button>
             )),

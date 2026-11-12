@@ -173,7 +173,8 @@ returns to Review; the submission pre-flight and the server still check it all.
 **The company shapes what the wizard asks, without code.** Company Settings →
 Application questions has four tabs: *Questions* (show / hide / require the DOT
 questions, plus custom ones), *Rules* (§5), *Agreements* (versioned legal
-wording, saved on their own) and *Report uploads* (optional PSP-report and MVR
+wording, saved on their own: a list of each agreement and its version, Read
+opening its wording and history) and *Report uploads* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
 (pre-employment, past two years), kept apart from the broader one it replaced;
 a draft lacking its answer goes back there.
@@ -1729,7 +1730,8 @@ A company page is one centred canvas, 1200px of content: an eyebrow naming its
 section (none on the Dashboard), a 30px title with its actions on its line (a line of their own when they
 do not fit; on a phone a full-width row after the description, or a bar pinned to
 the bottom on the Add lead and Company profile edit forms, with toasts above it),
-16px-round cards and initials discs for people. Up to 1279px wide Settings opens
+16px-round cards and initials discs for people (the first letters of the first two
+names, a hyphen joining two: "Jean-Baptiste Okonkwo" is JB). Up to 1279px wide Settings opens
 its list of sections as a page of its own; wider, a rail sits beside the open
 section. Add person and Create an API key rise from the bottom of a phone screen.
 Settings: from 1280px a 288px rail lists the sections, each with a one-line description (narrower, Team's and API keys' tables would not fit beside it); up to 1279px the menu is its own page, one card per group, and each section links back with "← Settings".

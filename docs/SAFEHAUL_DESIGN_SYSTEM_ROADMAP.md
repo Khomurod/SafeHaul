@@ -522,9 +522,9 @@ it does:
 |---|---|
 | Dialog shell and chrome (`size` / `scroll` / `fill` / `mobile`, `sheet` a bottom sheet under 640px / `placement` / `tone`); confirmation dialog | `patterns/modal` → `Modal`, `Modal.css`, `ConfirmDialog` |
 | Empty / error / loading state | `patterns/page-state` |
-| Stacking layers | `tokens/foundation.css` → `--ds-z-*`; entitlement in `tests/stackingLayers.test.js` |
+| Stacking layers | `tokens/foundation.css` → `--ds-z-*`; `tests/stackingLayers.test.js` |
 | Icons | `icons/` (`Icon` + glyph tokens); one recorded exception, `VOEDocument.jsx` (§5) |
-| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5); 44px header, `reserveSelection`, `mobileStatus`, `getRowDetail`, `2xl` |
+| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5); 44px header, `reserveSelection`, `mobileStatus`, `getRowDetail`, `2xl`/`3xl`, `cellPadding` |
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
 | Navigation and external links; tab strip; tab strip of links (`TabNav`, views with their own address: the Leads tabs; **Needs review**: no 1440/412 or visual-contract review yet); single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
 | Interactive pill / chip; person or organisation disc; selectable record card (also the rows of one card, `frame="row"`: the settings menu) | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |

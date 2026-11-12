@@ -72,6 +72,7 @@ export function ProfileAvatarField({
                         label="Profile photo"
                         labelHidden
                         accept="image/*"
+                        size="sm"
                         loading={uploading}
                         aria-describedby={helpId}
                         onChange={onFileSelect}

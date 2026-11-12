@@ -115,9 +115,10 @@ export function UnfinishedWorklistTable({
             key: 'actions',
             header: 'Actions',
             align: 'end',
-            // What the others leave: the three places of the actions need 322px,
-            // wider than any of the table's widths.
-            width: 'auto',
+            // The three places of the actions (`3xl`) beside their own Last
+            // activity column, which then takes what the others leave; folded,
+            // what the others leave.
+            width: shape === 'full' ? '3xl' : 'auto',
             render: (entry) => (
                 <RowActions
                     entry={entry}
@@ -199,8 +200,9 @@ export function UnfinishedWorklistTable({
             {
                 key: 'status',
                 header: 'Status',
-                // At least `lg`: a `Badge` does not wrap, and "Driver is filling it
-                // in" is the widest this column holds.
+                // `lg`: a `Badge` does not wrap, and "Driver is filling it in" is
+                // the widest this column holds; "Prepared by Rae Recruiter" fits
+                // on one line beside the tight padding.
                 width: statusWidth,
                 render: (entry) => (
                     <CellTop>
@@ -216,8 +218,9 @@ export function UnfinishedWorklistTable({
             ...(shape === 'full' ? [{
                 key: 'activity',
                 header: 'Last activity',
-                // `lg`: "Yesterday, 4:20 PM" on one line.
-                width: 'lg',
+                // What the others leave, at least "Yesterday, 4:20 PM" on one
+                // line (`worklistLayoutOf`).
+                width: 'auto',
                 render: (entry) => <CellTop>{activity(entry, false)}</CellTop>,
             }] : []),
             actions,
@@ -230,6 +233,9 @@ export function UnfinishedWorklistTable({
             <DataTable
                 ariaLabel="Unfinished applications"
                 density="comfortable"
+                // 12px between columns, as C2 draws this list: every column on one
+                // line at 1440px.
+                cellPadding="tight"
                 mobilePresentation="cards"
                 embedded
                 data={rows}
