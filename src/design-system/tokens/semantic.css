@@ -137,6 +137,8 @@
   --ds-table-row-hover-bg: var(--ds-color-surface-hover);
   --ds-table-row-selected-bg: var(--ds-color-surface-selected);
   --ds-table-divider: var(--ds-color-border-subtle);
+  /* The shade at an edge with columns scrolled past it (`scrollEdges.css`). */
+  --ds-table-edge-shadow: rgb(15 23 42 / 0.16);
   --ds-table-row-warning-bg: #fffbeb;
   --ds-table-row-warning-accent: var(--ds-color-amber-700);
   --ds-table-row-danger-bg: #fef2f2;

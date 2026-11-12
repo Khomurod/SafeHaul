@@ -106,6 +106,14 @@ such as a `fill` dialog with `scroll="body"`, needs no cap: the table fills it
 and scrolls the same way (the `InDialog` story). Any other value is a contract
 violation.
 
+A table that scrolls sideways shades the edge its hidden columns are past: a
+16px fade (`--ds-table-edge-shadow`) over the far edge while columns remain to
+the right, and over the near edge once it has scrolled from its first column.
+A table that fits shows neither. A pinned first column holds the near edge, so
+a pinned table shades its far edge only. The shades are drawn on a frame around
+the scroll region (`scrollEdges.css`), marked on every scroll and resize by
+`useScrollEdges` (`data-overflow-start`, `data-overflow-end`).
+
 Use `embedded` when a parent `Card` owns the surrounding border, radius, and
 elevation — a list whose card has a top strip (`ListToolbar placement="card"`)
 above the table. The table retains its column, density, state, and interaction
