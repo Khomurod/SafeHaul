@@ -36,11 +36,15 @@ const FITS_FROM = 616;
 /**
  * The fixed columns by the width of the box the table is in: from 740px, and
  * wherever the table scrolls, the dates have their full columns ("Turned off"
- * and its date on one line each); between, they take a step less each, so the
- * key keeps the room for its header and the table still fits.
+ * and its date on one line each) and Turn off its power glyph, as C2 draws it;
+ * between, they take a step less each and Turn off is its word alone, so the
+ * key keeps the room for its header and the table still fits (a 614px box
+ * beside the settings menu at 1280px).
  */
 function fixedWidths(width) {
-    return width >= FITS_FROM && width < 740 ? { created: 'lg', status: 'md' } : { created: 'xl', status: 'lg' };
+    return width >= FITS_FROM && width < 740
+        ? { created: 'lg', status: 'md', actions: 'sm', glyph: false }
+        : { created: 'xl', status: 'lg', actions: 'md', glyph: true };
 }
 
 /**
@@ -127,7 +131,8 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
             key: 'actions',
             header: 'Actions',
             align: 'end',
-            width: 'sm',
+            // `md`: Turn off with its glyph on one line; `sm` for the word alone.
+            width: widths.actions,
             mobileRole: 'actions',
             render: (key) => (key.revokedAt ? null : (
                 <Button
@@ -137,12 +142,12 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
                     aria-label={`Turn off ${key.name}`}
                     onClick={() => onRevoke(key)}
                 >
-                    <Icon icon={Power} size="sm" />
+                    {(widths.glyph || isPhone) && <Icon icon={Power} size="sm" />}
                     Turn off
                 </Button>
             )),
         },
-    ], [onRevoke, isPhone, widths.created, widths.status]);
+    ], [onRevoke, isPhone, widths.created, widths.status, widths.actions, widths.glyph]);
 
     return (
         <div ref={tableBox} className="min-w-0">
