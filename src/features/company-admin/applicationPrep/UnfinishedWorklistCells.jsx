@@ -257,7 +257,9 @@ export function RowActions({ entry, row, link, onOpen, onEdit, onDelete }) {
         // From 768px the actions fill their cell's height, so their first line
         // stays at the top of the row (`CellTop`).
         <div className={`ms-auto flex w-fit max-w-full flex-col gap-ds-2 text-start md:h-full max-md:w-full ${CARD_TEXT_INSET} max-[400px]:ps-0`}>
-            <div className="grid grid-cols-[3.875rem_6.75rem_7rem] gap-ds-1 max-md:grid-cols-[64fr_108fr_112fr] max-md:gap-ds-2 max-[400px]:gap-ds-1">
+            {/* On a phone the shares never go below a label's own width, so
+                "Copy link" stays on one line in its button. */}
+            <div className="grid grid-cols-[3.875rem_6.75rem_7rem] gap-ds-1 max-md:grid-cols-[minmax(min-content,64fr)_minmax(min-content,108fr)_minmax(min-content,112fr)] max-md:gap-ds-2 max-md:whitespace-nowrap max-[400px]:gap-ds-1">
                 {row.openMode && (
                     <Button
                         className="col-start-1 row-start-1"
