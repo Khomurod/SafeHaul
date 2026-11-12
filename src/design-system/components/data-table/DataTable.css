@@ -104,10 +104,17 @@
   top: 0;
 }
 
-/* Sentence case, as written: a quiet label over the column, not a second heading. */
-.ds-data-table thead th {
+/*
+ * Sentence case, as written: a quiet label over the column, not a second
+ * heading. The band is 44px whatever a header holds: no block padding, so the
+ * sort button (24px) and the "select all" box (40px) sit inside the height
+ * rather than adding the row padding to it.
+ */
+.ds-data-table thead th,
+.ds-data-table thead .ds-data-table__selection-gutter {
   height: var(--ds-table-header-height);
   border-bottom: 1px solid var(--ds-table-divider);
+  padding-block: 0;
   background: var(--ds-table-header-bg);
   color: var(--ds-table-header-fg);
   font-size: var(--ds-font-size-xs);
@@ -191,6 +198,12 @@
   width: 220px;
 }
 
+/* A role and its status badge side by side ("Recruiter  No sign-in account"). */
+.ds-data-table col[data-width='2xl'],
+.ds-data-table [data-width='2xl'] {
+  width: 256px;
+}
+
 .ds-data-table col[data-width='actions'],
 .ds-data-table [data-width='actions'] {
   width: var(--ds-table-actions-width);
@@ -246,6 +259,16 @@
 
 .ds-data-table tbody tr[data-selected='true'] > * {
   background: var(--ds-table-row-selected-bg);
+}
+
+/*
+ * A selected row is the brand tint, and so is a person's disc
+ * (`Avatar tone="brand"`): on that row the disc takes a ring of the surface,
+ * so it stays a disc rather than melting into the row. An outline, not a
+ * shadow, so forced colours draw it too (in the system's text colour).
+ */
+.ds-data-table tbody tr[data-selected='true'] .ds-avatar[data-tone='brand'] {
+  outline: 2px solid var(--ds-color-surface);
 }
 
 .ds-data-table__selection-cell {

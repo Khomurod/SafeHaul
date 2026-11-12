@@ -3,7 +3,7 @@ import { Icon as DsIcon } from '../../icons';
 import { contractViolation } from '../../contract';
 import './Tabs.css';
 // After `Tabs.css`, so the shared drawing wins a tie with the underlined tab.
-import { phoneColumnsFor } from './segmentedGroup';
+import { phoneColumnsFor, reservedText, useTrayWraps } from './segmentedGroup';
 
 /**
  * The WAI-ARIA tab pattern.
@@ -121,6 +121,8 @@ export function TabList({
     variant = 'underline';
   }
   const grouped = GROUP_VARIANTS.has(variant);
+  const segmented = variant === 'segmented';
+  const [trayRef, trayWrapped] = useTrayWraps(segmented);
 
   const buttonRefs = useRef({});
 
@@ -149,6 +151,7 @@ export function TabList({
   return (
     <div
       {...props}
+      ref={segmented ? trayRef : undefined}
       role="tablist"
       aria-label={ariaLabel}
       aria-orientation={orientation === 'vertical' ? 'vertical' : undefined}
@@ -157,7 +160,8 @@ export function TabList({
       data-orientation={orientation}
       data-variant={variant}
       data-fitted={fitted || undefined}
-      data-phone-columns={variant === 'segmented' ? phoneColumnsFor(tabs.length) : undefined}
+      data-phone-columns={segmented ? phoneColumnsFor(tabs.length) : undefined}
+      data-wrapped={segmented && trayWrapped ? 'true' : undefined}
     >
       {tabs.map((tab) => {
         const isSelected = tab.id === activeTab;
@@ -188,7 +192,12 @@ export function TabList({
             data-selected={isSelected || undefined}
           >
             {Icon && <DsIcon icon={Icon} size="md" />}
-            <span className="ds-tab__label">{tab.label}</span>
+            <span
+              className={grouped ? 'ds-tab__label ds-segmented-group__label' : 'ds-tab__label'}
+              data-text={grouped ? reservedText(tab.label) : undefined}
+            >
+              {tab.label}
+            </span>
             {/* The space is the name's: "Sent 6", not "Sent6". */}
             {hasBadge(tab.badge) && (
               <>

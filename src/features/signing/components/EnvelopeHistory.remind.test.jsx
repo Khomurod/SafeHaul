@@ -63,11 +63,11 @@ describe('EnvelopeHistory — Link expired', () => {
         expect(within(row).getByRole('button', { name: 'Link for Offer Letter' })).toBeInTheDocument();
     });
 
-    it('keeps a failed delivery as Delivery Failed after its link ran out too', () => {
+    it('keeps a failed delivery as Delivery failed after its link ran out too', () => {
         renderHistory();
         emit([expired({ emailStatus: 'failed', emailError: 'SMTP 550 (artificial)' })]);
 
-        expect(within(rowOf()).getByText('Delivery Failed')).toBeInTheDocument();
+        expect(within(rowOf()).getByText('Delivery failed')).toBeInTheDocument();
         expect(within(rowOf()).queryByText('Link expired')).not.toBeInTheDocument();
     });
 

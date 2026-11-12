@@ -37,18 +37,20 @@ gutter.
 | `eyebrow` | a non-empty string: the section the page belongs to, drawn above the title in capitals in the brand colour |
 | `back` | `{ label, href, onClick? }`: a link back, before the eyebrow with a short rule between them. It is a `Link`, so it needs an `href`; a page that routes in script also passes `onClick` and calls `preventDefault`. A 44px target on a phone |
 | `count`, `countLabel` | the number of records beside the title (below) |
-| `description` | under the title row, at most 68 characters a line, no one-word last line |
-| `actions` | on the title's row at its right, centred on the title line (a 44px button overhangs the 34.5px line rather than making the row taller); secondary first, primary last |
+| `description` | a line of its own under the title (and under the actions when they wrap), at most 68 characters a line, no one-word last line |
+| `actions` | on the title's line at its right, centred on the title line (a 44px button overhangs the 34.5px line rather than making it taller); a line of their own, still at the right, when they do not fit beside the title; secondary first, primary last. Pass the buttons themselves (a fragment), not a wrapper |
 | `mobileActions` | `'row'` (default) or `'sticky'` — what the actions do under 768px |
 | `level` | `1` (default) or `2` |
 | `headingRef` | reaches the heading, for a page that moves focus to it |
 
-The DOM order is always **title, description, actions** — the header is a grid
-that draws the actions on the title's row on a wide screen and after the
-description on a phone, so reading and Tab order are the same at every width.
-The title keeps at least 20rem beside the actions; with less room the actions
-wrap among themselves, on their side of the title row, rather than squeeze it
-into a column of short lines.
+The DOM order is always **title, description, actions** — the header draws the
+actions on the title's line on a wide screen and after the description on a
+phone, so reading and Tab order are the same at every width. From 768px the
+header is a set of wrapping lines: when the title and the actions do not fit on
+one line (a long title, a tablet beside the menu), the actions move to a line
+of their own under the title, still at the right, and the description follows.
+A label never breaks inside its button and the header never runs past the
+page's edge; the title is not squeezed into a column of short lines either.
 
 **Under 768px** the order on screen is the DOM order: eyebrow, title,
 description, then the actions as a full-width row, each child an equal share.

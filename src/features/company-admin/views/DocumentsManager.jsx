@@ -4,7 +4,7 @@ import { db, auth } from '@lib/firebase';
 import { collection, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useData } from '@/context/DataContext';
 import { GlobalLoadingState } from '@shared/components/feedback';
-import { Icon, LayoutDashboard, Send, FileText, ClipboardList, ArrowLeft, Plus } from '@design-system/icons';
+import { Icon, LayoutDashboard, Send, FileText, ClipboardList, Plus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { SendTemplateWizard } from '../components/documents/SendTemplateWizard';
 import { DocumentsOverview } from '../components/documents/DocumentsOverview';
@@ -50,6 +50,7 @@ const DOCUMENT_TABS = [
     { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'forms', label: 'After-application forms', icon: ClipboardList },
 ];
+const DASHBOARD_PATH = '/company/dashboard';
 const viewNamed = (view) => (DOCUMENT_TABS.some((tab) => tab.id === view) ? view : 'overview');
 
 export default function DocumentsManager() {
@@ -85,13 +86,25 @@ export default function DocumentsManager() {
     // documents that need attention (`useDocumentsWorkspaceData`).
     const workspace = useDocumentsWorkspaceData({ companyId: currentCompanyProfile?.id, isE2EEdocMock });
     const { documents: signingRequests, isLoading: signingRequestsLoading, loadError: signingRequestsError, retry: retrySigningRequests } = workspace;
-    // The heading counts what Sent Documents lists (`sentHeaderCount`), once known.
+    // The Sent Documents tab carries a number on every tab, once it is known
+    // (`sentHeaderCount`): on Sent, what its search and filters list; on the
+    // other tabs, where those are out of sight, every sent document.
     const { list: sentList, attention, summary } = workspace;
     const sentCount = useMemo(
         () => sentHeaderCount({ filters: sentFilters, documents: signingRequests, list: sentList, attention, summary }),
         [sentFilters, signingRequests, sentList, attention, summary],
     );
-    const showSentCount = activeTab === 'sent' && !signingRequestsLoading && !signingRequestsError && sentCount !== undefined;
+    const sentTotal = useMemo(
+        () => sentHeaderCount({ documents: signingRequests, list: sentList, attention, summary }),
+        [signingRequests, sentList, attention, summary],
+    );
+    const tabCount = activeTab === 'sent' ? sentCount : sentTotal;
+    const tabCountKnown = !signingRequestsLoading && !signingRequestsError && tabCount !== undefined;
+    const showSentCount = activeTab === 'sent' && tabCountKnown;
+    const documentTabs = useMemo(
+        () => DOCUMENT_TABS.map((tab) => (tab.id === 'sent' && tabCountKnown ? { ...tab, badge: tabCount } : tab)),
+        [tabCountKnown, tabCount],
+    );
 
     const { templates, templatesLoading } = useCompanyTemplates({ companyId: currentCompanyProfile?.id, isE2EEdocMock });
 
@@ -248,7 +261,12 @@ export default function DocumentsManager() {
         setViewMode('create');
     };
 
-    if (!currentCompanyProfile) { navigate('/company/dashboard'); return null; }
+    const backToDashboard = (event) => {
+        event.preventDefault();
+        navigate(DASHBOARD_PATH);
+    };
+
+    if (!currentCompanyProfile) { navigate(DASHBOARD_PATH); return null; }
 
     // BELOW every hook on purpose: returning before any of them changes the hook
     // count when a profile arrives with E-Docs off after the first paint, and
@@ -278,115 +296,110 @@ export default function DocumentsManager() {
     }
 
     return (
-        <div className="min-h-screen bg-ds-canvas">
+        // `min-h-full`, not the viewport's height: the page sits under the top
+        // bar, so a screen-tall wrapper scrolled 64px of nothing.
+        <div className="min-h-full bg-ds-canvas">
             <PageContainer width="standard">
                 <Stack gap="lg">
-                    <Stack gap="sm">
-                        {/* -ml-ds-3 cancels the sm button's own ds-space-3 inline
-                            padding so the visible arrow/label sits flush with the
-                            E-Docs heading below, while the padded hit area and
-                            focus ring stay full size. */}
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="-ml-ds-3 self-start"
-                            onClick={() => navigate('/company/dashboard')}
-                        >
-                            <Icon icon={ArrowLeft} /> Back to Dashboard
-                        </Button>
-                        {/* One action: the tabs below are the way to the templates
-                            and the sent documents. Below the design system's mobile
-                            breakpoint the header stacks it under the title. */}
-                        <PageHeader
-                            title="E-Docs"
-                            count={showSentCount ? sentCount : undefined}
-                            countLabel={sentCount === 1 ? 'sent document' : 'sent documents'}
-                            description="Create, send, track and manage documents requiring completion or signature."
-                            actions={
-                                <Button variant="primary" onClick={() => setShowNewDocumentDialog(true)}>
-                                    <Icon icon={Plus} size="xl" /> New Document
-                                </Button>
-                            }
-                        />
-                    </Stack>
-
-                    <TabList
-                        ariaLabel="Documents workspace views"
-                        idBase={tabsIdBase}
-                        tabs={DOCUMENT_TABS}
-                        activeTab={activeTab}
-                        onChange={setActiveTab}
-                        className="rounded-t-ds-xl bg-ds-surface px-ds-2"
+                    {/* One action: the tabs below are the way to the templates
+                        and the sent documents. */}
+                    <PageHeader
+                        back={{ label: 'Back to Dashboard', href: DASHBOARD_PATH, onClick: backToDashboard }}
+                        eyebrow="Documents"
+                        title="E-Docs"
+                        description="Create, send, track and manage documents requiring completion or signature."
+                        actions={
+                            <Button variant="primary" onClick={() => setShowNewDocumentDialog(true)}>
+                                <Icon icon={Plus} size="xl" /> New Document
+                            </Button>
+                        }
                     />
 
-                    <TabPanel
-                        idBase={tabsIdBase}
-                        tabId={activeTab}
-                        className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-                    >
-                        {activeTab === 'overview' && (
-                            <DocumentsOverview
-                                documents={signingRequests}
-                                isLoading={signingRequestsLoading}
-                                loadError={signingRequestsError}
-                                onRetry={retrySigningRequests}
-                                summary={summary}
-                                attention={attention}
-                                countsError={workspace.countsError}
-                                onRetryCounts={workspace.retryCounts}
-                                templates={templates}
-                                templatesLoading={templatesLoading}
-                                onViewAwaiting={() => viewSent({ status: 'sent' })}
-                                onViewCompleted={() => viewSent({ status: 'signed' })}
-                                onViewNeedsAttention={() => viewSent({ needsAttention: true })}
-                                onViewTemplates={() => setActiveTab('templates')}
-                                onOpenDocument={overviewDocumentActions.openDetails}
-                            />
-                        )}
+                    {/* The strip and its view, closer to each other than to the header. */}
+                    <div className="flex flex-col gap-ds-4">
+                        <TabList
+                            ariaLabel="Documents workspace views"
+                            idBase={tabsIdBase}
+                            variant="segmented"
+                            tabs={documentTabs}
+                            activeTab={activeTab}
+                            onChange={setActiveTab}
+                        />
+                        {/* The count the Sent Documents tab shows, read out when a
+                            search or a filter changes it there. The region stays in
+                            place, empty elsewhere, so the number is announced. */}
+                        <p role="status" className="ds-visually-hidden" data-testid="sent-documents-count">
+                            {showSentCount ? `${sentCount} ${sentCount === 1 ? 'sent document' : 'sent documents'}` : ''}
+                        </p>
+                        <TabPanel
+                            idBase={tabsIdBase}
+                            tabId={activeTab}
+                            className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+                        >
+                            {activeTab === 'overview' && (
+                                <DocumentsOverview
+                                    documents={signingRequests}
+                                    isLoading={signingRequestsLoading}
+                                    loadError={signingRequestsError}
+                                    onRetry={retrySigningRequests}
+                                    summary={summary}
+                                    attention={attention}
+                                    countsError={workspace.countsError}
+                                    onRetryCounts={workspace.retryCounts}
+                                    templates={templates}
+                                    templatesLoading={templatesLoading}
+                                    onViewAwaiting={() => viewSent({ status: 'sent' })}
+                                    onViewCompleted={() => viewSent({ status: 'signed' })}
+                                    onViewNeedsAttention={() => viewSent({ needsAttention: true })}
+                                    onViewTemplates={() => setActiveTab('templates')}
+                                    onOpenDocument={overviewDocumentActions.openDetails}
+                                />
+                            )}
 
-                        {activeTab === 'sent' && (
-                            <SentDocumentsPanel
-                                companyId={currentCompanyProfile.id}
-                                companyName={currentCompanyProfile.companyName || currentCompanyProfile.name || ''}
-                                documents={signingRequests}
-                                isLoading={signingRequestsLoading}
-                                loadError={signingRequestsError}
-                                onRetry={retrySigningRequests}
-                                list={sentList}
-                                attention={attention}
-                                onCorrect={handleCorrect}
-                                filters={sentFilters}
-                                setFilters={setSentFilters}
-                            />
-                        )}
+                            {activeTab === 'sent' && (
+                                <SentDocumentsPanel
+                                    companyId={currentCompanyProfile.id}
+                                    companyName={currentCompanyProfile.companyName || currentCompanyProfile.name || ''}
+                                    documents={signingRequests}
+                                    isLoading={signingRequestsLoading}
+                                    loadError={signingRequestsError}
+                                    onRetry={retrySigningRequests}
+                                    list={sentList}
+                                    attention={attention}
+                                    onCorrect={handleCorrect}
+                                    filters={sentFilters}
+                                    setFilters={setSentFilters}
+                                />
+                            )}
 
-                        {activeTab === 'templates' && (
-                            <TemplateLibraryPanel
-                                templates={templates}
-                                templatesLoading={templatesLoading}
-                                postSubmitTemplateIds={postSubmitTemplateIds}
-                                search={templateSearch}
-                                setSearch={setTemplateSearch}
-                                sort={templateSort}
-                                setSort={setTemplateSort}
-                                onSend={sendFlow.handleUseTemplate}
-                                onEdit={handleEditTemplate}
-                                onDuplicate={handleDuplicateTemplate}
-                                onConfigure={handleConfigureTemplate}
-                                onDelete={isCompanyAdmin ? requestDeleteTemplate : undefined}
-                                onCreate={() => handleNewDocumentChoice('create-template')}
-                                duplicatingTemplateId={duplicatingTemplateId}
-                            />
-                        )}
+                            {activeTab === 'templates' && (
+                                <TemplateLibraryPanel
+                                    templates={templates}
+                                    templatesLoading={templatesLoading}
+                                    postSubmitTemplateIds={postSubmitTemplateIds}
+                                    search={templateSearch}
+                                    setSearch={setTemplateSearch}
+                                    sort={templateSort}
+                                    setSort={setTemplateSort}
+                                    onSend={sendFlow.handleUseTemplate}
+                                    onEdit={handleEditTemplate}
+                                    onDuplicate={handleDuplicateTemplate}
+                                    onConfigure={handleConfigureTemplate}
+                                    onDelete={isCompanyAdmin ? requestDeleteTemplate : undefined}
+                                    onCreate={() => handleNewDocumentChoice('create-template')}
+                                    duplicatingTemplateId={duplicatingTemplateId}
+                                />
+                            )}
 
-                        {activeTab === 'forms' && (
-                            <ApplicationFormsPanel
-                                templates={templates}
-                                templatesLoading={templatesLoading}
-                                forms={forms}
-                            />
-                        )}
-                    </TabPanel>
+                            {activeTab === 'forms' && (
+                                <ApplicationFormsPanel
+                                    templates={templates}
+                                    templatesLoading={templatesLoading}
+                                    forms={forms}
+                                />
+                            )}
+                        </TabPanel>
+                    </div>
                 </Stack>
             </PageContainer>
 

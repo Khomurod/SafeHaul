@@ -1,7 +1,6 @@
 import React, { useId } from 'react';
 import { Icon, ArrowDown, ArrowUp, Loader2, Save } from '@design-system/icons';
-import { Button, Card, Checkbox, IconButton } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { Button, Checkbox, FormSection, IconButton } from '@/design-system/components';
 
 /**
  * Documents workspace — After-application forms.
@@ -32,134 +31,138 @@ export function ApplicationFormsPanel({ templates, templatesLoading, forms }) {
         togglePostSubmitTemplate,
     } = forms;
     const rawId = useId().replace(/:/g, '');
-    const enabledHeadingId = `application-forms-enabled-${rawId}`;
     const chooseHeadingId = `application-forms-choose-${rawId}`;
 
+    // One section: the heading and what it does above a single card, which
+    // holds the enabled forms, the templates to choose from and, at its foot,
+    // Save forms.
     return (
-        <Stack gap="md">
-            <Card aria-labelledby={enabledHeadingId}>
-                <Stack gap="sm">
-                    <div className="flex flex-col gap-ds-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                            <h2 id={enabledHeadingId} className="text-ds-body font-bold text-ds-content">
-                                Forms shown after an application
-                            </h2>
-                            <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
-                                These templates appear right after a driver submits the application, in the order
-                                below. Forms are <strong>required</strong> by default — drivers see them as a
-                                must-complete checklist. Untick "Required" to make a form optional.
-                            </p>
-                        </div>
-                        <Button
-                            variant="primary"
-                            className="shrink-0"
-                            loading={savingPostSubmitTemplates}
-                            onClick={handleSavePostSubmitTemplates}
-                        >
-                            {!savingPostSubmitTemplates && <Icon icon={Save} size="sm" />}
-                            Save forms
-                        </Button>
-                    </div>
+        <FormSection
+            layout="stacked"
+            padding="none"
+            title="Forms shown after an application"
+            description={(
+                <>
+                    These templates appear right after a driver submits the application, in the order
+                    below. Forms are <strong>required</strong> by default — drivers see them as a
+                    must-complete checklist. Untick "Required" to make a form optional.
+                </>
+            )}
+            footer={(
+                <Button
+                    variant="primary"
+                    loading={savingPostSubmitTemplates}
+                    onClick={handleSavePostSubmitTemplates}
+                >
+                    {!savingPostSubmitTemplates && <Icon icon={Save} size="sm" />}
+                    Save forms
+                </Button>
+            )}
+        >
+            {/* Announce the in-flight save; the Button also reports aria-busy. */}
+            <p role="status" className="ds-visually-hidden">
+                {savingPostSubmitTemplates ? 'Saving after-application forms…' : ''}
+            </p>
 
-                    {/* Announce the in-flight save; the Button also reports aria-busy. */}
-                    <p role="status" className="ds-visually-hidden">
-                        {savingPostSubmitTemplates ? 'Saving after-application forms…' : ''}
-                    </p>
+            {postSubmitTemplateIds.length === 0 ? (
+                <p className="flex min-h-14 items-center rounded-t-[calc(var(--ds-card-radius)-1px)] border-b border-ds-border-subtle bg-ds-canvas px-ds-5 py-ds-4 text-ds-body text-ds-content-secondary max-md:px-ds-4">
+                    No follow-up forms enabled yet.
+                </p>
+            ) : (
+                <ul className="flex flex-col gap-ds-2 border-b border-ds-border-subtle p-ds-5 max-md:p-ds-4">
+                    {postSubmitTemplateIds.map((templateId, index) => {
+                        const template = templates.find((item) => item.id === templateId);
+                        if (!template) return null;
+                        const isRequired = postSubmitRequiredById[templateId] !== false;
+                        const title = template.title || 'Complete Form';
+                        const isFirst = index === 0;
+                        const isLast = index === postSubmitTemplateIds.length - 1;
 
-                    {postSubmitTemplateIds.length === 0 ? (
-                        <p className="text-ds-sm text-ds-content-secondary">No follow-up forms enabled yet.</p>
-                    ) : (
-                        <ul className="flex flex-col gap-ds-2">
-                            {postSubmitTemplateIds.map((templateId, index) => {
-                                const template = templates.find((item) => item.id === templateId);
-                                if (!template) return null;
-                                const isRequired = postSubmitRequiredById[templateId] !== false;
-                                const title = template.title || 'Complete Form';
-                                const isFirst = index === 0;
-                                const isLast = index === postSubmitTemplateIds.length - 1;
-
-                                return (
-                                    <li
-                                        key={templateId}
-                                        className="flex flex-wrap items-center justify-between gap-ds-2 rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg px-ds-3 py-ds-2"
-                                    >
-                                        <span className="min-w-0 flex-1 text-ds-sm font-medium text-ds-content [overflow-wrap:anywhere]">
-                                            {index + 1}. {title}
-                                        </span>
-                                        <div className="flex shrink-0 flex-wrap items-center gap-ds-2">
-                                            <Checkbox
-                                                id={`application-form-required-${templateId}-${rawId}`}
-                                                label={`Required for ${title}`}
-                                                labelHidden
-                                                checked={isRequired}
-                                                onChange={() => togglePostSubmitRequired?.(templateId)}
-                                            />
-                                            <span aria-hidden="true" className="text-ds-sm text-ds-content">Required</span>
-                                            <IconButton
-                                                label={`Move ${title} up`}
-                                                variant="ghost"
-                                                size="sm"
-                                                disabled={isFirst}
-                                                // The tooltip explains why a disabled control cannot
-                                                // move, since it is skipped by keyboard focus.
-                                                title={isFirst ? `${title} is already first` : `Move ${title} up`}
-                                                onClick={() => movePostSubmitTemplate(templateId, 'up')}
-                                            >
-                                                <Icon icon={ArrowUp} size="sm" />
-                                            </IconButton>
-                                            <IconButton
-                                                label={`Move ${title} down`}
-                                                variant="ghost"
-                                                size="sm"
-                                                disabled={isLast}
-                                                title={isLast ? `${title} is already last` : `Move ${title} down`}
-                                                onClick={() => movePostSubmitTemplate(templateId, 'down')}
-                                            >
-                                                <Icon icon={ArrowDown} size="sm" />
-                                            </IconButton>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </Stack>
-            </Card>
-
-            <Card aria-labelledby={chooseHeadingId}>
-                <Stack gap="sm">
-                    <h2 id={chooseHeadingId} className="text-ds-body font-bold text-ds-content">
-                        Choose templates
-                    </h2>
-                    {templatesLoading ? (
-                        <p role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                            <Icon icon={Loader2} className="animate-spin" />
-                            Loading templates
-                        </p>
-                    ) : templates.length === 0 ? (
-                        <p className="text-ds-sm text-ds-content-secondary">
-                            No templates saved yet. Create a template first, then enable it here.
-                        </p>
-                    ) : (
-                        <ul className="flex flex-col gap-ds-1">
-                            {templates.map((template) => (
-                                <li key={template.id}>
+                        return (
+                            <li
+                                key={templateId}
+                                className="flex flex-wrap items-center justify-between gap-ds-2 rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg px-ds-3 py-ds-2"
+                            >
+                                <span className="min-w-0 flex-1 text-ds-sm font-medium text-ds-content [overflow-wrap:anywhere]">
+                                    {index + 1}. {title}
+                                </span>
+                                <div className="flex shrink-0 flex-wrap items-center gap-ds-2">
                                     <Checkbox
-                                        id={`application-form-enabled-${template.id}-${rawId}`}
-                                        label={template.title || 'Untitled template'}
-                                        checked={isTemplateEnabledPostSubmit(template.id)}
-                                        onChange={() => togglePostSubmitTemplate(template.id)}
+                                        id={`application-form-required-${templateId}-${rawId}`}
+                                        label={`Required for ${title}`}
+                                        labelHidden
+                                        checked={isRequired}
+                                        onChange={() => togglePostSubmitRequired?.(templateId)}
                                     />
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    <p className="text-ds-xs text-ds-content-secondary">
-                        Changes are not live until you press “Save forms”.
+                                    <span aria-hidden="true" className="text-ds-sm text-ds-content">Required</span>
+                                    <IconButton
+                                        label={`Move ${title} up`}
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isFirst}
+                                        // The tooltip explains why a disabled control cannot
+                                        // move, since it is skipped by keyboard focus.
+                                        title={isFirst ? `${title} is already first` : `Move ${title} up`}
+                                        onClick={() => movePostSubmitTemplate(templateId, 'up')}
+                                    >
+                                        <Icon icon={ArrowUp} size="sm" />
+                                    </IconButton>
+                                    <IconButton
+                                        label={`Move ${title} down`}
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isLast}
+                                        title={isLast ? `${title} is already last` : `Move ${title} down`}
+                                        onClick={() => movePostSubmitTemplate(templateId, 'down')}
+                                    >
+                                        <Icon icon={ArrowDown} size="sm" />
+                                    </IconButton>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+
+            {/* On a phone a checklist's 44px rows already leave white under the
+                last box, so the footer follows 8px later. */}
+            <div
+                role="group"
+                aria-labelledby={chooseHeadingId}
+                className={`px-ds-5 pb-ds-5 pt-ds-5 max-md:px-ds-4 max-md:pt-ds-4 ${templatesLoading || templates.length === 0 ? '' : 'max-md:pb-ds-2'}`}
+            >
+                <h3 id={chooseHeadingId} className="text-ds-heading-sm font-semibold text-ds-content">
+                    Choose templates
+                </h3>
+                <p className="mt-ds-1 text-ds-body text-ds-content-secondary [text-wrap:pretty]">
+                    Changes are not live until you press “Save forms”.
+                </p>
+                {templatesLoading ? (
+                    <p role="status" className="mt-ds-3 flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
+                        <Icon icon={Loader2} className="animate-spin" />
+                        Loading templates
                     </p>
-                </Stack>
-            </Card>
-        </Stack>
+                ) : templates.length === 0 ? (
+                    <p className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+                        No templates saved yet. Create a template first, then enable it here.
+                    </p>
+                ) : (
+                    // On a phone each choice is a 44px row, its box centred in it.
+                    <ul className="mt-ds-3 flex flex-col gap-ds-1 max-md:mt-ds-2 max-md:gap-ds-2">
+                        {templates.map((template) => (
+                            <li key={template.id} className="max-md:flex max-md:min-h-ds-control max-md:items-center">
+                                <Checkbox
+                                    id={`application-form-enabled-${template.id}-${rawId}`}
+                                    label={template.title || 'Untitled template'}
+                                    checked={isTemplateEnabledPostSubmit(template.id)}
+                                    onChange={() => togglePostSubmitTemplate(template.id)}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </FormSection>
     );
 }
 

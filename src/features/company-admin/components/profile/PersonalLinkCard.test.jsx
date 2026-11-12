@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,6 +43,12 @@ vi.mock('@shared/components/feedback', () => ({
 }));
 
 import { PersonalLinkCard } from './PersonalLinkCard';
+
+/**
+ * The shown link, matched on its whole text: its query sits in spans that keep
+ * it on one line, so no single text node holds the whole link.
+ */
+const shownLink = (pattern) => (_content, element) => element?.tagName === 'CODE' && pattern.test(element.textContent);
 
 const currentUser = {
     uid: 'user-1',
@@ -93,7 +99,7 @@ describe('PersonalLinkCard compatibility slice', () => {
         );
         const region = screen.getByRole('region', { name: 'Your personal link' });
         expect(region).toHaveTextContent('Drivers who apply will be automatically assigned to you.');
-        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=ABC123$/)).toBeInTheDocument();
+        expect(await screen.findByText(shownLink(/\/apply\/safehaul-logistics\?r=ABC123$/))).toBeInTheDocument();
         // The saved code is this person's, made for this company: nothing is written.
         expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
         expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
@@ -125,7 +131,7 @@ describe('PersonalLinkCard compatibility slice', () => {
         );
 
         // The rendered link, not the write, is what the page waits for.
-        await waitFor(() => expect(screen.getByText(/\/apply\/safehaul-logistics\?r=[A-HJ-NP-Z2-9]{8}$/)).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText(shownLink(/\/apply\/safehaul-logistics\?r=[A-HJ-NP-Z2-9]{8}$/))).toBeInTheDocument());
         expect(firestoreMocks.setDoc).toHaveBeenCalledOnce();
         const [linkReference, linkPayload] = firestoreMocks.setDoc.mock.calls[0];
         const generatedCode = linkReference.replace('recruiter_links/', '');
@@ -158,7 +164,7 @@ describe('PersonalLinkCard compatibility slice', () => {
         render(<PersonalLinkCard currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
 
         // The link shows once both writes are done.
-        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=BBBBBBBB$/)).toBeInTheDocument();
+        expect(await screen.findByText(shownLink(/\/apply\/safehaul-logistics\?r=BBBBBBBB$/))).toBeInTheDocument();
         expect(firestoreMocks.setDoc).toHaveBeenCalledOnce();
         expect(firestoreMocks.setDoc.mock.calls[0][0]).toBe('recruiter_links/BBBBBBBB');
         expect(firestoreMocks.updateDoc).toHaveBeenCalledWith('users/user-1', { recruitingCode: 'BBBBBBBB' });
@@ -170,7 +176,7 @@ describe('PersonalLinkCard compatibility slice', () => {
 
         render(<PersonalLinkCard currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
 
-        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=[A-HJ-NP-Z2-9]{8}$/)).toBeInTheDocument();
+        expect(await screen.findByText(shownLink(/\/apply\/safehaul-logistics\?r=[A-HJ-NP-Z2-9]{8}$/))).toBeInTheDocument();
         const [linkReference, linkPayload] = firestoreMocks.setDoc.mock.calls[0];
         expect(linkReference).not.toBe('recruiter_links/ABC123');
         expect(linkPayload).toEqual(expect.objectContaining({ userId: 'user-1', companyId: 'company-1' }));
@@ -183,14 +189,14 @@ describe('PersonalLinkCard compatibility slice', () => {
         const { rerender } = render(
             <PersonalLinkCard currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />,
         );
-        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=ABC123$/)).toBeInTheDocument();
+        expect(await screen.findByText(shownLink(/\/apply\/safehaul-logistics\?r=ABC123$/))).toBeInTheDocument();
 
         rerender(
             <PersonalLinkCard currentUser={currentUser} currentCompanyProfile={{ id: 'company-2', appSlug: 'blue-line' }} />,
         );
 
-        expect(await screen.findByText(/\/apply\/blue-line\?recruiter=user-1$/)).toBeInTheDocument();
-        expect(screen.queryByText(/\?r=ABC123$/)).toBeNull();
+        expect(await screen.findByText(shownLink(/\/apply\/blue-line\?recruiter=user-1$/))).toBeInTheDocument();
+        expect(screen.queryByText(shownLink(/\?r=ABC123$/))).toBeNull();
     });
 
     it("offers the team-checked ?recruiter= link when the saved code was made for another company", async () => {
@@ -212,7 +218,7 @@ describe('PersonalLinkCard compatibility slice', () => {
         );
 
         expect(await screen.findByText(/application page has no address yet/)).toBeInTheDocument();
-        expect(screen.queryByText(/\/apply\//)).toBeNull();
+        expect(screen.queryByText(shownLink(/\/apply\//))).toBeNull();
         expect(screen.queryByRole('button', { name: /copy/i })).toBeNull();
     });
 
@@ -222,7 +228,7 @@ describe('PersonalLinkCard compatibility slice', () => {
         expect(await screen.findByText('Sign in again to see your link.')).toBeInTheDocument();
         expect(screen.queryByText('Generating unique code...')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Copy' })).toBeNull();
-        expect(screen.queryByText(/recruiter=/)).toBeNull();
+        expect(screen.queryByText(shownLink(/recruiter=/))).toBeNull();
         expect(firestoreMocks.getDoc).not.toHaveBeenCalled();
     });
 
@@ -259,4 +265,45 @@ describe('PersonalLinkCard compatibility slice', () => {
         consoleError.mockRestore();
     });
 
+    it('shows the link whole, wrapping at its parts rather than cut off', async () => {
+        render(<PersonalLinkCard currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
+
+        const link = await screen.findByText(shownLink(/\/apply\/safehaul-logistics\?r=ABC123$/));
+        expect(link.textContent).toBe(`${window.location.origin}/apply/safehaul-logistics?r=ABC123`);
+        // No ellipsis and no tooltip standing in for the hidden part: nothing is hidden.
+        expect(link).not.toHaveClass('truncate');
+        expect(link).not.toHaveAttribute('title');
+        // A break is allowed after each "/" (not inside "//"), before "?" and after "=".
+        const pieces = [...link.childNodes].filter((node) => node.nodeName !== 'WBR');
+        expect(pieces.map((node) => node.textContent).slice(-4)).toEqual(['apply/', 'safehaul-logistics', '?r=', 'ABC123']);
+        expect(pieces[0].textContent).toMatch(/^https?:\/\/$/);
+        expect(link.querySelectorAll('wbr')).toHaveLength(pieces.length - 1);
+        // The query never breaks inside itself; the address may, at a hyphen of its own.
+        const [, , queryName, queryValue] = pieces.slice(-4);
+        expect(queryName).toHaveClass('whitespace-nowrap');
+        expect(queryValue).toHaveClass('whitespace-nowrap');
+        expect(pieces.slice(0, -2).every((node) => node.nodeType === Node.TEXT_NODE)).toBe(true);
+    });
+
+    it('keeps "?recruiter=" and the id whole, so an id with a hyphen is not split at it', async () => {
+        // The saved code was made for another company, so the page offers the id.
+        firestoreMocks.links = { 'recruiter_links/ABC123': { userId: 'e2e-company_admin', companyId: 'company-other' } };
+        render(
+            <PersonalLinkCard currentUser={{ uid: 'e2e-company_admin' }} currentCompanyProfile={currentCompanyProfile} />,
+        );
+
+        const link = await screen.findByText(shownLink(/\?recruiter=e2e-company_admin$/));
+        const query = [...link.querySelectorAll('span')].map((span) => span.textContent);
+        expect(query).toEqual(['?recruiter=', 'e2e-company_admin']);
+    });
+
+    it('is a stacked section: its heading and explanation above the card that holds the link', async () => {
+        render(<PersonalLinkCard currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
+
+        const region = screen.getByRole('region', { name: 'Your personal link' });
+        expect(region).toHaveAttribute('id', 'personal-recruiting-link');
+        expect(within(region).getByRole('heading', { level: 2, name: 'Your personal link' })).toBeInTheDocument();
+        expect(within(region).getByText('automatically assigned to you').tagName).toBe('STRONG');
+        await within(region).findByRole('button', { name: 'Copy' });
+    });
 });

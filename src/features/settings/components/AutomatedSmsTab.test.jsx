@@ -85,6 +85,20 @@ describe('AutomatedSmsTab compatibility slice', () => {
         }
     });
 
+    it('lists each placeholder on its own line with what it becomes, and the requirements beside the fields', async () => {
+        render(<AutomatedSmsTab companyId="company-1" />);
+        await findTextarea('Contact Attempt 1');
+        const section = screen.getByRole('region', { name: 'Contact-attempt messages' });
+        expect(within(section).getByText('Use these in a message:')).toBeInTheDocument();
+        const items = within(section).getAllByRole('listitem').map((item) => item.textContent);
+        expect(items).toEqual([
+            '{driver name}The applicant’s name',
+            '{user name}The recruiter’s name',
+            '{application link}Your application page with the recruiter’s personal link',
+        ]);
+        expect(within(section).getByText(/Requires an active SMS integration/)).toBeInTheDocument();
+    });
+
     it('falls back to empty strings when the document is missing', async () => {
         firestoreMocks.getDoc.mockResolvedValue(missingDoc());
         render(<AutomatedSmsTab companyId="company-1" />);

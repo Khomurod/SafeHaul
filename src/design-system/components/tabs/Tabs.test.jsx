@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Inbox } from '../../icons';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TabList, TabPanel, tabIds } from './Tabs';
 
 const TABS = [
@@ -149,7 +149,7 @@ describe('TabList shapes', () => {
     expect(screen.getAllByRole('tab')[0]).not.toHaveClass('ds-segmented-group__item');
   });
 
-  it.each([[2, '2'], [3, '3'], [4, '2'], [6, '3']])(
+  it.each([[2, '2'], [3, '3'], [4, '2'], [5, 'wrap'], [6, '3'], [7, 'wrap']])(
     'lays %i segmented tabs out in rows of %s on a phone',
     (count, columns) => {
       const tabs = Array.from({ length: count }, (_, i) => ({ id: `t${i}`, label: `View ${i + 1}` }));
@@ -299,5 +299,53 @@ describe('TabPanel wiring', () => {
   it('has no accessibility violations', async () => {
     const { container } = render(<Harness />);
     expect((await axe(container)).violations).toEqual([]);
+  });
+});
+
+describe('a segmented item keeps its width whether chosen or not', () => {
+  it('reserves the semibold width of a plain label, outside the name', () => {
+    render(
+      <TabList
+        ariaLabel="Views"
+        idBase="steady"
+        tabs={[{ id: 'a', label: 'Overview' }, { id: 'b', label: 'Templates', badge: 3 }]}
+        activeTab="a"
+        onChange={vi.fn()}
+        variant="segmented"
+      />,
+    );
+    const overview = screen.getByRole('tab', { name: 'Overview' });
+    expect(overview.querySelector('.ds-segmented-group__label')).toHaveAttribute('data-text', 'Overview');
+    // The reserved copy is generated content with empty alternative text, so
+    // the name is still the label and its count.
+    expect(screen.getByRole('tab', { name: 'Templates 3' })).toBeInTheDocument();
+  });
+
+  it('leaves the underlined strip as it was', () => {
+    render(<TabList ariaLabel="Views" idBase="plain" tabs={[{ id: 'a', label: 'Overview' }]} activeTab="a" onChange={vi.fn()} />);
+    expect(screen.getByRole('tab', { name: 'Overview' }).querySelector('[data-text]')).toBeNull();
+  });
+});
+
+describe('a segmented tray too wide for its row', () => {
+  const sized = (width) => vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width);
+  const rangeWidth = (width) => vi.spyOn(Range.prototype, 'getBoundingClientRect')
+    .mockReturnValue({ width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 });
+  const tabs = ['Overview', 'Sent Documents', 'Templates', 'After-application forms'].map((label, i) => ({ id: `t${i}`, label }));
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('takes its full-row layout when its items do not fit on one row', () => {
+    sized(400);
+    rangeWidth(120);
+    render(<TabList ariaLabel="Views" idBase="fit" tabs={tabs} activeTab="t0" onChange={vi.fn()} variant="segmented" />);
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-wrapped', 'true');
+  });
+
+  it('stays one row when they fit', () => {
+    sized(1200);
+    rangeWidth(120);
+    render(<TabList ariaLabel="Views" idBase="fit" tabs={tabs} activeTab="t0" onChange={vi.fn()} variant="segmented" />);
+    expect(screen.getByRole('tablist')).not.toHaveAttribute('data-wrapped');
   });
 });

@@ -56,7 +56,8 @@ async function renderWorklist() {
 }
 
 const table = () => screen.getByRole('table', { name: 'Unfinished applications' });
-const shownNames = () => within(table()).getAllByRole('rowheader').map((cell) => cell.firstChild.firstChild.textContent);
+/** The name each row is headed by: the first line of its Driver cell. */
+const shownNames = () => within(table()).getAllByRole('rowheader').map((cell) => cell.querySelector('span').textContent);
 const filter = (name) => screen.getByRole('button', { name });
 
 /** The number beside the page's heading: the rows the filter and the search keep. */
@@ -179,18 +180,26 @@ describe('the search', () => {
 describe('each row', () => {
     const rowOf = (name) => within(table()).getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('[role="row"], tr');
 
-    it('has the phone in a column of its own, as a call, and a quiet dash without one', async () => {
+    it('has who it is and how to reach them in one cell: the name, the email, and the phone as a call', async () => {
         await renderWorklist();
 
-        const call = within(rowOf('Dana Whitfield')).getByRole('link', { name: 'Call Dana Whitfield at (555) 010-2233' });
+        const dana = rowOf('Dana Whitfield');
+        const call = within(dana).getByRole('link', { name: 'Call Dana Whitfield at (555) 010-2233' });
         expect(call).toHaveAttribute('href', 'tel:+15550102233');
-        expect(call.closest('td')).toHaveAttribute('data-label', 'Phone');
-        // The name's cell keeps the email, quieter, under the name.
-        expect(within(rowOf('Dana Whitfield')).getByRole('rowheader')).toHaveTextContent(/^Dana Whitfielddana\.whitfield@example\.test$/);
+        // Under the name, in the row's own header cell: no column of its own.
+        expect(within(dana).getByRole('rowheader')).toContainElement(call);
+        expect(within(table()).queryByRole('columnheader', { name: 'Phone' })).toBeNull();
+        expect(within(dana).getByRole('rowheader')).toHaveTextContent(/^Dana Whitfielddana\.whitfield@example\.test\(555\) 010-2233$/);
+        // The initials lead the row, out of a screen reader's way: the name says who.
+        const initials = within(dana).getByText('DW');
+        expect(initials).toHaveAttribute('aria-hidden', 'true');
+        expect(initials.closest('td')).toBe(dana.firstElementChild);
 
+        // No phone, no call, and nothing in its place; no name, an empty ring for initials.
         const noPhone = rowOf('Name not entered yet');
         expect(within(noPhone).queryByRole('link')).toBeNull();
-        expect(within(noPhone).getByText('—').closest('td')).toHaveAttribute('data-label', 'Phone');
+        expect(within(noPhone).getByRole('rowheader')).toHaveTextContent(/^Name not entered yetstarter@example\.test$/);
+        expect(noPhone.firstElementChild).toHaveTextContent(/^$/);
     });
 
     it('says how far it got, and calls the last two pages almost done', async () => {
@@ -198,9 +207,10 @@ describe('each row', () => {
 
         expect(within(rowOf('Dana Whitfield')).getByText('Step 9 of 9')).toBeInTheDocument();
         expect(within(rowOf('Dana Whitfield')).getByText('Almost done')).toBeInTheDocument();
-        expect(within(rowOf('Priya Raman')).getByText(/· Employment history/)).toBeInTheDocument();
-        expect(within(rowOf('Tomas Okafor')).getByText(/· Prepared by us/)).toBeInTheDocument();
-        expect(within(rowOf('Marcus Iyer')).getByText(/· Not started by the driver yet/)).toBeInTheDocument();
+        // The page's name under the bar, on a line of its own.
+        expect(within(rowOf('Priya Raman')).getByText('Employment history')).toBeInTheDocument();
+        expect(within(rowOf('Tomas Okafor')).getByText('Prepared by us')).toBeInTheDocument();
+        expect(within(rowOf('Marcus Iyer')).getByText('Not started by the driver yet')).toBeInTheDocument();
     });
 
     it('counts the company’s own questions among the pages', async () => {
@@ -218,7 +228,9 @@ describe('each row', () => {
         expect(within(rowOf('Dana Whitfield')).getByText('Removed in 30 days')).toBeInTheDocument();
         expect(within(rowOf('Priya Raman')).getByText(/^Yesterday, /)).toBeInTheDocument();
         expect(within(rowOf('Marcus Iyer')).getByText('3 days ago')).toBeInTheDocument();
-        expect(within(rowOf('Marcus Iyer')).getByText('Prepared by Rae Recruiter · sent 3 days ago')).toBeInTheDocument();
+        // Who prepared it and when its link went, each a line of its own under the status.
+        expect(within(rowOf('Marcus Iyer')).getByText('Prepared by Rae Recruiter')).toBeInTheDocument();
+        expect(within(rowOf('Marcus Iyer')).getByText('Sent 3 days ago')).toBeInTheDocument();
         expect(within(rowOf('Jordan Ellis')).getByText('26 days ago')).toBeInTheDocument();
         expect(within(rowOf('Jordan Ellis')).getByText('Removed in 4 days')).toBeInTheDocument();
     });
@@ -234,6 +246,60 @@ describe('each row', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
         await waitFor(() => expect(within(rowOf('Jordan Ellis')).getByText('Removed in 1 day')).toBeInTheDocument());
+    });
+});
+
+/**
+ * The other shapes of the list, by the width the page is read at: the media
+ * queries the table asks are answered here as a laptop's or a phone's would be.
+ */
+describe('at other widths', () => {
+    const realMatchMedia = window.matchMedia;
+    /** Answers the queries a width matches, as the browser would. */
+    const atWidth = (matching) => {
+        window.matchMedia = (query) => ({
+            ...realMatchMedia(query),
+            matches: matching.includes(query),
+        });
+    };
+    afterEach(() => { window.matchMedia = realMatchMedia; });
+    const rowOf = (name) => within(table()).getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('[role="row"], tr');
+
+    it('reads the last activity under the status on a laptop, once, rather than in a column of its own', async () => {
+        atWidth(['(min-width: 768px) and (max-width: 1439px)']);
+        await renderWorklist();
+
+        expect(within(table()).queryByRole('columnheader', { name: 'Last activity' })).toBeNull();
+        const jordan = rowOf('Jordan Ellis');
+        const status = within(jordan).getByText('Started by driver').closest('td');
+        expect(within(status).getByText(/^Last activity/)).toBeInTheDocument();
+        expect(within(status).getByText('26 days ago')).toBeInTheDocument();
+        expect(within(status).getByText('Removed in 4 days')).toBeInTheDocument();
+        // Once on the page, not a second copy kept out of sight.
+        expect(screen.getAllByText('Removed in 4 days')).toHaveLength(1);
+    });
+
+    it('makes each row a card on a phone: the name as its title, then how to reach them, how far they got and when it moved', async () => {
+        atWidth(['(max-width: 767px)']);
+        await renderWorklist();
+
+        const marcus = rowOf('Marcus Iyer');
+        // The title is the name alone; the email and the call are a line of their own.
+        expect(within(marcus).getByRole('rowheader', { name: 'Marcus Iyer' })).toBeInTheDocument();
+        const call = within(marcus).getByRole('link', { name: 'Call Marcus Iyer at (555) 010-4417' });
+        expect(within(marcus).getByRole('rowheader')).not.toContainElement(call);
+        expect(within(marcus).getByText('marcus.iyer@example.test')).toBeInTheDocument();
+        expect(within(marcus).getByText('Prepared by Rae Recruiter')).toBeInTheDocument();
+        expect(within(marcus).getByText('Sent 3 days ago')).toBeInTheDocument();
+        expect(within(marcus).getByText('Step 1 of 9')).toBeInTheDocument();
+        expect(within(marcus).getByText(/^Last activity/)).toBeInTheDocument();
+        expect(within(marcus).getByText('3 days ago')).toBeInTheDocument();
+        // A driver's own row adds nothing to its status, and its card says nothing there.
+        expect(within(rowOf('Dana Whitfield')).queryByText(/^Prepared by/)).toBeNull();
+        // Every action is still the row's own, by name.
+        for (const name of ['Open the application for Marcus Iyer', 'New link for Marcus Iyer', 'Email link to Marcus Iyer']) {
+            expect(within(marcus).getByRole('button', { name })).toBeInTheDocument();
+        }
     });
 });
 
@@ -262,7 +328,7 @@ describe('a link made on a row', () => {
         expect(screen.getByRole('button', { name: 'New link for Tomas Okafor' })).toBeInTheDocument();
         expect(within(tomas()).getByText(/^Today, /)).toBeInTheDocument();
         expect(within(tomas()).getByText('Removed in 30 days')).toBeInTheDocument();
-        expect(within(tomas()).getByText(/sent today/)).toBeInTheDocument();
+        expect(within(tomas()).getByText('Sent today')).toBeInTheDocument();
     });
 
     it('keeps a quiet row and its new link in view, in its place, when the clipboard refuses it', async () => {

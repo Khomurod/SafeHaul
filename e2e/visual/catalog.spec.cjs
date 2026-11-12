@@ -64,6 +64,7 @@ const SUBJECTS = [
     ['components-textarea--sizes', 'textarea-sizes'],
     ['components-checkbox--states', 'choice-states'],
     ['components-checkbox--radio-group', 'choice-radio-group'],
+    ['components-checkbox--radio-cards', 'choice-radio-cards'],
     ['components-switch--states', 'switch-states'],
     // Switches with their words beside them (`showLabel`), every tone and disabled.
     ['components-switch--default', 'switch-with-label'],
@@ -78,12 +79,15 @@ const SUBJECTS = [
     ['components-card--padding', 'card-padding'],
     ['components-card--metric-card-tones', 'card-metric-tones'],
     ['components-card--metric-card-loading', 'card-metric-loading'],
+    ['components-card--metric-card-with-description', 'card-metric-description'],
     ['components-card--with-header-and-actions', 'card-with-header'],
     ['components-tabs--default', 'tabs'],
     ['components-tabs--vertical', 'tabs-vertical'],
     ['components-tabs--with-badges', 'tabs-with-badges'],
     ['components-tabs--pill-variant', 'tabs-pill'],
     ['components-tabs--fitted', 'tabs-fitted'],
+    // The C2 tray a page's views and a list's segments share.
+    ['components-tabs--segmented', 'tabs-segmented'],
     ['components-chip--tones', 'chip-tones'],
     ['components-chip--sizes', 'chip-sizes'],
     ['components-chip--pressed-and-not', 'chip-pressed'],
@@ -104,10 +108,17 @@ const SUBJECTS = [
     ['components-notice--with-title', 'notice-title'],
     ['components-notice--with-actions', 'notice-actions'],
     ['components-notice--heading-title', 'notice-heading-title'],
+    ['components-notice--flush-in-card', 'notice-flush'],
     ['components-sectionnavigation--with-icons', 'section-navigation'],
     ['components-sectionnavigation--wizard-steps', 'section-navigation-steps'],
+    ['components-sectionnavigation--with-descriptions', 'section-navigation-descriptions'],
     ['components-form-structure--all-field-states', 'form-all-field-states'],
     ['components-form-structure--section', 'form-section'],
+    // The C2 section shapes: a full-bleed header with a footer, stacked, beside an aside.
+    ['components-form-structure--section-with-footer', 'form-section-footer'],
+    ['components-form-structure--stacked-sections', 'form-section-stacked'],
+    ['components-form-structure--aside-sections-wide', 'form-section-aside'],
+    ['components-form-structure--aside-sections-in-narrow-column', 'form-section-aside-column'],
     ['components-form-structure--inline-in-chips', 'form-inline-fields'],
 
     // Tables, at both densities and in every async state.
@@ -121,6 +132,8 @@ const SUBJECTS = [
     ['components-datatable--long-and-missing-content', 'data-table-extremes'],
     // The other half of the phone rule for `DataTable`: a table at 1440px, cards at 412px.
     ['components-datatable--cards-on-mobile', 'data-table-cards'],
+    // Phone cards laid out by column role, with selection: a table at 1440px, cards with Select all at 412px.
+    ['components-datatable-phone-cards--with-selection', 'data-table-role-cards'],
     // Sorting by a header, and the "Sort by" list that replaces it above the cards.
     ['components-datatable--sortable', 'data-table-sortable'],
     ['components-datatable--sortable-cards', 'data-table-sortable-cards'],
@@ -140,6 +153,7 @@ const SUBJECTS = [
     ['patterns-modal-chrome--danger-tone', 'modal-chrome-danger-tone'],
     ['patterns-modal-chrome--bottom-sheet', 'modal-chrome-bottom-sheet'],
     ['patterns-modal-chrome--fullscreen-mobile', 'modal-chrome-fullscreen'],
+    ['patterns-modal-chrome--sheet-on-phones', 'modal-chrome-sheet'],
     ['components-confirmdialog--tones', 'confirm-dialog-tones'],
     ['components-confirmdialog--loading', 'confirm-dialog-loading'],
     ['components-confirmdialog--error-state', 'confirm-dialog-error'],
@@ -147,6 +161,9 @@ const SUBJECTS = [
     // Page patterns and layout.
     ['components-page-layout--full-page-composition', 'page-layout'],
     ['components-page-layout--header-with-count', 'page-header-count'],
+    // The C2 header: back link and eyebrow over the title; actions beside it or on a line of their own.
+    ['components-page-layout--eyebrow-and-back-link', 'page-header-eyebrow'],
+    ['components-page-layout--long-title-and-actions', 'page-header-long-title'],
     ['patterns-page-states--full-page-states', 'page-states'],
     ['patterns-page-states--empty-is-not-one-state', 'page-states-empty'],
     ['patterns-page-states--error-with-stale-data', 'page-states-stale-error'],

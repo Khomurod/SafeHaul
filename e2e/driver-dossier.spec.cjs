@@ -55,9 +55,9 @@ async function openList(page, fixtures = '') {
 
 async function openDossier(page) {
   const row = page.getByRole('row', { name: ROW_NAME });
-  // On the driver's name, as a person taps a row: on a phone the middle of a
-  // row's visible part is its phone number, which is the call button.
-  await row.getByRole('rowheader').click();
+  // On the driver's name, as a person taps a row: the number under the name
+  // is the call button, and at some widths it is the middle of the Driver cell.
+  await row.getByRole('rowheader').getByText(ROW_NAME.replace('Open driver dossier for ', ''), { exact: true }).click();
   await expect(page.getByRole('dialog', DIALOG)).toBeVisible();
   await expect(page.getByRole('tablist', SECTION_NAV)).toBeVisible();
   return row;

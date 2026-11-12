@@ -40,17 +40,16 @@
  * reads as a mark inside the card rather than a clipped stripe of its border.
  */
 .ds-metric-card {
+  --ds-metric-card-inset: var(--ds-card-padding);
   position: relative;
   display: flex;
   width: 100%;
   min-width: 0;
   min-height: 112px;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--ds-space-3);
   border: 1px solid var(--ds-card-border);
   border-radius: var(--ds-card-radius);
-  padding: var(--ds-card-padding);
+  padding: var(--ds-metric-card-inset);
   background: var(--ds-color-surface);
   box-shadow: var(--ds-card-shadow);
   color: var(--ds-color-content);
@@ -139,14 +138,25 @@
  * The glyph is decoration, drawn bare in the muted ink, and the slot sizes it:
  * a caller's `size` on the `Icon` is outranked (`Icon.css` sizes through a
  * zero-specificity `:where()`), so every tile's glyph is the same size.
+ *
+ * It sits in the label's line only, at the tile's top-right corner, and the
+ * label alone leaves room for it: the number and the note use the tile's whole
+ * width, so on a phone's half-width tile "Live campaigns" and "Sending right
+ * now" stay on one line instead of wrapping beside a column of empty space.
  */
 .ds-metric-card__icon {
+  position: absolute;
+  top: var(--ds-metric-card-inset);
+  right: var(--ds-metric-card-inset);
   display: inline-flex;
-  flex: 0 0 auto;
   align-items: center;
   /* Centred on the label's first line: (21px line - 16px glyph) / 2. */
   padding-top: 2px;
   color: var(--ds-color-content-muted);
+}
+
+.ds-metric-card:has(> .ds-metric-card__icon) .ds-metric-card__label {
+  padding-inline-end: calc(var(--ds-icon-size-md) + var(--ds-space-2));
 }
 
 .ds-metric-card__icon > svg {
@@ -206,8 +216,8 @@
  */
 @media (max-width: 767px) {
   .ds-metric-card {
+    --ds-metric-card-inset: var(--ds-space-4);
     min-height: 0;
-    padding: var(--ds-space-4);
   }
 
   .ds-metric-card__value {

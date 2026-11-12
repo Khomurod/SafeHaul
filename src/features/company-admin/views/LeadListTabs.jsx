@@ -13,10 +13,14 @@ function useTabLink({ scope, label, path }, search) {
     return { id: scope, label, href: useHref(to), onClick: useLinkClickHandler(to) };
 }
 
-/** The leads lists (`LEAD_LIST_TABS`) as links at the top of the page, the one shown marked current. */
+/**
+ * The leads lists (`LEAD_LIST_TABS`) as links, the one shown marked current: a
+ * segmented tray at the start of the list's toolbar row, the scope the status
+ * pills in the table card then narrow.
+ */
 export function LeadListTabs({ scope }) {
     const { search } = useLocation();
     const [all, mine, unassigned] = LEAD_LIST_TABS;
     const items = [useTabLink(all, search), useTabLink(mine, search), useTabLink(unassigned, search)];
-    return <TabNav ariaLabel="Lead lists" items={items} currentId={scope} />;
+    return <TabNav ariaLabel="Lead lists" variant="segmented" items={items} currentId={scope} />;
 }

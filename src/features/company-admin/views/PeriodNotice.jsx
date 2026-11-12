@@ -18,7 +18,6 @@ export function PeriodNotice({ period, truncated = false, onShowAll }) {
         <Notice
             tone="info"
             size="sm"
-            className="mb-ds-3"
             actions={<Button variant="secondary" size="sm" onClick={onShowAll}>Show all applications</Button>}
         >
             {`Showing ${description.charAt(0).toLowerCase()}${description.slice(1)}${hires ? ', whatever their status now' : ''}.`}

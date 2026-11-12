@@ -201,8 +201,15 @@
 }
 
 /* The page row: no surface, everything centred on one line. */
+/*
+ * The page row is spaced 8px between its parts, as C2 draws it: at 1440px
+ * beside the menu, with a classic 15–17px scrollbar, the six Applications
+ * segments, the search at its placeholder's width, the switch and Filters
+ * still make one row.
+ */
 .ds-list-toolbar[data-placement='page'] .ds-list-toolbar__bar {
   align-items: center;
+  column-gap: var(--ds-space-2);
   row-gap: var(--ds-space-3);
 }
 
@@ -226,16 +233,22 @@
   flex: 1 1 auto;
   flex-wrap: nowrap;
   justify-content: flex-end;
+  gap: var(--ds-space-2);
   padding-block: 0;
+}
+
+.ds-list-toolbar[data-placement='page'][data-search-first] .ds-list-toolbar__toggle {
+  padding-inline: var(--ds-space-2);
 }
 
 .ds-list-toolbar[data-placement='page'] .ds-list-toolbar__tools > :not(.ds-list-toolbar__search) {
   flex: none;
 }
 
+/* Never narrower than its placeholder ("Search by name, phone or email" at 14px). */
 .ds-list-toolbar[data-placement='page'] .ds-list-toolbar__search {
   width: auto;
-  min-width: 236px;
+  min-width: 250px;
   max-width: 320px;
   flex: 1 1 240px;
 }
@@ -382,7 +395,8 @@
     margin-inline-end: 0;
   }
 
-  .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search:has(+ .ds-list-toolbar__toggle) {
+  .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search:has(+ .ds-list-toolbar__toggle),
+  .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search:last-child {
     grid-column: 1 / -1;
   }
 
@@ -419,11 +433,22 @@
 }
 
 /*
- * Narrow phones: the search needs the whole row for its placeholder, so
- * Filters right after it takes the next row; after a switch it still shares
- * the switch's row.
+ * Narrow phones: the search needs the whole row for its placeholder (about
+ * 276px at the phone's 16px), so Filters right after it takes the next row;
+ * after a switch it still shares the switch's row.
  */
-@media (max-width: 383px) {
+/*
+ * Under 405px a strip of pills is two columns, each as wide as its longer
+ * label, so six statuses make three tidy rows rather than a ragged four.
+ */
+@media (max-width: 404px) {
+  .ds-list-toolbar .ds-list-toolbar__segments[data-variant='pill'] {
+    display: grid;
+    grid-template-columns: auto auto;
+  }
+}
+
+@media (max-width: 419px) {
   .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search,
   .ds-list-toolbar__search + .ds-list-toolbar__filters-button {
     grid-column: 1 / -1;

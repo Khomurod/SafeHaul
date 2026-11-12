@@ -385,3 +385,46 @@ describe('CompanyBulkUpload — preserved contracts', () => {
         vi.unstubAllGlobals();
     });
 });
+
+describe('CompanyBulkUpload — the C2 card', () => {
+    it('lists the five frozen instruction sentences, one per item, in order', () => {
+        setup({ props: { isEmbedded: true, onStepChange: vi.fn() } });
+        const heading = screen.getByRole('heading', { name: 'Instructions' });
+        const list = heading.parentElement.querySelector('ul');
+        expect([...list.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
+            'Format: CSV, XLS, or XLSX.',
+            'Required: First Name + Last Name (or just "Name"), Phone.',
+            'We automatically detect headers.',
+            'Phone numbers are normalized automatically.',
+            'Emails are optional — placeholders are auto-generated when missing.',
+        ]);
+    });
+
+    it('says what the import does, and that a preview comes first, under the title', () => {
+        setup({ props: { isEmbedded: true } });
+        expect(screen.getByText('Upload a spreadsheet of leads. You see a preview before anything is added.'))
+            .toBeInTheDocument();
+    });
+
+    it('offers the repair as an outlined action on the card header', () => {
+        setup({ props: { isEmbedded: true } });
+        expect(screen.getByRole('button', { name: /Fix Data Mismatch/ })).toHaveAttribute('data-variant', 'secondary');
+    });
+
+    it.each([
+        [{ importOverrides: { step: 'upload' }, uploadOverrides: { step: 'upload' } }, 'upload'],
+        [{ importOverrides: { step: 'preview' }, uploadOverrides: { step: 'upload' } }, 'preview'],
+        [{ importOverrides: { step: 'preview' }, uploadOverrides: { step: 'success' } }, 'success'],
+    ])('reports the step to a page that shows it (%#)', (overrides, expected) => {
+        const onStepChange = vi.fn();
+        setup({ ...overrides, props: { isEmbedded: true, onStepChange } });
+        expect(onStepChange).toHaveBeenLastCalledWith(expected);
+        // The page shows the steps, so the card does not.
+        expect(screen.queryByRole('list', { name: 'Import steps' })).toBeNull();
+    });
+
+    it('shows the steps in the card when no page shows them', () => {
+        setup({ props: { isEmbedded: true } });
+        expect(screen.getByRole('list', { name: 'Import steps' })).toBeInTheDocument();
+    });
+});

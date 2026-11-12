@@ -120,6 +120,61 @@ describe('SelectableCard', () => {
     });
 });
 
+/*
+ * `frame="row"`: the rows of ONE card (C2 settings menu) — the card draws the
+ * box and the list draws the dividers, so a row has no box of its own.
+ */
+describe('SelectableCard frame="row"', () => {
+    it('marks a row for CSS and leaves the default card unmarked', () => {
+        const { container, rerender } = render(<SelectableCard>x</SelectableCard>);
+        expect(container.firstChild).not.toHaveAttribute('data-frame');
+        rerender(<SelectableCard frame="row">x</SelectableCard>);
+        expect(container.firstChild).toHaveAttribute('data-frame', 'row');
+    });
+
+    it('stays a button named by its content, and keeps its states', () => {
+        const onSelect = vi.fn();
+        const { rerender } = render(
+            <SelectableCard frame="row" onSelect={onSelect}>
+                <span>Team</span> <span>Who recruits for you</span>
+            </SelectableCard>,
+        );
+        const row = screen.getByRole('button', { name: 'Team Who recruits for you' });
+        expect(row).not.toHaveAttribute('aria-pressed');
+        fireEvent.click(row);
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        rerender(<SelectableCard frame="row" current>Team</SelectableCard>);
+        expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('data-state', 'on');
+    });
+
+    it('refuses a frame it has no rules for', () => {
+        expect(() => render(<SelectableCard frame="tile">x</SelectableCard>))
+            .toThrow(/Unsupported SelectableCard frame: tile/);
+    });
+
+    /* Both only colour or swap the box a row does not have: refused, not ignored. */
+    it('refuses a tone or the inverse surface on a row', () => {
+        expect(() => render(<SelectableCard frame="row" tone="warning">x</SelectableCard>))
+            .toThrow(/frame="row" has no border of its own/);
+        expect(() => render(<SelectableCard frame="row" surface="inverse">x</SelectableCard>))
+            .toThrow(/frame="row" has no border of its own/);
+    });
+
+    it('has no axe violations as the rows of one list', async () => {
+        const { container } = render(
+            <section aria-label="Messaging">
+                <ul className="ds-card" style={{ listStyle: 'none' }}>
+                    <li><SelectableCard frame="row" onSelect={() => {}}>Email</SelectableCard></li>
+                    <li><SelectableCard frame="row" current>Text messages</SelectableCard></li>
+                    <li><SelectableCard frame="row" as="div">Not a control</SelectableCard></li>
+                </ul>
+            </section>,
+        );
+        expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
 /* jsdom lays nothing out; the selected treatment is pinned as a rule. */
 describe('SelectableCard selected treatment', () => {
     const css = readFileSync(path.join(__dirname, 'SelectableCard.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -135,5 +190,34 @@ describe('SelectableCard selected treatment', () => {
 
     it('keeps the choice visible in forced colours', () => {
         expect(css).toMatch(/@media \(forced-colors: active\)\s*\{\s*\.ds-selectable-card\[data-state='on'\]\s*\{\s*border-color:\s*Highlight/);
+        // A row has no border to recolour: its choice is a Highlight outline.
+        expect(css).toMatch(/@media \(forced-colors: active\)[\s\S]*\[data-frame='row'\]\[data-state='on'\]\s*\{\s*outline:\s*2px solid Highlight/);
+    });
+
+    const rule = (selector) => {
+        const start = css.indexOf(`${selector} {`);
+        return start < 0 ? '' : css.slice(start, css.indexOf('}', start));
+    };
+
+    it('draws a row with no box of its own, on its card\'s surface', () => {
+        const row = rule(".ds-selectable-card[data-frame='row']");
+        expect(row).toMatch(/border:\s*0/);
+        expect(row).toMatch(/border-radius:\s*0/);
+        expect(row).toMatch(/--ds-selectable-bg:\s*transparent/);
+    });
+
+    it('fills a row under the pointer and rings it inside its own edge', () => {
+        expect(rule("button.ds-selectable-card[data-frame='row']:hover:not(:disabled):not([data-state])"))
+            .toMatch(/background:\s*var\(--ds-color-surface-hover\)/);
+        expect(rule(".ds-selectable-card[data-frame='row']:focus-visible")).toMatch(/outline-offset:\s*-2px/);
+        expect(rule(".ds-selectable-card[data-frame='row'][data-state='on']"))
+            .toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--ds-color-action-primary\)/);
+    });
+
+    it('rounds the first and last row to the card\'s inner corner, so fill and ring follow it', () => {
+        expect(rule("li:first-child > .ds-selectable-card[data-frame='row']"))
+            .toMatch(/border-start-start-radius:\s*calc\(var\(--ds-card-radius\) - 1px\)/);
+        expect(rule("li:last-child > .ds-selectable-card[data-frame='row']"))
+            .toMatch(/border-end-end-radius:\s*calc\(var\(--ds-card-radius\) - 1px\)/);
     });
 });

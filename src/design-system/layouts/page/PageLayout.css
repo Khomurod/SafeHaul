@@ -23,29 +23,30 @@
 }
 
 /*
- * The page header is a grid so the DOM can stay title → description → actions
- * (reading and Tab order) while the actions sit on the title's row:
+ * The page header keeps the DOM in reading and Tab order — eyebrow, title,
+ * description, actions — and lays it out as wrapping lines:
  *
- *   top    top        the eyebrow row: back link and eyebrow
- *   title  actions    the heading and its count | the actions, at the right
- *   desc   desc       the description, under both
+ *   eyebrow                      the back link and the eyebrow, a line of their own
+ *   title …………………… actions      the heading and its count | the actions, at the right
+ *   description                  under both, a line of its own
  *
- * An area with nothing in it is a row of no height, and the spacing is margins
- * on what is there rather than row gaps, so an absent eyebrow or description
- * leaves no gap behind. The title column keeps at least 20rem — about two lines
- * of a long title at 30px — and the actions wrap among themselves on their side
- * before they squeeze it further.
+ * When the title and the actions do not fit on one line (a long title, or a
+ * tablet beside the menu), the actions wrap to a line of their own under the
+ * title, still at the right, and the description follows (C2 at 768px). The
+ * title gives way first, never the actions: a button label does not break
+ * inside its button, and nothing is pushed past the page's edge.
+ *
+ * The lines are `--ds-space-4` apart, which is the distance a wrapped row of
+ * actions keeps from the title; the eyebrow and the description pull
+ * themselves back to `--ds-space-2` from their neighbours, so an absent
+ * eyebrow or description leaves no gap behind.
  */
 .ds-page-header {
   --ds-page-header-title-size: var(--ds-font-size-heading-2xl);
-  display: grid;
-  grid-template-columns: minmax(min(100%, 20rem), 1fr) auto;
-  grid-template-areas:
-    'top top'
-    'title actions'
-    'desc desc';
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  column-gap: var(--ds-space-4);
+  gap: var(--ds-space-4);
 }
 
 /* Under a masthead that holds the page's `<h1>` (Super Admin), the 24px step. */
@@ -54,17 +55,18 @@
 }
 
 .ds-page-header > .ds-page-eyebrow {
-  grid-area: top;
-  margin-bottom: var(--ds-space-2);
+  flex-basis: 100%;
+  margin-bottom: calc(var(--ds-space-2) - var(--ds-space-4));
 }
 
 .ds-page-header__title {
   display: flex;
   min-width: 0;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-2) var(--ds-space-3);
-  grid-area: title;
+  order: 1;
 }
 
 .ds-page-header__heading {
@@ -105,13 +107,18 @@
   padding: 0;
 }
 
+/*
+ * Always a line of its own. The 68ch measure is kept by padding rather than a
+ * `max-width`: a narrower box would let a wrapping line put it beside the title.
+ */
 .ds-page-header__description {
-  max-width: 68ch;
-  margin: var(--ds-space-2) 0 0;
+  flex-basis: 100%;
+  margin: calc(var(--ds-space-2) - var(--ds-space-4)) 0 0;
+  padding-inline-end: max(0px, 100% - 68ch);
   color: var(--ds-color-content-secondary);
   font-size: var(--ds-font-size-body-lg);
-  grid-area: desc;
   line-height: var(--ds-line-height-body);
+  order: 3;
   /* No last line of one word. */
   text-wrap: pretty;
 }
@@ -119,21 +126,30 @@
 /*
  * Centred on the title line, and allowed to overhang it: the negative block
  * margin takes a default (44px) control down to the title line's height, so the
- * row is only as tall as the title and the eyebrow-to-title distance is the
+ * line is only as tall as the title and the eyebrow-to-title distance is the
  * same on a page with actions as on one without. A smaller control stays
- * centred (the margin box is symmetric); a taller one, or actions that wrap,
- * grow the row instead of overlapping it.
+ * centred (the margin box is symmetric); a taller one grows the line instead of
+ * overlapping it. `margin-inline-start: auto` keeps the actions at the right
+ * edge on the title's line and on a line of their own alike.
  */
 .ds-page-header__actions {
   display: flex;
+  max-width: 100%;
+  flex: none;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--ds-space-3);
-  grid-area: actions;
   margin-block: calc(
     (var(--ds-page-header-title-size) * var(--ds-line-height-display) - var(--ds-control-height-md)) / 2
   );
+  margin-inline-start: auto;
+  order: 2;
+}
+
+/* A label never breaks inside its button; the row wraps between buttons instead. */
+.ds-page-header__actions > * {
+  white-space: nowrap;
 }
 
 /*
@@ -248,12 +264,22 @@
    */
   .ds-page-header {
     --ds-page-header-title-size: var(--ds-font-size-heading-xl);
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'top'
-      'title'
-      'desc'
-      'actions';
+    gap: 0;
+  }
+
+  .ds-page-header > * {
+    order: 0;
+  }
+
+  .ds-page-header > .ds-page-eyebrow {
+    margin-bottom: var(--ds-space-2);
+  }
+
+  .ds-page-header__description {
+    margin-top: var(--ds-space-2);
+    padding-inline-end: 0;
   }
 
   /* A 44px target without making the row taller. */
@@ -277,6 +303,7 @@
   .ds-page-header__actions > * {
     min-width: fit-content;
     flex: 1 1 0;
+    white-space: normal;
   }
 
   /*

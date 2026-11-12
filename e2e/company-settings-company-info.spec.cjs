@@ -110,7 +110,7 @@ test.describe('Company Settings Company Profile information compatibility slice'
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
   });
 
-  test('uses a single-column mobile form with wrapping and no overflow @mobile', async ({ page }, testInfo) => {
+  test('keeps the phone form to the card width but MC | DOT and State | Zip, Cancel and Save in a bar at the foot @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openCompanyInformation(page);
@@ -118,31 +118,90 @@ test.describe('Company Settings Company Profile information compatibility slice'
 
     const geometry = await page.evaluate(() => {
       const section = document.querySelector('[data-testid="company-information"]');
+      const box = (name) => section.querySelector(`.ds-form-control[name="${name}"]`).getBoundingClientRect();
       const fields = [...section.querySelectorAll('.ds-form-control')];
-      const actionButtons = [...document.querySelectorAll('button')]
-        .filter((button) => ['Cancel', 'Save Changes'].includes(button.textContent.trim()));
+      const bar = document.querySelector('.ds-page-header__actions');
+      const barBox = bar.getBoundingClientRect();
+      const actionButtons = [...bar.querySelectorAll('button')];
 
       return {
         viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
         documentWidth: document.documentElement.scrollWidth,
         sectionWidth: section.getBoundingClientRect().width,
-        minimumFieldWidth: Math.min(...fields.map((field) => field.getBoundingClientRect().width)),
+        fullWidth: box('companyName').width,
+        fullWidths: ['phone', 'email', 'street', 'city'].map((name) => box(name).width),
+        pairs: [['mcNumber', 'dotNumber'], ['state', 'zip']].map(([a, b]) => ({
+          widths: [box(a).width, box(b).width], sameRow: Math.abs(box(a).top - box(b).top) < 1,
+        })),
         minimumFieldHeight: Math.min(...fields.map((field) => field.getBoundingClientRect().height)),
-        minimumActionHeight: Math.min(...actionButtons.map((button) => button.getBoundingClientRect().height)),
+        bar: {
+          position: getComputedStyle(bar).position,
+          left: barBox.left, width: barBox.width, bottom: barBox.bottom,
+          buttons: actionButtons.map((button) => button.textContent.trim()),
+          minimumActionHeight: Math.min(...actionButtons.map((button) => button.getBoundingClientRect().height)),
+        },
       };
     });
 
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
     expect(geometry.sectionWidth).toBeLessThanOrEqual(geometry.viewportWidth);
-    expect(geometry.minimumFieldWidth).toBeGreaterThan(250);
+    expect(geometry.fullWidth).toBeGreaterThan(300);
+    for (const width of geometry.fullWidths) expect(Math.abs(width - geometry.fullWidth)).toBeLessThan(1);
+    for (const pair of geometry.pairs) {
+      expect(pair.sameRow).toBe(true);
+      for (const width of pair.widths) {
+        expect(width).toBeGreaterThan(140);
+        expect(width).toBeLessThan(geometry.fullWidth / 2);
+      }
+    }
     expect(geometry.minimumFieldHeight).toBeGreaterThanOrEqual(44);
-    expect(geometry.minimumActionHeight).toBeGreaterThanOrEqual(44);
+    // Cancel and Save Changes once, in a bar fixed to the foot of the screen.
+    expect(geometry.bar.position).toBe('fixed');
+    expect(geometry.bar.left).toBe(0);
+    expect(geometry.bar.width).toBe(geometry.viewportWidth);
+    expect(Math.abs(geometry.bar.bottom - geometry.viewportHeight)).toBeLessThan(1);
+    expect(geometry.bar.buttons).toEqual(['Cancel', 'Save Changes']);
+    expect(geometry.bar.minimumActionHeight).toBeGreaterThanOrEqual(44);
+    await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(1);
 
-    const street = page.getByRole('textbox', { name: 'Street' });
-    await street.scrollIntoViewIfNeeded();
-    await expect(street).toBeVisible();
+    // The last field, reached by keyboard, stops above the bar, not under it.
+    const zip = page.getByRole('textbox', { name: 'Zip' });
+    await zip.focus();
+    await expect(zip).toBeVisible();
+    const covered = await page.evaluate(() => {
+      const zipBox = document.querySelector('[data-testid="company-information"] .ds-form-control[name="zip"]').getBoundingClientRect();
+      return zipBox.bottom > document.querySelector('.ds-page-header__actions').getBoundingClientRect().top;
+    });
+    expect(covered).toBe(false);
+
     await page.getByRole('button', { name: 'Cancel' }).click();
     await expect(page.getByRole('button', { name: 'Edit Profile' })).toBeFocused();
+  });
+
+  test('sets Contact Info and HQ Address side by side only where both have room @mobile', async ({ page }, testInfo) => {
+    if (testInfo.project.name.startsWith('mobile')) {
+      await page.setViewportSize({ width: 412, height: 915 });
+      await openCompanyInformation(page);
+      const stacked = await page.evaluate(() => {
+        const [contact, address] = ['Contact Info', 'HQ Address'].map((name) => [...document.querySelectorAll('h2')]
+          .find((heading) => heading.textContent === name).closest('section').getBoundingClientRect());
+        return address.top >= contact.bottom;
+      });
+      expect(stacked).toBe(true);
+      return;
+    }
+    for (const [width, sideBySide] of [[1440, true], [1366, false], [1024, false]]) {
+      await page.setViewportSize({ width, height: 900 });
+      await openCompanyInformation(page);
+      const layout = await page.evaluate(() => {
+        const [contact, address] = ['Contact Info', 'HQ Address'].map((name) => [...document.querySelectorAll('h2')]
+          .find((heading) => heading.textContent === name).closest('section').getBoundingClientRect());
+        return { sameRow: Math.abs(contact.top - address.top) < 1, stacked: address.top >= contact.bottom };
+      });
+      expect(layout.sameRow, `${width}px`).toBe(sideBySide);
+      expect(layout.stacked, `${width}px`).toBe(!sideBySide);
+    }
   });
 
   test('has no serious or critical accessibility violations in edit mode', async ({ page }) => {

@@ -40,7 +40,7 @@ hand.
 | Shape | For |
 |---|---|
 | `underline` (default) | A page-level view switcher in a card or a panel |
-| `variant="segmented"` | A page's views on the canvas, drawn as a white tray of 36px items with the chosen tab dark — the look of a list's segments (`ListToolbar`), so a page's tabs and a list's segments read as one kind of control. A count goes in `badge` (`badge: 6`) and reads muted after the label ("Sent Documents 6"). Icons step aside under 768px, where the tabs make equal rows: two in halves, three in thirds, four in a 2 × 2 grid, more in rows of three, each 44px tall |
+| `variant="segmented"` | A page's views on the canvas, drawn as a white tray of 36px items with the chosen tab dark — the look of a list's segments (`ListToolbar`), so a page's tabs and a list's segments read as one kind of control. A count goes in `badge` (`badge: 6`) and reads muted after the label ("Sent Documents 6"). Icons step aside under 768px, where the tabs make equal rows: two in halves, three in thirds, four in a 2 × 2 grid, six in rows of three, any other number as rows of whole labels, each 44px tall. A tray too wide for its row on a larger screen (E-Docs' four tabs beside the menu on a tablet) takes the same layout, measured on the row (`data-wrapped`), instead of wrapping three and one. Every tab keeps the width of its semibold label, so choosing one never moves the others |
 | `variant="pill"` | A secondary strip *inside* a panel: bordered pills with a full radius, the chosen one on the selected tint with an action-coloured border and text. The campaign audience builder's import-method chooser |
 | `fitted` | A strip that must span a narrow container instead of leaving a ragged gap. The notification popover |
 

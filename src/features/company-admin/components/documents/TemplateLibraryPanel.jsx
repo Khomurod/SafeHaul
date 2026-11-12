@@ -1,7 +1,9 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, Copy, Edit3, FileText, Loader2, Plus, Send, Settings, Trash2 } from '@design-system/icons';
-import { Badge, Button, Card, FormField, IconButton, Input, Select } from '@/design-system/components';
-import { ResponsiveGrid, Stack } from '@/design-system/layouts';
+import { Badge, Button, Card, IconButton, Label, Select } from '@/design-system/components';
+import { Stack } from '@/design-system/layouts';
+import { ListToolbar } from '@/design-system/patterns';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 import {
     TEMPLATE_SORTS,
     formatTimestamp,
@@ -43,8 +45,11 @@ export function TemplateLibraryPanel({
     onCreate,
     duplicatingTemplateId,
 }) {
+    const isMobile = useIsMobile();
     const rawId = useId().replace(/:/g, '');
     const controlsHeadingId = `template-library-controls-${rawId}`;
+    const sortId = `template-library-sort-${rawId}`;
+    const actionSize = isMobile ? 'md' : 'sm';
 
     const visibleTemplates = useMemo(
         () => sortTemplates(searchTemplates(templates, search), sort),
@@ -53,40 +58,49 @@ export function TemplateLibraryPanel({
 
     return (
         <Stack gap="md">
-            <section
-                aria-labelledby={controlsHeadingId}
-                className="rounded-ds-xl border border-ds-border bg-ds-surface p-ds-4"
-            >
-                <div className="mb-ds-3 flex flex-wrap items-center justify-between gap-ds-2">
-                    <h2 id={controlsHeadingId} className="text-ds-body font-bold text-ds-content">
-                        Template library
-                    </h2>
-                    <Button variant="secondary" size="sm" onClick={onCreate}>
-                        <Icon icon={Plus} size="sm" /> New template
-                    </Button>
-                </div>
-                <div className="grid grid-cols-1 gap-ds-3 sm:grid-cols-2">
-                    <FormField label="Search templates">
-                        <Input
-                            type="search"
-                            value={search}
-                            placeholder="Template title"
-                            onChange={(event) => setSearch(event.target.value)}
-                        />
-                    </FormField>
-                    <FormField label="Sort by">
-                        <Select value={sort} onChange={(event) => setSort(event.target.value)}>
-                            {TEMPLATE_SORTS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </Select>
-                    </FormField>
-                </div>
-                <p role="status" className="mt-ds-2 text-ds-xs text-ds-content-secondary">
-                    {templatesLoading
-                        ? 'Loading templates…'
-                        : `Showing ${visibleTemplates.length} of ${templates.length} template${templates.length === 1 ? '' : 's'}.`}
-                </p>
+            {/* One row without a frame: the heading and how many are shown, then
+                the search, Sort by and New template. When they do not fit beside
+                the heading, the tools take a row of their own from the left. */}
+            <section aria-labelledby={controlsHeadingId}>
+                <ListToolbar
+                    placement="page"
+                    lead={(
+                        <div className="flex min-w-0 flex-col">
+                            <h2 id={controlsHeadingId} className="text-ds-heading-md font-semibold text-ds-content">
+                                Template library
+                            </h2>
+                            <p role="status" className="text-ds-xs text-ds-content-secondary">
+                                {templatesLoading
+                                    ? 'Loading templates…'
+                                    : `Showing ${visibleTemplates.length} of ${templates.length} template${templates.length === 1 ? '' : 's'}.`}
+                            </p>
+                        </div>
+                    )}
+                    search={{
+                        label: 'Search templates',
+                        placeholder: 'Template title',
+                        value: search,
+                        onChange: setSearch,
+                    }}
+                    actions={(
+                        <>
+                            {/* On a phone the list takes the row, and New template the next. */}
+                            <div className="flex min-w-0 items-center gap-ds-2 max-md:basis-full">
+                                <Label htmlFor={sortId} className="whitespace-nowrap">Sort by</Label>
+                                <div className="w-[12.5rem] max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                                    <Select id={sortId} value={sort} onChange={(event) => setSort(event.target.value)}>
+                                        {TEMPLATE_SORTS.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </Select>
+                                </div>
+                            </div>
+                            <Button variant="secondary" fullWidth={isMobile} onClick={onCreate}>
+                                <Icon icon={Plus} size="sm" /> New template
+                            </Button>
+                        </>
+                    )}
+                />
             </section>
 
             {templatesLoading ? (
@@ -98,7 +112,7 @@ export function TemplateLibraryPanel({
                     Loading templates
                 </div>
             ) : visibleTemplates.length === 0 ? (
-                <div className="flex flex-col items-center gap-ds-3 rounded-ds-xl border-2 border-dashed border-ds-border bg-ds-surface p-ds-12 text-center">
+                <div className="flex flex-col items-center gap-ds-3 rounded-ds-card border-2 border-dashed border-ds-border bg-ds-surface p-ds-12 text-center">
                     <p className="text-ds-body text-ds-content-secondary">
                         {templates.length === 0
                             ? 'No templates saved yet.'
@@ -111,7 +125,9 @@ export function TemplateLibraryPanel({
                     )}
                 </div>
             ) : (
-                <ResponsiveGrid minItemWidth="320px">
+                // Columns of at least 340px that never stretch a lone card across
+                // the page: three on the 1200px canvas, one on a tablet or a phone.
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] gap-ds-5">
                     {visibleTemplates.map((template) => {
                         // Visible titles render the stored value unchanged; only the
                         // accessible action names fall back, so an untitled template
@@ -121,20 +137,20 @@ export function TemplateLibraryPanel({
                         const duplicable = isTemplateDuplicable(template);
 
                         return (
-                            <Card key={template.id} className="flex h-full flex-col gap-ds-3">
+                            <Card key={template.id} className="flex h-full flex-col gap-ds-5">
                                 <div className="flex items-start gap-ds-3">
                                     <span
                                         aria-hidden="true"
-                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-ds-status-accent-bg text-ds-status-accent-fg"
+                                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-ds-lg bg-ds-status-accent-bg text-ds-status-accent-fg"
                                     >
-                                        <Icon icon={FileText} size="2xl" />
+                                        <Icon icon={FileText} size="xl" />
                                     </span>
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="text-ds-body font-bold text-ds-content [overflow-wrap:anywhere]">
+                                    <div className="flex min-w-0 flex-1 flex-col items-start gap-ds-1">
+                                        <h3 className="text-ds-heading-md font-semibold text-ds-content [overflow-wrap:anywhere]">
                                             {template.title}
                                         </h3>
-                                        <p className="mt-ds-1 flex flex-wrap items-center gap-ds-1">
-                                            <Badge tone="neutral">{template.fields?.length || 0} fields</Badge>
+                                        <p className="flex flex-wrap items-center gap-ds-1">
+                                            <Badge tone="accent">{template.fields?.length || 0} fields</Badge>
                                             {template.updatedAt && (
                                                 <Badge tone="neutral">
                                                     Updated {formatTimestamp(template.updatedAt)}
@@ -152,7 +168,7 @@ export function TemplateLibraryPanel({
                                         <IconButton
                                             variant="ghost"
                                             size="sm"
-                                            className="shrink-0"
+                                            className="-mr-ds-2 -mt-ds-1 shrink-0"
                                             label={`Delete ${actionTitle}`}
                                             onClick={() => onDelete(template.id)}
                                         >
@@ -161,56 +177,61 @@ export function TemplateLibraryPanel({
                                     )}
                                 </div>
 
-                                <div className="mt-auto flex flex-col gap-ds-2">
+                                {/* An even two-by-two grid, in the order Tab takes them. */}
+                                <div className="mt-auto grid grid-cols-2 gap-ds-2">
                                     <Button
                                         variant="primary"
+                                        size={actionSize}
                                         fullWidth
                                         aria-label={`Send ${actionTitle}`}
                                         onClick={() => onSend(template)}
                                     >
                                         <Icon icon={Send} size="sm" /> Send
                                     </Button>
-                                    <div className="grid grid-cols-2 gap-ds-2">
-                                        <Button
-                                            aria-label={`Edit ${actionTitle}`}
-                                            onClick={() => onEdit(template)}
-                                        >
-                                            <Icon icon={Edit3} size="sm" /> Edit
-                                        </Button>
-                                        {/* Only offered when the stored schema can be copied
-                                            safely: a template without its PDF, or carrying a
-                                            field type the editor does not know, would produce
-                                            a duplicate that can never be sent. */}
-                                        <Button
-                                            aria-label={`Duplicate ${actionTitle}`}
-                                            disabled={!duplicable}
-                                            loading={duplicatingTemplateId === template.id}
-                                            title={
-                                                duplicable
-                                                    ? `Duplicate ${actionTitle}`
-                                                    : 'This template cannot be duplicated safely — its file or field types are missing or unsupported.'
-                                            }
-                                            onClick={() => onDuplicate(template)}
-                                        >
-                                            {duplicatingTemplateId !== template.id && (
-                                                <Icon icon={Copy} size="sm" />
-                                            )}
-                                            Duplicate
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            className="col-span-2"
-                                            aria-label={`Configure ${actionTitle}`}
-                                            onClick={() => onConfigure(template)}
-                                        >
-                                            <Icon icon={Settings} size="sm" /> Configure
-                                        </Button>
-                                    </div>
+                                    <Button
+                                        size={actionSize}
+                                        fullWidth
+                                        aria-label={`Edit ${actionTitle}`}
+                                        onClick={() => onEdit(template)}
+                                    >
+                                        <Icon icon={Edit3} size="sm" /> Edit
+                                    </Button>
+                                    {/* Only offered when the stored schema can be copied
+                                        safely: a template without its PDF, or carrying a
+                                        field type the editor does not know, would produce
+                                        a duplicate that can never be sent. */}
+                                    <Button
+                                        size={actionSize}
+                                        fullWidth
+                                        aria-label={`Duplicate ${actionTitle}`}
+                                        disabled={!duplicable}
+                                        loading={duplicatingTemplateId === template.id}
+                                        title={
+                                            duplicable
+                                                ? `Duplicate ${actionTitle}`
+                                                : 'This template cannot be duplicated safely — its file or field types are missing or unsupported.'
+                                        }
+                                        onClick={() => onDuplicate(template)}
+                                    >
+                                        {duplicatingTemplateId !== template.id && (
+                                            <Icon icon={Copy} size="sm" />
+                                        )}
+                                        Duplicate
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size={actionSize}
+                                        fullWidth
+                                        aria-label={`Configure ${actionTitle}`}
+                                        onClick={() => onConfigure(template)}
+                                    >
+                                        <Icon icon={Settings} size="sm" /> Configure
+                                    </Button>
                                 </div>
                             </Card>
                         );
                     })}
-                </ResponsiveGrid>
+                </div>
             )}
         </Stack>
     );

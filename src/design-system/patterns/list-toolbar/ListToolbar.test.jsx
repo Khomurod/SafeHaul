@@ -227,7 +227,7 @@ describe('ListToolbar', () => {
       expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it.each([[2, '2'], [3, '3'], [4, '2'], [6, '3']])('lays %i segments out in rows of %s on a phone', (count, columns) => {
+    it.each([[2, '2'], [3, '3'], [4, '2'], [5, 'wrap'], [6, '3']])('lays %i segments out in rows of %s on a phone', (count, columns) => {
       const items = Array.from({ length: count }, (_, i) => ({ id: `s${i}`, label: `Part ${i + 1}` }));
       render(<ListToolbar placement="page" segments={{ ariaLabel: 'Show', items, value: 's0', onChange: vi.fn() }} />);
 
@@ -357,7 +357,8 @@ describe('ListToolbar', () => {
       expect(unwrapped?.body).toMatch(/flex-wrap:\s*nowrap/);
       // The width the measurement counts the search at is the least the row lets it shrink to.
       const search = RULES.find(({ selector }) => selector === ".ds-list-toolbar[data-placement='page'] .ds-list-toolbar__search");
-      expect(search.body).toMatch(/min-width:\s*236px/);
+      // Its placeholder's width at 14px, so the placeholder is never cut.
+      expect(search.body).toMatch(/min-width:\s*250px/);
     });
 
     it('are never measured in a card strip, which keeps its own wrapping', () => {

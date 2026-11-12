@@ -99,41 +99,58 @@ describe('one fact per cell', () => {
 });
 
 describe('the columns each list shows', () => {
-    const keys = (scope) => buildCandidateColumns({ handlePhoneClick: () => {}, scope }).map((c) => c.key);
-    const column = (scope, key) => buildCandidateColumns({ handlePhoneClick: () => {}, scope }).find((c) => c.key === key);
+    const SCOPES = ['applications', 'company_leads', 'my_leads', 'unassigned_leads'];
+    const columns = (scope) => buildCandidateColumns({ handlePhoneClick: () => {}, scope });
+    const column = (scope, key) => columns(scope).find((c) => c.key === key);
 
-    it('shows Applications every fact, its date headed Applied', () => {
-        expect(keys('applications'))
-            .toEqual(['identity', 'phone', 'status', 'freight', 'state', 'addedDate', 'lastCall', 'assignee']);
+    it('shows every list the same columns: initials, Driver (with the number), Status, Freight · State, the date, Last call, Assignee', () => {
+        for (const scope of SCOPES) {
+            expect(columns(scope).map((c) => c.key))
+                .toEqual(['initials', 'identity', 'status', 'freightState', 'addedDate', 'lastCall', 'assignee']);
+            expect(column(scope, 'freightState').header).toBe('Freight · State');
+        }
         expect(column('applications', 'addedDate').header).toBe('Applied');
-        expect(column('applications', 'identity').width).toBe('lg');
-    });
-
-    it('leaves State out of All leads, which also has its selection column, and Assigned to out of Assigned to me and Unassigned', () => {
-        expect(keys('company_leads')).not.toContain('state');
-        expect(keys('company_leads')).toContain('assignee');
-        for (const scope of ['my_leads', 'unassigned_leads']) {
-            expect(keys(scope)).toEqual(['identity', 'phone', 'status', 'freight', 'state', 'addedDate', 'lastCall']);
+        for (const scope of ['company_leads', 'my_leads', 'unassigned_leads']) {
             expect(column(scope, 'addedDate').header).toBe('Added');
         }
     });
 
-    it("widens a lead list's Driver column for the Stale mark beside the name", () => {
-        expect(column('company_leads', 'identity').width).toBe('xl');
-        expect(column('my_leads', 'identity').width).toBe('xl');
-        expect(column('unassigned_leads', 'identity').width).toBe('xl');
+    it('gives every list the same widths, so moving between the lead tabs never moves a column', () => {
+        const widths = (scope) => columns(scope).map((c) => c.width);
+        for (const scope of SCOPES) {
+            expect(widths(scope)).toEqual(['auto', 'xl', 'lg', 'sm', 'md', 'sm', 'md']);
+        }
     });
 
-    it('fits each list in the 1,134px a 1440px window leaves it, a selection column included where there is one', () => {
-        // `DataTable.css`'s widths, and its selection column.
+    it("fits a lead list with its selection column in a 1366px window's 1,030px", () => {
+        // `DataTable.css`'s widths, its selection column, and the initials
+        // column (`roleCards.css`: the cell padding and a 32px avatar).
         const PX = { xs: 88, sm: 120, md: 144, lg: 176, xl: 220 };
         const SELECTION = 56;
-        const width = (scope, selection) => buildCandidateColumns({ handlePhoneClick: () => {}, scope })
-            .reduce((sum, c) => sum + PX[c.width], selection ? SELECTION : 0);
+        const INITIALS = 16 + 32;
+        const width = (scope, selection) => columns(scope)
+            .reduce((sum, c) => sum + (c.mobileRole === 'lead' ? INITIALS : PX[c.width]), selection ? SELECTION : 0);
 
-        expect(width('applications', false)).toBe(1112);
-        expect(width('company_leads', true)).toBe(1124);
-        expect(width('my_leads', false)).toBe(1036);
-        expect(width('unassigned_leads', true)).toBe(1092);
+        expect(width('applications', false)).toBe(972);
+        expect(width('my_leads', false)).toBe(972);
+        expect(width('company_leads', true)).toBe(1028);
+        expect(width('unassigned_leads', true)).toBe(1028);
+    });
+
+    it('lays a phone card out by role: initials, the Driver as its title, the status corner, inline facts, the assignee line', () => {
+        const roles = Object.fromEntries(columns('applications').map((c) => [c.key, c.mobileRole]));
+        expect(roles).toEqual({
+            initials: 'lead',
+            identity: undefined,
+            status: 'status',
+            freightState: 'meta',
+            addedDate: 'meta',
+            lastCall: 'meta',
+            assignee: 'line',
+        });
+        expect(column('applications', 'identity').rowHeader).toBe(true);
+        expect(column('applications', 'addedDate').mobileLabel).toBe('Applied');
+        expect(column('company_leads', 'addedDate').mobileLabel).toBe('Added');
+        expect(column('my_leads', 'lastCall').mobileLabel).toBe('Last call:');
     });
 });

@@ -67,6 +67,33 @@ describe('the list', () => {
         expect(within(team).getByText('By Rita Recruiter')).toBeInTheDocument();
         const reply = within(table).getByRole('rowheader', { name: '(555) 000-0002' }).closest('tr');
         expect(within(reply).getByText('From a STOP reply')).toBeInTheDocument();
+        // The date first, then who added it; the actions header is visible.
+        const added = within(team).getByText('By Rita Recruiter').closest('td');
+        expect(added.textContent.indexOf('By Rita Recruiter')).toBeGreaterThan(0);
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+            .toEqual(['Number', 'Reason', 'Added', 'Actions']);
+    });
+
+    it('fits its columns to the box it is in: Added a step narrower before the table scrolls', async () => {
+        const original = Element.prototype.getBoundingClientRect;
+        const columnsAt = async (width, props) => {
+            Element.prototype.getBoundingClientRect = () => ({ width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 });
+            const { unmount } = await renderSection(props);
+            const table = screen.getByRole('table', { name: 'Opted-out numbers' });
+            const added = within(table).getByRole('columnheader', { name: 'Added' }).getAttribute('data-width');
+            const minWidth = table.getAttribute('data-min-width');
+            unmount();
+            return `${added} ${minWidth}`;
+        };
+        try {
+            expect(await columnsAt(774)).toBe('xl none');
+            expect(await columnsAt(534)).toBe('lg none');
+            expect(await columnsAt(524)).toBe('xl standard');
+            // Without Remove the table has its actions' room to spare.
+            expect(await columnsAt(480, { canRemove: false })).toBe('lg none');
+        } finally {
+            Element.prototype.getBoundingClientRect = original;
+        }
     });
 
     it('says when there are more numbers than it shows', async () => {
@@ -102,14 +129,16 @@ describe('adding a number', () => {
     // Side by side on a wide screen, stacked on a phone. Both are design-system
     // fields, whose rows pack at the top (FormControls.test.jsx), so the phone
     // hint wrapping to a second line no longer pushes Reason's input down.
-    it('lays out Phone number and Reason as two design-system fields in one row', async () => {
+    it('lays out Phone number, Reason and Add number as one row of the card\'s top strip', async () => {
         await renderSection();
         const phone = screen.getByLabelText(/Phone number/).closest('.ds-form-field');
         const reason = screen.getByLabelText(/Reason/).closest('.ds-form-field');
         expect(phone).not.toBeNull();
         expect(reason).not.toBeNull();
         expect(phone.parentElement).toBe(reason.parentElement);
-        expect(phone.parentElement).toHaveClass('grid', 'sm:grid-cols-2');
+        expect(phone.parentElement.tagName).toBe('FORM');
+        expect(phone.parentElement).toHaveClass('grid', 'md:grid-cols-2', 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]');
+        expect(phone.parentElement).toContainElement(screen.getByRole('button', { name: 'Add number' }));
     });
 
     it('sends the number and the reason, then clears the form and shows the reloaded list', async () => {

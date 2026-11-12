@@ -38,7 +38,7 @@ one of them wrong. Cards that each picked their own `p-4` / `p-6` /
 | Part | Look |
 |---|---|
 | label | sentence case, `--ds-font-size-body`, medium, `content-secondary`; **wraps** |
-| glyph | bare, top-right, `content-muted`, sized by the slot (`--ds-icon-size-md`); decorative |
+| glyph | bare, top-right in the label's line only (the label leaves room for it; the value and note use the full width), `content-muted`, sized by the slot (`--ds-icon-size-md`); decorative |
 | value | `--ds-font-size-heading-2xl` (30px) bold, `-0.02em`; 24px under 768px; breaks rather than overflows |
 | `description` | optional note under the value, `--ds-font-size-xs`, `content-muted`, `text-wrap: balance` |
 | tone | a 4px bar on the left edge, inset `--ds-space-4` from the top and bottom |

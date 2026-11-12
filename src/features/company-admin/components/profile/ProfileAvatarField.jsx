@@ -14,6 +14,11 @@ import { FieldMessage, FileInput } from '@/design-system/components';
  * the field rather than on a trigger — never a hidden input driven by a `Button`
  * calling `.click()` on it.
  *
+ * "Profile photo" shows above the preview and the picker, as every field's
+ * label does, and names the group they form. The picker's own label stays
+ * hidden and stays its accessible name, so the input is still announced as
+ * "Profile photo" and there is still exactly one `<label>`: the control.
+ *
  * `loading` belongs to `FileInput`, which is the right place for it: an upload
  * picker is exactly the control that has to say it is busy AND refuse a second
  * file while the first is in flight. The `role="status"` region lives there too
@@ -34,48 +39,52 @@ export function ProfileAvatarField({
     const rawId = useId().replace(/:/g, '');
     const inputId = `profile-avatar-input-${rawId}`;
     const helpId = `profile-avatar-help-${rawId}`;
+    const groupLabelId = `profile-avatar-label-${rawId}`;
 
     return (
-        <div className="flex flex-wrap items-center gap-ds-4">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-ds-full border border-ds-border bg-ds-surface-subtle">
-                {photoURL ? (
-                    <img
-                        src={photoURL}
-                        alt="Profile photo"
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                    />
-                ) : (
-                    <span
-                        role="img"
-                        aria-label="No profile photo set"
-                        className="flex h-full w-full items-center justify-center bg-ds-action-primary text-ds-content-inverse text-ds-heading-sm font-bold"
-                    >
-                        {initials}
-                    </span>
-                )}
-            </div>
+        <div role="group" aria-labelledby={groupLabelId} className="grid min-w-0 gap-ds-2">
+            <span id={groupLabelId} className="text-ds-sm font-semibold text-ds-content">
+                Profile photo
+            </span>
+            <div className="flex min-w-0 items-start gap-ds-4">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-ds-full border border-ds-border bg-ds-surface-subtle">
+                    {photoURL ? (
+                        <img
+                            src={photoURL}
+                            alt="Profile photo"
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                        />
+                    ) : (
+                        <span
+                            role="img"
+                            aria-label="No profile photo set"
+                            className="flex h-full w-full items-center justify-center bg-ds-brand-primary text-ds-heading-lg font-bold text-ds-content-inverse"
+                        >
+                            {initials}
+                        </span>
+                    )}
+                </div>
 
-            <div className="flex flex-col items-start gap-ds-2">
-                {/* The preview beside it already says what this field is, so the
-                    label is hidden — but it stays the input's accessible name. */}
-                <FileInput
-                    id={inputId}
-                    label="Profile photo"
-                    labelHidden
-                    accept="image/*"
-                    loading={uploading}
-                    aria-describedby={helpId}
-                    onChange={onFileSelect}
-                    buttonLabel={uploading
-                        ? 'Uploading…'
-                        : photoURL
-                            ? 'Change photo'
-                            : 'Upload photo'}
-                />
-                <FieldMessage id={helpId} tone="help">
-                    Accepts image files under 2 MB.
-                </FieldMessage>
+                <div className="flex min-w-0 flex-col items-start gap-ds-2">
+                    <FileInput
+                        id={inputId}
+                        label="Profile photo"
+                        labelHidden
+                        accept="image/*"
+                        loading={uploading}
+                        aria-describedby={helpId}
+                        onChange={onFileSelect}
+                        buttonLabel={uploading
+                            ? 'Uploading…'
+                            : photoURL
+                                ? 'Change photo'
+                                : 'Upload photo'}
+                    />
+                    <FieldMessage id={helpId} tone="help">
+                        Accepts image files under 2 MB.
+                    </FieldMessage>
+                </div>
             </div>
         </div>
     );

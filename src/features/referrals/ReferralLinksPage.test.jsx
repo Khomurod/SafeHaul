@@ -5,7 +5,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({
     links: {},
@@ -159,5 +159,88 @@ describe('Referral Links', () => {
         const row = (await screen.findByText('Deactivated')).closest('tr');
         expect(within(row).queryByRole('button', { name: /Copy/ })).toBeNull();
         expect(within(row).queryByRole('button', { name: /Deactivate/ })).toBeNull();
+    });
+
+    it('says whose links the list holds at its foot, and how a link works after it', async () => {
+        render(<ReferralLinksPage />);
+        const table = (await screen.findByRole('table', { name: 'Referral links' }));
+        await screen.findByText('Rita Referrer');
+
+        // The scope sentence is the table card's last row, not part of the help.
+        const scope = screen.getByText('You see the links you made.');
+        expect(table.closest('.ds-card')).toContainElement(scope);
+        // The help follows the links, a heading and three numbered steps.
+        const help = screen.getByRole('heading', { level: 2, name: 'How it works' });
+        expect(table.compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        const steps = within(help.closest('section')).getAllByRole('listitem');
+        expect(steps.map((step) => step.textContent)).toEqual([
+            '1Create a link with the referring driver’s name.',
+            '2Copy it and send it to them to share.',
+            '3A driver who opens it fills in the full application or a one-minute interest form. You are notified and they are assigned to you.',
+        ]);
+        // Under 1440px the day a link was made, and by whom, reads under its code.
+        const row = screen.getByText('Rita Referrer').closest('tr');
+        expect(within(row.querySelector('[data-label="Link"]')).getByText('by Riley Recruiter')).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Created' })).toBeNull();
+    });
+
+    describe('from 1440px', () => {
+        const realMatchMedia = window.matchMedia;
+        beforeEach(() => {
+            window.matchMedia = (query) => ({ ...realMatchMedia(query), matches: query.startsWith('(min-width') });
+        });
+        afterEach(() => { window.matchMedia = realMatchMedia; });
+
+        it('gives the day a link was made, and by whom, a column of its own', async () => {
+            render(<ReferralLinksPage />);
+            const row = (await screen.findByText('Rita Referrer')).closest('tr');
+
+            expect(screen.getByRole('columnheader', { name: 'Created' })).toBeInTheDocument();
+            expect(row.querySelector('[data-label="Link"]')).toHaveTextContent(/^ABCD2345$/);
+            const created = row.querySelector('[data-label="Created"]');
+            expect(within(created).getByText('Oct 20, 2026')).toBeInTheDocument();
+            expect(within(created).getByText('by Riley Recruiter')).toBeInTheDocument();
+            // Once on the page.
+            expect(screen.getAllByText('by Riley Recruiter')).toHaveLength(1);
+        });
+    });
+
+    describe('on a phone', () => {
+        const realMatchMedia = window.matchMedia;
+        beforeEach(() => {
+            window.matchMedia = (query) => ({ ...realMatchMedia(query), matches: query === '(max-width: 767px)' });
+        });
+        afterEach(() => { window.matchMedia = realMatchMedia; });
+
+        it('makes each link a card: the code with its day and maker, each number under its name, and both actions', async () => {
+            render(<ReferralLinksPage />);
+            const row = (await screen.findByRole('rowheader', { name: /^Rita Referrer/ })).closest('[role="row"]');
+
+            expect(within(row).getByText('Oct 20, 2026 by Riley Recruiter')).toBeInTheDocument();
+            const term = (label) => within(row).getByText(label, { selector: 'dt' });
+            await waitFor(() => expect(term('Leads').nextElementSibling).toHaveTextContent(/^3$/));
+            expect(term('Applications').nextElementSibling).toHaveTextContent(/^2$/);
+            expect(term('Hired').nextElementSibling).toHaveTextContent(/^1$/);
+            expect(within(row).getByRole('button', { name: 'Copy the link for Rita Referrer' })).toBeInTheDocument();
+            expect(within(row).getByRole('button', { name: 'Deactivate the link for Rita Referrer' })).toBeInTheDocument();
+            // Both share the card's last line, its actions.
+            const actions = within(row).getByRole('button', { name: 'Copy the link for Rita Referrer' }).closest('[role="cell"]');
+            expect(actions).toHaveAttribute('data-mobile-role', 'actions');
+            expect(actions).toContainElement(within(row).getByRole('button', { name: 'Deactivate the link for Rita Referrer' }));
+        });
+
+        it('ends a switched-off link\'s card at what it brought in, with no empty row of actions', async () => {
+            store.links.ABCD2345 = { ...MINE, active: false, deactivatedAt: at('2026-10-22T12:00:00Z') };
+            render(<ReferralLinksPage />);
+            const row = (await screen.findByRole('rowheader', { name: /^Rita Referrer/ })).closest('[role="row"]');
+
+            expect(within(row).queryByRole('button')).toBeNull();
+            // The actions cell draws nothing, and the design system leaves an
+            // empty actions cell out of the card.
+            const cells = within(row).getAllByRole('cell');
+            expect(cells.at(-1)).toHaveAttribute('data-mobile-role', 'actions');
+            expect(cells.at(-1)).toBeEmptyDOMElement();
+            expect(cells.at(-1)).toHaveAttribute('data-mobile-empty');
+        });
     });
 });

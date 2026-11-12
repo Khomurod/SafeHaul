@@ -1,6 +1,6 @@
 import { contractViolation } from '../../contract';
 const ALIGNMENTS = new Set(['start', 'end']);
-const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
+const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', 'actions']);
 const SORT_DIRECTIONS = new Set(['asc', 'desc']);
 const SORT_LABELS = Object.freeze({ asc: 'Ascending', desc: 'Descending' });
 /**
@@ -84,6 +84,14 @@ export function defineTableColumns(columns) {
       mobileLabel = undefined;
     }
 
+    // A row header that draws its own `sm` avatar before its text (a person
+    // cell); a row detail lines its words up with that text.
+    let leadingAvatar = Boolean(column.leadingAvatar);
+    if (leadingAvatar && !column.rowHeader) {
+      contractViolation(`DataTable column "${column.key}" sets leadingAvatar, which only a row header (rowHeader: true) may.`);
+      leadingAvatar = false;
+    }
+
     return [Object.freeze({
       ...column,
       align,
@@ -91,6 +99,7 @@ export function defineTableColumns(columns) {
       mobileLabel,
       mobileRole,
       sortable,
+      leadingAvatar,
       rowHeader: Boolean(column.rowHeader),
       stopPropagation: Boolean(column.stopPropagation),
       truncate: Boolean(column.truncate),

@@ -1,0 +1,115 @@
+/*
+ * ROW DETAILS for `DataTable` (`getRowDetail`, `rowDetail.jsx`).
+ *
+ * In a table a detail is a row of its own under its record: one cell across
+ * every column, on its tone's tint, with no divider between the record and its
+ * detail — the divider runs under the detail instead. Its glyph and words start
+ * where the row header's text does: after the checkbox column (or its reserved
+ * place), after a `lead` avatar column, and after the avatar a row header draws
+ * itself (`leadingAvatar`), each with the cell's own padding.
+ *
+ * On a card laid out by role it is a line of the card, after the `line` items
+ * and before the actions: a tinted block across the card's text column. A
+ * label-and-value card ends with it, as the card's last block.
+ */
+
+.ds-data-table {
+  --ds-table-detail-gutter: 0px;
+  --ds-table-detail-lead: 0px;
+  --ds-table-detail-avatar: 0px;
+}
+
+.ds-data-table:is([data-has-selection], [data-reserve-selection]) {
+  --ds-table-detail-gutter: var(--ds-table-selection-width);
+}
+
+.ds-data-table[data-mobile-roles][data-mobile-lead] {
+  --ds-table-detail-lead: calc(var(--ds-table-cell-padding-inline) + var(--ds-avatar-size-sm));
+}
+
+.ds-data-table[data-row-header-avatar] {
+  --ds-table-detail-avatar: calc(var(--ds-avatar-size-sm) + var(--ds-space-3));
+}
+
+/* The record and its detail read as one: the divider goes under the detail. */
+.ds-data-table tbody > tr[data-has-detail] > * {
+  border-bottom: 0;
+}
+
+.ds-data-table tbody > tr.ds-data-table__detail-row > td.ds-data-table__detail {
+  height: auto;
+  padding-block: var(--ds-space-2);
+  padding-inline: calc(
+      var(--ds-table-detail-gutter)
+      + var(--ds-table-detail-lead)
+      + var(--ds-table-detail-avatar)
+      + var(--ds-table-cell-padding-inline)
+    )
+    var(--ds-table-cell-padding-inline);
+}
+
+.ds-data-table__detail[data-detail-tone='neutral'] {
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-content-secondary);
+}
+
+.ds-data-table__detail[data-detail-tone='warning'] {
+  background: var(--ds-table-row-warning-bg);
+  color: var(--ds-color-status-warning-fg);
+}
+
+.ds-data-table__detail[data-detail-tone='danger'] {
+  background: var(--ds-table-row-danger-bg);
+  color: var(--ds-color-status-danger-fg);
+}
+
+.ds-data-table__detail-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-font-size-body);
+  line-height: var(--ds-line-height-body);
+}
+
+/* Centred on the first line of the words beside it. */
+.ds-data-table__detail-glyph {
+  margin-top: calc((var(--ds-line-height-body) * 1em - var(--ds-icon-size-md)) / 2);
+}
+
+.ds-data-table__detail-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+@media (max-width: 767px) {
+  /* A label-and-value card: the detail is its last block, the card's edge under it. */
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr[data-has-detail] > :last-child {
+    border-bottom: 0;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr.ds-data-table__detail-row > td.ds-data-table__detail {
+    padding: var(--ds-space-3) var(--ds-space-4);
+  }
+
+  /* A card by role: a line of the card, after its `line` items, before its actions. */
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > td.ds-data-table__detail {
+    flex-basis: 100%;
+    order: 5;
+    margin-top: var(--ds-space-3);
+    border-radius: var(--ds-radius-md);
+    padding: var(--ds-space-2) var(--ds-space-3);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > td.ds-data-table__detail[data-detail-tone='neutral'] {
+    background: var(--ds-color-surface-subtle);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > td.ds-data-table__detail[data-detail-tone='warning'] {
+    background: var(--ds-table-row-warning-bg);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > td.ds-data-table__detail[data-detail-tone='danger'] {
+    background: var(--ds-table-row-danger-bg);
+  }
+}

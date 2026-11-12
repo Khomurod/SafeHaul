@@ -73,15 +73,16 @@ placement or look takes its default.
 
 - **`page`**: no surface. The segments are the segmented tray
   (`components/tabs/segmentedGroup.css`, shared with `TabList` and `TabNav`).
-  The tools are, in order, the search (240px to grow, between 236px and 320px),
-  the switch in a bordered box of the control height, Filters, then the
-  actions, ending on the table's right edge. When they do not fit beside the
+  The tools are, in order, the search (240px to grow, between 250px — its
+  placeholder — and 320px), the switch in a bordered box of the control height,
+  Filters, then the actions, ending on the table's right edge; the row's parts
+  are 8px apart. When they do not fit beside the
   scope and segments they take a row of their own, starting at the left with
   the search growing — never a group hanging at the right under the segments.
   That is measured on the row itself (`useToolsWrap`, a `ResizeObserver`, which
   sets `data-wrapped`), not guessed from the window width, so a list beside a
   collapsed sidebar keeps one row. Until it is set the row never wraps on its
-  own: the search gives way down to its 236px first, the width the measurement
+  own: the search gives way down to its 250px first, the width the measurement
   counts. The open filters are a surface of their own
   under the row. Put 16px between the row and the table card (`Stack gap="md"`).
 - **`card`**: the top strip of the list's `Card padding="none"`, at least 64px,
@@ -96,11 +97,13 @@ placement or look takes its default.
 
 Every option stays in view and every target is at least 44px tall. The scope
 and the segments come first, wrapping into equal rows (two in halves, three in
-thirds, four in a 2 × 2 grid, more in rows of three; pills wrap and fill their
-rows). Then the tools, row by row in the order they are written: the search
-with Filters beside it; or, when a switch follows the search, the search on a
-row of its own and the switch beside Filters on the next; then any actions.
-Under 384px the search always takes its row alone. A card strip with segments
+thirds, four in a 2 × 2 grid, six in rows of three, any other number as rows of
+whole labels; pills wrap and fill their rows). Then the tools, row by row in
+the order they are written: the search with Filters beside it; or, when a
+switch follows the search, the search on a row of its own and the switch beside
+Filters on the next; then any actions. A search with nothing after it takes the
+whole row. Under 420px the search always takes its row alone, so its
+placeholder is never cut. A card strip with segments
 keeps its switch on a row above the search and Filters.
 
 Tab follows the order the controls are written in (the search, the switch,

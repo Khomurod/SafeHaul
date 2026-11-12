@@ -528,9 +528,9 @@ it does:
 | Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5) |
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
 | Navigation and external links; tab strip; tab strip of links (`TabNav`, views with their own address: the Leads tabs; **Needs review**: no 1440/412 or visual-contract review yet); single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
-| Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
+| Interactive pill / chip; person or organisation disc; selectable record card (also the rows of one card, `frame="row"`: the settings menu) | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
 | Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
-| Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |
+| Section rail (page and step; an item's description line is drawn beside its button, so its visible text stays its name — WCAG 2.5.3); status notice / callout | `components/section-navigation`; `components/notice` |
 | Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email and Automated texts; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 

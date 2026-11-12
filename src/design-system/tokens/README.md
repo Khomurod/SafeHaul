@@ -34,6 +34,8 @@ token.
 - **The company frame keeps its blue.** `--ds-color-navigation-accent` is the
   sidebar's active item and group glyph, its logo tile and the signed-in
   person's disc (`Avatar tone="navigation"`). Nothing outside the frame reads it.
+- **Progress stays blue.** `--ds-color-progress` (blue-600) fills an `info`
+  `ProgressBar`: how far something has got is information, not an action.
 - **`--ds-color-brand-primary` is safe as text** on `surface` and `canvas` (the
   page eyebrow). The two `brand-deep-*` steps are interface colours derived from
   the mark, not part of it: the logo, loader and favicon never draw them.

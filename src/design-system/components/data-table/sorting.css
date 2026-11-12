@@ -40,19 +40,27 @@
   opacity: 0;
 }
 
-/* An unsorted column shows the order a press would ask for, when asked. */
+/*
+ * Pointed at or focused, a sortable header darkens to say it can be pressed,
+ * and an unsorted one shows the order a press would ask for.
+ */
+.ds-data-table__sort:hover,
+.ds-data-table__sort:focus-visible {
+  color: var(--ds-color-content);
+}
+
 .ds-data-table__sort:hover > svg,
 .ds-data-table__sort:focus-visible > svg {
   opacity: 1;
 }
 
-/* The sorted column always shows its direction, in the label's own colour. */
-.ds-data-table__sort[data-active] {
-  color: var(--ds-color-content);
-}
-
+/*
+ * The sorted column always shows its direction, in the label's own colour: at
+ * rest it is the colour of every other header, so the arrow alone says which
+ * column orders the list.
+ */
 .ds-data-table__sort[data-active] > svg {
-  color: var(--ds-color-content);
+  color: inherit;
   opacity: 1;
 }
 

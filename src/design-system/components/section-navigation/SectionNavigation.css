@@ -75,10 +75,17 @@
     box-shadow var(--ds-duration-fast) var(--ds-ease-standard);
 }
 
-/* The current item keeps its tint under the pointer; hover marks the others. */
+/*
+ * The current item keeps its tint under the pointer; hover marks the others.
+ * A described item's fill belongs to its whole row (`::before`, below), so its
+ * button — the first line only — stays clear.
+ */
 .ds-section-navigation__item:hover:not(:disabled):not([data-current='true']) {
-  background: var(--ds-color-surface-hover);
   color: var(--ds-color-content);
+}
+
+.ds-section-navigation__item:not([data-described]):hover:not(:disabled):not([data-current='true']) {
+  background: var(--ds-color-surface-hover);
 }
 
 /*
@@ -88,8 +95,11 @@
  * (below), where the tint and the navy are both replaced.
  */
 .ds-section-navigation__item[data-current='true'] {
-  background: var(--ds-color-surface-selected);
   color: var(--ds-color-action-primary);
+}
+
+.ds-section-navigation__item[data-current='true']:not([data-described]) {
+  background: var(--ds-color-surface-selected);
 }
 
 .ds-section-navigation__item[data-current='true'] .ds-section-navigation__label {
@@ -122,37 +132,109 @@
 
 /*
  * `item.description`: a second line under the label, in the label's column.
- * The glyph spans both lines and sits level with the first; the line wraps
- * (never cut) and stays muted on the current item, as C2 draws it.
- * `font-weight: normal` rather than a weight token: the button is medium, the
- * line is body text, and the scale has no regular step, deliberately.
+ *
+ * The line is the button's SIBLING in the `<li>`, so the button's visible text
+ * is exactly its name (WCAG 2.5.3). The row still acts as one control:
+ *   - the button's `::before` is stretched over the whole `<li>` (the button is
+ *     not positioned, the `<li>` is), so a click anywhere on the row — the line
+ *     included, which lets the pointer through — is a click on the button;
+ *   - that `::before` is the row's box: it carries the hover and current fill
+ *     and the focus ring, so both cover both lines;
+ *   - no `z-index` puts it under the text: it is the FIRST positioned box in
+ *     the row's tree order, and the glyph, label, status and line are
+ *     positioned after it, so they paint over it. `isolation` on the `<li>`
+ *     keeps that order inside the row.
+ * The button keeps the row's top and side insets; the `<li>` adds the bottom
+ * one under the line, so the row measures what it did with the line inside.
+ * The glyph is 16px (C2), level with the first line; the line wraps (never
+ * cut) and stays muted on the current item. `font-weight: normal` rather than a
+ * weight token: the button is medium, the line is body text, and the scale has
+ * no regular step, deliberately.
  */
+.ds-section-navigation__list-item[data-described] {
+  position: relative;
+  isolation: isolate;
+  padding-bottom: var(--ds-space-2);
+}
+
 .ds-section-navigation__item[data-described] {
+  min-height: 0;
   align-items: start;
+  padding-bottom: 0;
 }
 
 .ds-section-navigation__item[data-described] .ds-section-navigation__icon {
-  grid-row: 1 / span 2;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
+/* Positioned after the row's box in tree order, so painted over it. */
+.ds-section-navigation__item[data-described] > .ds-section-navigation__icon,
+.ds-section-navigation__item[data-described] > .ds-section-navigation__label,
+.ds-section-navigation__item[data-described] > .ds-section-navigation__status {
+  position: relative;
+}
+
+.ds-section-navigation__item[data-described]::before {
+  position: absolute;
+  inset: 0;
+  border-left: 3px solid transparent;
+  border-radius: var(--ds-radius-md);
+  content: '';
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-section-navigation__item[data-described]:hover:not(:disabled):not([data-current='true'])::before {
+  background: var(--ds-color-surface-hover);
+}
+
+.ds-section-navigation__item[data-described][data-current='true']::before {
+  background: var(--ds-color-surface-selected);
+}
+
+/* The ring goes round the row, not round its first line. */
+.ds-section-navigation__item[data-described]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.ds-section-navigation__item[data-described]:focus-visible::before {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  box-shadow: var(--ds-focus-ring);
+}
+
+/*
+ * The inline start is the button's: 3px edge, inset, glyph column, gap.
+ * Positioned so it paints over the row's box, which comes first in tree order.
+ */
 .ds-section-navigation__description {
-  grid-row: 2;
-  grid-column: 2;
+  position: relative;
+  display: block;
   min-width: 0;
+  padding-inline: calc(3px + var(--ds-space-3) + 20px + var(--ds-space-3)) var(--ds-space-3);
   color: var(--ds-color-content-muted);
   font-size: var(--ds-font-size-xs);
   font-weight: normal;
   line-height: var(--ds-line-height-tight);
   overflow-wrap: anywhere;
   text-wrap: pretty;
+  pointer-events: none;
+}
+
+.ds-section-navigation__item:disabled + .ds-section-navigation__description {
+  opacity: var(--ds-opacity-disabled);
 }
 
 @media (forced-colors: active) {
+  .ds-section-navigation__item[data-described]::before,
   .ds-section-navigation__item {
     border-left-color: Canvas;
   }
 
+  /* A described row's bar runs down both lines: the row's box carries it too. */
+  .ds-section-navigation__item[data-described][data-current='true']::before,
   .ds-section-navigation__item[data-current='true'] {
     border-left-color: Highlight;
   }
@@ -181,6 +263,11 @@
     column-gap: var(--ds-space-2);
     padding-inline: var(--ds-space-2);
   }
+
+  .ds-section-navigation[data-mobile-layout='grid']
+    .ds-section-navigation__description {
+    padding-inline: calc(3px + var(--ds-space-2) + 20px + var(--ds-space-2)) var(--ds-space-2);
+  }
 }
 
 @media (max-width: 359px) {
@@ -191,7 +278,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ds-section-navigation__item {
+  .ds-section-navigation__item,
+  .ds-section-navigation__item[data-described]::before {
     transition: none;
   }
 }
@@ -252,6 +340,13 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.ds-section-navigation__item:not(:has(> .ds-section-navigation__icon)) .ds-section-navigation__description {
-  grid-column: 1;
+.ds-section-navigation__list-item:not(:has(.ds-section-navigation__icon)) > .ds-section-navigation__description {
+  padding-inline-start: calc(3px + var(--ds-space-3));
+}
+
+@media (max-width: 767px) {
+  .ds-section-navigation[data-mobile-layout='grid']
+    .ds-section-navigation__list-item:not(:has(.ds-section-navigation__icon)) > .ds-section-navigation__description {
+    padding-inline-start: calc(3px + var(--ds-space-2));
+  }
 }

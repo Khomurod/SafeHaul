@@ -36,6 +36,8 @@
  * With `DataTable` selection, the checkbox column is first and the identifying
  * column second: both pin, the second offset by `--ds-table-selection-width`,
  * so a bulk action stays reachable and the row label stays readable at once.
+ * A reserved checkbox place (`reserveSelection`) pins the same way, so the
+ * table scrolls exactly as its sibling with checkboxes does.
  * A leading avatar column (`lead`) is skipped: the column after it pins.
  *
  * A state row (`<td colSpan>`) is never pinned: it already spans the table, and
@@ -51,21 +53,21 @@
 }
 
 .ds-data-table[data-pin-first-column] thead > tr > :first-child,
-.ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2) {
+.ds-data-table[data-pin-first-column]:is([data-has-selection], [data-reserve-selection]) thead > tr > :nth-child(2) {
   position: sticky;
   left: 0;
   z-index: var(--ds-z-layer-2);
 }
 
 .ds-data-table[data-pin-first-column] tbody > tr > :first-child:not([colspan]),
-.ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2) {
+.ds-data-table[data-pin-first-column]:is([data-has-selection], [data-reserve-selection]) tbody > tr > :nth-child(2) {
   position: sticky;
   left: 0;
   z-index: var(--ds-z-layer-1);
 }
 
-.ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2),
-.ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2) {
+.ds-data-table[data-pin-first-column]:is([data-has-selection], [data-reserve-selection]) thead > tr > :nth-child(2),
+.ds-data-table[data-pin-first-column]:is([data-has-selection], [data-reserve-selection]) tbody > tr > :nth-child(2) {
   left: var(--ds-table-selection-width);
 }
 
@@ -94,15 +96,15 @@
   z-index: var(--ds-z-layer-1);
 }
 
-.ds-data-table[data-pin-first-column][data-mobile-roles][data-mobile-lead][data-has-selection] :is(thead, tbody) > tr > [data-mobile-role='lead'] + * {
+.ds-data-table[data-pin-first-column][data-mobile-roles][data-mobile-lead]:is([data-has-selection], [data-reserve-selection]) :is(thead, tbody) > tr > [data-mobile-role='lead'] + * {
   left: var(--ds-table-selection-width);
 }
 
 @media (max-width: 767px) {
-  .ds-data-table[data-pin-first-column]:not([data-has-selection]) thead > tr > :first-child::after,
-  .ds-data-table[data-pin-first-column]:not([data-has-selection]) tbody > tr > :first-child:not([colspan])::after,
-  .ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2)::after,
-  .ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2)::after {
+  .ds-data-table[data-pin-first-column]:not([data-has-selection], [data-reserve-selection]) thead > tr > :first-child::after,
+  .ds-data-table[data-pin-first-column]:not([data-has-selection], [data-reserve-selection]) tbody > tr > :first-child:not([colspan])::after,
+  .ds-data-table[data-pin-first-column]:is([data-has-selection], [data-reserve-selection]) thead > tr > :nth-child(2)::after,
+  .ds-data-table[data-pin-first-column]:is([data-has-selection], [data-reserve-selection]) tbody > tr > :nth-child(2)::after {
     content: '';
     position: absolute;
     top: 0;

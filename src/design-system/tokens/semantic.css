@@ -84,6 +84,10 @@
      exactly as it did; nothing outside the frame reads it. */
   --ds-color-navigation-accent: var(--ds-color-blue-600);
 
+  /* A progress bar's fill: how far something has got is information, not an
+     action, so it keeps the blue C2 draws rather than the action navy. */
+  --ds-color-progress: var(--ds-color-blue-600);
+
   /*
    * Actions. The brand navy is the primary action colour (owner, C2 redesign):
    * white on it measures 9.4:1, on its hover step 12.2:1. Links

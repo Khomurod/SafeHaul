@@ -36,6 +36,11 @@ content.
   transparent, and in forced colours it becomes `Highlight` (the others
   `Canvas`), where the tint and the navy are both replaced. Hover tints only the
   items that are not current.
+- **Kept on the scale against the C2 render**: 8px card padding and 12px insets
+  (C2 10px, off the spacing scale), a semibold current label (C2 500 — the
+  weight is the cue that is not a colour), `content-muted` (slate-600) glyphs
+  (C2 slate-500, which `content-muted` deliberately is not), and 4px
+  between items (C2 none).
 - **An item with no glyph has no glyph column.** Before, its label was placed in
   the 20px track and broke after every second letter (the catalog's `Default`
   story showed it); with no glyph the template is one track (two with a status).
@@ -48,17 +53,42 @@ content.
 
 A second line under the label, in the label's column: 12px, `content-muted`
 (also on the current item), `line-height` tight, `text-wrap: pretty`, wrapping
-rather than cut. The glyph spans both lines, level with the first.
+rather than cut. A described rail draws the lighter **16px glyph** (C2), level
+with the first line, in the same 20px column; a rail without descriptions keeps
+its 20px glyph.
 
-It is the item's **description, not part of its name**. The button is named by
-its label (and a step's status suffix) through `aria-labelledby`, and the line is
-linked with `aria-describedby`, so the item is still found and announced as
-"Team" — by a speech-input user and by every caller and test that looks it up —
-followed by its description. An item without one renders exactly as before: no
-ids, no `aria-labelledby`, no `data-described` (`description: null` counts as
-none). A description must be a non-empty string; anything else throws (outside
-a production build). In every layout, the phone `grid` included, the
-description sits tight under its label: only the column gap tightens there.
+It is the item's **description, not part of its name**, and it is drawn
+**beside the button, not inside it**: the line is a sibling of the `<button>` in
+the `<li>`, linked with `aria-describedby`. So the button's visible text is
+exactly its name — the label (and a step's status suffix) — and the item is found
+and announced as "Team", followed by its description. Inside the button the line
+was visible text the name lacked, which WCAG 2.5.3 (Label in Name) refuses: axe's
+`label-content-name-mismatch`, serious, on every settings item. `aria-hidden` on
+the line does not clear it; moving it out does. The rule is off by default in
+axe, so the unit test switches it on.
+
+The row still acts as one control:
+
+- the button's `::before` is stretched over the whole `<li>` (`position:
+  relative` on the `<li>`, none on the button), and the line is
+  `pointer-events: none`, so a click or a tap anywhere on the row, the line
+  included, is a click on the button;
+- that `::before` is the row's box: it carries the hover and current fill and
+  the focus ring, so both cover both lines; in forced colours the current row's
+  `Highlight` bar runs down both lines;
+- it sits under the text with **no `z-index`** (the stylesheet contract refuses
+  a bare one and the `--ds-z-*` scale has no negative step): it is the first
+  positioned box in the row's tree order, and the glyph, label, status and line
+  are `position: relative` after it, so they paint over it. `isolation` on the
+  `<li>` keeps that order inside the row;
+- the button keeps the top and side insets and the `<li>` adds the bottom one,
+  so a described row is as tall as it was with the line inside.
+
+An item without one renders exactly as before: no ids, no `aria-describedby`, no
+`data-described` (`description: null` counts as none). A description must be a
+non-empty string; anything else throws (outside a production build). In every
+layout, the phone `grid` included, the description sits tight under its label:
+only the column gap tightens there.
 
 ## A page rail and a step rail
 

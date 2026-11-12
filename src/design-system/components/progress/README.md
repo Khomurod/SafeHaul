@@ -19,7 +19,8 @@ Contracts:
   directly, which keeps `aria-valuenow` meaningful ("4 of 9") instead of a
   percentage a screen-reader user has to convert.
 - `valueText` sets `aria-valuetext` when a percentage is not the useful reading.
-- `tone` (`info` | `success` | `warning` | `danger`) is presentation only.
+- `tone` (`info` | `success` | `warning` | `danger`) is presentation only. `info`
+  (the default) fills with `--ds-color-progress`, blue, not the action navy.
   **Tone is never the only signal**: callers must supply text elsewhere that says
   what state the progress is in. Features own the domain → tone mapping.
 - The fill transition is disabled under `prefers-reduced-motion: reduce`.

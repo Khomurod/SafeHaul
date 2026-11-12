@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Icon, FileSignature, History, Loader2 } from '@design-system/icons';
+import { Icon, History, Loader2 } from '@design-system/icons';
 import { functions } from '@lib/firebase';
-import { Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
+import { Button, FieldMessage, FormField, FormSection, Textarea } from '@/design-system/components';
 import { useToast } from '@shared/components/feedback';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 import { formatDate } from '@shared/utils/helpers';
@@ -33,7 +33,8 @@ function formatWhen(iso) {
     return Number.isNaN(date.getTime()) ? iso : formatDate(date, true);
 }
 
-function AgreementCard({ agreement, canPublish, busy, onPublish, onRevert }) {
+/** One agreement: a row of the section's card, the rows divided edge to edge. */
+function AgreementRow({ agreement, canPublish, busy, onPublish, onRevert }) {
     const [draft, setDraft] = useState('');
     const [editing, setEditing] = useState(false);
     const inForce = agreement.currentBody || agreement.platformBody;
@@ -41,11 +42,11 @@ function AgreementCard({ agreement, canPublish, busy, onPublish, onRevert }) {
     const draftId = `agreement-draft-${agreement.id}`;
 
     return (
-        <Card padding="md" className="space-y-ds-4" data-agreement-id={agreement.id}>
-            <div className="flex flex-col gap-ds-1 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                    <h5 className="text-ds-body font-bold text-ds-content">{agreement.title}</h5>
-                    <p className="text-ds-xs text-ds-content-muted">Shown on the {PLACEMENT[agreement.presentedOn] || 'application'}.</p>
+        <li className="space-y-ds-4 p-ds-4 md:px-ds-6 md:py-ds-5" data-agreement-id={agreement.id}>
+            <div className="flex flex-col gap-ds-1 sm:flex-row sm:items-start sm:justify-between sm:gap-ds-4">
+                <div className="min-w-0 space-y-ds-1">
+                    <h3 className="text-ds-body font-semibold text-ds-content [text-wrap:pretty]">{agreement.title}</h3>
+                    <p className="text-ds-xs text-ds-content-secondary">Shown on the {PLACEMENT[agreement.presentedOn] || 'application'}.</p>
                 </div>
                 <p className="shrink-0 text-ds-xs font-medium text-ds-content-secondary" data-testid={`${agreement.id}-source`}>
                     {usesCompanyWording ? `Company wording · version ${agreement.currentVersion}` : `Platform wording · version ${agreement.platformVersion}`}
@@ -110,7 +111,7 @@ function AgreementCard({ agreement, canPublish, busy, onPublish, onRevert }) {
                     </div>
                 </div>
             )}
-        </Card>
+        </li>
     );
 }
 
@@ -154,37 +155,37 @@ export function AgreementsPanel({ companyId, canPublish = false }) {
         }
     };
 
+    const loaded = !loading && !error;
     return (
-        <section aria-labelledby="agreements-heading" className="space-y-ds-4">
-            <div>
-                <h3 id="agreements-heading" className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <Icon icon={FileSignature} size="xl" className="text-ds-action-primary" /> Agreements
-                </h3>
-                <p className="text-ds-sm text-ds-content-muted">
-                    The legal authorizations your applicants read and accept. Every version is kept, and an application
-                    always records the exact version its applicant saw.
-                    {canPublish
-                        ? ' As a super admin you can publish new wording for this company or return it to the platform wording.'
-                        : ' Changes to legal wording are made by a SafeHaul super admin — contact support to request one.'}
-                </p>
-            </div>
+        <FormSection
+            layout="stacked"
+            padding={loaded ? 'none' : 'md'}
+            title="Agreements"
+            description={`The legal authorizations your applicants read and accept. Every version is kept, and an application always records the exact version its applicant saw.${canPublish
+                ? ' As a super admin you can publish new wording for this company or return it to the platform wording.'
+                : ' Changes to legal wording are made by a SafeHaul super admin — contact support to request one.'}`}
+        >
             {loading && (
                 <p role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-muted">
                     <Icon icon={Loader2} className="animate-spin" /> Loading agreements…
                 </p>
             )}
             {error && <FieldMessage tone="error">{error}</FieldMessage>}
-            {!loading && !error && agreements.map((agreement) => (
-                <AgreementCard
-                    key={agreement.id}
-                    agreement={agreement}
-                    canPublish={canPublish}
-                    busy={busy}
-                    onPublish={(agreementId, body) => run('publishCompanyAgreementWording', { agreementId, body }, 'New wording published. Applicants see it from now on; earlier applications are unchanged.')}
-                    onRevert={(agreementId) => run('revertCompanyAgreementWording', { agreementId }, 'Platform wording restored for this agreement.')}
-                />
-            ))}
-        </section>
+            {loaded && (
+                <ul className="divide-y divide-ds-border-subtle">
+                    {agreements.map((agreement) => (
+                        <AgreementRow
+                            key={agreement.id}
+                            agreement={agreement}
+                            canPublish={canPublish}
+                            busy={busy}
+                            onPublish={(agreementId, body) => run('publishCompanyAgreementWording', { agreementId, body }, 'New wording published. Applicants see it from now on; earlier applications are unchanged.')}
+                            onRevert={(agreementId) => run('revertCompanyAgreementWording', { agreementId }, 'Platform wording restored for this agreement.')}
+                        />
+                    ))}
+                </ul>
+            )}
+        </FormSection>
     );
 }
 

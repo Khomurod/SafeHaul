@@ -87,6 +87,19 @@
     border-bottom: 0;
   }
 
+  /*
+   * A reserved checkbox place (`reserveSelection`) keeps a table's columns in
+   * line with a sibling list's; a card has no columns, so it is left out (it is
+   * nothing to assistive technology either), and the cell after it opens the card.
+   */
+  .ds-data-table[data-mobile-presentation='cards'] :is(thead, tbody) > tr > td.ds-data-table__selection-gutter {
+    display: none;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > .ds-data-table__selection-gutter + * {
+    padding-top: var(--ds-space-4);
+  }
+
   /* The row header is the card's title. */
   .ds-data-table[data-mobile-presentation='cards'] tbody > tr > th[scope='row'] {
     padding-bottom: var(--ds-space-3);

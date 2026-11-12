@@ -1,7 +1,7 @@
 import React, { useId, useRef } from 'react';
 import { Filter, Icon, Search } from '../../icons';
 import { Button, Input, Switch } from '@design-system/components';
-import { phoneColumnsFor } from '../../components/tabs/segmentedGroup';
+import { phoneColumnsFor, reservedText } from '../../components/tabs/segmentedGroup';
 import { contractViolation } from '../../contract';
 import { useToolsWrap } from './useToolsWrap';
 import './ListToolbar.css';
@@ -193,7 +193,9 @@ export function ListToolbar({
                 aria-pressed={item.id === segments.value}
                 onClick={() => segments.onChange(item.id)}
               >
-                {item.label}
+                {shown.segmentVariant === 'underline' ? item.label : (
+                  <span className="ds-segmented-group__label" data-text={reservedText(item.label)}>{item.label}</span>
+                )}
                 {/* The space is the name's: "All 6", not "All6". */}
                 {item.count !== undefined && item.count !== null && (
                   <>{' '}<span className="ds-list-toolbar__segment-count ds-segmented-group__count">{item.count}</span></>

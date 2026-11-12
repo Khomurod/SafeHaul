@@ -111,6 +111,14 @@
   }
 
   /*
+   * A reserved checkbox place (`reserveSelection`) is for the table's columns,
+   * not a card's: out of the card (it is nothing to assistive technology).
+   */
+  .ds-data-table[data-mobile-presentation='cards'][data-reserve-selection] tbody > tr.ds-data-table__row > td.ds-data-table__selection-gutter {
+    display: none;
+  }
+
+  /*
    * The leading slots. `!important` only because the selection cell's table
    * padding is, so a checkbox column stays narrow in every table.
    */
@@ -209,10 +217,11 @@
    * cell after it under the wrong header. Clipped to nothing, 1px tall and out
    * of the flow, but as wide as the card, so its content wraps inside it rather
    * than overflowing a 1px box (which `check:table-layout` would rightly read
-   * as a cell too narrow for its content).
+   * as a cell too narrow for its content). An empty actions cell goes the same
+   * way, so a record with nothing to do leaves no empty row at the card's end.
    */
   .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-role='hidden'],
-  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-empty]:is([data-mobile-role='meta'], [data-mobile-role='line']) {
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles] tbody > tr.ds-data-table__row > [data-mobile-empty]:is([data-mobile-role='meta'], [data-mobile-role='line'], [data-mobile-role='actions']) {
     position: absolute;
     inset-inline: 0;
     height: 1px;
@@ -220,6 +229,25 @@
     overflow: hidden;
     clip-path: inset(50%);
     pointer-events: none;
+  }
+}
+
+/*
+ * `mobileStatus="below"`: on a phone narrower than 412px the corner would
+ * squeeze the title (a name and a number) into a sliver, so the status takes a
+ * line of its own under the title, its badges side by side, and every card
+ * keeps one shape. From 412px it is the corner again.
+ */
+@media (max-width: 411px) {
+  .ds-data-table[data-mobile-presentation='cards'][data-mobile-roles][data-mobile-status='below'] tbody > tr.ds-data-table__row > [data-mobile-role='status'] {
+    max-width: none;
+    flex-basis: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: var(--ds-space-2);
+    text-align: start;
   }
 }
 

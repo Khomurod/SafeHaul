@@ -1,6 +1,6 @@
-import React, { useId } from 'react';
-import { Icon, Settings } from '@design-system/icons';
-import { Card, DataTable, FieldMessage, Switch } from '@/design-system/components';
+import React from 'react';
+import { AlertCircle } from '@design-system/icons';
+import { DataTable, Notice, Switch } from '@/design-system/components';
 import { resolveApplicationGate } from '@/config/applicationGates';
 
 /**
@@ -14,7 +14,11 @@ import { resolveApplicationGate } from '@/config/applicationGates';
  * toggles described a configuration that was not the one in force.
  *
  * The fields are a `DataTable` row each, the field's name heading the row and
- * its two switches in their own columns; on a phone each field is a card.
+ * its two switches in their own columns; on a phone each field is a card, its
+ * name first and the two switches under it, each before its word, the second
+ * at the middle of the card. The table is the body of the section's card
+ * (`FormSection padding="none"`, which the caller draws), and the compliance
+ * note is that card's last row.
  */
 export const STANDARD_FIELDS = [
     { id: 'ssn', label: 'Social Security Number' },
@@ -28,10 +32,28 @@ export const STANDARD_FIELDS = [
     { id: 'emergencyContacts', label: 'Emergency Contacts' },
 ];
 
+/*
+ * A switch on a phone card: the switch, then its word. The first of the two
+ * takes half the card (less the card's inset and half the gap between them),
+ * so the second starts at the card's middle on every card.
+ * The word is for the eye only: the column's header and the switch's own name
+ * ("Require Date of Birth") already say it to a screen reader. From 768px the
+ * table's header says it and the word is not drawn.
+ */
+const PHONE_TOGGLE = 'inline-flex items-center gap-ds-2';
+const PHONE_TOGGLE_FIRST = 'max-md:min-w-[calc(50cqw-var(--ds-space-4)-var(--ds-space-3)/2)]';
+
+function PhoneToggle({ word, first = false, children }) {
+    return (
+        <span className={first ? `${PHONE_TOGGLE} ${PHONE_TOGGLE_FIRST}` : PHONE_TOGGLE}>
+            {children}
+            <span aria-hidden="true" className="md:hidden">{word}</span>
+        </span>
+    );
+}
+
 export function StandardQuestionsConfig({ config, onChange }) {
     const safeConfig = config || {};
-    const rawId = useId().replace(/:/g, '');
-    const titleId = `standard-questions-title-${rawId}`;
 
     const toggleField = (fieldId, type) => {
         // type: 'required' | 'hidden'
@@ -59,51 +81,56 @@ export function StandardQuestionsConfig({ config, onChange }) {
         });
     };
 
+    // The name takes half the row and each switch a quarter of it, so a switch
+    // stands near its field rather than across the card from it: a fixed
+    // table shares out its width in proportion to the columns' (176 : 88 : 88).
     const columns = [
         {
             key: 'field',
             header: 'Field Name',
             rowHeader: true,
-            width: 'xl',
-            render: (field) => <span className="font-medium text-ds-content">{field.label}</span>,
+            width: 'lg',
+            render: (field) => <span className="font-semibold text-ds-content">{field.label}</span>,
         },
         {
             key: 'required',
             header: 'Required',
-            width: 'md',
+            width: 'xs',
+            mobileRole: 'meta',
             render: (field) => (
-                <Switch
-                    checked={Boolean(resolveApplicationGate(safeConfig, field.id).required)}
-                    tone="success"
-                    label={`Require ${field.label}`}
-                    onChange={() => toggleField(field.id, 'required')}
-                />
+                <PhoneToggle word="Required" first>
+                    <Switch
+                        checked={Boolean(resolveApplicationGate(safeConfig, field.id).required)}
+                        tone="success"
+                        label={`Require ${field.label}`}
+                        onChange={() => toggleField(field.id, 'required')}
+                    />
+                </PhoneToggle>
             ),
         },
         {
             key: 'hidden',
             header: 'Hidden',
-            width: 'md',
+            width: 'xs',
+            mobileRole: 'meta',
             render: (field) => (
-                <Switch
-                    checked={Boolean(resolveApplicationGate(safeConfig, field.id).hidden)}
-                    tone="danger"
-                    label={`Hide ${field.label}`}
-                    onChange={() => toggleField(field.id, 'hidden')}
-                />
+                <PhoneToggle word="Hidden">
+                    <Switch
+                        checked={Boolean(resolveApplicationGate(safeConfig, field.id).hidden)}
+                        tone="danger"
+                        label={`Hide ${field.label}`}
+                        onChange={() => toggleField(field.id, 'hidden')}
+                    />
+                </PhoneToggle>
             ),
         },
     ];
 
+    // The card's rounded corners clip the table's square header (and, on a
+    // phone, its first card). The clip is also the size container the phone
+    // cards' two columns are measured against.
     return (
-        <Card padding="none" className="mb-8 overflow-hidden" aria-labelledby={titleId}>
-            <div className="flex items-center gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Icon icon={Settings} size="lg" className="text-ds-content-muted" />
-                <h4 id={titleId} className="text-ds-body font-bold text-ds-content">
-                    Standard DOT Questions Configuration
-                </h4>
-            </div>
-
+        <div className="grid min-w-0 overflow-clip rounded-ds-card [container-type:inline-size]">
             <DataTable
                 embedded
                 ariaLabel="Standard DOT questions"
@@ -115,11 +142,10 @@ export function StandardQuestionsConfig({ config, onChange }) {
                 getRowId={(field) => field.id}
             />
 
-            <div className="border-t border-ds-border-subtle p-ds-4">
-                <FieldMessage tone="help">
-                    <strong>Note:</strong> Hiding DOT required fields (like SSN or Employment History) may make your application non-compliant.
-                </FieldMessage>
-            </div>
-        </Card>
+            <Notice tone="warning" frame="flush" icon={AlertCircle}>
+                <strong>Note:</strong> Hiding DOT required fields (like SSN or Employment History) may make your application{' '}
+                <span className="whitespace-nowrap">non-compliant.</span>
+            </Notice>
+        </div>
     );
 }

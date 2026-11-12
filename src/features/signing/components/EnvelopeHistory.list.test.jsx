@@ -105,7 +105,7 @@ describe('EnvelopeHistory — status presentation', () => {
     it('lets an email failure override the document status', () => {
         renderHistory();
         emit([makeDoc({ status: 'sent', emailStatus: 'failed', emailError: 'SMTP 550 rejected' })]);
-        expect(screen.getByText('Delivery Failed')).toBeInTheDocument();
+        expect(screen.getByText('Delivery failed')).toBeInTheDocument();
         expect(screen.queryByText('Awaiting signature')).not.toBeInTheDocument();
         expect(screen.getByText('SMTP 550 rejected')).toBeInTheDocument();
     });
@@ -133,7 +133,7 @@ describe('EnvelopeHistory — status presentation', () => {
     it('shows a text that failed as a failed delivery, with its error', () => {
         renderHistory();
         emit([makeDoc({ status: 'sent', sendSms: true, smsStatus: 'failed', smsError: 'Line unavailable (artificial)' })]);
-        expect(screen.getByText('Delivery Failed')).toBeInTheDocument();
+        expect(screen.getByText('Delivery failed')).toBeInTheDocument();
         expect(screen.queryByText('Awaiting signature')).not.toBeInTheDocument();
         expect(screen.getByText('Line unavailable (artificial)')).toBeInTheDocument();
     });
@@ -168,13 +168,14 @@ describe('EnvelopeHistory — delivery method and fallbacks', () => {
         expect(screen.getByText('SMS')).toBeInTheDocument();
     });
 
-    it('falls back to Untitled, plain contact-missing wording, and a quiet dash for a missing date', () => {
+    it('falls back to Untitled and plain contact-missing wording, and says nothing of a missing date', () => {
         renderHistory();
         emit([makeDoc({ title: undefined, recipientEmail: undefined, recipientPhone: undefined, createdAt: undefined })]);
         expect(screen.getByText('Untitled')).toBeInTheDocument();
         // A bare dash reads as an accident; the fallback says what is missing.
         expect(screen.getByText('No email or phone')).toBeInTheDocument();
-        expect(screen.getByText('—')).toBeInTheDocument();
+        // The day sent is a line under the title, left out when unknown.
+        expect(screen.queryByText(/^Sent /)).not.toBeInTheDocument();
     });
 
     it('falls back to the phone number when there is no email', () => {
@@ -189,20 +190,19 @@ describe('EnvelopeHistory — delivery method and fallbacks', () => {
         // wherever the test runs.
         const seconds = new Date(2023, 10, 14, 12).getTime() / 1000;
         emit([makeDoc({ createdAt: { seconds } })]);
-        // The month spelled, as every list writes a date: "Nov 14, 2023".
-        expect(screen.getByText('Nov 14, 2023')).toBeInTheDocument();
+        // The month spelled, as every list writes a date, under the title (C2).
+        expect(screen.getByText('Sent Nov 14, 2023')).toBeInTheDocument();
     });
 });
 
 describe('EnvelopeHistory — title presentation', () => {
-    it('clamps a long title to two lines while exposing the full text', () => {
+    it('shows a long title whole, wrapping rather than cut (C2: no ellipsis)', () => {
         const longTitle = `Extremely long artificial onboarding packet filename ${'x'.repeat(120)}.pdf`;
         renderHistory();
         emit([makeDoc({ title: longTitle })]);
-        const clamped = screen.getByText(longTitle);
-        expect(clamped.className).toContain('line-clamp-2');
-        // The full stored title stays reachable through the cell tooltip.
-        expect(clamped.closest('[title]')).toHaveAttribute('title', longTitle);
+        const title = screen.getByText(longTitle);
+        expect(title.className).not.toMatch(/line-clamp|truncate/);
+        expect(title.className).toContain('[overflow-wrap:anywhere]');
     });
 });
 
@@ -256,19 +256,33 @@ describe('EnvelopeHistory — quick action hierarchy', () => {
         },
     );
 
-    it('puts the delivery method in a column of its own, apart from the recipient', () => {
+    it('reads the status and how it was delivered together, apart from the recipient (C2)', () => {
         renderHistory();
         emit([makeDoc({ status: 'sent', sendEmail: true, sendSms: true })]);
         expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(
-            ['Document', 'Recipient', 'Delivery', 'Status', 'Date sent', 'Actions'],
+            ['Document', 'Recipient', 'Status · Delivery', 'Actions'],
         );
         const row = screen.getByRole('row', { name: 'Details for Offer Letter' });
-        const cells = within(row).getAllByRole('cell');
-        const delivery = cells.find((cell) => cell.getAttribute('data-label') === 'Delivery');
-        expect(within(delivery).getByText('Email')).toBeInTheDocument();
-        expect(within(delivery).getByText('SMS')).toBeInTheDocument();
-        const recipient = cells.find((cell) => cell.getAttribute('data-label') === 'Recipient');
+        // After the row header (the document): recipient, status · delivery, actions.
+        const [recipient, status] = within(row).getAllByRole('cell');
+        expect(within(status).getByText('Awaiting signature')).toBeInTheDocument();
+        expect(within(status).getByText('Email')).toBeInTheDocument();
+        expect(within(status).getByText('SMS')).toBeInTheDocument();
+        // Channels are not states: every chip is neutral, the status alone has a colour.
+        for (const chip of ['Email', 'SMS']) {
+            expect(within(status).getByText(chip).closest('.ds-badge')).toHaveAttribute('data-tone', 'neutral');
+        }
         expect(within(recipient).queryByText('Email')).not.toBeInTheDocument();
+    });
+
+    it('puts the recipient\'s initials beside the name, the address breaking after its @', () => {
+        renderHistory();
+        emit([makeDoc({ recipientName: 'Artificial Person', recipientEmail: 'artificial.person@example.test' })]);
+        const row = screen.getByRole('row', { name: 'Details for Offer Letter' });
+        const [recipient] = within(row).getAllByRole('cell');
+        expect(recipient.querySelector('.ds-avatar')).toHaveTextContent('AP');
+        const address = within(recipient).getByText((_, el) => el?.textContent === 'artificial.person@example.test' && el.tagName === 'SPAN');
+        expect(address.querySelector('wbr')).toBeTruthy();
     });
 
     it('never renders more than one action control in an ordinary row', () => {
@@ -284,3 +298,53 @@ describe('EnvelopeHistory — quick action hierarchy', () => {
     });
 });
 
+describe('EnvelopeHistory — the tablet list (768px to 1279px)', () => {
+    const TABLET = '(min-width: 768px) and (max-width: 1279px)';
+    const matchTablet = (query) => ({
+        matches: query === TABLET,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+    });
+
+    it('reads each row as one item beside its quick action, in two columns that fit, so nothing scrolls sideways (C2)', () => {
+        vi.stubGlobal('matchMedia', matchTablet);
+        renderHistory();
+        emit([makeDoc({
+            status: 'sent',
+            sendEmail: true,
+            emailStatus: 'failed',
+            emailError: 'Mailbox unavailable (artificial)',
+            recipientName: 'Artificial Person',
+            recipientEmail: 'artificial.person@example.test',
+        })]);
+        expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(
+            ['Document · Status · Recipient', 'Actions'],
+        );
+        // Two columns squeeze to the card's width rather than holding the table's 920px.
+        expect(screen.getByRole('table')).toHaveAttribute('data-min-width', 'none');
+
+        const row = screen.getByRole('row', { name: 'Details for Offer Letter' });
+        const item = within(row).getByRole('rowheader');
+        expect(within(item).getByText('Offer Letter')).toBeInTheDocument();
+        expect(within(item).getByText('Delivery failed')).toBeInTheDocument();
+        expect(within(item).getByText('Email').closest('.ds-badge')).toHaveAttribute('data-tone', 'neutral');
+        // The reason reads at 14px in a list item, as on a phone card.
+        expect(within(item).getByText('Mailbox unavailable (artificial)')).toHaveClass('text-ds-body');
+        expect(within(item).getByText('Artificial Person')).toBeInTheDocument();
+        expect(item.querySelector('.ds-avatar')).toBeNull();
+
+        const [action] = within(row).getAllByRole('cell');
+        expect(within(action).getByRole('button', { name: 'Review details for Offer Letter' })).toBeInTheDocument();
+    });
+
+    it('keeps the four columns from 1280px', () => {
+        renderHistory();
+        emit([makeDoc({ status: 'sent', emailStatus: 'failed', emailError: 'Mailbox unavailable (artificial)' })]);
+        expect(screen.getByRole('table')).toHaveAttribute('data-min-width', 'wide');
+        // The reason under the badge is the table's 12px line there.
+        expect(screen.getByText('Mailbox unavailable (artificial)')).toHaveClass('text-ds-xs');
+    });
+});

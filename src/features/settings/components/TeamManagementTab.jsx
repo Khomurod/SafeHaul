@@ -3,14 +3,17 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { Icon, UserPlus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
-import { Button, Card, DataTable, Notice } from '@/design-system/components';
+import { Button, DataTable, Notice } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useTeamRoster } from '../hooks/useTeamRoster';
 import { AddPersonDialog } from './team/AddPersonDialog';
 import { DailyGoalsDialog } from './team/DailyGoalsDialog';
-import { teamColumns } from './team/teamColumns';
+import { memberDetail, teamColumns } from './team/teamColumns';
 import { teamMemberName } from './team/teamMemberStatus';
+import { settingsTableMinWidth, useSettingsTableWidth } from './useSettingsTableWidth';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
+import { useMediaQuery } from '@shared/hooks/useMediaQuery';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
@@ -28,6 +31,14 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
     const [goalsFor, setGoalsFor] = useState(null);
     const [pendingRemove, setPendingRemove] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
+    const [tableBox, tableWidth] = useSettingsTableWidth();
+    // The member at least 239 (the initials beside a "Duplicate membership" badge)
+    // + role and status 220 + actions 144, inside the card's border.
+    const tableMinWidth = settingsTableMinWidth(tableWidth, 606);
+    // Under 768px each member is a card, its initials in the card's leading slot.
+    const isPhone = useIsMobile();
+    // From 1440px a role and its badge share a line (`teamColumns`).
+    const isWide = useMediaQuery('(min-width: 1440px)');
 
     if (!isCompanyAdmin) {
         return (
@@ -90,12 +101,11 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
                         : `${invalid} membership records have no user attached and cannot be shown. Contact support to clean them up.`}
                 </Notice>
             )}
-            <Card padding="none" className="overflow-hidden">
+            {/* On its own the table is its card; under 768px each member is a card. */}
+            <div ref={tableBox} className="min-w-0">
                 <DataTable
-                    embedded
                     ariaLabel="Team"
-                    density="compact"
-                    minWidth="standard"
+                    minWidth={tableMinWidth}
                     mobilePresentation="cards"
                     data={roster.members}
                     columns={teamColumns({
@@ -104,14 +114,18 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
                         onCopyLink: copyLink,
                         onEditGoals: setGoalsFor,
                         onRemove: (member) => setPendingRemove({ id: member.id, name: teamMemberName(member) }),
+                        cards: isPhone,
+                        wide: isWide,
                     })}
                     getRowId={(member) => member.id}
+                    // A problem with a member is a line under them, not part of a column.
+                    getRowDetail={memberDetail}
                     isLoading={roster.loading}
                     loadingLabel="Loading team"
                     error={roster.error ? { title: "Couldn't load your team", message: roster.error, onRetry: roster.reload } : undefined}
                     empty={{ title: 'No members found.', action: { label: 'Add person', onClick: () => setShowAdd(true) } }}
                 />
-            </Card>
+            </div>
 
             {showAdd && <AddPersonDialog companyId={companyId} onClose={() => setShowAdd(false)} onAdded={roster.reload} />}
             {goalsFor && (

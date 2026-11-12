@@ -3,11 +3,39 @@ const AxeBuilder = require('@axe-core/playwright').default;
 
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
+/**
+ * The way back to the menu above a section. Scoped to the settings content:
+ * from 768px the company's own menu beside the page has a Settings link too.
+ */
+function backToSettings(page) {
+  return page.getByRole('region', { name: 'Company settings content' }).getByRole('link', { name: 'Settings', exact: true });
+}
+
 async function openSettings(page) {
   await page.goto(SETTINGS_URL);
-  // From 768px up Company profile opens beside the rail; a phone opens its
-  // menu of sections instead.
+  // From 1181px up Company profile opens beside the rail; a phone or a tablet
+  // opens its menu of sections instead.
   await expect(page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ })).toBeVisible();
+}
+
+/** The page's width against the window's, and any box inside the settings that scrolls sideways. */
+function overflowOf(page) {
+  return page.evaluate(() => {
+    const shell = document.querySelector('[data-testid="company-settings-shell"]');
+    const workspace = document.querySelector('.ds-workspace__main');
+    const nestedHorizontalScrollers = [...(shell?.querySelectorAll('*') || [])]
+      .filter((element) => {
+        const overflowX = getComputedStyle(element).overflowX;
+        return ['auto', 'scroll'].includes(overflowX) && element.scrollWidth > element.clientWidth + 1;
+      });
+    return {
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      workspaceClientWidth: workspace?.clientWidth,
+      workspaceScrollWidth: workspace?.scrollWidth,
+      nestedHorizontalScrollerCount: nestedHorizontalScrollers.length,
+    };
+  });
 }
 
 test.describe('Company Settings shell and navigation compatibility slice', () => {
@@ -46,59 +74,88 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(email).toHaveAttribute('aria-current', 'page');
   });
 
-  test('keeps tablet navigation and content aligned without nested overflow', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.startsWith('mobile'), 'Tablet geometry check.');
-    await page.setViewportSize({ width: 1024, height: 768 });
-    await openSettings(page);
+  test('keeps the rail beside the section from 1181px: 288px wide, 40px from it, in view as the section scrolls', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop geometry check.');
+    for (const width of [1181, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${SETTINGS_URL}&section=application`);
+      await page.getByRole('tab', { name: 'Rules' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Application questions' })).toBeVisible();
 
-    const geometry = await page.evaluate(() => {
-      const shell = document.querySelector('[data-testid="company-settings-shell"]');
-      const navigation = document.querySelector('.ds-section-navigation');
-      const content = document.querySelector('#company-settings-content');
-      const workspace = document.querySelector('.ds-workspace__main');
-      const heading = navigation?.querySelector('.ds-section-navigation__heading');
-      const item = navigation?.querySelector('.ds-section-navigation__item');
-      const navBox = navigation?.getBoundingClientRect();
-      const contentBox = content?.getBoundingClientRect();
-      const nestedHorizontalScrollers = [...(content?.querySelectorAll('*') || [])]
-        .filter((element) => {
-          const overflowX = getComputedStyle(element).overflowX;
-          return ['auto', 'scroll'].includes(overflowX)
-            && element.scrollWidth > element.clientWidth + 1;
-        });
-      const groupColumns = new Set(
-        [...(navigation?.querySelectorAll('.ds-section-navigation__group') || [])]
-          .map((group) => Math.round(group.getBoundingClientRect().x)),
-      ).size;
+      // Beside the rail the section is headed "Settings"; there is no way back to a menu.
+      const content = page.getByRole('region', { name: 'Company settings content' });
+      await expect(content.getByText('Settings', { exact: true })).toBeVisible();
+      await expect(backToSettings(page)).toHaveCount(0);
 
-      return {
-        viewportWidth: window.innerWidth,
-        documentWidth: document.documentElement.scrollWidth,
-        shellClientWidth: shell?.clientWidth,
-        shellScrollWidth: shell?.scrollWidth,
-        workspaceClientWidth: workspace?.clientWidth,
-        workspaceScrollWidth: workspace?.scrollWidth,
-        navRight: navBox?.right,
-        contentLeft: contentBox?.left,
-        navBottom: navBox?.bottom,
-        contentTop: contentBox?.top,
-        headingFontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
-        itemHeight: item?.getBoundingClientRect().height,
-        nestedHorizontalScrollerCount: nestedHorizontalScrollers.length,
-        groupColumns,
-      };
-    });
+      const rail = page.getByRole('navigation', { name: 'Company settings sections' });
+      // A rail item is named by its label and described by its line, which is
+      // drawn beside the button, so the button's visible text is its name
+      // (WCAG 2.5.3); the whole row, line included, opens the section.
+      const team = rail.getByRole('button', { name: 'Team', exact: true });
+      await expect(team).toHaveAccessibleDescription('Who recruits for you');
+      await expect(team).toHaveText('Team');
+      await expect(rail.getByText('Who recruits for you', { exact: true })).toBeVisible();
 
-    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
-    expect(geometry.shellScrollWidth).toBeLessThanOrEqual(geometry.shellClientWidth);
-    expect(geometry.workspaceScrollWidth).toBeLessThanOrEqual(geometry.workspaceClientWidth);
-    expect(geometry.contentTop).toBeGreaterThan(geometry.navBottom);
-    expect(geometry.contentLeft).toBeLessThan(geometry.navRight);
-    // Company, Messaging and Connections.
-    expect(geometry.groupColumns).toBe(3);
-    expect(geometry.nestedHorizontalScrollerCount).toBe(0);
-    expect(geometry.headingFontSize).toBeGreaterThanOrEqual(12);
-    expect(geometry.itemHeight).toBeGreaterThanOrEqual(44);
+      const geometry = await page.evaluate(() => {
+        const navBox = document.querySelector('.ds-section-navigation').getBoundingClientRect();
+        const contentBox = document.querySelector('#company-settings-content').getBoundingClientRect();
+        const eyebrowBox = document.querySelector('#company-settings-content .ds-page-eyebrow').getBoundingClientRect();
+        return {
+          navWidth: navBox.width, gap: contentBox.left - navBox.right, navTop: navBox.top, eyebrowTop: eyebrowBox.top,
+        };
+      });
+      expect(geometry.navWidth).toBe(288);
+      expect(geometry.gap).toBe(40);
+      expect(Math.abs(geometry.eyebrowTop - geometry.navTop)).toBeLessThanOrEqual(1);
+
+      // The rules are long: scrolled to their end, the rail is still in view.
+      const railTop = await page.evaluate(() => {
+        const main = document.querySelector('.ds-workspace__main');
+        main.scrollTop = main.scrollHeight;
+        return document.querySelector('.ds-section-navigation').getBoundingClientRect().top
+          - main.getBoundingClientRect().top;
+      });
+      expect(railTop).toBeGreaterThanOrEqual(0);
+      expect(railTop).toBeLessThanOrEqual(40);
+
+      const overflow = await overflowOf(page);
+      expect(overflow.documentWidth).toBeLessThanOrEqual(overflow.viewportWidth);
+      expect(overflow.workspaceScrollWidth).toBeLessThanOrEqual(overflow.workspaceClientWidth);
+      expect(overflow.nestedHorizontalScrollerCount).toBe(0);
+    }
+  });
+
+  test('works like a phone on a tablet: the menu is its own page and each section links back to it', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Tablet presentation check.');
+    for (const width of [768, 1024, 1180]) {
+      await page.setViewportSize({ width, height: 900 });
+      await openSettings(page);
+
+      await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+      await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
+      await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin$/);
+
+      const rowHeights = await page.evaluate(() => [...document.querySelectorAll('[data-testid="company-settings-shell"] .ds-selectable-card')]
+        .map((row) => row.getBoundingClientRect().height));
+      expect(rowHeights.length).toBeGreaterThan(0);
+      expect(Math.min(...rowHeights)).toBeGreaterThanOrEqual(44);
+      const menuOverflow = await overflowOf(page);
+      expect(menuOverflow.documentWidth).toBeLessThanOrEqual(menuOverflow.viewportWidth);
+      expect(menuOverflow.nestedHorizontalScrollerCount).toBe(0);
+
+      await page.getByRole('button', { name: /^Application questions / }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Application questions' })).toBeVisible();
+      await expect(page).toHaveURL(/section=application/);
+      await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
+      const sectionOverflow = await overflowOf(page);
+      expect(sectionOverflow.documentWidth).toBeLessThanOrEqual(sectionOverflow.viewportWidth);
+      expect(sectionOverflow.workspaceScrollWidth).toBeLessThanOrEqual(sectionOverflow.workspaceClientWidth);
+      expect(sectionOverflow.nestedHorizontalScrollerCount).toBe(0);
+
+      await backToSettings(page).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+      await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin$/);
+    }
   });
 
   test('opens on a menu of sections with no rail, and reaches every section from it @mobile', async ({ page }, testInfo) => {
@@ -148,7 +205,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(page.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
     await expect(page).toHaveURL(/section=api_keys/);
 
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await backToSettings(page).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
     await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin$/);
   });

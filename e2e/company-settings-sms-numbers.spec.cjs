@@ -18,7 +18,7 @@ async function openSmsTab(page) {
   await serveCallables(page, { listSmsOptOuts: SMS_OPT_OUTS });
   await page.goto(`${SETTINGS_URL}&section=sms`);
   await expect(page.getByRole('heading', { level: 1, name: 'Text messages (SMS)' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { level: 3, name: /^Connect RingCentral/ })).toBeVisible({ timeout: 20_000 });
 }
 
 async function expectNoHorizontalOverflow(page, label) {
@@ -81,7 +81,11 @@ test.describe('Company Settings → Text messages (SMS)', () => {
 
   test('lists the opted-out numbers and asks before removing one', async ({ page }) => {
     await openSmsTab(page);
-    const section = page.getByRole('region', { name: 'Opted-out numbers' });
+    // The section is a region named by its heading; its table's scroll region
+    // carries the same words, so the section is found by its test id.
+    const section = page.getByTestId('sms-opt-outs');
+    await expect(section).toHaveRole('region');
+    await expect(section).toHaveAccessibleName('Opted-out numbers');
     await expect(section.getByText('From a STOP reply')).toBeVisible();
     await expect(section.getByText('By Maria-Annunziata Delacroix-Whitfield')).toBeVisible();
 

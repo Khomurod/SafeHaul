@@ -343,17 +343,41 @@ describe('PageLayout CSS', () => {
     expect(heading).toContain('text-wrap: balance');
   });
 
-  it('keeps the title at least 20rem wide beside the actions, which wrap on their side first', () => {
-    // A lower floor squeezed a long title into four 30px lines beside three
-    // actions at tablet width; the actions wrap among themselves instead.
-    expect(block('.ds-page-header')).toContain('grid-template-columns: minmax(min(100%, 20rem), 1fr) auto');
-    expect(block('.ds-page-header__actions')).toContain('flex-wrap: wrap');
+  it('wraps the actions to a line of their own, at the right, before a label breaks or the title is squeezed', () => {
+    // A 20rem title floor beside the actions broke 'Save Changes' onto two
+    // lines inside its button and pushed the header past a 432px tablet column;
+    // a lower floor squeezed a long title into four lines. Wrapping lines do
+    // neither: the actions keep their labels whole and move under the title.
+    const header = block('.ds-page-header');
+    expect(header).toContain('display: flex');
+    expect(header).toContain('flex-wrap: wrap');
+    expect(block('.ds-page-header__title')).toContain('flex: 1 1 auto');
+    const actions = block('.ds-page-header__actions');
+    expect(actions).toContain('flex: none');
+    expect(actions).toContain('margin-inline-start: auto');
+    expect(actions).toContain('max-width: 100%');
+    expect(actions).toContain('flex-wrap: wrap');
+    expect(block('.ds-page-header__actions > *')).toContain('white-space: nowrap');
+    // Reading and Tab order stay the DOM's: title, description, actions.
+    expect(block('.ds-page-header__title')).toContain('order: 1');
+    expect(actions).toContain('order: 2');
+    expect(block('.ds-page-header__description')).toContain('order: 3');
   });
 
-  it('keeps the description to a readable measure', () => {
+  it('keeps the description on a line of its own, to a readable measure', () => {
     const description = block('.ds-page-header__description');
-    expect(description).toContain('max-width: 68ch');
+    expect(description).toContain('flex-basis: 100%');
+    // A max-width would let a wrapping line set it beside the title.
+    expect(description).not.toContain('max-width');
+    expect(description).toContain('padding-inline-end: max(0px, 100% - 68ch)');
     expect(description).toContain('text-wrap: pretty');
+  });
+
+  it('lays a phone header out in DOM order, one column', () => {
+    const header = block('.ds-page-header', phone);
+    expect(header).toContain('display: grid');
+    expect(header).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(block('.ds-page-header > *', phone)).toContain('order: 0');
   });
 
   it('pins the sticky bar on the page-content layer, clear of the safe area, and pads the page for it', () => {

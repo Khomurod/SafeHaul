@@ -28,8 +28,8 @@ export function BrandingSection({
     const helpId = `company-logo-help-${rawId}`;
 
     return (
-        <div className="flex flex-col items-center gap-ds-3">
-            <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-ds-lg border border-ds-border bg-ds-surface-subtle">
+        <div className="flex min-w-0 items-center gap-ds-4 md:gap-ds-5">
+            <div className="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-ds-lg border border-ds-border bg-ds-surface-subtle">
                 {companyLogoUrl ? (
                     <img
                         src={companyLogoUrl}
@@ -39,21 +39,20 @@ export function BrandingSection({
                 ) : (
                     /*
                       The FRAME owns this glyph's size, the same answer 7a gave
-                      `StatusMedallion` — and 48px is deliberate rather than
-                      off-scale carelessness. The frame is 128px, so 48 is 37.5%,
-                      the bottom of the published band (Tailwind UI 50%, Material 3
-                      50-60%, shadcn's avatar fallback 40%, this product's own
-                      medallion 37.5% at `md`). The contract's scale tops out at
-                      `3xl` = 32, which here would be 25% — below every one of
-                      those, and a third smaller on a screen people see. So the size
-                      stays and lives on the container, where resizing the frame
-                      carries it. Recorded in the roadmap's open "Tinted icon tile"
-                      row as its second measured instance.
+                      `StatusMedallion`. The frame is 72px (C2: the logo stands
+                      beside the company name), and 28px is 39% of it — inside
+                      the published band (Tailwind UI 50%, Material 3 50-60%,
+                      shadcn's avatar fallback 40%, this product's own medallion
+                      37.5% at `md`). The contract's scale has 24px (`2xl`, 33%)
+                      and 32px (`3xl`, 44%) either side of it, so the size stays
+                      and lives on the container, where resizing the frame
+                      carries it. Recorded in the roadmap's open "Tinted icon
+                      tile" row as its second measured instance.
                     */
                     <span
                         role="img"
                         aria-label="No company logo set"
-                        className="flex h-full w-full items-center justify-center [&>svg]:h-12 [&>svg]:w-12"
+                        className="flex h-full w-full items-center justify-center [&>svg]:h-7 [&>svg]:w-7"
                     >
                         <Icon icon={Building} className="text-ds-content-muted" />
                     </span>
@@ -61,9 +60,9 @@ export function BrandingSection({
             </div>
 
             {isEditing && (
-                <div className="flex w-full max-w-[16rem] flex-col items-center gap-ds-2">
-                    {/* The preview above already says what this field is, so the
-                        label is hidden — the accessible name stays. */}
+                <div className="flex min-w-0 flex-col items-start gap-ds-2">
+                    {/* The preview beside it already says what this field is, so
+                        the label is hidden — the accessible name stays. */}
                     <FileInput
                         id={inputId}
                         label="Company logo"
@@ -78,7 +77,7 @@ export function BrandingSection({
                                 ? 'Change logo'
                                 : 'Upload logo'}
                     />
-                    <FieldMessage id={helpId} tone="help" className="text-center">
+                    <FieldMessage id={helpId} tone="help" className="[text-wrap:pretty]">
                         {companyLogoUrl
                             ? 'A logo is set. Uploading a new image replaces it.'
                             : 'No logo uploaded yet.'}{' '}

@@ -136,6 +136,20 @@ export function campaignStatusPresentation(status) {
 }
 
 /**
+ * How a campaign's channel reads on its card: the stored `messageConfig.method`
+ * is lower case ('sms', 'email') and SMS when unset, as the editor defaults it.
+ * The card used to capitalise it with CSS; now the words are the label's own.
+ * An unknown value is shown as stored.
+ */
+export function campaignMethodLabel(method) {
+    const stored = typeof method === 'string' ? method.trim() : '';
+    const key = stored.toLowerCase();
+    if (key === '' || key === 'sms') return 'SMS';
+    if (key === 'email') return 'Email';
+    return stored;
+}
+
+/**
  * A draft that was launched (`useCampaignDraft.markLaunched`): kept as the
  * campaign's record, no longer listed under Drafts or launchable. `launchedAt`
  * is null, not absent, while the server time is pending.

@@ -28,7 +28,7 @@ describe('DataTable column contract', () => {
 
   it('publishes a finite visual vocabulary', () => {
     expect(TABLE_COLUMN_ALIGNMENTS).toEqual(['start', 'end']);
-    expect(TABLE_COLUMN_WIDTHS).toEqual(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
+    expect(TABLE_COLUMN_WIDTHS).toEqual(['auto', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', 'actions']);
     expect(TABLE_COLUMN_MOBILE_ROLES).toEqual(['lead', 'title', 'status', 'meta', 'line', 'actions', 'hidden']);
   });
 
@@ -50,6 +50,8 @@ describe('DataTable column contract', () => {
     // The row header is what a card is; it cannot be moved into a corner or hidden.
     [[{ key: 'name', render: () => null, rowHeader: true, mobileRole: 'hidden' }], 'on a card it is the title, not "hidden"'],
     [[{ key: 'note', render: () => null, mobileRole: 'title' }], 'only if it is the row header'],
+    // Only the row header's text is where a row detail lines up.
+    [[{ key: 'note', render: () => null, leadingAvatar: true }], 'which only a row header (rowHeader: true) may'],
     [[
       { key: 'photo', render: () => null, mobileRole: 'lead' },
       { key: 'icon', render: () => null, mobileRole: 'lead' },
@@ -71,6 +73,16 @@ describe('DataTable column contract', () => {
     ], 'the row header must come right after it'],
   ])('rejects invalid contracts', (columns, message) => {
     expect(() => defineTableColumns(columns)).toThrow(message);
+  });
+
+  it('says whether a row header leads with its own avatar', () => {
+    const [person, note] = defineTableColumns([
+      { key: 'person', render: () => null, rowHeader: true, leadingAvatar: true },
+      { key: 'note', render: () => null },
+    ]);
+
+    expect(person.leadingAvatar).toBe(true);
+    expect(note.leadingAvatar).toBe(false);
   });
 
   it('keeps a phone card role, and leaves it unset where none is stated', () => {

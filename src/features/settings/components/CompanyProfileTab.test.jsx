@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -92,6 +92,31 @@ describe('CompanyProfileTab information compatibility slice', () => {
         expect(screen.getByText('TX')).toBeInTheDocument();
         expect(screen.getByText('75001')).toBeInTheDocument();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('heads each part with what it holds, above its card', () => {
+        renderProfile();
+        for (const [title, description] of [
+            ['Company', 'Name and logo, as drivers see them.'],
+            ['Contact Info', 'How drivers reach you.'],
+            ['HQ Address', 'Your main office.'],
+        ]) {
+            const section = screen.getByRole('region', { name: title });
+            expect(within(section).getByRole('heading', { level: 2, name: title })).toBeInTheDocument();
+            expect(within(section).getByText(description)).toBeInTheDocument();
+        }
+        expect(within(screen.getByRole('region', { name: 'Company' })).getByText('SafeHaul Logistics')).toBeInTheDocument();
+    });
+
+    it('keeps Cancel and Save Changes in reach at the foot of a phone while editing, drawn once', () => {
+        renderProfile();
+        const header = screen.getByRole('heading', { level: 1, name: 'Company profile' }).closest('header');
+        expect(header).not.toHaveAttribute('data-mobile-actions');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        expect(header).toHaveAttribute('data-mobile-actions', 'sticky');
+        expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: 'Save Changes' })).toHaveLength(1);
     });
 
     it('shows the plan as one read-only line, which Edit Profile does not open', () => {

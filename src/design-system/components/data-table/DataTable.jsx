@@ -1,18 +1,20 @@
-import React, { memo, useMemo } from 'react';
-import { AlertTriangle, Icon, Inbox } from '../../icons';
-import { Button } from '../button';
+import React, { Fragment, memo, useId, useMemo } from 'react';
+import { AlertTriangle, Icon } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
 import { useCardsLayout } from './useCardsLayout';
 import { ariaSortOf, checkSort } from './sorting';
 import { SortButton } from './SortControls';
 import { CardStrip, SelectionCheckbox } from './SelectionControls';
 import { TablePagination } from './TablePagination';
+import { LoadingRows, SelectionGutter, StateContent } from './TableStates';
+import { RowDetailContent, rowDetailOf } from './rowDetail';
 import { cardLabelOf, cardRoleOf, isEmptyCellContent, usesMobileRoles } from './mobileRoles';
 import { contractViolation } from '../../contract';
 import './DataTable.css';
 import './pinnedColumn.css';
 import './mobileCards.css';
 import './roleCards.css';
+import './rowDetail.css';
 
 /**
  * The narrowest a table may get before its region scrolls sideways. `none` sets
@@ -61,84 +63,22 @@ function mobileLabelOf(column) {
   return (typeof column.header === 'string' && column.header) || column.headerLabel || undefined;
 }
 
-function StateContent({ state, empty, error, loadingLabel }) {
-  if (state === 'loading') {
-    return (
-      <div className="ds-data-table__state" role="status" aria-live="polite">
-        <span className="sr-only">{loadingLabel}</span>
-        <div className="ds-data-table__state-skeleton" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-      </div>
-    );
+/**
+ * Where a card by role puts its `status` column: `corner` (top right) or
+ * `below` (a line under the title on a phone narrower than 412px). Anything
+ * else, or `below` with no status column to move, is reported and left out.
+ */
+const CARD_STATUS_PLACES = new Set(['corner', 'below']);
+function cardStatusOf(mobileStatus, columns) {
+  if (!CARD_STATUS_PLACES.has(mobileStatus)) {
+    contractViolation(`Unsupported DataTable mobileStatus "${mobileStatus}"; use ${[...CARD_STATUS_PLACES].join(', ')}.`);
+    return 'corner';
   }
-
-  if (state === 'error') {
-    return (
-      <div className="ds-data-table__state ds-data-table__state--error" role="alert">
-        <Icon icon={AlertTriangle} size="3xl" />
-        <p className="ds-data-table__state-title">{error.title || 'Unable to load records'}</p>
-        <p className="ds-data-table__state-description">{error.message}</p>
-        {error.onRetry && (
-          <button
-            type="button"
-            className="ds-data-table__retry"
-            onClick={error.onRetry}
-          >
-            Retry
-          </button>
-        )}
-      </div>
-    );
+  if (mobileStatus === 'below' && !columns.some((column) => column.mobileRole === 'status')) {
+    contractViolation('DataTable mobileStatus="below" moves the card\'s status column; no column has mobileRole "status".');
+    return 'corner';
   }
-
-  const EmptyIcon = empty.icon;
-  return (
-    <div className="ds-data-table__state" role="status" aria-live="polite">
-      <Icon icon={EmptyIcon || Inbox} size="3xl" />
-      <p className="ds-data-table__state-title">{empty.title}</p>
-      {empty.description && (
-        <p className="ds-data-table__state-description">{empty.description}</p>
-      )}
-      {empty.action && (
-        <Button variant="secondary" size="sm" onClick={empty.action.onClick}>
-          {empty.action.label}
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function LoadingRows({ columns, showSelection, loadingLabel, role }) {
-  return Array.from({ length: 6 }, (_, rowIndex) => (
-    <tr key={`loading-${rowIndex}`} role={role('row')} aria-hidden={rowIndex > 0 || undefined}>
-      {showSelection && (
-        <td className="ds-data-table__selection-cell" role={role('cell')}>
-          <span className="ds-data-table__selection-skeleton" aria-hidden="true" />
-        </td>
-      )}
-      {columns.map((column, columnIndex) => (
-        <td
-          key={column.key}
-          role={role('cell')}
-          data-align={column.align}
-          data-width={column.width}
-        >
-          {rowIndex === 0 && columnIndex === 0 ? (
-            <div className="sr-only" role="status" aria-live="polite">{loadingLabel}</div>
-          ) : (
-            <span
-              className="ds-data-table__cell-skeleton"
-              style={{ '--ds-skeleton-width': `${Math.max(40, 78 - (columnIndex * 8))}%` }}
-              aria-hidden="true"
-            />
-          )}
-        </td>
-      ))}
-    </tr>
-  ));
+  return mobileStatus;
 }
 
 /**
@@ -165,7 +105,19 @@ function LoadingRows({ columns, showSelection, loadingLabel, role }) {
  * `display: block` can drop them, and a card pins nothing; at 768px and up it is
  * the table it always was, its first column pinned. With a `selection`, each
  * card leads with its checkbox and a strip above the cards holds "Select all"
- * beside "Sort by", since the header row is hidden.
+ * beside "Sort by", since the header row is hidden. `mobileStatus="below"`
+ * moves a card's status from its corner to a line under the title on a phone
+ * narrower than 412px, so every card keeps one shape there.
+ *
+ * `reserveSelection` keeps the checkbox column's place on a table without a
+ * selection — empty, and nothing to assistive technology — so its columns
+ * stand where a sibling list's do beside its checkboxes.
+ *
+ * `getRowDetail(row)` returns `{ tone, content }` (or `null`): a sentence about
+ * the record that belongs to no column, drawn under it as a row of its own
+ * across the table, or as a line of its card by role (`rowDetail.jsx`). The
+ * row's header cell points at it (`aria-describedby`); it is never part of the
+ * row's name.
  *
  * `maxHeight` caps a table that shares its space, such as one inside a panel or
  * a dialog: its rows scroll under the sticky header. A parent of bounded height
@@ -194,8 +146,12 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   pagination,
   sort,
   onSortChange,
+  reserveSelection = false,
+  getRowDetail,
+  mobileStatus = 'corner',
 }) {
   const normalizedColumns = useMemo(() => defineTableColumns(columns), [columns]);
+  const detailIdBase = useId();
   const selectedSet = useMemo(() => {
     if (selection?.selectedIds instanceof Set) return selection.selectedIds;
     return new Set(selection?.selectedIds || []);
@@ -206,6 +162,12 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   const allRowsSelected = rowIds.length > 0 && selectedOnPage === rowIds.length;
   const someRowsSelected = selectedOnPage > 0 && !allRowsSelected;
   const showSelection = Boolean(selection);
+  /** The checkbox column, or its place kept empty; none without either. */
+  let gutter = null;
+  if (showSelection) gutter = 'selection';
+  else if (reserveSelection) gutter = 'reserve';
+  /** Every column the table draws, the checkbox column or its place included. */
+  const columnSpan = normalizedColumns.length + (gutter ? 1 : 0);
   /** The header's checkbox; on cards it sits in the strip above them. */
   const selectAll = showSelection ? {
     checked: allRowsSelected,
@@ -232,6 +194,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
     contractViolation('A DataTable column mobileRole places a value on a phone card; it needs mobilePresentation="cards".');
   }
   checkSort(normalizedColumns, sort, onSortChange);
+  const cardStatus = cardStatusOf(mobileStatus, normalizedColumns);
   let tableMinWidth = minWidth;
   if (!MIN_WIDTHS.has(minWidth)) {
     contractViolation(`Unsupported DataTable minWidth "${minWidth}"; use ${[...MIN_WIDTHS].join(', ')}.`);
@@ -264,6 +227,9 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       /* A card pins nothing: the pin is for a table that scrolls sideways. */
       data-pin-first-column={(pinFirstColumn && !cardsOnScreen) || undefined}
       data-has-selection={showSelection || undefined}
+      data-reserve-selection={gutter === 'reserve' || undefined}
+      data-mobile-status={(roles && cardStatus !== 'corner' && cardStatus) || undefined}
+      data-row-header-avatar={normalizedColumns.some((column) => column.rowHeader && column.leadingAvatar) || undefined}
       data-embedded={embedded || undefined}
       data-max-height={tableMaxHeight}
       data-state={statePanel || undefined}
@@ -303,7 +269,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
         <table data-min-width={tableMinWidth} role={role('table')}>
           <caption className="sr-only">{ariaLabel}</caption>
           <colgroup>
-            {showSelection && <col data-width="selection" />}
+            {gutter && <col data-width="selection" />}
             {normalizedColumns.map((column) => (
               <col key={column.key} data-width={column.width} data-mobile-role={roles ? cardRoleOf(column) : undefined} />
             ))}
@@ -316,6 +282,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                   {cardsOnScreen ? <span className="sr-only">Select</span> : <SelectionCheckbox {...selectAll} />}
                 </th>
               )}
+              {gutter === 'reserve' && <SelectionGutter />}
               {normalizedColumns.map((column) => (
                 <th
                   key={column.key}
@@ -340,76 +307,101 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
             {isLoading ? (
               <LoadingRows
                 columns={normalizedColumns}
-                showSelection={showSelection}
+                gutter={gutter}
                 loadingLabel={loadingLabel}
                 role={role}
               />
             ) : bodyState ? (
               cards && (
                 <tr role={role('row')}>
-                  <td role={role('cell')} colSpan={normalizedColumns.length + (showSelection ? 1 : 0)}>
+                  <td role={role('cell')} colSpan={columnSpan}>
                     <StateContent state={bodyState} empty={empty} error={normalizedError} loadingLabel={loadingLabel} />
                   </td>
                 </tr>
               )
             ) : (
-              data.map((row) => {
+              data.map((row, rowIndex) => {
                 const rowId = getRowId(row);
                 const isSelected = selectedSet.has(rowId);
                 const rowTone = getRowTone?.(row) || 'neutral';
+                const detail = rowDetailOf(getRowDetail, row);
+                const detailId = detail ? `${detailIdBase}-detail-${rowIndex}` : undefined;
+                // On a card by role the detail is a line of the card; elsewhere a row of its own.
+                const detailInCard = Boolean(detail && roles && cardsOnScreen);
+                const detailCell = detail && (
+                  <td
+                    className="ds-data-table__detail"
+                    role={role('cell')}
+                    colSpan={detailInCard ? undefined : columnSpan}
+                    data-detail-tone={detail.tone}
+                  >
+                    <RowDetailContent id={detailId} detail={detail} />
+                  </td>
+                );
 
                 return (
-                  <tr
-                    key={rowId}
-                    className="ds-data-table__row"
-                    role={role('row')}
-                    data-interactive={Boolean(onRowActivate)}
-                    data-selected={isSelected || undefined}
-                    data-tone={rowTone}
-                    aria-label={getRowLabel?.(row)}
-                    aria-selected={showSelection ? isSelected : undefined}
-                    tabIndex={onRowActivate ? 0 : undefined}
-                    onClick={() => onRowActivate?.(row)}
-                    onKeyDown={(event) => handleRowKeyDown(event, row)}
-                  >
-                    {showSelection && (
-                      <td
-                        className="ds-data-table__selection-cell"
-                        role={role('cell')}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <SelectionCheckbox
-                          checked={isSelected}
-                          label={selection.getRowLabel?.(row) || `Select row ${rowId}`}
-                          onChange={(event) => selection.onToggleRow?.(rowId, event)}
-                        />
-                      </td>
-                    )}
-                    {normalizedColumns.map((column) => {
-                      const Cell = column.rowHeader ? 'th' : 'td';
-                      const content = column.render(row);
-                      const cardRole = roles ? cardRoleOf(column) : undefined;
-                      return (
-                        <Cell
-                          key={column.key}
-                          scope={column.rowHeader ? 'row' : undefined}
-                          role={role(column.rowHeader ? 'rowheader' : 'cell')}
-                          data-label={cards && !roles && !column.rowHeader ? mobileLabelOf(column) : undefined}
-                          data-mobile-role={cardRole}
-                          data-mobile-label={cardRole ? cardLabelOf(column, cardRole) : undefined}
-                          data-mobile-empty={(cardRole && isEmptyCellContent(content)) || undefined}
-                          data-align={column.align}
-                          data-width={column.width}
-                          data-truncate={column.truncate || undefined}
-                          onClick={column.stopPropagation
-                            ? (event) => event.stopPropagation()
-                            : undefined}
+                  <Fragment key={rowId}>
+                    <tr
+                      className="ds-data-table__row"
+                      role={role('row')}
+                      data-interactive={Boolean(onRowActivate)}
+                      data-selected={isSelected || undefined}
+                      data-tone={rowTone}
+                      data-has-detail={(detail && !detailInCard) || undefined}
+                      aria-label={getRowLabel?.(row)}
+                      aria-describedby={onRowActivate ? detailId : undefined}
+                      aria-selected={showSelection ? isSelected : undefined}
+                      tabIndex={onRowActivate ? 0 : undefined}
+                      onClick={() => onRowActivate?.(row)}
+                      onKeyDown={(event) => handleRowKeyDown(event, row)}
+                    >
+                      {showSelection && (
+                        <td
+                          className="ds-data-table__selection-cell"
+                          role={role('cell')}
+                          onClick={(event) => event.stopPropagation()}
                         >
-                          {content}
-                        </Cell>
-                      );
-                    })}
-                  </tr>
+                          <SelectionCheckbox
+                            checked={isSelected}
+                            label={selection.getRowLabel?.(row) || `Select row ${rowId}`}
+                            onChange={(event) => selection.onToggleRow?.(rowId, event)}
+                          />
+                        </td>
+                      )}
+                      {gutter === 'reserve' && <SelectionGutter />}
+                      {normalizedColumns.map((column) => {
+                        const Cell = column.rowHeader ? 'th' : 'td';
+                        const content = column.render(row);
+                        const cardRole = roles ? cardRoleOf(column) : undefined;
+                        return (
+                          <Cell
+                            key={column.key}
+                            scope={column.rowHeader ? 'row' : undefined}
+                            role={role(column.rowHeader ? 'rowheader' : 'cell')}
+                            aria-describedby={column.rowHeader ? detailId : undefined}
+                            data-label={cards && !roles && !column.rowHeader ? mobileLabelOf(column) : undefined}
+                            data-mobile-role={cardRole}
+                            data-mobile-label={cardRole ? cardLabelOf(column, cardRole) : undefined}
+                            data-mobile-empty={(cardRole && isEmptyCellContent(content)) || undefined}
+                            data-align={column.align}
+                            data-width={column.width}
+                            data-truncate={column.truncate || undefined}
+                            onClick={column.stopPropagation
+                              ? (event) => event.stopPropagation()
+                              : undefined}
+                          >
+                            {content}
+                          </Cell>
+                        );
+                      })}
+                      {detailInCard && detailCell}
+                    </tr>
+                    {detail && !detailInCard && (
+                      <tr className="ds-data-table__detail-row" role={role('row')}>
+                        {detailCell}
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })
             )}

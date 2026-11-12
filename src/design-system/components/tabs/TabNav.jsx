@@ -2,7 +2,7 @@ import React from 'react';
 import { contractViolation } from '../../contract';
 import './Tabs.css';
 // After `Tabs.css`, so the shared drawing wins a tie with the underlined tab.
-import { phoneColumnsFor } from './segmentedGroup';
+import { phoneColumnsFor, reservedText, useTrayWraps } from './segmentedGroup';
 
 /** `underline`, the strip `TabList` draws by default, or the segmented tray. */
 const VARIANTS = new Set(['underline', 'segmented']);
@@ -44,14 +44,17 @@ export function TabNav({ ariaLabel, items, currentId, variant = 'underline', cla
     variant = 'underline';
   }
   const segmented = variant === 'segmented';
+  const [trayRef, trayWrapped] = useTrayWraps(segmented);
 
   return (
     <nav {...props} aria-label={ariaLabel} className={`ds-tab-nav ${className}`.trim()}>
       <ul
+        ref={segmented ? trayRef : undefined}
         className={segmented ? 'ds-tab-list ds-segmented-group' : 'ds-tab-list'}
         data-orientation="horizontal"
         data-variant={variant}
         data-phone-columns={segmented ? phoneColumnsFor(items.length) : undefined}
+        data-wrapped={segmented && trayWrapped ? 'true' : undefined}
       >
         {items.map((item) => {
           if (typeof item.href !== 'string' || item.href.trim() === '') {
@@ -67,7 +70,12 @@ export function TabNav({ ariaLabel, items, currentId, variant = 'underline', cla
                 data-selected={isCurrent || undefined}
                 aria-current={isCurrent ? 'page' : undefined}
               >
-                <span className="ds-tab__label">{item.label}</span>
+                <span
+                  className={segmented ? 'ds-tab__label ds-segmented-group__label' : 'ds-tab__label'}
+                  data-text={segmented ? reservedText(item.label) : undefined}
+                >
+                  {item.label}
+                </span>
               </a>
             </li>
           );

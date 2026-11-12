@@ -5,7 +5,7 @@ import { Icon, Save, Edit2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/design-system/components';
-import { PageHeader } from '@/design-system/layouts';
+import { PageHeader, Stack } from '@/design-system/layouts';
 import { useUnsavedChanges } from '@/design-system/patterns';
 import { CompanyInfoSection } from './profile';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
@@ -121,28 +121,21 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         setIsEditing(false);
     };
 
+    // Editing, a phone keeps Cancel and Save Changes in a bar at the foot of
+    // the screen, so they stay in reach below a long form. The same buttons,
+    // rendered once: Cancel hands focus back to Edit Profile.
     return (
-        <div className="space-y-ds-6">
+        <Stack gap="lg">
             <PageHeader
                 title="Company profile"
                 description="Your name, logo, contact details and address, as drivers see them."
-                actions={(isCompanyAdmin || isEditing) && (<>
-                {isCompanyAdmin && !isEditing && (
-                    <Button
-                        variant="secondary"
-                        ref={editButtonRef}
-                        onClick={startEditing}
-                    >
-                        <Icon icon={Edit2} />
-                        Edit Profile
-                    </Button>
-                )}
-                {isEditing && (
-                    <div className="flex flex-wrap gap-ds-2">
+                mobileActions={isEditing ? 'sticky' : 'row'}
+                actions={isEditing ? (
+                    <>
                         {/* Not while a save is on its way: it stores the edit, and Cancel
                             would put back what it replaced, for the next save to store. */}
                         <Button
-                            variant="ghost"
+                            variant="secondary"
                             onClick={cancelEditing}
                             disabled={loading}
                         >
@@ -156,12 +149,20 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                             {!loading && <Icon icon={Save} />}
                             Save Changes
                         </Button>
-                    </div>
+                    </>
+                ) : isCompanyAdmin && (
+                    <Button
+                        variant="secondary"
+                        ref={editButtonRef}
+                        onClick={startEditing}
+                    >
+                        <Icon icon={Edit2} />
+                        Edit Profile
+                    </Button>
                 )}
-                </>)}
             />
 
             <CompanyInfoSection compData={compData} isEditing={isEditing} plan={planName} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
-        </div>
+        </Stack>
     );
 }
