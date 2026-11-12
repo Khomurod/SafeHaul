@@ -2,6 +2,7 @@ import React, { Fragment, memo, useId, useMemo } from 'react';
 import { AlertTriangle, Icon } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
 import { useCardsLayout } from './useCardsLayout';
+import { useScrollEdges } from './useScrollEdges';
 import { ariaSortOf, checkSort } from './sorting';
 import { SortButton } from './SortControls';
 import { CardStrip, SelectionCheckbox } from './SelectionControls';
@@ -17,6 +18,7 @@ import './pinnedColumn.css';
 import './mobileCards.css';
 import './roleCards.css';
 import './rowDetail.css';
+import './scrollEdges.css';
 
 /**
  * The narrowest a table may get before its region scrolls sideways. `none` sets
@@ -191,6 +193,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   const statePanel = cards ? null : bodyState;
   /** Cards on screen now; at 768px and up the same table can scroll sideways. */
   const cardsOnScreen = useCardsLayout(cards);
+  const [scrollFrameRef, scrollRegionRef] = useScrollEdges();
   const roles = usesMobileRoles(cards, normalizedColumns);
   if (!cards && normalizedColumns.some((column) => column.mobileRole !== undefined)) {
     contractViolation('A DataTable column mobileRole places a value on a phone card; it needs mobilePresentation="cards".');
@@ -263,153 +266,157 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
         </p>
       )}
 
-      <div
-        className="ds-data-table__scroll-region"
-        role="region"
-        aria-label={cardsOnScreen ? ariaLabel : `${ariaLabel}. Scroll horizontally to view all columns.`}
-        tabIndex={0}
-      >
-        <table data-min-width={tableMinWidth} role={role('table')}>
-          <caption className="sr-only">{ariaLabel}</caption>
-          <colgroup>
-            {gutter && <col data-width="selection" />}
-            {normalizedColumns.map((column) => (
-              <col key={column.key} data-width={column.width} data-mobile-role={roles ? cardRoleOf(column) : undefined} />
-            ))}
-          </colgroup>
-          <thead role={role('rowgroup')}>
-            <tr role={role('row')}>
-              {showSelection && (
-                <th className="ds-data-table__selection-cell" scope="col" role={role('columnheader')}>
-                  {/* On cards the box moves to the strip above them, under the same name. */}
-                  {cardsOnScreen ? <span className="sr-only">Select</span> : <SelectionCheckbox {...selectAll} />}
-                </th>
-              )}
-              {gutter === 'reserve' && <SelectionGutter />}
+      {/* The frame shades an edge with columns past it (`scrollEdges.css`). */}
+      <div className="ds-data-table__scroll-frame" ref={scrollFrameRef}>
+        <div
+          ref={scrollRegionRef}
+          className="ds-data-table__scroll-region"
+          role="region"
+          aria-label={cardsOnScreen ? ariaLabel : `${ariaLabel}. Scroll horizontally to view all columns.`}
+          tabIndex={0}
+        >
+          <table data-min-width={tableMinWidth} role={role('table')}>
+            <caption className="sr-only">{ariaLabel}</caption>
+            <colgroup>
+              {gutter && <col data-width="selection" />}
               {normalizedColumns.map((column) => (
-                <th
-                  key={column.key}
-                  scope="col"
-                  role={role('columnheader')}
-                  data-align={column.align}
-                  data-width={column.width}
-                  data-truncate={column.truncate || undefined}
-                  data-mobile-role={roles ? cardRoleOf(column) : undefined}
-                  aria-sort={ariaSortOf(column, sort)}
-                >
-                  {column.headerLabel && !column.header ? (
-                    <span className="sr-only">{column.headerLabel}</span>
-                  ) : column.sortable && !cardsOnScreen ? (
-                    <SortButton column={column} sort={sort} onSortChange={onSortChange} />
-                  ) : column.header}
-                </th>
+                <col key={column.key} data-width={column.width} data-mobile-role={roles ? cardRoleOf(column) : undefined} />
               ))}
-            </tr>
-          </thead>
-          <tbody role={role('rowgroup')}>
-            {isLoading ? (
-              <LoadingRows
-                columns={normalizedColumns}
-                gutter={gutter}
-                loadingLabel={loadingLabel}
-                role={role}
-              />
-            ) : bodyState ? (
-              cards && (
-                <tr role={role('row')}>
-                  <td role={role('cell')} colSpan={columnSpan}>
-                    <StateContent state={bodyState} empty={empty} error={normalizedError} loadingLabel={loadingLabel} />
-                  </td>
-                </tr>
-              )
-            ) : (
-              data.map((row, rowIndex) => {
-                const rowId = getRowId(row);
-                const isSelected = selectedSet.has(rowId);
-                const rowTone = getRowTone?.(row) || 'neutral';
-                const detail = rowDetailOf(getRowDetail, row);
-                const detailId = detail ? `${detailIdBase}-detail-${rowIndex}` : undefined;
-                // On a card by role the detail is a line of the card; elsewhere a row of its own.
-                const detailInCard = Boolean(detail && roles && cardsOnScreen);
-                const detailCell = detail && (
-                  <td
-                    className="ds-data-table__detail"
-                    role={role('cell')}
-                    colSpan={detailInCard ? undefined : columnSpan}
-                    data-detail-tone={detail.tone}
+            </colgroup>
+            <thead role={role('rowgroup')}>
+              <tr role={role('row')}>
+                {showSelection && (
+                  <th className="ds-data-table__selection-cell" scope="col" role={role('columnheader')}>
+                    {/* On cards the box moves to the strip above them, under the same name. */}
+                    {cardsOnScreen ? <span className="sr-only">Select</span> : <SelectionCheckbox {...selectAll} />}
+                  </th>
+                )}
+                {gutter === 'reserve' && <SelectionGutter />}
+                {normalizedColumns.map((column) => (
+                  <th
+                    key={column.key}
+                    scope="col"
+                    role={role('columnheader')}
+                    data-align={column.align}
+                    data-width={column.width}
+                    data-truncate={column.truncate || undefined}
+                    data-mobile-role={roles ? cardRoleOf(column) : undefined}
+                    aria-sort={ariaSortOf(column, sort)}
                   >
-                    <RowDetailContent id={detailId} detail={detail} />
-                  </td>
-                );
-
-                return (
-                  <Fragment key={rowId}>
-                    <tr
-                      className="ds-data-table__row"
-                      role={role('row')}
-                      data-interactive={Boolean(onRowActivate)}
-                      data-selected={isSelected || undefined}
-                      data-tone={rowTone}
-                      data-has-detail={(detail && !detailInCard) || undefined}
-                      aria-label={getRowLabel?.(row)}
-                      aria-describedby={onRowActivate ? detailId : undefined}
-                      aria-selected={showSelection ? isSelected : undefined}
-                      tabIndex={onRowActivate ? 0 : undefined}
-                      onClick={() => onRowActivate?.(row)}
-                      onKeyDown={(event) => handleRowKeyDown(event, row)}
+                    {column.headerLabel && !column.header ? (
+                      <span className="sr-only">{column.headerLabel}</span>
+                    ) : column.sortable && !cardsOnScreen ? (
+                      <SortButton column={column} sort={sort} onSortChange={onSortChange} />
+                    ) : column.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody role={role('rowgroup')}>
+              {isLoading ? (
+                <LoadingRows
+                  columns={normalizedColumns}
+                  gutter={gutter}
+                  loadingLabel={loadingLabel}
+                  role={role}
+                />
+              ) : bodyState ? (
+                cards && (
+                  <tr role={role('row')}>
+                    <td role={role('cell')} colSpan={columnSpan}>
+                      <StateContent state={bodyState} empty={empty} error={normalizedError} loadingLabel={loadingLabel} />
+                    </td>
+                  </tr>
+                )
+              ) : (
+                data.map((row, rowIndex) => {
+                  const rowId = getRowId(row);
+                  const isSelected = selectedSet.has(rowId);
+                  const rowTone = getRowTone?.(row) || 'neutral';
+                  const detail = rowDetailOf(getRowDetail, row);
+                  const detailId = detail ? `${detailIdBase}-detail-${rowIndex}` : undefined;
+                  // On a card by role the detail is a line of the card; elsewhere a row of its own.
+                  const detailInCard = Boolean(detail && roles && cardsOnScreen);
+                  const detailCell = detail && (
+                    <td
+                      className="ds-data-table__detail"
+                      role={role('cell')}
+                      colSpan={detailInCard ? undefined : columnSpan}
+                      data-detail-tone={detail.tone}
                     >
-                      {showSelection && (
-                        <td
-                          className="ds-data-table__selection-cell"
-                          role={role('cell')}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <SelectionCheckbox
-                            checked={isSelected}
-                            label={selection.getRowLabel?.(row) || `Select row ${rowId}`}
-                            onChange={(event) => selection.onToggleRow?.(rowId, event)}
-                          />
-                        </td>
-                      )}
-                      {gutter === 'reserve' && <SelectionGutter />}
-                      {normalizedColumns.map((column) => {
-                        const Cell = column.rowHeader ? 'th' : 'td';
-                        const content = column.render(row);
-                        const cardRole = roles ? cardRoleOf(column) : undefined;
-                        return (
-                          <Cell
-                            key={column.key}
-                            scope={column.rowHeader ? 'row' : undefined}
-                            role={role(column.rowHeader ? 'rowheader' : 'cell')}
-                            aria-describedby={column.rowHeader ? detailId : undefined}
-                            data-label={cards && !roles && !column.rowHeader ? mobileLabelOf(column) : undefined}
-                            data-mobile-role={cardRole}
-                            data-mobile-label={cardRole ? cardLabelOf(column, cardRole) : undefined}
-                            data-mobile-empty={(cardRole && isEmptyCellContent(content)) || undefined}
-                            data-align={column.align}
-                            data-width={column.width}
-                            data-truncate={column.truncate || undefined}
-                            onClick={column.stopPropagation
-                              ? (event) => event.stopPropagation()
-                              : undefined}
+                      <RowDetailContent id={detailId} detail={detail} />
+                    </td>
+                  );
+
+                  return (
+                    <Fragment key={rowId}>
+                      <tr
+                        className="ds-data-table__row"
+                        role={role('row')}
+                        data-interactive={Boolean(onRowActivate)}
+                        data-selected={isSelected || undefined}
+                        data-tone={rowTone}
+                        data-has-detail={(detail && !detailInCard) || undefined}
+                        aria-label={getRowLabel?.(row)}
+                        aria-describedby={onRowActivate ? detailId : undefined}
+                        aria-selected={showSelection ? isSelected : undefined}
+                        tabIndex={onRowActivate ? 0 : undefined}
+                        onClick={() => onRowActivate?.(row)}
+                        onKeyDown={(event) => handleRowKeyDown(event, row)}
+                      >
+                        {showSelection && (
+                          <td
+                            className="ds-data-table__selection-cell"
+                            role={role('cell')}
+                            onClick={(event) => event.stopPropagation()}
                           >
-                            {content}
-                          </Cell>
-                        );
-                      })}
-                      {detailInCard && detailCell}
-                    </tr>
-                    {detail && !detailInCard && (
-                      <tr className="ds-data-table__detail-row" role={role('row')}>
-                        {detailCell}
+                            <SelectionCheckbox
+                              checked={isSelected}
+                              label={selection.getRowLabel?.(row) || `Select row ${rowId}`}
+                              onChange={(event) => selection.onToggleRow?.(rowId, event)}
+                            />
+                          </td>
+                        )}
+                        {gutter === 'reserve' && <SelectionGutter />}
+                        {normalizedColumns.map((column) => {
+                          const Cell = column.rowHeader ? 'th' : 'td';
+                          const content = column.render(row);
+                          const cardRole = roles ? cardRoleOf(column) : undefined;
+                          return (
+                            <Cell
+                              key={column.key}
+                              scope={column.rowHeader ? 'row' : undefined}
+                              role={role(column.rowHeader ? 'rowheader' : 'cell')}
+                              aria-describedby={column.rowHeader ? detailId : undefined}
+                              data-label={cards && !roles && !column.rowHeader ? mobileLabelOf(column) : undefined}
+                              data-mobile-role={cardRole}
+                              data-mobile-label={cardRole ? cardLabelOf(column, cardRole) : undefined}
+                              data-mobile-empty={(cardRole && isEmptyCellContent(content)) || undefined}
+                              data-align={column.align}
+                              data-width={column.width}
+                              data-truncate={column.truncate || undefined}
+                              onClick={column.stopPropagation
+                                ? (event) => event.stopPropagation()
+                                : undefined}
+                            >
+                              {content}
+                            </Cell>
+                          );
+                        })}
+                        {detailInCard && detailCell}
                       </tr>
-                    )}
-                  </Fragment>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      {detail && !detailInCard && (
+                        <tr className="ds-data-table__detail-row" role={role('row')}>
+                          {detailCell}
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {statePanel && (

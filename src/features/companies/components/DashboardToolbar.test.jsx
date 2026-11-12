@@ -144,39 +144,30 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('__unassigned__');
     });
 
-    it('keeps Assign in its place for someone who can assign, usable once rows are selected', () => {
+    it('shows Assign to someone who can assign once rows are ticked, in a place the row keeps for it', () => {
         const onAssignLeads = vi.fn();
-        const { rerender } = renderToolbar({ canAssign: false, selectedCount: 2, onAssignLeads });
+        const { container, rerender } = renderToolbar({ canAssign: false, selectedCount: 2, onAssignLeads });
         expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+        expect(container.querySelector('.ds-list-toolbar')).not.toHaveAttribute('data-reserve-actions');
 
-        // Nothing ticked: there, so ticking a row adds no row above the list, but unavailable.
-        rerender(
+        // Nothing ticked: no button, as C2 draws the list, but its place is kept
+        // so ticking a lead adds no row above the list.
+        const toolbar = (selectedCount) => (
             <DashboardToolbar
                 searchQuery=""
                 setSearchQuery={noop}
                 filters={{}}
                 setFilters={noop}
                 canAssign
-                selectedCount={0}
+                selectedCount={selectedCount}
                 onAssignLeads={onAssignLeads}
-            />,
+            />
         );
-        const resting = screen.getByRole('button', { name: 'Assign' });
-        expect(resting).toBeDisabled();
-        fireEvent.click(resting);
-        expect(onAssignLeads).not.toHaveBeenCalled();
+        rerender(toolbar(0));
+        expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+        expect(container.querySelector('.ds-list-toolbar')).toHaveAttribute('data-reserve-actions', 'true');
 
-        rerender(
-            <DashboardToolbar
-                searchQuery=""
-                setSearchQuery={noop}
-                filters={{}}
-                setFilters={noop}
-                canAssign
-                selectedCount={3}
-                onAssignLeads={onAssignLeads}
-            />,
-        );
+        rerender(toolbar(3));
         const ready = screen.getByRole('button', { name: 'Assign (3)' });
         expect(ready).toBeEnabled();
         fireEvent.click(ready);

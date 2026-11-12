@@ -354,6 +354,47 @@ describe('ListToolbar', () => {
       expect(container.querySelector('.ds-list-toolbar')).toHaveAttribute('data-wrapped', 'true');
     });
 
+    it('count the place of actions a selection will bring, so their arrival wraps nothing', () => {
+      stubLayout();
+      // With 120px of actions in it the row wraps at 1080 (the test above); with
+      // none yet, but their place kept, it is laid out wrapped already.
+      widths.bar = 1080;
+      vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+        paddingLeft: '0px',
+        paddingRight: '0px',
+        columnGap: '0px',
+        minWidth: '0px',
+        getPropertyValue: (name) => (name === '--ds-list-toolbar-actions-reserve' ? '144px' : ''),
+      }));
+      const { container, rerender } = render(<Page placement="page" actions={null} reserveActions />);
+      const toolbar = container.querySelector('.ds-list-toolbar');
+      expect(toolbar).toHaveAttribute('data-reserve-actions', 'true');
+      expect(toolbar).toHaveAttribute('data-wrapped', 'true');
+
+      rerender(<Page placement="page" actions={<button type="button">Assign (2)</button>} reserveActions />);
+      expect(toolbar).toHaveAttribute('data-wrapped', 'true');
+
+      // Room for 120px of actions but not for the reserve: still wrapped once
+      // they come, so the narrower button never puts the row back on one line.
+      widths.bar = 1120;
+      rerender(<Page placement="page" actions={null} reserveActions />);
+      expect(toolbar).toHaveAttribute('data-wrapped', 'true');
+      rerender(<Page placement="page" actions={<button type="button">Assign (2)</button>} reserveActions />);
+      expect(toolbar).toHaveAttribute('data-wrapped', 'true');
+
+      // Room for the reserve too: one row, before and after the actions come.
+      widths.bar = 1400;
+      rerender(<Page placement="page" actions={null} reserveActions />);
+      expect(toolbar).not.toHaveAttribute('data-wrapped');
+      rerender(<Page placement="page" actions={<button type="button">Assign (2)</button>} reserveActions />);
+      expect(toolbar).not.toHaveAttribute('data-wrapped');
+    });
+
+    it('keep no place for actions in a card strip, which never measures its row', () => {
+      const { container } = render(<Page actions={null} reserveActions />);
+      expect(container.querySelector('.ds-list-toolbar')).not.toHaveAttribute('data-reserve-actions');
+    });
+
     it('follow a tools block that appears after the first draw', () => {
       stubLayout();
       const segments = { ariaLabel: 'Show', items: SEGMENTS, value: 'all', onChange: vi.fn() };
@@ -373,6 +414,12 @@ describe('ListToolbar', () => {
       const search = RULES.find(({ selector }) => selector === ".ds-list-toolbar[data-placement='page'] .ds-list-toolbar__search");
       // Its placeholder's width at 14px, so the placeholder is never cut.
       expect(search.body).toMatch(/min-width:\s*250px/);
+    });
+
+    it('keep the reserve as wide as the widest selection action, a full page ticked', () => {
+      const reserve = RULES.find(({ selector }) => selector === '.ds-list-toolbar[data-reserve-actions]');
+      // "Assign (100)" is 143px.
+      expect(reserve?.body).toMatch(/--ds-list-toolbar-actions-reserve:\s*144px/);
     });
 
     it('are never measured in a card strip, which keeps its own wrapping', () => {

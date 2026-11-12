@@ -262,24 +262,24 @@ The reverse directions are prohibited — including any `@shared` import inside
   matrix worked one record at a time is one card per row under 768px
   (`mobilePresentation="cards"`), laid out by each column's `mobileRole` or each
   value under its `mobileLabel` or header; with checkboxes each card leads with
-  its own, under "Select all" and "Sort by". See `components/data-table/README.md`. Under 412px `mobileStatus="below"` gives the status its own line (Leads).
+  its own, under "Select all" and "Sort by". Under 412px `mobileStatus="below"` gives the status its own line (Leads). A sideways-scrolling table shades an edge hiding columns.
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
   (numbers), never centred; a header is one line; `minWidth` is `wide`,
   `standard` or `none`. A list sorts from its headers (`sortable`, with the
   feature's `sort` and `onSortChange`; a "Sort by" list above phone cards).
-  Every column has a width bucket; the import preview, whose rows are compared,
-  scrolls on a phone.
+  Every column has a width bucket; the import preview (compared rows) scrolls
+  on phones.
 - **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
   Applications and the three Leads tabs follow all six (Leads: its tabs a
   segmented `TabNav` in the row's `lead`, the status pills in the table card's
-  strip, on All and Unassigned an Assign kept in the row, unavailable until a
-  lead is ticked). An admin's Assigned to me keeps the checkbox column (`reserveSelection`). Unfinished applications and E-Docs
+  strip, on All and Unassigned an Assign once a lead is ticked, in a kept
+  place: `reserveActions`). An admin's Assigned to me keeps the checkbox column (`reserveSelection`). Unfinished applications and E-Docs
   Sent Documents (counted in its tab) do not sort from headers. Short lists with
   no toolbar or sorting take the heading, the rows and the cards: Referral
-  Links, Settings → API Keys (every settings section's `PageHeader` is the
-  page's one `<h1>`) and Super Admin's Website Leads, Blog Posts and Features
+  Links, Settings → API Keys (each settings section's `PageHeader` is its
+  `<h1>`) and Super Admin's Website Leads, Blog Posts and Features
   (`PageHeader level={2}`). AI Logs and Environment & Integrations keep the card
   strip, no count. Temporary exception: `ListToolbar`'s segments are its own
   `aria-pressed` buttons, not `SegmentedControl`. Tablets: `e2e/list-page-tablet.spec.cjs`.
@@ -410,7 +410,7 @@ are fully approved, §7 is permanent.
 | Unified Driver Database bulk actions removed | A control that does nothing is not shown; `UnifiedDriverList.bulkSafety.test.jsx` pins the absence. A real action returns with its selection when a recruiter asks — "Export" first, "Archive" only once an archived state is defined (Archive is not delete). `LeadAssignmentModal` is single-company and campaigns own bulk SMS with their own consent rules; both bind the first real action |
 | Employers sign the verification portal by drawing or typing | `SignatureInput` (`shared/components/signature`) wraps the pad in a `SegmentedControl` Draw \| Type choice, Draw by default; a typed name is stored as `TEXT_SIGNATURE:<name>` and never rasterised; the method travels with the response and the server refuses a mislabelled one; the DQ-file PDF prints a typed name in an oblique face under "(typed)"; switching method clears the mark |
 | Editable matrices and tables on phones | The §3 table rule; the SMS recruiter matrix is one card per row under 768px and a table with its name column pinned above it |
-| Work lists on phones (2026-10-08) | `DataTable` `mobilePresentation="cards"`, laid out by `mobileRole`, for rows worked one at a time and never compared: the candidate lists (Company Leads with its checkboxes, under "Select all" and "Sort by"), Unfinished applications, Referral Links, E-Docs Sent Documents and the settings lists. A cell's label is its column's `mobileLabel` (without roles, else its header); `''` gives an actions cell the card's width |
+| Work lists on phones | `DataTable` `mobilePresentation="cards"`, laid out by `mobileRole`, for rows worked one at a time and never compared: the candidate lists (Company Leads with its checkboxes, under "Select all" and "Sort by"), Unfinished applications, Referral Links, E-Docs Sent Documents and the settings lists. A cell's label is its column's `mobileLabel` (without roles, else its header); `''` gives an actions cell the card's width |
 | AI Integrations → Logs (`AiLogsPanel.jsx`) | A list page in its tab: `ListToolbar` (feature segments, "Errors only", search, Filters for provider and dates), `DataTable embedded` at `density="compact"`, cards on a phone; full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
 | Guided tour removed (owner) | A reintroduced tour must first answer the dialog question — a blocking backdrop needs `role="dialog"`, a focus move and Escape — starting from a named close control and step progress announced in text |
 | Facebook Integrations flag stays off (owner) | The visible "not production-ready" notice stays with it; `scripts/audit-facebook-lead-tenancy.mjs` is a read-only report |

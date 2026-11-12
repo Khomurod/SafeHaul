@@ -337,8 +337,8 @@ Facebook Lead Ads webhook, or a referral quick form. **Leads** is one page with
 three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segments
 are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
 Process, Interested and Declined (`Declined`, `Rejected`), pills at the top of the
-table card under the tabs. Assign (admins) is on All and Unassigned, always in the
-toolbar row and unavailable until a lead is ticked; the Assigned to filter is on
+table card under the tabs. Assign (admins) is on All and Unassigned, in the toolbar
+row once a lead is ticked, in a place the row keeps for it so nothing below moves; the Assigned to filter is on
 All and Applications, the Assigned to me switch on Applications. Applications and
 every Leads tab show the same columns at the same widths (initials, Driver with the
 number to call under the name, Status, Freight · State, Applied or Added, Last call,

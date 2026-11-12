@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const SEARCH_CLASS = 'ds-list-toolbar__search';
+const ACTIONS_CLASS = 'ds-list-toolbar__actions';
 
 const sum = (values) => values.reduce((total, value) => total + value, 0);
 const px = (value) => {
@@ -20,28 +21,47 @@ export function toolsFit({ available, leading, tools, gap }) {
 }
 
 /**
+ * The width a toolbar keeps for actions a selection brings (`reserveActions`):
+ * its `--ds-list-toolbar-actions-reserve`, or nothing when it reserves none.
+ */
+function reservedActionsWidth(bar) {
+  const root = bar.closest('.ds-list-toolbar');
+  if (!root?.hasAttribute('data-reserve-actions')) return 0;
+  return px(window.getComputedStyle(root).getPropertyValue('--ds-list-toolbar-actions-reserve'));
+}
+
+/**
  * The widths `toolsFit` compares, read from the bar as it is drawn. Each tool
  * is as wide as its content (the toolbar's CSS gives them `flex: none`) except
- * the search, which grows: it counts at its minimum width. None of these
- * change when the tools wrap, so the answer does not feed back on itself.
+ * the search, which grows: it counts at its minimum width. Actions a selection
+ * brings count at no less than their reserve, drawn or not, so the row is laid
+ * out the same before and after a row is ticked: "Assign (1)" is narrower than
+ * the reserve, and counting it as it is drawn would put the row back on one
+ * line under the finger. None of these change when the tools wrap, so the
+ * answer does not feed back on itself.
  */
 export function measureBar(bar, tools) {
   const style = window.getComputedStyle(bar);
   const available = bar.clientWidth - px(style.paddingLeft) - px(style.paddingRight);
   const gap = px(style.columnGap);
   const leadingParts = [...bar.children].filter((part) => part !== tools);
-  const toolParts = [...tools.children];
   const toolGap = px(window.getComputedStyle(tools).columnGap);
   const widthOf = (part) => {
     if (!part.classList.contains(SEARCH_CLASS)) return part.offsetWidth;
     const min = px(window.getComputedStyle(part).minWidth);
     return min > 0 ? min : part.offsetWidth;
   };
+  const actions = [...tools.children].find((part) => part.classList.contains(ACTIONS_CLASS));
+  const actionsWidth = Math.max(actions ? actions.offsetWidth : 0, reservedActionsWidth(bar));
+  const toolWidths = [
+    ...[...tools.children].filter((part) => part !== actions).map(widthOf),
+    ...(actionsWidth > 0 ? [actionsWidth] : []),
+  ];
   return {
     available,
     gap,
     leading: sum(leadingParts.map((part) => part.offsetWidth)) + gap * Math.max(0, leadingParts.length - 1),
-    tools: sum(toolParts.map(widthOf)) + toolGap * Math.max(0, toolParts.length - 1),
+    tools: sum(toolWidths) + toolGap * Math.max(0, toolWidths.length - 1),
   };
 }
 
