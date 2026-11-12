@@ -262,7 +262,7 @@ The reverse directions are prohibited — including any `@shared` import inside
   matrix worked one record at a time is one card per row under 768px
   (`mobilePresentation="cards"`), laid out by each column's `mobileRole` or each
   value under its `mobileLabel` or header; with checkboxes each card leads with
-  its own, under "Select all" and "Sort by". See `components/data-table/README.md`. <!-- C2: lead adds the DataTable/Avatar changes … -->
+  its own, under "Select all" and "Sort by". See `components/data-table/README.md`. Under 412px `mobileStatus="below"` gives the status its own line (Leads).
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
@@ -275,7 +275,7 @@ The reverse directions are prohibited — including any `@shared` import inside
   Applications and the three Leads tabs follow all six (Leads: its tabs a
   segmented `TabNav` in the row's `lead`, the status pills in the table card's
   strip, on All and Unassigned an Assign kept in the row, unavailable until a
-  lead is ticked). <!-- C2: lead adds the reserved selection gutter … --> Unfinished applications and E-Docs
+  lead is ticked). An admin's Assigned to me keeps the checkbox column (`reserveSelection`). Unfinished applications and E-Docs
   Sent Documents (counted in its tab) do not sort from headers. Short lists with
   no toolbar or sorting take the heading, the rows and the cards: Referral
   Links, Settings → API Keys (every settings section's `PageHeader` is the
@@ -524,7 +524,7 @@ it does:
 | Empty / error / loading state | `patterns/page-state` |
 | Stacking layers | `tokens/foundation.css` → `--ds-z-*`; entitlement in `tests/stackingLayers.test.js` |
 | Icons | `icons/` (`Icon` + glyph tokens); one recorded exception, `VOEDocument.jsx` (§5) |
-| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5) <!-- C2: lead adds the DataTable/Avatar changes … --> |
+| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5); 44px header, `reserveSelection`, `mobileStatus`, `getRowDetail`, `2xl` |
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
 | Navigation and external links; tab strip; tab strip of links (`TabNav`, views with their own address: the Leads tabs; **Needs review**: no 1440/412 or visual-contract review yet); single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
 | Interactive pill / chip; person or organisation disc; selectable record card (also the rows of one card, `frame="row"`: the settings menu) | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |

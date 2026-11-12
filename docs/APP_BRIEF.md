@@ -342,7 +342,7 @@ toolbar row and unavailable until a lead is ticked; the Assigned to filter is on
 All and Applications, the Assigned to me switch on Applications. Applications and
 every Leads tab show the same columns at the same widths (initials, Driver with the
 number to call under the name, Status, Freight · State, Applied or Added, Last call,
-Assignee), so moving between tabs moves no column. <!-- C2: lead adds … (the reserved selection gutter) --> On a phone each
+Assignee), so moving between tabs moves no column. An admin's Assigned to me keeps an empty column where the checkboxes are on All, so Status and Assignee do not move. On a phone each
 driver is a card, All's and Unassigned's led by their checkboxes under "Select all"
 and "Sort by". **Add lead** (any staff member) assigns a recruiter's lead to them
 (Д13; an admin's stays unassigned) and opens it in the dossier on the person's
@@ -1732,7 +1732,7 @@ the bottom on the Add lead and Company profile edit forms, with toasts above it)
 16px-round cards and initials discs for people. Up to 1180px wide Settings opens
 its list of sections as a page of its own; wider, a rail sits beside the open
 section. Add person and Create an API key rise from the bottom of a phone screen.
-<!-- C2: lead adds … (settings menu and rail) -->
+Settings: from 1181px a 288px rail lists the sections, each with a one-line description; up to 1180px the menu is its own page, one card per group, and each section links back with "← Settings".
 
 Reuse approved components and semantic `--ds-*` tokens. Do not add a local
 button, modal, form control, table, status treatment, arbitrary color or
@@ -1752,7 +1752,7 @@ a `DataTable` of such rows (`mobilePresentation="cards"`). Its columns may state
 `mobileRole`, which lays each card out as one record (avatar or icon, title, status
 in the corner, short facts inline, actions across the card), and it may carry a
 selection: each card led by its checkbox under a "Select all" and "Sort by" strip.
-<!-- C2: lead adds … (DataTable/Avatar) --> Source and guards: `src/design-system/components/data-table/README.md`.
+Table headers are a 44px band; a row can carry a tinted line under it (`getRowDetail`, Team's membership problem), which its row header names as its description. Source and guards: `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
 dialog goes through `Modal` and takes its size and shape from the chrome
