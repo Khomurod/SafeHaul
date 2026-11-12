@@ -16,8 +16,9 @@ Create columns with `defineTableColumns`. A column supports:
 | `headerLabel` | Accessible label when the visible header is intentionally empty |
 | `render(row)` | Feature-owned content and value formatting |
 | `align` | `start` (default) for text or `end` for numbers, applied to both header and cells. Nothing is centred: a centred column has no edge to scan |
-| `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, or `actions` |
+| `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, `2xl`, or `actions` |
 | `rowHeader` | Uses `<th scope="row">` for the primary identifying cell |
+| `leadingAvatar` | On the row header only: its cells start with an `sm` `Avatar` and a 12px gap before the text (a person cell), so a [row detail](#row-details) starts its words under that text |
 | `truncate` | Applies the approved single-line truncation behavior |
 | `stopPropagation` | Keeps a nested cell action from also activating its row |
 | `mobileLabel` | The label beside the value when the table is cards on a phone; `''` shows none. On a card laid out by role, the words before an inline value ("Updated", "Last call:"), and nothing when unset |
@@ -41,8 +42,11 @@ order, whether the order comes from a query or from the page.
   has two states, never "unsorted". Pressing the sorted header turns it;
   pressing another sorts by it in its `first` direction (`asc` unless set; a
   date column usually starts `desc`, newest first).
-- Only the sorted column shows its arrow. Another sortable header shows the
-  direction a press would ask for on hover or focus. The arrow keeps its space
+- Only the sorted column shows its arrow, in the header's own colour: at rest
+  the sorted header is no darker than the others, so the arrow alone says
+  which column orders the list. Pointed at or focused, a sortable header
+  darkens, and another sortable header shows the direction a press would ask
+  for. The arrow keeps its space
   while hidden, so a sortable header needs about 16px more than its text (see
   the header widths below). In an `end` column the arrow leads.
 - Pressing a header never activates a row.
@@ -78,6 +82,12 @@ targets through design-system tokens and component CSS: a 44px header on the
 table's surface, its labels in sentence case as the feature wrote them (12px,
 medium weight, the secondary text colour of `--ds-table-header-fg`); 68px
 comfortable rows (56px compact); 16px inline cell padding (`--ds-table-*`).
+The header band is 44px whatever a header holds: a sort button or the
+"select all" box sits inside that height, with no block padding added to it.
+
+A selected row takes the brand tint (`--ds-table-row-selected-bg`), which is
+also a person's disc (`Avatar tone="brand"`); on a selected row the disc gets a
+2px ring of the surface, drawn as an outline so forced colours keep it.
 
 A table on its own is the card that holds it: the card radius
 (`--ds-card-radius`, 16px) and the soft shadow (`--ds-shadow-soft`), at every
@@ -158,7 +168,7 @@ When the columns state a `mobileRole`, each card is one record
 | `status` | The top-right corner. One per table: several statuses go in its one cell, which stacks them one under another |
 | `meta` | Inline after the title, wrapping as a line of short facts, each after its `mobileLabel` ("Updated Jul 11"); left out when the cell renders nothing, a blank or "—". The role of any column that states none |
 | `line` | A line of its own (an owner with their avatar), after its `mobileLabel` if it has one |
-| `actions` | The card's full width; the cell's direct children (pass the buttons, not a wrapper) share it |
+| `actions` | The card's full width; the cell's direct children (pass the buttons, not a wrapper) share it. A record with nothing to do renders nothing there (`null`), and the card leaves the empty cell out, as it does an empty `meta` or `line` |
 | `hidden` | Out of sight on the card, but still read under its column header, as an empty `meta` or `line` item is. So a control never goes in a `hidden` column: it would take focus unseen. A control on a card goes in `actions` |
 
 A role card never takes a label from the header: "Reefer · IL" needs no
@@ -168,6 +178,13 @@ column contract refuses an unknown role, a row header with any role but
 `title`, `title` on another column, a second `lead` or `status`, and a `lead`
 that is not the first column with the row header (if any) right after it;
 `DataTable` refuses a role on a table that never draws cards.
+
+`mobileStatus="below"` moves the `status` cell from the corner to a line of
+its own under the title on a phone narrower than 412px, where the corner would
+squeeze a title that holds a name and a number; every card then keeps one
+shape. From 412px it is the corner again. The default, `corner`, keeps the
+corner at every width. `below` with no `status` column, or any other value, is
+a contract violation.
 
 A cell the card leaves out (`hidden`, an empty item) is clipped out of sight
 rather than removed: the header row, hidden too, keeps every column, so each
@@ -187,6 +204,39 @@ cards are on screen; at 768px and up the checkbox is back in the header row.
 `z-index`, background) and the card shape at 412px and 1440px;
 `check:table-layout` measures both stories for cell overflow; the catalog
 baselines hold the pictures (`data-table-cards`, every `data-table-*-mobile`).
+
+### Keeping the checkbox column's place
+
+`reserveSelection` draws the checkbox column's width on a table without a
+selection: an empty cell in the header and in every row, hidden from assistive
+technology (`aria-hidden`), with nothing to press or read. A list whose sibling
+lists have checkboxes passes it so its columns stand where theirs do and
+nothing moves between them (Leads → Assigned to me beside All and Unassigned,
+for a company admin). It pins as the checkbox column does, and a card leaves
+it out. With a `selection` it is ignored.
+
+### Row details
+
+`getRowDetail(row)` returns `{ tone, content }`, or `null` for none: a sentence
+about the record that belongs to none of its columns (what is wrong with a team
+member, say). `tone` is a row tone, `neutral` (the default), `warning` or
+`danger`, on that tone's tint; `warning` and `danger` lead with the glyph
+`Notice` uses for the tone, so the tone is never colour alone. Content that is
+empty (`null`, a blank, "—") is no detail.
+
+- In a table the detail is a row of its own right under its record: one cell
+  across every column, no divider between the record and its detail (the
+  divider runs under the detail), its glyph and words starting where the row
+  header's text starts — after the checkbox column (or its reserved place), a
+  `lead` column, and the row header's own avatar (`leadingAvatar`). A row
+  header that is not the first column is not lined up with.
+- On a card by role it is a line of the card, after the `line` items and before
+  the actions: a tinted block across the card's text column. A label-and-value
+  card ends with it.
+- The row's header cell (and a row that takes focus) points at it with
+  `aria-describedby`: it describes the record and is never part of the row's
+  name. It stays readable where it is, as a cell, so reading the table in order
+  meets it too.
 
 The feature toolbar remains outside `DataTable`. This prevents the design
 system from learning feature-specific filters, bulk operations, permissions,
@@ -214,6 +264,7 @@ bucket leaves this much for its header text once the 16px cell padding is taken
 | `md` | 112px |
 | `lg` | 144px |
 | `xl` | 188px |
+| `2xl` | 224px — a role beside its status badge |
 
 A sortable header's arrow takes about 16px of that, hidden or not.
 
