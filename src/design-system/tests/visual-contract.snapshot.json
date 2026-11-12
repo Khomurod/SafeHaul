@@ -1,21 +1,21 @@
 {
-  "mobile · the medallion sizes its own glyph, and the ratio is the decision · medallion[md]": {
+  "mobile \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 medallion[md]": {
     "width": "64px",
     "height": "64px"
   },
-  "mobile · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[md]": {
+  "mobile \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 glyph in medallion[md]": {
     "width": "24px",
     "height": "24px"
   },
-  "mobile · the medallion sizes its own glyph, and the ratio is the decision · medallion[lg]": {
+  "mobile \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 medallion[lg]": {
     "width": "80px",
     "height": "80px"
   },
-  "mobile · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[lg]": {
+  "mobile \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 glyph in medallion[lg]": {
     "width": "32px",
     "height": "32px"
   },
-  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[neutral]": {
+  "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[neutral]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(203, 213, 225)",
     "borderRadius": "8px",
@@ -25,7 +25,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[info]": {
+  "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[info]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(147, 197, 253)",
     "borderRadius": "8px",
@@ -35,7 +35,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[success]": {
+  "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[success]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(187, 247, 208)",
     "borderRadius": "8px",
@@ -45,7 +45,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[warning]": {
+  "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[warning]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(253, 230, 138)",
     "borderRadius": "8px",
@@ -55,7 +55,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[danger]": {
+  "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[danger]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(254, 202, 202)",
     "borderRadius": "8px",
@@ -65,7 +65,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[accent]": {
+  "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[accent]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(221, 214, 254)",
     "borderRadius": "8px",
@@ -75,7 +75,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "mobile · the compact notice, which must differ from the default in three places only · compact": {
+  "mobile \u00b7 the compact notice, which must differ from the default in three places only \u00b7 compact": {
     "paddingTop": "12px",
     "columnGap": "8px",
     "fontSize": "13px",
@@ -83,7 +83,7 @@
     "width": "348px",
     "height": "45.5px"
   },
-  "mobile · the compact notice, which must differ from the default in three places only · compact-icon": {
+  "mobile \u00b7 the compact notice, which must differ from the default in three places only \u00b7 compact-icon": {
     "paddingTop": "0px",
     "columnGap": "normal",
     "fontSize": "13px",
@@ -91,14 +91,14 @@
     "width": "16px",
     "height": "16px"
   },
-  "mobile · the notice action row, which sits under the message rather than beside it · notice-actions": {
+  "mobile \u00b7 the notice action row, which sits under the message rather than beside it \u00b7 notice-actions": {
     "marginTop": "4px",
     "columnGap": "8px",
     "flexWrap": "wrap",
     "alignItems": "center",
     "display": "flex"
   },
-  "mobile · the step rail: a third column, two status colours, and no frame · frameless": {
+  "mobile \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 frameless": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
     "borderRadius": "0px",
@@ -109,18 +109,18 @@
     "width": "238px",
     "height": "140px"
   },
-  "mobile · the step rail: a third column, two status colours, and no frame · step-item": {
+  "mobile \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 step-item": {
     "gridTemplateColumns": "20px 151px 16px",
     "borderTopWidth": "0px",
     "borderRadius": "8px",
     "paddingTop": "8px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "boxShadow": "none",
-    "color": "rgb(71, 85, 105)",
+    "color": "rgb(30, 41, 59)",
     "width": "238px",
     "height": "44px"
   },
-  "mobile · the step rail: a third column, two status colours, and no frame · complete": {
+  "mobile \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 complete": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
     "borderRadius": "0px",
@@ -131,7 +131,7 @@
     "width": "16px",
     "height": "16px"
   },
-  "mobile · the step rail: a third column, two status colours, and no frame · incomplete": {
+  "mobile \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 incomplete": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
     "borderRadius": "0px",
@@ -142,25 +142,25 @@
     "width": "16px",
     "height": "16px"
   },
-  "mobile · the page rail the step variant must not have moved · item": {
+  "mobile \u00b7 the page rail the step variant must not have moved \u00b7 item": {
     "gridTemplateColumns": "20px 271px",
     "minHeight": "44px",
     "borderTopWidth": "0px",
     "borderRadius": "8px",
     "paddingTop": "8px",
-    "backgroundColor": "rgb(239, 246, 255)",
+    "backgroundColor": "rgb(230, 240, 243)",
     "boxShadow": "none"
   },
-  "mobile · the page rail the step variant must not have moved · frame": {
+  "mobile \u00b7 the page rail the step variant must not have moved \u00b7 frame": {
     "gridTemplateColumns": "none",
     "minHeight": "0px",
     "borderTopWidth": "1px",
     "borderRadius": "16px",
     "paddingTop": "8px",
     "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 1px 3px 0px, rgba(15, 23, 42, 0.06) 0px 1px 2px 0px"
+    "boxShadow": "rgba(15, 23, 42, 0.05) 0px 1px 2px 0px"
   },
-  "mobile · the card disclosure, and the rail chrome it takes off · section": {
+  "mobile \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 section": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -172,7 +172,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "mobile · the card disclosure, and the rail chrome it takes off · trigger": {
+  "mobile \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 trigger": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -184,7 +184,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "mobile · the card disclosure, and the rail chrome it takes off · title": {
+  "mobile \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 title": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "700",
@@ -196,7 +196,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "mobile · the card disclosure, and the rail chrome it takes off · description": {
+  "mobile \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 description": {
     "paddingLeft": "0px",
     "fontSize": "13px",
     "fontWeight": "400",
@@ -208,7 +208,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "mobile · the card disclosure, and the rail chrome it takes off · chevron": {
+  "mobile \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 chevron": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -220,7 +220,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "mobile · the card disclosure, and the rail chrome it takes off · panel": {
+  "mobile \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 panel": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -232,7 +232,7 @@
     "marginTop": "24px",
     "borderBottomWidth": "0px"
   },
-  "mobile · the rail disclosure the card variant must not have moved · trigger": {
+  "mobile \u00b7 the rail disclosure the card variant must not have moved \u00b7 trigger": {
     "paddingLeft": "16px",
     "minHeight": "44px",
     "fontSize": "12px",
@@ -242,7 +242,7 @@
     "width": "318px",
     "height": "44px"
   },
-  "mobile · the rail disclosure the card variant must not have moved · chevron": {
+  "mobile \u00b7 the rail disclosure the card variant must not have moved \u00b7 chevron": {
     "paddingLeft": "0px",
     "minHeight": "auto",
     "fontSize": "12px",
@@ -252,192 +252,192 @@
     "width": "16px",
     "height": "16px"
   },
-  "mobile · the dialog overlay, whose stacking layer is not a caller decision · overlay": {
+  "mobile \u00b7 the dialog overlay, whose stacking layer is not a caller decision \u00b7 overlay": {
     "zIndex": "60",
     "backgroundColor": "rgba(15, 23, 42, 0.6)",
     "paddingTop": "16px",
     "alignItems": "center"
   },
-  "mobile · a tone fills a primary and tints a secondary · primary[success]": {
+  "mobile \u00b7 a tone fills a primary and tints a secondary \u00b7 primary[success]": {
     "backgroundColor": "rgb(21, 128, 61)",
     "color": "rgb(255, 255, 255)",
     "borderColor": "rgba(0, 0, 0, 0)",
     "borderRadius": "8px"
   },
-  "mobile · a tone fills a primary and tints a secondary · secondary[success]": {
+  "mobile \u00b7 a tone fills a primary and tints a secondary \u00b7 secondary[success]": {
     "backgroundColor": "rgb(220, 252, 231)",
     "color": "rgb(22, 101, 52)",
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
   },
-  "mobile · the selected card, whose ring is a ring rather than a thicker border · selectableCard[on]": {
+  "mobile \u00b7 the selected card, whose ring is a ring rather than a thicker border \u00b7 selectableCard[on]": {
     "borderTopWidth": "1px",
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
     "borderRadius": "12px",
-    "backgroundColor": "rgb(219, 234, 254)"
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "mobile · the selected card, whose ring is a ring rather than a thicker border · selectableCard[off]": {
+  "mobile \u00b7 the selected card, whose ring is a ring rather than a thicker border \u00b7 selectableCard[off]": {
     "borderTopWidth": "1px",
     "boxShadow": "none",
     "borderRadius": "12px",
     "backgroundColor": "rgb(255, 255, 255)"
   },
-  "mobile · the current card reads exactly as the selected one · selectableCard[current]": {
+  "mobile \u00b7 the current card reads exactly as the selected one \u00b7 selectableCard[current]": {
     "borderTopWidth": "1px",
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
-    "borderTopColor": "rgb(37, 99, 235)",
-    "backgroundColor": "rgb(219, 234, 254)"
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
+    "borderTopColor": "rgb(0, 76, 104)",
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "mobile · the inline field keeps the control height and drops only the box · input[inline,compact]": {
+  "mobile \u00b7 the inline field keeps the control height and drops only the box \u00b7 input[inline,compact]": {
     "height": "36px",
     "borderTopColor": "rgba(0, 0, 0, 0)",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "width": "56px"
   },
-  "mobile · the inline field keeps the control height and drops only the box · input[inline,auto]": {
+  "mobile \u00b7 the inline field keeps the control height and drops only the box \u00b7 input[inline,auto]": {
     "height": "36px",
     "borderTopColor": "rgba(0, 0, 0, 0)",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "width": "158px"
   },
-  "mobile · the inline field keeps the control height and drops only the box · input[default]": {
+  "mobile \u00b7 the inline field keeps the control height and drops only the box \u00b7 input[default]": {
     "height": "44px",
     "borderTopColor": "rgb(203, 213, 225)",
     "backgroundColor": "rgb(255, 255, 255)",
     "width": "274px"
   },
-  "mobile · the avatar that is two sizes, and only a two-width probe can tell · avatar[lg→xl]": {
+  "mobile \u00b7 the avatar that is two sizes, and only a two-width probe can tell \u00b7 avatar[lg\u2192xl]": {
     "width": "48px",
     "height": "48px",
     "fontSize": "15px"
   },
-  "mobile · the five steps, which are Primer's steps · avatar[xs]": {
+  "mobile \u00b7 the five steps, which are Primer's steps \u00b7 avatar[xs]": {
     "width": "20px",
     "height": "20px"
   },
-  "mobile · the five steps, which are Primer's steps · avatar[sm]": {
+  "mobile \u00b7 the five steps, which are Primer's steps \u00b7 avatar[sm]": {
     "width": "32px",
     "height": "32px"
   },
-  "mobile · the five steps, which are Primer's steps · avatar[md]": {
+  "mobile \u00b7 the five steps, which are Primer's steps \u00b7 avatar[md]": {
     "width": "40px",
     "height": "40px"
   },
-  "mobile · the five steps, which are Primer's steps · avatar[lg]": {
+  "mobile \u00b7 the five steps, which are Primer's steps \u00b7 avatar[lg]": {
     "width": "48px",
     "height": "48px"
   },
-  "mobile · the five steps, which are Primer's steps · avatar[xl]": {
+  "mobile \u00b7 the five steps, which are Primer's steps \u00b7 avatar[xl]": {
     "width": "64px",
     "height": "64px"
   },
-  "mobile · the chip steps, measured against the controls they claim to match · chip[xs]": {
+  "mobile \u00b7 the chip steps, measured against the controls they claim to match \u00b7 chip[xs]": {
     "height": "24px",
     "borderRadius": "9999px"
   },
-  "mobile · the chip steps, measured against the controls they claim to match · chip[sm]": {
+  "mobile \u00b7 the chip steps, measured against the controls they claim to match \u00b7 chip[sm]": {
     "height": "36px",
     "borderRadius": "9999px"
   },
-  "mobile · the chip steps, measured against the controls they claim to match · iconButton[xs]:beside-chip": {
+  "mobile \u00b7 the chip steps, measured against the controls they claim to match \u00b7 iconButton[xs]:beside-chip": {
     "height": "24px",
     "borderRadius": "8px"
   },
-  "mobile · the chip steps, measured against the controls they claim to match · button[sm]:beside-chip": {
+  "mobile \u00b7 the chip steps, measured against the controls they claim to match \u00b7 button[sm]:beside-chip": {
     "height": "36px",
     "borderRadius": "8px"
   },
-  "mobile · the pressed state draws a ring, not only a colour · iconButton[pressed]": {
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
-    "color": "rgb(37, 99, 235)",
-    "backgroundColor": "rgb(239, 246, 255)"
+  "mobile \u00b7 the pressed state draws a ring, not only a colour \u00b7 iconButton[pressed]": {
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
+    "color": "rgb(0, 76, 104)",
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "mobile · the pressed state draws a ring, not only a colour · button[ghost,pressed]": {
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
-    "color": "rgb(37, 99, 235)",
-    "backgroundColor": "rgb(239, 246, 255)"
+  "mobile \u00b7 the pressed state draws a ring, not only a colour \u00b7 button[ghost,pressed]": {
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
+    "color": "rgb(0, 76, 104)",
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "mobile · the 24px minimum target, and the disc · iconButton[xs]": {
+  "mobile \u00b7 the 24px minimum target, and the disc \u00b7 iconButton[xs]": {
     "width": "24px",
     "height": "24px",
     "borderRadius": "8px"
   },
-  "mobile · the 24px minimum target, and the disc · iconButton[xs,round]": {
+  "mobile \u00b7 the 24px minimum target, and the disc \u00b7 iconButton[xs,round]": {
     "width": "24px",
     "height": "24px",
     "borderRadius": "9999px"
   },
-  "mobile · the one variant that leaves the control scale, and the one that does not · button[link]": {
+  "mobile \u00b7 the one variant that leaves the control scale, and the one that does not \u00b7 button[link]": {
     "height": "16.25px",
     "fontSize": "13px",
     "paddingLeft": "0px",
     "paddingRight": "0px"
   },
-  "mobile · the one variant that leaves the control scale, and the one that does not · button[ghost]": {
+  "mobile \u00b7 the one variant that leaves the control scale, and the one that does not \u00b7 button[ghost]": {
     "height": "44px",
     "fontSize": "14px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
-  "mobile · the surface geometry every card shares · card": {
-    "borderRadius": "12px",
+  "mobile \u00b7 the surface geometry every card shares \u00b7 card": {
+    "borderRadius": "16px",
     "padding": "0px",
     "borderTopWidth": "1px",
     "backgroundColor": "rgb(255, 255, 255)"
   },
-  "mobile · badges hug their label and never stretch · badge": {
+  "mobile \u00b7 badges hug their label and never stretch \u00b7 badge": {
     "height": "24px",
     "fontSize": "12px",
     "borderRadius": "9999px",
     "width": "61px"
   },
-  "mobile · table density: row height and cell padding · headerCell": {
-    "height": "48px",
+  "mobile \u00b7 table density: row height and cell padding \u00b7 headerCell": {
+    "height": "44px",
     "paddingLeft": "16px",
     "paddingRight": "16px",
     "fontSize": "12px"
   },
-  "mobile · table density: row height and cell padding · bodyCell": {
-    "height": "72px",
+  "mobile \u00b7 table density: row height and cell padding \u00b7 bodyCell": {
+    "height": "68px",
     "paddingLeft": "16px",
     "paddingRight": "16px",
     "fontSize": "14px"
   },
-  "mobile · a tab is a control, at the control height · tab": {
+  "mobile \u00b7 a tab is a control, at the control height \u00b7 tab": {
     "height": "44px",
     "fontSize": "13px"
   },
-  "mobile · switch geometry · switch": {
+  "mobile \u00b7 switch geometry \u00b7 switch": {
     "width": "44px",
     "height": "24px",
     "borderRadius": "9999px"
   },
-  "mobile · the pinned first column of a DataTable · pinnedHeader": {
+  "mobile \u00b7 the pinned first column of a DataTable \u00b7 pinnedHeader": {
     "position": "sticky",
     "left": "0px",
     "zIndex": "2",
-    "backgroundColor": "rgb(241, 245, 249)"
+    "backgroundColor": "rgb(255, 255, 255)"
   },
-  "mobile · the pinned first column of a DataTable · pinnedCell": {
+  "mobile \u00b7 the pinned first column of a DataTable \u00b7 pinnedCell": {
     "position": "sticky",
     "left": "0px",
     "zIndex": "1",
     "backgroundColor": "rgb(255, 255, 255)"
   },
-  "mobile · the row and header of a DataTable that stacks into cards · row": {
+  "mobile \u00b7 the row and header of a DataTable that stacks into cards \u00b7 row": {
     "display": "block",
     "position": "static"
   },
-  "mobile · the row and header of a DataTable that stacks into cards · header": {
+  "mobile \u00b7 the row and header of a DataTable that stacks into cards \u00b7 header": {
     "display": "block",
     "position": "absolute"
   },
-  "mobile · the labelled value cell of a DataTable that stacks into cards · labelledCell": {
+  "mobile \u00b7 the labelled value cell of a DataTable that stacks into cards \u00b7 labelledCell": {
     "display": "grid",
     "textAlign": "start",
     "paddingLeft": "16px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[sm]": {
     "maxWidth": "384px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -446,7 +446,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[md]": {
     "maxWidth": "448px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -455,7 +455,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[lg]": {
     "maxWidth": "512px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -464,7 +464,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[xl]": {
     "maxWidth": "576px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -473,7 +473,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[2xl]": {
     "maxWidth": "672px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -482,7 +482,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[4xl]": {
     "maxWidth": "896px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -491,7 +491,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[5xl]": {
     "maxWidth": "1024px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -500,7 +500,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
+  "mobile \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[7xl]": {
     "maxWidth": "370.8px",
     "maxHeight": "823.5px",
     "borderRadius": "16px",
@@ -509,186 +509,262 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "mobile · the control scale, and the pairing it exists for · input[md]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 input[md]": {
     "height": "44px",
     "fontSize": "16px",
     "borderRadius": "8px",
     "paddingLeft": "12px",
     "paddingRight": "12px"
   },
-  "mobile · the control scale, and the pairing it exists for · input[sm]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 input[sm]": {
     "height": "36px",
     "fontSize": "16px",
     "borderRadius": "8px",
     "paddingLeft": "8px",
     "paddingRight": "8px"
   },
-  "mobile · the control scale, and the pairing it exists for · input[lg]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 input[lg]": {
     "height": "52px",
     "fontSize": "16px",
     "borderRadius": "8px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
-  "mobile · the control scale, and the pairing it exists for · button[md]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 button[md]": {
     "height": "44px",
     "fontSize": "14px",
     "borderRadius": "8px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
-  "mobile · the control scale, and the pairing it exists for · button[sm]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 button[sm]": {
     "height": "36px",
     "fontSize": "13px",
     "borderRadius": "8px",
     "paddingLeft": "12px",
     "paddingRight": "12px"
   },
-  "mobile · the control scale, and the pairing it exists for · button[lg]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 button[lg]": {
     "height": "52px",
     "fontSize": "15px",
     "borderRadius": "8px",
     "paddingLeft": "20px",
     "paddingRight": "20px"
   },
-  "mobile · the control scale, and the pairing it exists for · iconButton[md]": {
+  "mobile \u00b7 the control scale, and the pairing it exists for \u00b7 iconButton[md]": {
     "height": "44px",
     "fontSize": "14px",
     "borderRadius": "8px",
     "paddingLeft": "0px",
     "paddingRight": "0px"
   },
-  "mobile · an input and a select are the same control, and must look it · input[md]": {
+  "mobile \u00b7 an input and a select are the same control, and must look it \u00b7 input[md]": {
     "height": "44px",
     "fontSize": "16px",
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
   },
-  "mobile · an input and a select are the same control, and must look it · select[md]": {
+  "mobile \u00b7 an input and a select are the same control, and must look it \u00b7 select[md]": {
     "height": "44px",
     "fontSize": "16px",
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
   },
-  "mobile · every step of the icon scale · icon[xs]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[xs]": {
     "width": "12px",
     "height": "12px"
   },
-  "mobile · every step of the icon scale · icon[sm]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[sm]": {
     "width": "14px",
     "height": "14px"
   },
-  "mobile · every step of the icon scale · icon[md]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[md]": {
     "width": "16px",
     "height": "16px"
   },
-  "mobile · every step of the icon scale · icon[lg]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[lg]": {
     "width": "18px",
     "height": "18px"
   },
-  "mobile · every step of the icon scale · icon[xl]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[xl]": {
     "width": "20px",
     "height": "20px"
   },
-  "mobile · every step of the icon scale · icon[2xl]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[2xl]": {
     "width": "24px",
     "height": "24px"
   },
-  "mobile · every step of the icon scale · icon[3xl]": {
+  "mobile \u00b7 every step of the icon scale \u00b7 icon[3xl]": {
     "width": "32px",
     "height": "32px"
   },
-  "mobile · a container still outranks the icon scale · icon in button[sm]": {
+  "mobile \u00b7 a container still outranks the icon scale \u00b7 icon in button[sm]": {
     "width": "14px",
     "height": "14px"
   },
-  "mobile · a container still outranks the icon scale · icon in button[md]": {
+  "mobile \u00b7 a container still outranks the icon scale \u00b7 icon in button[md]": {
     "width": "16px",
     "height": "16px"
   },
-  "mobile · a container still outranks the icon scale · icon in button[lg]": {
+  "mobile \u00b7 a container still outranks the icon scale \u00b7 icon in button[lg]": {
     "width": "18px",
     "height": "18px"
   },
-  "mobile · icon size is the system's decision, not the call site's · icon in button[md]": {
+  "mobile \u00b7 icon size is the system's decision, not the call site's \u00b7 icon in button[md]": {
     "width": "16px",
     "height": "16px"
   },
-  "mobile · icon size is the system's decision, not the call site's · icon in button[sm]": {
+  "mobile \u00b7 icon size is the system's decision, not the call site's \u00b7 icon in button[sm]": {
     "width": "14px",
     "height": "14px"
   },
-  "mobile · icon size is the system's decision, not the call site's · icon in button[lg]": {
+  "mobile \u00b7 icon size is the system's decision, not the call site's \u00b7 icon in button[lg]": {
     "width": "18px",
     "height": "18px"
   },
-  "mobile · the gap between a glyph and its label is the system's too · gap in button[md]": {
+  "mobile \u00b7 the gap between a glyph and its label is the system's too \u00b7 gap in button[md]": {
     "columnGap": "8px"
   },
-  "mobile · the gap between a glyph and its label is the system's too · gap in button[sm]": {
+  "mobile \u00b7 the gap between a glyph and its label is the system's too \u00b7 gap in button[sm]": {
     "columnGap": "8px"
   },
-  "mobile · the gap between a glyph and its label is the system's too · gap in button[lg]": {
+  "mobile \u00b7 the gap between a glyph and its label is the system's too \u00b7 gap in button[lg]": {
     "columnGap": "8px"
   },
-  "mobile · a native table is the same table as DataTable · nativeTable.headerRow": {
+  "mobile \u00b7 a native table is the same table as DataTable \u00b7 nativeTable.headerRow": {
     "paddingLeft": "0px",
     "paddingRight": "0px",
     "paddingTop": "0px",
     "paddingBottom": "0px",
-    "backgroundColor": "rgb(241, 245, 249)",
-    "height": "48px"
+    "backgroundColor": "rgb(255, 255, 255)",
+    "height": "44px"
   },
-  "mobile · a native table is the same table as DataTable · nativeTable.headerCell": {
+  "mobile \u00b7 a native table is the same table as DataTable \u00b7 nativeTable.headerCell": {
     "paddingLeft": "16px",
     "paddingRight": "16px",
     "paddingTop": "0px",
     "paddingBottom": "0px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
-    "height": "48px"
+    "height": "44px"
   },
-  "mobile · a native table is the same table as DataTable · nativeTable.cell": {
+  "mobile \u00b7 a native table is the same table as DataTable \u00b7 nativeTable.cell": {
     "paddingLeft": "16px",
     "paddingRight": "16px",
     "paddingTop": "12px",
     "paddingBottom": "12px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
-    "height": "72px"
+    "height": "68px"
   },
-  "mobile · the three page states are the same shape as each other · state": {
+  "mobile \u00b7 the three page states are the same shape as each other \u00b7 state": {
     "padding": "24px 16px",
     "fontSize": "16px",
     "maxWidth": "none"
   },
-  "mobile · the three page states are the same shape as each other · title": {
+  "mobile \u00b7 the three page states are the same shape as each other \u00b7 title": {
     "padding": "0px",
     "fontSize": "18px",
     "maxWidth": "none"
   },
-  "mobile · the three page states are the same shape as each other · description": {
+  "mobile \u00b7 the three page states are the same shape as each other \u00b7 description": {
     "padding": "0px",
     "fontSize": "14px",
     "maxWidth": "378px"
   },
-  "desktop · the medallion sizes its own glyph, and the ratio is the decision · medallion[md]": {
+  "mobile \u00b7 the C2 page header: title step, eyebrow, wrapping lines on a desk \u00b7 header": {
+    "display": "grid",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "color": "rgb(0, 0, 0)",
+    "textTransform": "none",
+    "letterSpacing": "normal"
+  },
+  "mobile \u00b7 the C2 page header: title step, eyebrow, wrapping lines on a desk \u00b7 heading": {
+    "display": "block",
+    "fontSize": "24px",
+    "fontWeight": "700",
+    "color": "rgb(30, 41, 59)",
+    "textTransform": "none",
+    "letterSpacing": "-0.48px"
+  },
+  "mobile \u00b7 the C2 page header: title step, eyebrow, wrapping lines on a desk \u00b7 eyebrow": {
+    "display": "block",
+    "fontSize": "12px",
+    "fontWeight": "600",
+    "color": "rgb(0, 76, 104)",
+    "textTransform": "uppercase",
+    "letterSpacing": "0.96px"
+  },
+  "mobile \u00b7 the segmented tray and its chosen item \u00b7 tray": {
+    "height": "98px",
+    "borderTopLeftRadius": "12px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "color": "rgb(0, 0, 0)",
+    "fontWeight": "400"
+  },
+  "mobile \u00b7 the segmented tray and its chosen item \u00b7 chosen": {
+    "height": "44px",
+    "borderTopLeftRadius": "8px",
+    "backgroundColor": "rgb(15, 23, 42)",
+    "color": "rgb(241, 245, 249)",
+    "fontWeight": "600"
+  },
+  "mobile \u00b7 the flush notice is a card row, not a box \u00b7 notice": {
+    "borderTopWidth": "1px",
+    "borderLeftWidth": "0px",
+    "borderTopLeftRadius": "0px",
+    "borderBottomLeftRadius": "15px",
+    "paddingLeft": "20px",
+    "paddingTop": "12px"
+  },
+  "mobile \u00b7 the dialog that is a bottom sheet on a phone \u00b7 overlay": {
+    "alignItems": "flex-end",
+    "borderTopLeftRadius": "0px",
+    "borderBottomLeftRadius": "0px",
+    "paddingBottom": "0px"
+  },
+  "mobile \u00b7 the dialog that is a bottom sheet on a phone \u00b7 panel": {
+    "alignItems": "normal",
+    "borderTopLeftRadius": "16px",
+    "borderBottomLeftRadius": "0px",
+    "paddingBottom": "0px"
+  },
+  "mobile \u00b7 the full-bleed section header and its footer row \u00b7 header": {
+    "marginLeft": "0px",
+    "paddingLeft": "20px",
+    "fontSize": "16px"
+  },
+  "mobile \u00b7 the full-bleed section header and its footer row \u00b7 description": {
+    "marginLeft": "0px",
+    "paddingLeft": "0px",
+    "fontSize": "14px"
+  },
+  "mobile \u00b7 the aside layout stacks by its container, not the window \u00b7 columns": {
+    "display": "grid",
+    "gridTemplateColumns": "340px"
+  },
+  "mobile \u00b7 the checked radio card \u00b7 checked": {
+    "backgroundColor": "rgb(230, 240, 243)",
+    "borderTopColor": "rgb(0, 76, 104)"
+  },
+  "desktop \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 medallion[md]": {
     "width": "64px",
     "height": "64px"
   },
-  "desktop · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[md]": {
+  "desktop \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 glyph in medallion[md]": {
     "width": "24px",
     "height": "24px"
   },
-  "desktop · the medallion sizes its own glyph, and the ratio is the decision · medallion[lg]": {
+  "desktop \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 medallion[lg]": {
     "width": "80px",
     "height": "80px"
   },
-  "desktop · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[lg]": {
+  "desktop \u00b7 the medallion sizes its own glyph, and the ratio is the decision \u00b7 glyph in medallion[lg]": {
     "width": "32px",
     "height": "32px"
   },
-  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[neutral]": {
+  "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[neutral]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(203, 213, 225)",
     "borderRadius": "8px",
@@ -698,7 +774,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[info]": {
+  "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[info]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(147, 197, 253)",
     "borderRadius": "8px",
@@ -708,7 +784,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[success]": {
+  "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[success]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(187, 247, 208)",
     "borderRadius": "8px",
@@ -718,7 +794,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[warning]": {
+  "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[warning]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(253, 230, 138)",
     "borderRadius": "8px",
@@ -728,7 +804,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[danger]": {
+  "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[danger]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(254, 202, 202)",
     "borderRadius": "8px",
@@ -738,7 +814,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[accent]": {
+  "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[accent]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(221, 214, 254)",
     "borderRadius": "8px",
@@ -748,7 +824,7 @@
     "alignItems": "flex-start",
     "columnGap": "12px"
   },
-  "desktop · the compact notice, which must differ from the default in three places only · compact": {
+  "desktop \u00b7 the compact notice, which must differ from the default in three places only \u00b7 compact": {
     "paddingTop": "12px",
     "columnGap": "8px",
     "fontSize": "13px",
@@ -756,7 +832,7 @@
     "width": "420px",
     "height": "45.5px"
   },
-  "desktop · the compact notice, which must differ from the default in three places only · compact-icon": {
+  "desktop \u00b7 the compact notice, which must differ from the default in three places only \u00b7 compact-icon": {
     "paddingTop": "0px",
     "columnGap": "normal",
     "fontSize": "13px",
@@ -764,14 +840,14 @@
     "width": "16px",
     "height": "16px"
   },
-  "desktop · the notice action row, which sits under the message rather than beside it · notice-actions": {
+  "desktop \u00b7 the notice action row, which sits under the message rather than beside it \u00b7 notice-actions": {
     "marginTop": "4px",
     "columnGap": "8px",
     "flexWrap": "wrap",
     "alignItems": "center",
     "display": "flex"
   },
-  "desktop · the step rail: a third column, two status colours, and no frame · frameless": {
+  "desktop \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 frameless": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
     "borderRadius": "0px",
@@ -782,18 +858,18 @@
     "width": "238px",
     "height": "140px"
   },
-  "desktop · the step rail: a third column, two status colours, and no frame · step-item": {
+  "desktop \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 step-item": {
     "gridTemplateColumns": "20px 151px 16px",
     "borderTopWidth": "0px",
     "borderRadius": "8px",
     "paddingTop": "8px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "boxShadow": "none",
-    "color": "rgb(71, 85, 105)",
+    "color": "rgb(30, 41, 59)",
     "width": "238px",
     "height": "44px"
   },
-  "desktop · the step rail: a third column, two status colours, and no frame · complete": {
+  "desktop \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 complete": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
     "borderRadius": "0px",
@@ -804,7 +880,7 @@
     "width": "16px",
     "height": "16px"
   },
-  "desktop · the step rail: a third column, two status colours, and no frame · incomplete": {
+  "desktop \u00b7 the step rail: a third column, two status colours, and no frame \u00b7 incomplete": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
     "borderRadius": "0px",
@@ -815,25 +891,25 @@
     "width": "16px",
     "height": "16px"
   },
-  "desktop · the page rail the step variant must not have moved · item": {
+  "desktop \u00b7 the page rail the step variant must not have moved \u00b7 item": {
     "gridTemplateColumns": "20px 467px",
     "minHeight": "44px",
     "borderTopWidth": "0px",
     "borderRadius": "8px",
     "paddingTop": "8px",
-    "backgroundColor": "rgb(239, 246, 255)",
+    "backgroundColor": "rgb(230, 240, 243)",
     "boxShadow": "none"
   },
-  "desktop · the page rail the step variant must not have moved · frame": {
+  "desktop \u00b7 the page rail the step variant must not have moved \u00b7 frame": {
     "gridTemplateColumns": "none",
     "minHeight": "0px",
     "borderTopWidth": "1px",
     "borderRadius": "16px",
     "paddingTop": "8px",
     "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 1px 3px 0px, rgba(15, 23, 42, 0.06) 0px 1px 2px 0px"
+    "boxShadow": "rgba(15, 23, 42, 0.05) 0px 1px 2px 0px"
   },
-  "desktop · the card disclosure, and the rail chrome it takes off · section": {
+  "desktop \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 section": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -845,7 +921,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "desktop · the card disclosure, and the rail chrome it takes off · trigger": {
+  "desktop \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 trigger": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -857,7 +933,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "desktop · the card disclosure, and the rail chrome it takes off · title": {
+  "desktop \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 title": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "700",
@@ -869,7 +945,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "desktop · the card disclosure, and the rail chrome it takes off · description": {
+  "desktop \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 description": {
     "paddingLeft": "0px",
     "fontSize": "13px",
     "fontWeight": "400",
@@ -881,7 +957,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "desktop · the card disclosure, and the rail chrome it takes off · chevron": {
+  "desktop \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 chevron": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -893,7 +969,7 @@
     "marginTop": "0px",
     "borderBottomWidth": "0px"
   },
-  "desktop · the card disclosure, and the rail chrome it takes off · panel": {
+  "desktop \u00b7 the card disclosure, and the rail chrome it takes off \u00b7 panel": {
     "paddingLeft": "0px",
     "fontSize": "16px",
     "fontWeight": "400",
@@ -905,7 +981,7 @@
     "marginTop": "24px",
     "borderBottomWidth": "0px"
   },
-  "desktop · the rail disclosure the card variant must not have moved · trigger": {
+  "desktop \u00b7 the rail disclosure the card variant must not have moved \u00b7 trigger": {
     "paddingLeft": "16px",
     "minHeight": "44px",
     "fontSize": "12px",
@@ -915,7 +991,7 @@
     "width": "318px",
     "height": "44px"
   },
-  "desktop · the rail disclosure the card variant must not have moved · chevron": {
+  "desktop \u00b7 the rail disclosure the card variant must not have moved \u00b7 chevron": {
     "paddingLeft": "0px",
     "minHeight": "auto",
     "fontSize": "12px",
@@ -925,192 +1001,192 @@
     "width": "16px",
     "height": "16px"
   },
-  "desktop · the dialog overlay, whose stacking layer is not a caller decision · overlay": {
+  "desktop \u00b7 the dialog overlay, whose stacking layer is not a caller decision \u00b7 overlay": {
     "zIndex": "60",
     "backgroundColor": "rgba(15, 23, 42, 0.6)",
     "paddingTop": "16px",
     "alignItems": "center"
   },
-  "desktop · a tone fills a primary and tints a secondary · primary[success]": {
+  "desktop \u00b7 a tone fills a primary and tints a secondary \u00b7 primary[success]": {
     "backgroundColor": "rgb(21, 128, 61)",
     "color": "rgb(255, 255, 255)",
     "borderColor": "rgba(0, 0, 0, 0)",
     "borderRadius": "8px"
   },
-  "desktop · a tone fills a primary and tints a secondary · secondary[success]": {
+  "desktop \u00b7 a tone fills a primary and tints a secondary \u00b7 secondary[success]": {
     "backgroundColor": "rgb(220, 252, 231)",
     "color": "rgb(22, 101, 52)",
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
   },
-  "desktop · the selected card, whose ring is a ring rather than a thicker border · selectableCard[on]": {
+  "desktop \u00b7 the selected card, whose ring is a ring rather than a thicker border \u00b7 selectableCard[on]": {
     "borderTopWidth": "1px",
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
     "borderRadius": "12px",
-    "backgroundColor": "rgb(219, 234, 254)"
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "desktop · the selected card, whose ring is a ring rather than a thicker border · selectableCard[off]": {
+  "desktop \u00b7 the selected card, whose ring is a ring rather than a thicker border \u00b7 selectableCard[off]": {
     "borderTopWidth": "1px",
     "boxShadow": "none",
     "borderRadius": "12px",
     "backgroundColor": "rgb(255, 255, 255)"
   },
-  "desktop · the current card reads exactly as the selected one · selectableCard[current]": {
+  "desktop \u00b7 the current card reads exactly as the selected one \u00b7 selectableCard[current]": {
     "borderTopWidth": "1px",
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
-    "borderTopColor": "rgb(37, 99, 235)",
-    "backgroundColor": "rgb(219, 234, 254)"
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
+    "borderTopColor": "rgb(0, 76, 104)",
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "desktop · the inline field keeps the control height and drops only the box · input[inline,compact]": {
+  "desktop \u00b7 the inline field keeps the control height and drops only the box \u00b7 input[inline,compact]": {
     "height": "36px",
     "borderTopColor": "rgba(0, 0, 0, 0)",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "width": "56px"
   },
-  "desktop · the inline field keeps the control height and drops only the box · input[inline,auto]": {
+  "desktop \u00b7 the inline field keeps the control height and drops only the box \u00b7 input[inline,auto]": {
     "height": "36px",
     "borderTopColor": "rgba(0, 0, 0, 0)",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "width": "137px"
   },
-  "desktop · the inline field keeps the control height and drops only the box · input[default]": {
+  "desktop \u00b7 the inline field keeps the control height and drops only the box \u00b7 input[default]": {
     "height": "44px",
     "borderTopColor": "rgb(203, 213, 225)",
     "backgroundColor": "rgb(255, 255, 255)",
     "width": "244px"
   },
-  "desktop · the avatar that is two sizes, and only a two-width probe can tell · avatar[lg→xl]": {
+  "desktop \u00b7 the avatar that is two sizes, and only a two-width probe can tell \u00b7 avatar[lg\u2192xl]": {
     "width": "64px",
     "height": "64px",
     "fontSize": "16px"
   },
-  "desktop · the five steps, which are Primer's steps · avatar[xs]": {
+  "desktop \u00b7 the five steps, which are Primer's steps \u00b7 avatar[xs]": {
     "width": "20px",
     "height": "20px"
   },
-  "desktop · the five steps, which are Primer's steps · avatar[sm]": {
+  "desktop \u00b7 the five steps, which are Primer's steps \u00b7 avatar[sm]": {
     "width": "32px",
     "height": "32px"
   },
-  "desktop · the five steps, which are Primer's steps · avatar[md]": {
+  "desktop \u00b7 the five steps, which are Primer's steps \u00b7 avatar[md]": {
     "width": "40px",
     "height": "40px"
   },
-  "desktop · the five steps, which are Primer's steps · avatar[lg]": {
+  "desktop \u00b7 the five steps, which are Primer's steps \u00b7 avatar[lg]": {
     "width": "48px",
     "height": "48px"
   },
-  "desktop · the five steps, which are Primer's steps · avatar[xl]": {
+  "desktop \u00b7 the five steps, which are Primer's steps \u00b7 avatar[xl]": {
     "width": "64px",
     "height": "64px"
   },
-  "desktop · the chip steps, measured against the controls they claim to match · chip[xs]": {
+  "desktop \u00b7 the chip steps, measured against the controls they claim to match \u00b7 chip[xs]": {
     "height": "24px",
     "borderRadius": "9999px"
   },
-  "desktop · the chip steps, measured against the controls they claim to match · chip[sm]": {
+  "desktop \u00b7 the chip steps, measured against the controls they claim to match \u00b7 chip[sm]": {
     "height": "36px",
     "borderRadius": "9999px"
   },
-  "desktop · the chip steps, measured against the controls they claim to match · iconButton[xs]:beside-chip": {
+  "desktop \u00b7 the chip steps, measured against the controls they claim to match \u00b7 iconButton[xs]:beside-chip": {
     "height": "24px",
     "borderRadius": "8px"
   },
-  "desktop · the chip steps, measured against the controls they claim to match · button[sm]:beside-chip": {
+  "desktop \u00b7 the chip steps, measured against the controls they claim to match \u00b7 button[sm]:beside-chip": {
     "height": "36px",
     "borderRadius": "8px"
   },
-  "desktop · the pressed state draws a ring, not only a colour · iconButton[pressed]": {
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
-    "color": "rgb(37, 99, 235)",
-    "backgroundColor": "rgb(239, 246, 255)"
+  "desktop \u00b7 the pressed state draws a ring, not only a colour \u00b7 iconButton[pressed]": {
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
+    "color": "rgb(0, 76, 104)",
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "desktop · the pressed state draws a ring, not only a colour · button[ghost,pressed]": {
-    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
-    "color": "rgb(37, 99, 235)",
-    "backgroundColor": "rgb(239, 246, 255)"
+  "desktop \u00b7 the pressed state draws a ring, not only a colour \u00b7 button[ghost,pressed]": {
+    "boxShadow": "rgb(0, 76, 104) 0px 0px 0px 1px inset",
+    "color": "rgb(0, 76, 104)",
+    "backgroundColor": "rgb(230, 240, 243)"
   },
-  "desktop · the 24px minimum target, and the disc · iconButton[xs]": {
+  "desktop \u00b7 the 24px minimum target, and the disc \u00b7 iconButton[xs]": {
     "width": "24px",
     "height": "24px",
     "borderRadius": "8px"
   },
-  "desktop · the 24px minimum target, and the disc · iconButton[xs,round]": {
+  "desktop \u00b7 the 24px minimum target, and the disc \u00b7 iconButton[xs,round]": {
     "width": "24px",
     "height": "24px",
     "borderRadius": "9999px"
   },
-  "desktop · the one variant that leaves the control scale, and the one that does not · button[link]": {
+  "desktop \u00b7 the one variant that leaves the control scale, and the one that does not \u00b7 button[link]": {
     "height": "16.25px",
     "fontSize": "13px",
     "paddingLeft": "0px",
     "paddingRight": "0px"
   },
-  "desktop · the one variant that leaves the control scale, and the one that does not · button[ghost]": {
+  "desktop \u00b7 the one variant that leaves the control scale, and the one that does not \u00b7 button[ghost]": {
     "height": "44px",
     "fontSize": "14px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
-  "desktop · the surface geometry every card shares · card": {
-    "borderRadius": "12px",
+  "desktop \u00b7 the surface geometry every card shares \u00b7 card": {
+    "borderRadius": "16px",
     "padding": "0px",
     "borderTopWidth": "1px",
     "backgroundColor": "rgb(255, 255, 255)"
   },
-  "desktop · badges hug their label and never stretch · badge": {
+  "desktop \u00b7 badges hug their label and never stretch \u00b7 badge": {
     "height": "24px",
     "fontSize": "12px",
     "borderRadius": "9999px",
     "width": "61px"
   },
-  "desktop · table density: row height and cell padding · headerCell": {
-    "height": "48px",
-    "paddingLeft": "20px",
-    "paddingRight": "20px",
+  "desktop \u00b7 table density: row height and cell padding \u00b7 headerCell": {
+    "height": "44px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
     "fontSize": "12px"
   },
-  "desktop · table density: row height and cell padding · bodyCell": {
-    "height": "72px",
-    "paddingLeft": "20px",
-    "paddingRight": "20px",
+  "desktop \u00b7 table density: row height and cell padding \u00b7 bodyCell": {
+    "height": "68px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
     "fontSize": "14px"
   },
-  "desktop · a tab is a control, at the control height · tab": {
+  "desktop \u00b7 a tab is a control, at the control height \u00b7 tab": {
     "height": "44px",
     "fontSize": "13px"
   },
-  "desktop · switch geometry · switch": {
+  "desktop \u00b7 switch geometry \u00b7 switch": {
     "width": "44px",
     "height": "24px",
     "borderRadius": "9999px"
   },
-  "desktop · the pinned first column of a DataTable · pinnedHeader": {
+  "desktop \u00b7 the pinned first column of a DataTable \u00b7 pinnedHeader": {
     "position": "sticky",
     "left": "0px",
     "zIndex": "2",
-    "backgroundColor": "rgb(241, 245, 249)"
+    "backgroundColor": "rgb(255, 255, 255)"
   },
-  "desktop · the pinned first column of a DataTable · pinnedCell": {
+  "desktop \u00b7 the pinned first column of a DataTable \u00b7 pinnedCell": {
     "position": "sticky",
     "left": "0px",
     "zIndex": "1",
     "backgroundColor": "rgb(255, 255, 255)"
   },
-  "desktop · the row and header of a DataTable that stacks into cards · row": {
+  "desktop \u00b7 the row and header of a DataTable that stacks into cards \u00b7 row": {
     "display": "table-row",
     "position": "static"
   },
-  "desktop · the row and header of a DataTable that stacks into cards · header": {
+  "desktop \u00b7 the row and header of a DataTable that stacks into cards \u00b7 header": {
     "display": "table-header-group",
     "position": "sticky"
   },
-  "desktop · the labelled value cell of a DataTable that stacks into cards · labelledCell": {
+  "desktop \u00b7 the labelled value cell of a DataTable that stacks into cards \u00b7 labelledCell": {
     "display": "table-cell",
     "textAlign": "left",
-    "paddingLeft": "20px"
+    "paddingLeft": "16px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[sm]": {
     "maxWidth": "384px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1119,7 +1195,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[md]": {
     "maxWidth": "448px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1128,7 +1204,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[lg]": {
     "maxWidth": "512px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1137,7 +1213,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[xl]": {
     "maxWidth": "576px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1146,7 +1222,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[2xl]": {
     "maxWidth": "672px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1155,7 +1231,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[4xl]": {
     "maxWidth": "896px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1164,7 +1240,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[5xl]": {
     "maxWidth": "1024px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1173,7 +1249,7 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
+  "desktop \u00b7 the dialog chrome, and the eight widths that replaced thirty class lists \u00b7 panel[7xl]": {
     "maxWidth": "1280px",
     "maxHeight": "810px",
     "borderRadius": "16px",
@@ -1182,167 +1258,243 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
   },
-  "desktop · the control scale, and the pairing it exists for · input[md]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 input[md]": {
     "height": "44px",
     "fontSize": "14px",
     "borderRadius": "8px",
     "paddingLeft": "12px",
     "paddingRight": "12px"
   },
-  "desktop · the control scale, and the pairing it exists for · input[sm]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 input[sm]": {
     "height": "36px",
     "fontSize": "13px",
     "borderRadius": "8px",
     "paddingLeft": "8px",
     "paddingRight": "8px"
   },
-  "desktop · the control scale, and the pairing it exists for · input[lg]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 input[lg]": {
     "height": "52px",
     "fontSize": "15px",
     "borderRadius": "8px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
-  "desktop · the control scale, and the pairing it exists for · button[md]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 button[md]": {
     "height": "44px",
     "fontSize": "14px",
     "borderRadius": "8px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
-  "desktop · the control scale, and the pairing it exists for · button[sm]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 button[sm]": {
     "height": "36px",
     "fontSize": "13px",
     "borderRadius": "8px",
     "paddingLeft": "12px",
     "paddingRight": "12px"
   },
-  "desktop · the control scale, and the pairing it exists for · button[lg]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 button[lg]": {
     "height": "52px",
     "fontSize": "15px",
     "borderRadius": "8px",
     "paddingLeft": "20px",
     "paddingRight": "20px"
   },
-  "desktop · the control scale, and the pairing it exists for · iconButton[md]": {
+  "desktop \u00b7 the control scale, and the pairing it exists for \u00b7 iconButton[md]": {
     "height": "44px",
     "fontSize": "14px",
     "borderRadius": "8px",
     "paddingLeft": "0px",
     "paddingRight": "0px"
   },
-  "desktop · an input and a select are the same control, and must look it · input[md]": {
+  "desktop \u00b7 an input and a select are the same control, and must look it \u00b7 input[md]": {
     "height": "44px",
     "fontSize": "14px",
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
   },
-  "desktop · an input and a select are the same control, and must look it · select[md]": {
+  "desktop \u00b7 an input and a select are the same control, and must look it \u00b7 select[md]": {
     "height": "44px",
     "fontSize": "14px",
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
   },
-  "desktop · every step of the icon scale · icon[xs]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[xs]": {
     "width": "12px",
     "height": "12px"
   },
-  "desktop · every step of the icon scale · icon[sm]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[sm]": {
     "width": "14px",
     "height": "14px"
   },
-  "desktop · every step of the icon scale · icon[md]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[md]": {
     "width": "16px",
     "height": "16px"
   },
-  "desktop · every step of the icon scale · icon[lg]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[lg]": {
     "width": "18px",
     "height": "18px"
   },
-  "desktop · every step of the icon scale · icon[xl]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[xl]": {
     "width": "20px",
     "height": "20px"
   },
-  "desktop · every step of the icon scale · icon[2xl]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[2xl]": {
     "width": "24px",
     "height": "24px"
   },
-  "desktop · every step of the icon scale · icon[3xl]": {
+  "desktop \u00b7 every step of the icon scale \u00b7 icon[3xl]": {
     "width": "32px",
     "height": "32px"
   },
-  "desktop · a container still outranks the icon scale · icon in button[sm]": {
+  "desktop \u00b7 a container still outranks the icon scale \u00b7 icon in button[sm]": {
     "width": "14px",
     "height": "14px"
   },
-  "desktop · a container still outranks the icon scale · icon in button[md]": {
+  "desktop \u00b7 a container still outranks the icon scale \u00b7 icon in button[md]": {
     "width": "16px",
     "height": "16px"
   },
-  "desktop · a container still outranks the icon scale · icon in button[lg]": {
+  "desktop \u00b7 a container still outranks the icon scale \u00b7 icon in button[lg]": {
     "width": "18px",
     "height": "18px"
   },
-  "desktop · icon size is the system's decision, not the call site's · icon in button[md]": {
+  "desktop \u00b7 icon size is the system's decision, not the call site's \u00b7 icon in button[md]": {
     "width": "16px",
     "height": "16px"
   },
-  "desktop · icon size is the system's decision, not the call site's · icon in button[sm]": {
+  "desktop \u00b7 icon size is the system's decision, not the call site's \u00b7 icon in button[sm]": {
     "width": "14px",
     "height": "14px"
   },
-  "desktop · icon size is the system's decision, not the call site's · icon in button[lg]": {
+  "desktop \u00b7 icon size is the system's decision, not the call site's \u00b7 icon in button[lg]": {
     "width": "18px",
     "height": "18px"
   },
-  "desktop · the gap between a glyph and its label is the system's too · gap in button[md]": {
+  "desktop \u00b7 the gap between a glyph and its label is the system's too \u00b7 gap in button[md]": {
     "columnGap": "8px"
   },
-  "desktop · the gap between a glyph and its label is the system's too · gap in button[sm]": {
+  "desktop \u00b7 the gap between a glyph and its label is the system's too \u00b7 gap in button[sm]": {
     "columnGap": "8px"
   },
-  "desktop · the gap between a glyph and its label is the system's too · gap in button[lg]": {
+  "desktop \u00b7 the gap between a glyph and its label is the system's too \u00b7 gap in button[lg]": {
     "columnGap": "8px"
   },
-  "desktop · a native table is the same table as DataTable · nativeTable.headerRow": {
+  "desktop \u00b7 a native table is the same table as DataTable \u00b7 nativeTable.headerRow": {
     "paddingLeft": "0px",
     "paddingRight": "0px",
     "paddingTop": "0px",
     "paddingBottom": "0px",
-    "backgroundColor": "rgb(241, 245, 249)",
-    "height": "48px"
+    "backgroundColor": "rgb(255, 255, 255)",
+    "height": "44px"
   },
-  "desktop · a native table is the same table as DataTable · nativeTable.headerCell": {
-    "paddingLeft": "20px",
-    "paddingRight": "20px",
+  "desktop \u00b7 a native table is the same table as DataTable \u00b7 nativeTable.headerCell": {
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
     "paddingTop": "0px",
     "paddingBottom": "0px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
-    "height": "48px"
+    "height": "44px"
   },
-  "desktop · a native table is the same table as DataTable · nativeTable.cell": {
-    "paddingLeft": "20px",
-    "paddingRight": "20px",
+  "desktop \u00b7 a native table is the same table as DataTable \u00b7 nativeTable.cell": {
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
     "paddingTop": "12px",
     "paddingBottom": "12px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
-    "height": "72px"
+    "height": "68px"
   },
-  "desktop · the three page states are the same shape as each other · state": {
+  "desktop \u00b7 the three page states are the same shape as each other \u00b7 state": {
     "padding": "32px 16px",
     "fontSize": "16px",
     "maxWidth": "none"
   },
-  "desktop · the three page states are the same shape as each other · title": {
+  "desktop \u00b7 the three page states are the same shape as each other \u00b7 title": {
     "padding": "0px",
     "fontSize": "18px",
     "maxWidth": "none"
   },
-  "desktop · the three page states are the same shape as each other · description": {
+  "desktop \u00b7 the three page states are the same shape as each other \u00b7 description": {
     "padding": "0px",
     "fontSize": "14px",
     "maxWidth": "378px"
+  },
+  "desktop \u00b7 the C2 page header: title step, eyebrow, wrapping lines on a desk \u00b7 header": {
+    "display": "flex",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "color": "rgb(0, 0, 0)",
+    "textTransform": "none",
+    "letterSpacing": "normal"
+  },
+  "desktop \u00b7 the C2 page header: title step, eyebrow, wrapping lines on a desk \u00b7 heading": {
+    "display": "block",
+    "fontSize": "30px",
+    "fontWeight": "700",
+    "color": "rgb(30, 41, 59)",
+    "textTransform": "none",
+    "letterSpacing": "-0.6px"
+  },
+  "desktop \u00b7 the C2 page header: title step, eyebrow, wrapping lines on a desk \u00b7 eyebrow": {
+    "display": "block",
+    "fontSize": "12px",
+    "fontWeight": "600",
+    "color": "rgb(0, 76, 104)",
+    "textTransform": "uppercase",
+    "letterSpacing": "0.96px"
+  },
+  "desktop \u00b7 the segmented tray and its chosen item \u00b7 tray": {
+    "height": "44px",
+    "borderTopLeftRadius": "12px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "color": "rgb(0, 0, 0)",
+    "fontWeight": "400"
+  },
+  "desktop \u00b7 the segmented tray and its chosen item \u00b7 chosen": {
+    "height": "36px",
+    "borderTopLeftRadius": "8px",
+    "backgroundColor": "rgb(15, 23, 42)",
+    "color": "rgb(241, 245, 249)",
+    "fontWeight": "600"
+  },
+  "desktop \u00b7 the flush notice is a card row, not a box \u00b7 notice": {
+    "borderTopWidth": "1px",
+    "borderLeftWidth": "0px",
+    "borderTopLeftRadius": "0px",
+    "borderBottomLeftRadius": "15px",
+    "paddingLeft": "20px",
+    "paddingTop": "12px"
+  },
+  "desktop \u00b7 the dialog that is a bottom sheet on a phone \u00b7 overlay": {
+    "alignItems": "center",
+    "borderTopLeftRadius": "0px",
+    "borderBottomLeftRadius": "0px",
+    "paddingBottom": "16px"
+  },
+  "desktop \u00b7 the dialog that is a bottom sheet on a phone \u00b7 panel": {
+    "alignItems": "normal",
+    "borderTopLeftRadius": "16px",
+    "borderBottomLeftRadius": "16px",
+    "paddingBottom": "0px"
+  },
+  "desktop \u00b7 the full-bleed section header and its footer row \u00b7 header": {
+    "marginLeft": "0px",
+    "paddingLeft": "20px",
+    "fontSize": "16px"
+  },
+  "desktop \u00b7 the full-bleed section header and its footer row \u00b7 description": {
+    "marginLeft": "0px",
+    "paddingLeft": "0px",
+    "fontSize": "14px"
+  },
+  "desktop \u00b7 the aside layout stacks by its container, not the window \u00b7 columns": {
+    "display": "grid",
+    "gridTemplateColumns": "700px"
+  },
+  "desktop \u00b7 the checked radio card \u00b7 checked": {
+    "backgroundColor": "rgb(230, 240, 243)",
+    "borderTopColor": "rgb(0, 76, 104)"
   }
 }
