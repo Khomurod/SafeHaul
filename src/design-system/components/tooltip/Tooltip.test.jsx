@@ -100,9 +100,29 @@ describe('Tooltip', () => {
     expect(screen.getByRole('link')).toBe(link);
   });
 
-  it('refuses a missing label', () => {
+  it('wraps nothing: the control stays its parent\'s child, so the parent\'s spacing still reaches it', () => {
+    render(<Item />);
+    expect(screen.getByRole('link').parentElement).toBe(screen.getByRole('navigation'));
+  });
+
+  it('keeps the control\'s own handlers and ref', () => {
+    const onMouseEnter = vi.fn();
+    const ref = React.createRef();
+    render(
+      <Tooltip label="Settings">
+        <a href="/settings" aria-label="Settings" ref={ref} onMouseEnter={onMouseEnter}>s</a>
+      </Tooltip>,
+    );
+    fireEvent.mouseEnter(screen.getByRole('link'));
+    expect(onMouseEnter).toHaveBeenCalledTimes(1);
+    expect(ref.current).toBe(screen.getByRole('link'));
+    expect(label()).toHaveTextContent('Settings');
+  });
+
+  it('refuses a missing label, and anything but one element', () => {
     expect(() => render(
       <Tooltip label=" "><a href="/x" aria-label="X">x</a></Tooltip>,
     )).toThrow(/Tooltip requires a label/);
+    expect(() => render(<Tooltip label="X">text</Tooltip>)).toThrow(/Tooltip wraps one element/);
   });
 });

@@ -24,8 +24,10 @@ glyphs.
 - **Keyboard focus shows it, a click's focus does not** (`:focus-visible`).
 - **`disabled` shows no label**, and hides one already shown: an open menu,
   where the words are on screen, needs none. The control is never remounted.
-- The anchor draws no box (`display: contents`), so the control keeps its place
-  in its parent's layout.
+- **It wraps nothing.** Its child is one element that forwards its ref (a link,
+  a `Button`); the handlers go on that element, beside its own, so the control
+  keeps its place and its parent's spacing (`space-y-*`) exactly. Anything else
+  throws.
 
 ## Not for
 
