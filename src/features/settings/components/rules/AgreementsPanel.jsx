@@ -31,6 +31,11 @@ const PLACEMENT = {
     consent: 'Agreements & Signature step (acknowledged and signed)',
 };
 
+/** The version in force: the platform's ("Version 1") or the company's own wording. */
+function VersionBadge({ agreement }) {
+    return <Badge tone={agreement.currentVersion ? 'info' : 'neutral'}>{versionLabelOf(agreement)}</Badge>;
+}
+
 function formatWhen(iso) {
     if (!iso) return 'date not recorded';
     const date = new Date(iso);
@@ -176,24 +181,32 @@ export function AgreementsPanel({ companyId, canPublish = false }) {
             header: 'Agreement',
             rowHeader: true,
             render: (agreement) => (
-                <span className="font-semibold text-ds-content [text-wrap:pretty] max-md:text-ds-heading-sm">
-                    {listTitleOf(agreement.title)}
-                </span>
+                <>
+                    <span className="font-semibold text-ds-content [text-wrap:pretty] max-md:text-ds-heading-sm">
+                        {listTitleOf(agreement.title)}
+                    </span>
+                    {/* On a card the version sits under the title, so Read stands
+                        level with the pair (C2). Drawn only: the version's own
+                        column still says it, under its header. */}
+                    <span className="mt-ds-2 block md:hidden" aria-hidden="true">
+                        <VersionBadge agreement={agreement} />
+                    </span>
+                </>
             ),
         },
         {
             key: 'version',
             header: 'Current version',
             width: 'lg',
-            mobileRole: 'line',
-            render: (agreement) => <Badge tone={agreement.currentVersion ? 'info' : 'neutral'}>{versionLabelOf(agreement)}</Badge>,
+            mobileRole: 'hidden',
+            render: (agreement) => <VersionBadge agreement={agreement} />,
         },
         {
             key: 'actions',
             header: 'Actions',
             align: 'end',
             width: 'sm',
-            // On a card, Read stands at the end of the title's line.
+            // On a card, Read stands beside the title and its version.
             mobileRole: 'status',
             render: (agreement) => (
                 <Button

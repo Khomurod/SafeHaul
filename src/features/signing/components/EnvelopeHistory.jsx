@@ -359,7 +359,8 @@ export default function EnvelopeHistory({
      * Display-only pagination over the live list. The page is clamped against
      * the current document count, so a filter change or live deletion that
      * shrinks the list can never leave the table on a page that no longer
-     * exists. 25 or fewer documents render exactly as before, unpaged.
+     * exists. 25 or fewer documents fit one page; the footer still says how
+     * many there are and "Page 1 of 1", as on every list page (C2).
      */
     const totalPages = Math.max(1, Math.ceil(docs.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -370,7 +371,7 @@ export default function EnvelopeHistory({
     if (currentPage !== page) setPage(currentPage);
     const paged = docs.length > PAGE_SIZE;
     const visibleDocs = paged ? docs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE) : docs;
-    const pagination = paged
+    const pagination = docs.length > 0
         ? {
             label: `${docs.length.toLocaleString('en-US')} total`,
             currentPage,

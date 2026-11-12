@@ -41,7 +41,7 @@ const NONE = { templateContactAttempt1: '', templateContactAttempt2: '', templat
  * writes only the templates typed in, so none it could not show is erased.
  */
 export function AutomatedSmsTab({ companyId }) {
-    const { showSuccess, showError } = useToast();
+    const { showSuccess } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(NONE);
@@ -81,16 +81,14 @@ export function AutomatedSmsTab({ companyId }) {
                 }
             } catch (e) {
                 console.error(e);
-                if (!cancelled) {
-                    setLoadFailed(true);
-                    showError('Could not load automated SMS templates.');
-                }
+                // The banner says so, out loud (`announce="assertive"`), with
+                // Retry: a toast too would say it twice and cover the fields.
+                if (!cancelled) setLoadFailed(true);
             } finally {
                 if (!cancelled) setLoading(false);
             }
         })();
         return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast stable; avoid reload loops
     }, [companyId, attempt]);
 
     const handleSave = async () => {
@@ -189,6 +187,8 @@ export function AutomatedSmsTab({ companyId }) {
                 {TEMPLATES.map(({ field, id, label }) => (
                     <FormField key={id} id={id} label={label}>
                         <Textarea
+                            // Three lines, as C2 draws a template: a text message is short.
+                            rows={3}
                             value={form[field]}
                             onChange={(event) => {
                                 const { value } = event.target;

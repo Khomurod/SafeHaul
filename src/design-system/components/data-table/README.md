@@ -177,7 +177,7 @@ When the columns state a `mobileRole`, each card is one record
 |---|---|
 | `lead` | The leading avatar or icon (a 32px slot, the text starting after it). At 768px and up the column is only as wide as that slot, the next cell's padding its gap, and the pinned column skips it. One per table, the first column, the row header right after it |
 | `title` | The first line. The row header's role, and the only one it may have |
-| `status` | The top-right corner. One per table: several statuses go in its one cell, which stacks them one under another |
+| `status` | The top-right corner. One per table: several statuses go in its one cell, which stacks them one under another. A status that is one button (Agreements' Read) stands level with the middle of the title's line instead |
 | `meta` | Inline after the title, wrapping as a line of short facts, each after its `mobileLabel` ("Updated Jul 11"); left out when the cell renders nothing, a blank or "—". The role of any column that states none |
 | `line` | A line of its own (an owner with their avatar), after its `mobileLabel` if it has one |
 | `actions` | The card's full width; the cell's direct children (pass the buttons, not a wrapper) share it. A record with nothing to do renders nothing there (`null`), and the card leaves the empty cell out, as it does an empty `meta` or `line` |

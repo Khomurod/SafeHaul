@@ -66,6 +66,8 @@ describe('design tokens', () => {
     ['content', 'surface'],
     ['content-secondary', 'surface'],
     ['content-muted', 'surface'],
+    // A placeholder sits inside a field, which is always `surface`.
+    ['content-placeholder', 'surface'],
     // `content-muted` is slate-600 so it is safe wherever it lands, rather than
     // "approved on `surface` only" — a rule too easy to forget.
     ['content-muted', 'surface-subtle'],
@@ -481,7 +483,6 @@ describe('design tokens', () => {
     ['ds-dialog-width-5xl', '64rem'],
     ['ds-dialog-max-height', '90vh'],
     ['ds-sheet-max-height', '80vh'],
-    ['ds-overlay-blur', '4px'],
   ])('publishes %s as a dialog geometry role', (token, value) => {
     expect(resolveToken(token)).toBe(value);
   });
@@ -506,7 +507,8 @@ describe('design tokens', () => {
       .replace(/\/\*[\s\S]*?\*\//g, '');
     expect(modalCss).toMatch(/z-index:\s*var\(--ds-z-modal\)/);
     expect(modalCss).toMatch(/background:\s*var\(--ds-color-overlay\)/);
-    expect(modalCss).toMatch(/backdrop-filter:\s*blur\(var\(--ds-overlay-blur\)\)/);
+    // The page behind is tinted, never blurred (C2).
+    expect(modalCss).not.toMatch(/backdrop-filter/);
     // A dialog that caps its own height in `vh` is how 80/85/92/95 accumulated.
     expect(modalCss).not.toMatch(/max-height:\s*\d/);
   });

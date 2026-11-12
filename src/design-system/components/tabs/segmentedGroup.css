@@ -232,7 +232,8 @@
     flex: 1 1 auto;
   }
 
-  .ds-segmented-group[data-variant='segmented'] .ds-segmented-group__item > svg {
+  /* Glyphs stay on a phone (C2), unless the labels leave no room (`phoneIcons={false}`). */
+  .ds-segmented-group[data-variant='segmented'][data-phone-icons='hidden'] .ds-segmented-group__item > svg {
     display: none;
   }
 

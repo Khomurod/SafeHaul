@@ -7,6 +7,10 @@ import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TemplateLibraryPanel } from './TemplateLibraryPanel';
 
+/** A phone, where New template stays beside the heading. */
+const isMobileMock = vi.hoisted(() => vi.fn(() => false));
+vi.mock('@shared/hooks/useIsMobile', () => ({ useIsMobile: () => isMobileMock() }));
+
 const template = (overrides = {}) => ({
     id: 'tpl-1',
     title: 'Artificial Offer Letter',
@@ -38,7 +42,10 @@ const renderPanel = (overrides = {}) => {
     return { props, ...render(<TemplateLibraryPanel {...props} />) };
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    isMobileMock.mockImplementation(() => false);
+});
 
 describe('library controls', () => {
     it('offers New template beside the library heading, which starts a new template', () => {
@@ -46,6 +53,16 @@ describe('library controls', () => {
         const library = screen.getByRole('region', { name: 'Template library' });
         fireEvent.click(within(library).getByRole('button', { name: 'New template' }));
         expect(props.onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps New template beside the heading on a phone, before the search and Sort by (C2)', () => {
+        isMobileMock.mockImplementation(() => true);
+        renderPanel();
+        const heading = screen.getByRole('heading', { level: 2, name: 'Template library' });
+        const button = screen.getByRole('button', { name: 'New template' });
+        // The heading's own row holds it: the search comes after it, not before.
+        expect(heading.parentElement.parentElement).toContainElement(button);
+        expect(button.compareDocumentPosition(screen.getByLabelText('Search templates')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('offers search and sorting', () => {

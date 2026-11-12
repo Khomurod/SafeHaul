@@ -232,7 +232,7 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **Every overlay goes through `Modal`** (`@design-system/patterns`); no
   hand-built `fixed inset-0` dialog. Its chrome is `size` / `scroll` / `fill` /
   `mobile` / `placement` / `tone`, not a class list: surface, border, radius,
-  shadow, overlay colour, blur and stacking layer have no prop, an unsupported
+  shadow, overlay tint (45%, no blur) and layer have no prop, an unsupported
   value throws, and so do the removed `className` / `overlayClassName`. A new
   shape is a case in `Modal.css` with the row here that justifies it.
 - **Confirmations are `ConfirmDialog`**, which routes Escape to `onCancel` — so
@@ -356,7 +356,7 @@ tolerated for one of them cites this section.
 | `DeviceMockup` artwork | `campaigns/components/DeviceMockup.jsx` | A picture of a physical phone: bezel, buttons and battery pips are moulded plastic, their greys declared once as hex in the `DEVICE` constant and their radii as lengths; the status-bar time is `text-[10px]` because a real one is that small. The *screen* takes `--ds-color-surface`; the fake status bar is `aria-hidden` | Never |
 | Login hero wash | `LoginScreen.jsx` (raw hexes, white `bg-[#fff]/5` among them) | Artwork: three blobs blurred over 256–384px, `aria-hidden`, no information; an opacity modifier cannot apply to a `var()` colour. Everything meaningful on the panel uses the brand roles | — |
 | Facebook's brand blue | `IntegrationsTab.jsx` (`#1877F2`) | A third-party mark, not a SafeHaul role; it must not move when this palette does | — |
-| Audience preview scrim `bg-[#000]/20` | `AudienceBuilder.jsx` | No role matches: `--ds-color-overlay` is slate-900 at 60%, so a swap would lighten and re-tint the backdrop | A semantic scrim role is named (§6) |
+| Audience preview scrim `bg-[#000]/20` | `AudienceBuilder.jsx` | No role matches: `--ds-color-overlay` is slate-900 at 45%, so a swap would lighten and re-tint the backdrop | A semantic scrim role is named (§6) |
 | PDF-geometry controls | `SignerField` (signature button and three inputs, which take the 16px phone size from `text-ds-control-mobile` because they are not `.ds-form-control`); `ResizableDraggableField`'s inline label editor | They overlay author-placed field boxes as small as 8px, which the shared 36/44/52 heights and padding would break. Each keeps an accessible name, a focus-visible ring and `--ds-*` tones | A geometry-free field exists in the design system |
 | Programmatic file pickers | `PEVTab` (per-employer result upload opened by a row action; `hidden` and named), `IntakeChooser` (CDL scan behind one of two choice cards; the card is the `Button`, the input is `aria-hidden`) | `FileInput` is a visible control by contract, and here the affordance is something else | — |
 | Roles `Button` cannot carry | `EmployerNameAutocomplete` (`role="option"` in the combobox listbox); `CampaignCard` (two `role="menuitem"` overflow entries and one chrome-less stat trigger) | `Button` renders `role="button"`, which breaks the option and menuitem contracts; the stat trigger is a chrome-less text-and-icon cell trigger. All are tokenised with the shared focus ring | The Combobox / Listbox and Menu rows below |
@@ -532,7 +532,7 @@ it does:
 | Section rail (page and step; an item's description line is drawn beside its button, so its visible text stays its name — WCAG 2.5.3); status notice / callout | `components/section-navigation`; `components/notice` |
 | Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS, Application questions, Email and Automated texts; Company profile keeps Edit/Save by decision). A failed save shows in the bar's error and the bar stays |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
-| C2: page canvas and header; form section layouts, flush notice, radio cards; KPI tile; segmented tabs; list-page row; person discs (**Needs review**: pixel baselines and the visual-contract snapshot to re-record from CI) | `layouts/page`; `components/form`, `notice`, `card`, `tabs`, `avatar` (`brand`, `placeholder`, `navigation` tones); `patterns/list-toolbar` |
+| C2: page canvas and header; form section layouts, flush notice, radio cards; KPI tile; segmented tabs (`phoneIcons`); list-page row; person discs (**Needs review**: pixel baselines and the visual-contract snapshot to re-record from CI) | `layouts/page`; `components/form`, `notice`, `card`, `tabs`, `avatar` (`brand`, `placeholder`, `navigation` tones); `patterns/list-toolbar` |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
 and loading shapes (the states are done, `patterns/page-state`) — `Skeleton` serves the

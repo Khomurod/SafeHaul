@@ -30,7 +30,7 @@ variation — so what a caller may vary is six enumerated props:
 | `tone` | `neutral` `danger` | `neutral` | borders a destructive dialog |
 
 **What a caller does not choose:** surface, border, radius, shadow, overlay
-colour, blur and stacking layer. Those are what makes a dialog look like this
+colour (a 45% slate tint, no blur, as C2 draws it) and stacking layer. Those are what makes a dialog look like this
 product's dialog, so they are fixed chrome with no prop at all.
 
 **An unsupported value throws** (outside a production build; a production build

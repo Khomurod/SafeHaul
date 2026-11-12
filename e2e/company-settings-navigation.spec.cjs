@@ -11,11 +11,16 @@ function backToSettings(page) {
   return page.getByRole('region', { name: 'Company settings content' }).getByRole('link', { name: 'Settings', exact: true });
 }
 
+/** Settings with no section named: its menu of sections, at every width. */
 async function openSettings(page) {
   await page.goto(SETTINGS_URL);
-  // From 1280px up Company profile opens beside the rail; a phone or a tablet
-  // opens its menu of sections instead.
-  await expect(page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+}
+
+/** Company profile, beside the rail from 1280px. */
+async function openCompanyProfile(page) {
+  await page.goto(`${SETTINGS_URL}&section=company`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Company profile' })).toBeVisible();
 }
 
 /** The page's width against the window's, and any box inside the settings that scrolls sideways. */
@@ -44,7 +49,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
   test('exposes current-item semantics and keeps keyboard focus during tab switching', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop keyboard behavior.');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await openSettings(page);
+    await openCompanyProfile(page);
 
     const company = page.getByRole('button', { name: 'Company profile', exact: true });
     const application = page.getByRole('button', { name: 'Application questions', exact: true });
@@ -63,8 +68,29 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(company).not.toHaveAttribute('aria-current');
   });
 
-  test('keeps the open section in the address, through a reload', async ({ page }) => {
+  test('opens on its menu of sections on a wide screen too, a section then opening beside the rail', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop presentation check.');
+    await page.setViewportSize({ width: 1440, height: 900 });
     await openSettings(page);
+    const rail = page.getByRole('navigation', { name: 'Company settings sections' });
+
+    // The menu is the page: no rail, and the address names no section.
+    await expect(rail).toHaveCount(0);
+    await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin$/);
+    await expect(backToSettings(page)).toHaveCount(0);
+
+    await page.getByRole('button', { name: /^Team / }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Team' })).toBeVisible();
+    await expect(rail.getByRole('button', { name: 'Team', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveURL(/section=team$/);
+
+    await page.goBack();
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(rail).toHaveCount(0);
+  });
+
+  test('keeps the open section in the address, through a reload', async ({ page }) => {
+    await openCompanyProfile(page);
     const email = page.getByRole('button', { name: 'Email', exact: true });
 
     await email.click();

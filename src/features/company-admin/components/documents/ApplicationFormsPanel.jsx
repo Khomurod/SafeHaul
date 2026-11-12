@@ -42,11 +42,12 @@ export function ApplicationFormsPanel({ templates, templatesLoading, forms }) {
             padding="none"
             title="Forms shown after an application"
             description={(
-                <>
+                // Three short lines over the wide card, as C2 sets this intro.
+                <span className="block max-w-lg">
                     These templates appear right after a driver submits the application, in the order
                     below. Forms are <strong>required</strong> by default — drivers see them as a
                     must-complete checklist. Untick "Required" to make a form optional.
-                </>
+                </span>
             )}
             footer={(
                 <Button

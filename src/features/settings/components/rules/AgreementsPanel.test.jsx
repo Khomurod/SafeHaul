@@ -44,7 +44,11 @@ describe('AgreementsPanel', () => {
     it('lists each agreement with its version, and Read opens where it is shown and the wording in force', async () => {
         render(<AgreementsPanel companyId="company-1" />);
         expect(await screen.findByRole('rowheader', { name: 'Motor vehicle record (MVR) authorization' })).toBeInTheDocument();
-        expect(screen.getByText('Version 1')).toBeInTheDocument();
+        // The version is said once, in its own column; the copy a phone card
+        // draws under the title is hidden from assistive technology.
+        expect(screen.getByRole('cell', { name: 'Version 1' })).toBeInTheDocument();
+        const drawn = screen.getAllByText('Version 1').filter((badge) => badge.closest('[aria-hidden="true"]'));
+        expect(drawn).toHaveLength(1);
         expect(screen.queryByText('Platform wording for Acme Freight about motor vehicle records.')).toBeNull();
 
         fireEvent.click(screen.getByRole('button', { name: 'Read Motor vehicle record (MVR) authorization' }));

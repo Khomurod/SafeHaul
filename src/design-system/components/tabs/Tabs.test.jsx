@@ -361,3 +361,26 @@ describe('Tabs.css', () => {
     expect(rule).toContain('position: relative');
   });
 });
+
+describe('a segmented strip on a phone', () => {
+  it('keeps each glyph by default, and lets labels too long for a half-row drop them', async () => {
+    const { rerender } = render(
+      <TabList ariaLabel="Views" idBase="v" variant="segmented" tabs={TABS} activeTab="documents" onChange={() => {}} />,
+    );
+    expect(screen.getByRole('tablist')).not.toHaveAttribute('data-phone-icons');
+
+    rerender(
+      <TabList ariaLabel="Views" idBase="v" variant="segmented" phoneIcons={false} tabs={TABS} activeTab="documents" onChange={() => {}} />,
+    );
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-phone-icons', 'hidden');
+
+    // Only the opt-out hides them: no phone rule hides every segmented glyph.
+    const { readFileSync } = await import('node:fs');
+    const path = await import('node:path');
+    const css = readFileSync(path.join(__dirname, 'segmentedGroup.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const hides = [...css.matchAll(/([^{}]+)\{[^}]*display:\s*none[^}]*\}/g)].map((match) => match[1].trim());
+    expect(hides.filter((selector) => selector.includes('> svg'))).toEqual([
+      ".ds-segmented-group[data-variant='segmented'][data-phone-icons='hidden'] .ds-segmented-group__item > svg",
+    ]);
+  });
+});

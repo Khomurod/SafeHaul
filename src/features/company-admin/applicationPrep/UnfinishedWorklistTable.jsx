@@ -49,6 +49,9 @@ function useWorklistLayout() {
     return { boxRef, ...layout, shape: cards ? 'cards' : layout.shape };
 }
 
+/** One page, so Previous and Next have nowhere to go. */
+const noPage = () => {};
+
 /**
  * Every application that has been started and not submitted, in one list.
  *
@@ -227,6 +230,18 @@ export function UnfinishedWorklistTable({
         ];
     }, [hasCustomQuestions, linkState, now, onDelete, onEdit, onOpen, progressWidth, retentionDays, shape, statusWidth, viewer]);
 
+    // The list page's footer (C2): how many rows the list holds, on its one
+    // page. The list is never paged (it stops at 200 rows and says so above).
+    const pagination = useMemo(() => (rows.length > 0 ? {
+        label: `${rows.length.toLocaleString('en-US')} total`,
+        currentPage: 1,
+        totalPages: 1,
+        hasPrev: false,
+        hasNext: false,
+        onPrev: noPage,
+        onNext: noPage,
+    } : undefined), [rows.length]);
+
     return (
         // The box the layout is measured from: as wide as the table's card.
         <div ref={boxRef}>
@@ -244,6 +259,7 @@ export function UnfinishedWorklistTable({
                 isLoading={loading}
                 loadingLabel="Loading unfinished applications"
                 empty={empty}
+                pagination={pagination}
             />
         </div>
     );

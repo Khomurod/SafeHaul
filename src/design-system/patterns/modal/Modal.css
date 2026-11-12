@@ -26,7 +26,6 @@
   justify-content: center;
   padding: var(--ds-dialog-inset);
   background: var(--ds-color-overlay);
-  backdrop-filter: blur(var(--ds-overlay-blur));
 }
 
 /*

@@ -108,7 +108,7 @@
 .ds-form-control[data-variant='inline'][data-align='end'] { text-align: end; }
 
 .ds-form-control::placeholder {
-  color: var(--ds-color-content-muted);
+  color: var(--ds-color-content-placeholder);
   opacity: 1;
 }
 

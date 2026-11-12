@@ -5,9 +5,10 @@
   height: 24px;
   flex-shrink: 0;
   align-items: center;
-  border: 1px solid var(--ds-color-border);
+  /* Off, a grey track the white thumb stands out on, on any row (C2). */
+  border: 1px solid transparent;
   border-radius: var(--ds-radius-full);
-  background: var(--ds-color-surface-subtle);
+  background: var(--ds-color-border);
   cursor: pointer;
   transition: background-color var(--ds-duration-fast) var(--ds-ease-standard),
     border-color var(--ds-duration-fast) var(--ds-ease-standard);
@@ -32,10 +33,6 @@
  */
 .ds-switch[aria-checked='true'] .ds-switch__thumb {
   transform: translateX(22px);
-}
-
-.ds-switch[aria-checked='true'] {
-  border-color: transparent;
 }
 
 .ds-switch[aria-checked='true'][data-tone='primary'] {

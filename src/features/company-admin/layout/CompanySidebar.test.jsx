@@ -132,19 +132,39 @@ describe('CompanySidebar', () => {
         '/company/drivers/leads/company',
         '/company/drivers/leads/my',
         '/company/drivers/leads/unassigned',
-    ])('reads Leads, and its group, as current on %s', (path) => {
+    ])('reads Leads as current on %s, its group heading it in the text colour', (path) => {
         renderSidebar({ path });
 
         expect(screen.getByRole('link', { name: 'Leads' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('link', { name: 'Applications' })).not.toHaveAttribute('aria-current');
-        expect(screen.getByRole('button', { name: 'Driver Applications & Leads' })).toHaveClass('text-ds-status-info-fg');
+        // C2: only the current item is blue, a pill inset from the edges with no bar.
+        expect(screen.getByRole('link', { name: 'Leads' })).toHaveClass('bg-ds-status-info-bg', 'rounded-ds-md');
+        expect(screen.getByRole('link', { name: 'Leads' })).not.toHaveClass('border-l-2');
+        const group = screen.getByRole('button', { name: 'Driver Applications & Leads' });
+        expect(group.querySelector('svg')).toHaveClass('text-ds-content-muted');
     });
 
-    it('reads the group as current on none of its items elsewhere', () => {
-        renderSidebar({ path: '/company/settings' });
+    it.each(['/company/quick-add-lead', '/company/import-leads'])(
+        'shows Leads as where you are on %s, a page its header opens, without announcing it as the page',
+        (path) => {
+            renderSidebar({ path });
+            const leads = screen.getByRole('link', { name: 'Leads' });
+            expect(leads).toHaveClass('bg-ds-status-info-bg');
+            expect(leads).not.toHaveAttribute('aria-current');
+            expect(screen.getByRole('link', { name: 'Applications' })).not.toHaveClass('bg-ds-status-info-bg');
+        },
+    );
 
-        expect(screen.getByRole('button', { name: 'Driver Applications & Leads' })).not.toHaveClass('text-ds-status-info-fg');
-        expect(screen.getByRole('link', { name: 'Leads' })).not.toHaveAttribute('aria-current');
+    it('turns the folded group blue while one of its items is current, and no other', () => {
+        const { unmount } = renderSidebar({ path: '/company/drivers/leads/my', expanded: false });
+        // Folded, the group is its glyph alone: the one button that opens a group.
+        const glyph = () => screen.getByRole('navigation', { name: 'Company sections' })
+            .querySelector('button[aria-expanded]').querySelector('svg');
+        expect(glyph()).toHaveClass('text-ds-navigation-accent');
+        unmount();
+
+        renderSidebar({ path: '/company/settings', expanded: false });
+        expect(glyph()).toHaveClass('text-ds-content-muted');
     });
 
     it('has no structural accessibility violations', async () => {

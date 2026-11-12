@@ -7,7 +7,8 @@
   /* What is selected or current — a selected row, a pressed toggle, the current
      rail item — wears the brand tint, the same family as the action colour. */
   --ds-color-surface-selected: var(--ds-color-brand-primary-subtle);
-  --ds-color-overlay: rgb(15 23 42 / 0.6);
+  /* C2: a grey tint over the page behind a dialog, never a blur. */
+  --ds-color-overlay: rgb(15 23 42 / 0.45);
 
   /* Inverse (dark) surface role, for console/log output surfaces, which the
      product renders as dark monospace panels — never a raw `bg-gray-900` /
@@ -67,6 +68,12 @@
    * to forget. `tests/tokens.test.js` asserts all of those pairings.
    */
   --ds-color-content-muted: var(--ds-color-slate-600);
+  /*
+   * A field's placeholder, lighter than what is typed so an empty field does
+   * not read as filled in (C2). Fields are `surface`, where slate-500 clears AA
+   * (4.76:1); a disabled field is exempt. Nowhere else.
+   */
+  --ds-color-content-placeholder: var(--ds-color-slate-500);
   --ds-color-content-inverse: var(--ds-color-white);
   --ds-color-content-link: var(--ds-color-blue-700);
   --ds-color-content-danger: var(--ds-color-red-700);
@@ -248,7 +255,6 @@
   --ds-dialog-max-height: 90vh;
   --ds-sheet-max-height: 80vh;
   --ds-dialog-inset: var(--ds-space-4);
-  --ds-overlay-blur: 4px;
 
   /* Responsive workspace geometry. Feature shells provide navigation content. */
   --ds-workspace-navigation-width-collapsed: 64px;

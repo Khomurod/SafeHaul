@@ -147,17 +147,15 @@ describe('AutomatedSmsTab compatibility slice', () => {
         expect(three).toHaveValue('Edited three');
     });
 
-    it('says the templates could not be loaded, and retries', async () => {
+    it('says the templates could not be loaded once, in the banner, and retries', async () => {
         firestoreMocks.getDoc.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         render(<AutomatedSmsTab companyId="company-1" />);
 
-        await waitFor(() => {
-            expect(toastMocks.showError)
-                .toHaveBeenCalledWith('Could not load automated SMS templates.');
-        });
-        expect(screen.getByRole('alert')).toHaveTextContent('The saved templates could not be loaded.');
+        expect(await screen.findByRole('alert')).toHaveTextContent('The saved templates could not be loaded.');
+        // No toast besides: it would say it twice and cover the fields.
+        expect(toastMocks.showError).not.toHaveBeenCalled();
         expect(await findTextarea('Contact Attempt 1')).toHaveValue('');
 
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));

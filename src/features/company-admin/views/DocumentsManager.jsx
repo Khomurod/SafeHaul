@@ -321,6 +321,8 @@ export default function DocumentsManager() {
                             ariaLabel="Documents workspace views"
                             idBase={tabsIdBase}
                             variant="segmented"
+                            // "After-application forms" fills a phone's half-row on its own.
+                            phoneIcons={false}
                             tabs={documentTabs}
                             activeTab={activeTab}
                             onChange={setActiveTab}
