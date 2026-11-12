@@ -165,6 +165,29 @@ describe('CompanySidebar', () => {
         expect(glyph()).toHaveClass('text-ds-content-muted');
     });
 
+    it('shows each folded item\'s name beside it on hover, on the page body where the menu cannot clip it', () => {
+        const { unmount } = renderSidebar({ path: '/company/dashboard', expanded: false });
+        const tooltip = () => document.body.querySelector('.ds-tooltip');
+
+        const settings = screen.getByRole('link', { name: 'Settings' });
+        fireEvent.mouseEnter(settings);
+        expect(tooltip()).toHaveTextContent('Settings');
+        expect(tooltip().parentElement).toBe(document.body);
+        expect(tooltip()).toHaveAttribute('aria-hidden', 'true');
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(tooltip()).toBeNull();
+
+        fireEvent.mouseEnter(screen.getByRole('button', { name: 'Driver Applications & Leads' }));
+        expect(tooltip()).toHaveTextContent('Driver Applications & Leads');
+        unmount();
+        expect(tooltip()).toBeNull();
+
+        // Open, the words are on screen: no label.
+        renderSidebar({ path: '/company/dashboard', expanded: true });
+        fireEvent.mouseEnter(screen.getByRole('link', { name: 'Settings' }));
+        expect(tooltip()).toBeNull();
+    });
+
     it('names the folded group by its label, and opening it unfolds the menu', async () => {
         const { container, onExpandedChange } = renderSidebar({ path: '/company/dashboard', expanded: false });
         const group = screen.getByRole('button', { name: 'Driver Applications & Leads' });
