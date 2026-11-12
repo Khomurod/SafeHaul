@@ -16,7 +16,7 @@ Create columns with `defineTableColumns`. A column supports:
 | `headerLabel` | Accessible label when the visible header is intentionally empty |
 | `render(row)` | Feature-owned content and value formatting |
 | `align` | `start` (default) for text or `end` for numbers, applied to both header and cells. Nothing is centred: a centred column has no edge to scan |
-| `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, `2xl`, or `actions` |
+| `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`, or `actions` |
 | `rowHeader` | Uses `<th scope="row">` for the primary identifying cell |
 | `leadingAvatar` | On the row header only: its cells start with an `sm` `Avatar` and a 12px gap before the text (a person cell), so a [row detail](#row-details) starts its words under that text |
 | `truncate` | Applies the approved single-line truncation behavior |
@@ -81,7 +81,11 @@ column widths, sticky headers, alignment, focus treatment, and pagination
 targets through design-system tokens and component CSS: a 44px header on the
 table's surface, its labels in sentence case as the feature wrote them (12px,
 medium weight, the secondary text colour of `--ds-table-header-fg`); 68px
-comfortable rows (56px compact); 16px inline cell padding (`--ds-table-*`).
+comfortable rows (56px compact); 16px inline cell padding (`--ds-table-*`), or
+`cellPadding="tight"`: 12px between columns and 16px at the table's edges from
+768px, for a work list whose many columns hold their content on one line at
+1440px (C2's Unfinished applications and Referral Links). The checkbox column
+is 48px: its 40px target and 4px each side.
 The header band is 44px whatever a header holds: a sort button or the
 "select all" box sits inside that height, with no block padding added to it.
 
@@ -273,6 +277,7 @@ bucket leaves this much for its header text once the 16px cell padding is taken
 | `lg` | 144px |
 | `xl` | 188px |
 | `2xl` | 224px — a role beside its status badge |
+| `3xl` | 292px — three buttons side by side, a row's actions (324px wide) |
 
 A sortable header's arrow takes about 16px of that, hidden or not.
 

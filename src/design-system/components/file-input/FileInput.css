@@ -64,6 +64,20 @@
   flex: 0 0 auto;
 }
 
+/* `size="sm"`: 36px beside the preview it changes, from 768px; a phone keeps 44px. */
+@media (min-width: 768px) {
+  .ds-file-input__control[data-size='sm'] {
+    min-height: var(--ds-control-height-sm);
+    padding: 0 var(--ds-space-3);
+    font-size: var(--ds-font-size-sm);
+  }
+
+  .ds-file-input__control[data-size='sm'] > svg {
+    width: var(--ds-control-icon-sm);
+    height: var(--ds-control-icon-sm);
+  }
+}
+
 .ds-file-input__control:hover:not([data-disabled]) {
   background: var(--ds-color-action-secondary-hover);
 }

@@ -1,6 +1,6 @@
 import { contractViolation } from '../../contract';
 const ALIGNMENTS = new Set(['start', 'end']);
-const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', 'actions']);
+const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'actions']);
 const SORT_DIRECTIONS = new Set(['asc', 'desc']);
 const SORT_LABELS = Object.freeze({ asc: 'Ascending', desc: 'Descending' });
 /**

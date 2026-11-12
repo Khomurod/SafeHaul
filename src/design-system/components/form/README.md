@@ -109,7 +109,9 @@ can jump between sections.
 ```
 
 Each option is a bordered card (`--ds-color-border`, `--ds-radius-lg`), its
-label a semibold title and its description under it. The label's hit area
+label a semibold 14px title and its description a 12px line straight under it,
+so a short description holds one line and a card stands about 66px, as C2 draws
+the role choice. The label's hit area
 covers the whole card, so pressing anywhere on it chooses it. A chosen card
 wears what a selected `SelectableCard` wears: the action border, an inset 1px
 ring (no thicker border, so nothing shifts) and `--ds-color-surface-selected`;

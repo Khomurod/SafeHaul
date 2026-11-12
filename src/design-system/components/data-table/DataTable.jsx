@@ -34,6 +34,14 @@ const MIN_WIDTHS = new Set(['none', 'standard', 'wide']);
 const MAX_HEIGHTS = new Set(['sm', 'md']);
 
 /**
+ * The cells' side padding from 768px: `standard` 16px, or `tight` 12px between
+ * columns (16px still at the table's two edges), for a work list whose many
+ * columns must hold their content on one line at 1440px, as C2 draws
+ * Unfinished applications and Referral Links.
+ */
+const CELL_PADDINGS = new Set(['standard', 'tight']);
+
+/**
  * The page sizes the "Rows per page" list may offer, or `null` for no list. A
  * setting the table cannot act on is reported and the list left out, so a
  * production build keeps Previous and Next rather than a list that does nothing.
@@ -136,6 +144,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   onRowActivate,
   getRowTone,
   density = 'comfortable',
+  cellPadding = 'standard',
   minWidth = 'wide',
   maxHeight,
   mobilePresentation = 'scroll',
@@ -205,6 +214,9 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
     contractViolation(`Unsupported DataTable minWidth "${minWidth}"; use ${[...MIN_WIDTHS].join(', ')}.`);
     tableMinWidth = 'wide';
   }
+  if (!CELL_PADDINGS.has(cellPadding)) {
+    contractViolation(`Unsupported DataTable cellPadding "${cellPadding}"; use ${[...CELL_PADDINGS].join(' or ')}.`);
+  }
   let tableMaxHeight = maxHeight ?? undefined;
   if (tableMaxHeight !== undefined && !MAX_HEIGHTS.has(tableMaxHeight)) {
     contractViolation(`Unsupported DataTable maxHeight "${maxHeight}"; use ${[...MAX_HEIGHTS].join(', ')}.`);
@@ -226,6 +238,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
     <section
       className="ds-data-table"
       data-density={density}
+      data-cell-padding={cellPadding === 'tight' ? 'tight' : undefined}
       data-mobile-presentation={mobilePresentation}
       data-mobile-roles={roles || undefined}
       data-mobile-lead={(roles && normalizedColumns.some((column) => column.mobileRole === 'lead')) || undefined}

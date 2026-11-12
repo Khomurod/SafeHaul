@@ -143,7 +143,17 @@
     border-color var(--ds-duration-fast) var(--ds-ease-standard);
 }
 
+/*
+ * A card reads as a title and one short line, as C2 draws a role: the title at
+ * body size, the description at 12px straight under it, so "Sees everything and
+ * changes settings." holds one line in a 240px card and the card stands 66px.
+ */
+.ds-choice-group[data-appearance='card'] .ds-choice__text {
+  gap: 0;
+}
+
 .ds-choice-group[data-appearance='card'] .ds-choice__label {
+  font-size: var(--ds-font-size-body);
   font-weight: var(--ds-font-weight-semibold);
 }
 
@@ -155,6 +165,7 @@
 }
 
 .ds-choice-group[data-appearance='card'] .ds-choice__description {
+  font-size: var(--ds-font-size-xs);
   text-wrap: pretty;
 }
 

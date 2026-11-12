@@ -19,8 +19,9 @@
 }
 
 .ds-data-table__selection-cell {
-  padding-right: var(--ds-space-2) !important;
-  padding-left: var(--ds-space-2) !important;
+  /* The 40px hit area and 4px each side fill the 48px column exactly. */
+  padding-right: var(--ds-space-1) !important;
+  padding-left: var(--ds-space-1) !important;
   text-align: center;
 }
 

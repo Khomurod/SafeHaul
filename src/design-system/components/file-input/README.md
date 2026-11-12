@@ -31,8 +31,9 @@ filtering come for free; dropped files are handled explicitly by `onDrop`.
 | `variant="dropzone"` | The full-width dashed panel, used by `BulkUploadLayout`, the driver application's `UploadField`, the campaign recipient import and the e-doc envelope creator. As a `<label>` the whole panel is the click target, and `onDrop` accepts a file dropped anywhere on it: a label forwards a click to its control and never a drop, so the drop needs its own handler |
 | `loading` | An upload in flight: it spins, says so with `aria-busy`, and refuses a second file. The avatar and company-logo pickers used `Button loading` plus a hidden input for exactly this |
 | `labelHidden` | A picker whose field is already named on screen — a photo preview beside it. Same prop and meaning as `Checkbox`'s |
+| `size="sm"` | A 36px picker beside the preview it changes (the company logo, a profile photo), from 768px; a phone keeps the 44px control height. Button variant only |
 
-`variant` throws on an unknown value rather than falling back, so a typo is a
+`variant` and `size` throw on an unknown value rather than falling back, so a typo is a
 crash at the call site instead of a silently wrong control.
 
 ## It is a picker, not an uploader

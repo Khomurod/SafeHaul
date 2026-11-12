@@ -141,6 +141,26 @@
   vertical-align: middle;
 }
 
+/* `cellPadding="tight"`: 12px between columns, 16px at the table's edges (C2's work lists). */
+@media (min-width: 768px) {
+  .ds-data-table[data-cell-padding='tight'] {
+    --ds-table-cell-padding-inline: var(--ds-space-3);
+  }
+
+  .ds-data-table[data-cell-padding='tight'] tr > :first-child {
+    padding-left: var(--ds-space-4);
+  }
+
+  .ds-data-table[data-cell-padding='tight'] tr > :last-child {
+    padding-right: var(--ds-space-4);
+  }
+
+  /* A leading avatar column at the edge keeps the edge's 16px before its disc. */
+  .ds-data-table[data-cell-padding='tight'][data-mobile-roles] col[data-mobile-role='lead']:first-child {
+    width: calc(var(--ds-space-4) + var(--ds-avatar-size-sm));
+  }
+}
+
 .ds-data-table tbody th,
 .ds-data-table tbody td {
   height: var(--ds-table-active-row-height);
@@ -202,6 +222,12 @@
 .ds-data-table col[data-width='2xl'],
 .ds-data-table [data-width='2xl'] {
   width: 256px;
+}
+
+/* Three buttons side by side, the row's actions (Unfinished: Open, Copy link, Email link). */
+.ds-data-table col[data-width='3xl'],
+.ds-data-table [data-width='3xl'] {
+  width: 324px;
 }
 
 .ds-data-table col[data-width='actions'],

@@ -28,7 +28,7 @@ describe('DataTable column contract', () => {
 
   it('publishes a finite visual vocabulary', () => {
     expect(TABLE_COLUMN_ALIGNMENTS).toEqual(['start', 'end']);
-    expect(TABLE_COLUMN_WIDTHS).toEqual(['auto', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', 'actions']);
+    expect(TABLE_COLUMN_WIDTHS).toEqual(['auto', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'actions']);
     expect(TABLE_COLUMN_MOBILE_ROLES).toEqual(['lead', 'title', 'status', 'meta', 'line', 'actions', 'hidden']);
   });
 

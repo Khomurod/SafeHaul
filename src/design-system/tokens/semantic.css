@@ -149,10 +149,11 @@
   --ds-table-cell-padding-inline: var(--ds-space-4);
   --ds-table-cell-padding-block-compact: var(--ds-space-2);
   --ds-table-cell-padding-block-comfortable: var(--ds-space-3);
-  --ds-table-selection-width: 56px;
+  /* The checkbox column, as C2 draws it: the 40px hit area and 4px each side. */
+  --ds-table-selection-width: 48px;
   /*
    * The row-selection checkbox's hit area. Deliberately 40px rather than the
-   * 44px control height: it sits inside a 56px compact row next to a 56px
+   * 44px control height: it sits inside a 56px compact row in a 48px
    * selection column, and a 44px target there would crowd both. It is a table
    * density decision, which is why it is a table role and not a control height.
    */
