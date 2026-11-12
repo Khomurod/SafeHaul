@@ -89,6 +89,11 @@ function checkProps({ placement, segments, toggle, search, filters }) {
  * assigning the selected ones). Every part is optional, and the page owns
  * every value: this draws the controls and reports what was pressed.
  *
+ * `reserveActions` is for actions shown only while rows are selected: the page
+ * row keeps their place in its layout while they are absent, so ticking a row
+ * adds no line above the list and nothing moves under the finger. Filters then
+ * shares its row with them wherever the search needs a row of its own.
+ *
  * `placement="card"` (the default) is the top strip inside the list's card;
  * `placement="page"` is a row of its own above the table card, with no surface,
  * its segments a segmented tray and its tools ending on the table's edge. When
@@ -110,6 +115,7 @@ export function ListToolbar({
   search,
   filters,
   actions,
+  reserveActions = false,
   className = '',
   ...props
 }) {
@@ -126,6 +132,8 @@ export function ListToolbar({
    */
   const searchFirst = shown.placement === 'page' || !hasSegments;
   const hasActions = actions !== undefined && actions !== null && actions !== false;
+  /** The page row keeps the place of actions that come with a selection. */
+  const reservesActions = Boolean(reserveActions) && shown.placement === 'page';
   const hasTools = shown.toggle || shown.search || shown.filters || hasActions;
   const { barRef, toolsRef, wrapped } = useToolsWrap(
     shown.placement === 'page' && (hasLead || hasSegments),
@@ -176,6 +184,7 @@ export function ListToolbar({
       data-has-segments={hasSegments || undefined}
       data-search-first={searchFirst || undefined}
       data-wrapped={wrapped || undefined}
+      data-reserve-actions={reservesActions || undefined}
     >
       <div ref={barRef} className="ds-list-toolbar__bar">
         {hasLead && <div className="ds-list-toolbar__lead">{lead}</div>}

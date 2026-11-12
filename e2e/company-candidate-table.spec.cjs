@@ -97,6 +97,8 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
     const selectAll = page.getByRole('checkbox', { name: 'Select all candidates on this page' });
     const lena = page.getByRole('checkbox', { name: 'Select Lena Leadsen' });
+    // Nothing ticked, nothing to assign: no button, as C2 draws the list.
+    await expect(page.getByRole('button', { name: /^Assign/ })).toHaveCount(0);
 
     await lena.check();
     await expect(lena).toBeChecked();
@@ -108,8 +110,52 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('button', { name: 'Assign (2)' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Attempting to Contact' }).click();
-    await expect(page.getByRole('button', { name: 'Assign (2)' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Assign/ })).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: 'Select Omar Attempt' })).not.toBeChecked();
+  });
+
+  test('brings Assign with a ticked lead without moving the list, at every width', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Sets its own widths, phone to desktop.');
+    // A phone too wide for its narrow layout, a tablet, the width where the row
+    // first fits on one line, and a desktop.
+    for (const width of [430, 800, 1130, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await openCandidatePage(page, '/company/drivers/leads/company', 'Leads');
+      const tableTop = () => page.evaluate(() => {
+        const toolbar = document.querySelector('.ds-list-toolbar[data-placement="page"]').getBoundingClientRect();
+        return Math.round(document.querySelector('.ds-data-table').getBoundingClientRect().top - toolbar.top);
+      });
+      const atRest = await tableTop();
+      const lena = page.getByRole('checkbox', { name: 'Select Lena Leadsen' });
+
+      await lena.check();
+      await expect(page.getByRole('button', { name: 'Assign (1)' })).toBeVisible();
+      expect(await tableTop(), `the list moved when a lead was ticked at ${width}px`).toBe(atRest);
+
+      await lena.uncheck();
+      await expect(page.getByRole('button', { name: /^Assign/ })).toHaveCount(0);
+      expect(await tableTop(), `the list moved when the last lead was unticked at ${width}px`).toBe(atRest);
+    }
+  });
+
+  test('shades the edge of the table its hidden columns are past', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'A table that scrolls sideways at a tablet width.');
+    // At 1130px beside the menu the Leads table is wider than its card.
+    await page.setViewportSize({ width: 1130, height: 900 });
+    await openCandidatePage(page, '/company/drivers/leads/company', 'Leads');
+    const frame = page.locator('.ds-data-table__scroll-frame');
+    const shade = (side) => frame.evaluate((element, which) => getComputedStyle(element, which).opacity, side);
+
+    await expect(frame).toHaveAttribute('data-overflow-end', 'true');
+    await expect(frame).not.toHaveAttribute('data-overflow-start');
+    await expect.poll(() => shade('::after')).toBe('1');
+
+    await page.getByRole('region', { name: /^Leads table/ }).evaluate((region) => { region.scrollLeft = region.scrollWidth; });
+    await expect(frame).not.toHaveAttribute('data-overflow-end');
+    await expect(frame).toHaveAttribute('data-overflow-start', 'true');
+    await expect.poll(() => shade('::after')).toBe('0');
+    // The pinned Driver column holds the near edge: no shade over the names.
+    await expect.poll(() => shade('::before')).toBe('0');
   });
 
   test('preserves the Assigned to me scope and its non-bulk-selection permissions', async ({ page }) => {
@@ -253,9 +299,9 @@ test.describe('Company candidate-list DataTable pilot', () => {
     const box = await lena.locator('xpath=ancestor::*[self::td or self::th][1]').boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44);
     expect(box.height).toBeGreaterThanOrEqual(44);
-    // Assign is already in its place, unavailable, so ticking a card moves no
-    // card: the next box is where the finger expects it.
-    await expect(page.getByRole('button', { name: 'Assign', exact: true })).toBeDisabled();
+    // Nothing ticked, no Assign; the row keeps its place, so ticking a card
+    // moves no card: the next box is where the finger expects it.
+    await expect(page.getByRole('button', { name: /^Assign/ })).toHaveCount(0);
     await lena.check();
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Assign (1)' })).toBeEnabled();

@@ -519,3 +519,47 @@
     grid-column: 1 / -1;
   }
 }
+
+/*
+ * Actions a selection brings (`reserveActions`: Leads' Assign) arrive without
+ * adding a line above the list. While they are absent the row is measured with
+ * their place counted (`useToolsWrap`), at the reserve below: "Assign (100)",
+ * a full page of leads ticked, is 143px. Wherever the search takes a row of its
+ * own, Filters keeps the next row for them: the whole row until they come, then
+ * its first share, the actions beside it. Nothing moves out of Tab order.
+ */
+.ds-list-toolbar[data-reserve-actions] {
+  --ds-list-toolbar-actions-reserve: 144px;
+}
+
+@media (max-width: 767px) {
+  .ds-list-toolbar[data-placement][data-reserve-actions] .ds-list-toolbar__tools .ds-list-toolbar__search,
+  .ds-list-toolbar[data-reserve-actions] .ds-list-toolbar__search + .ds-list-toolbar__filters-button {
+    grid-column: 1 / -1;
+  }
+
+  .ds-list-toolbar[data-reserve-actions] .ds-list-toolbar__search + .ds-list-toolbar__filters-button:has(+ .ds-list-toolbar__actions) {
+    grid-column: 1;
+  }
+
+  .ds-list-toolbar[data-reserve-actions] .ds-list-toolbar__filters-button + .ds-list-toolbar__actions {
+    grid-column: 2;
+  }
+}
+
+@media (min-width: 768px) {
+  @container ds-list-toolbar (max-width: 559px) {
+    .ds-list-toolbar[data-wrapped][data-reserve-actions] .ds-list-toolbar__tools .ds-list-toolbar__search,
+    .ds-list-toolbar[data-wrapped][data-reserve-actions] .ds-list-toolbar__search + .ds-list-toolbar__filters-button {
+      grid-column: 1 / -1;
+    }
+
+    .ds-list-toolbar[data-wrapped][data-reserve-actions] .ds-list-toolbar__search + .ds-list-toolbar__filters-button:has(+ .ds-list-toolbar__actions) {
+      grid-column: 1;
+    }
+
+    .ds-list-toolbar[data-wrapped][data-reserve-actions] .ds-list-toolbar__filters-button + .ds-list-toolbar__actions {
+      grid-column: 2;
+    }
+  }
+}

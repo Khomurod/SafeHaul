@@ -70,6 +70,7 @@ placement or look takes its default.
 | `search` | `{ label, placeholder?, value, onChange(text) }` | A search box in a `search` landmark |
 | `filters` | `{ open, onOpenChange(next), activeCount, onClear(), children }` | The Filters button, and when open, a row of the `children` fields with "Clear filters" |
 | `actions` | node | Actions on the list's records, such as assigning the selected ones, last in the row |
+| `reserveActions` | boolean | On the page row, for actions shown only while rows are selected (Leads' Assign): the row keeps their place while they are absent, so ticking a row adds no line above the list. See [Actions that come with a selection](#actions-that-come-with-a-selection) |
 
 ### Placement
 
@@ -107,6 +108,18 @@ Filters on the next; then any actions. A search with nothing after it takes the
 whole row. Under 420px the search always takes its row alone, so its
 placeholder is never cut. A card strip with segments
 keeps its switch on a row above the search and Filters.
+
+### Actions that come with a selection
+
+An action that only makes sense for ticked rows (Leads' Assign) is not drawn
+while nothing is ticked, and its arrival must not push the list down under the
+finger that ticked the row. With `reserveActions` the page row is measured with
+the actions' place counted at `--ds-list-toolbar-actions-reserve` (144px,
+"Assign (100)" being 143px), drawn or not, so it wraps the same before and after
+a row is ticked. Wherever the search takes a row of its own (a phone, or a
+narrow row on a tablet), Filters keeps the next row: the whole row until the
+actions come, then its first share with them beside it. Without a switch only:
+the toolbar it serves has none.
 
 Tab follows the order the controls are written in (the search, the switch,
 Filters on the page row and in a strip without segments; the switch first in a

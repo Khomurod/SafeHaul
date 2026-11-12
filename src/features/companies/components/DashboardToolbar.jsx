@@ -15,7 +15,7 @@ import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions
  * draws. A list whose tab names its assignee (Assigned to me, Unassigned)
  * leaves the Assigned to filter out (`showAssigneeFilter`), and a value it
  * holds from another list is neither shown nor counted. On a list that can
- * assign, Assign is always there, unavailable until a lead is ticked.
+ * assign, Assign appears once a lead is ticked, in a place the row keeps for it.
  *
  * Presentation only — the filter keys, the driver-type option list, the
  * `setFilters` shape, the assignment action and the my-assignments toggle
@@ -146,18 +146,14 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                     </>
                 ),
             }}
-            // Always in its place on a list that can assign, and usable once a
-            // lead is ticked: appearing only then would push the rows under the
-            // finger that ticked one (a new row on a phone or a tablet).
-            actions={canAssign ? (
-                <Button
-                    // Quiet while there is nothing to assign.
-                    variant={selectedCount > 0 ? 'primary' : 'secondary'}
-                    disabled={selectedCount === 0}
-                    onClick={onAssignLeads}
-                >
+            // Shown once a lead is ticked, as C2 draws the list: nothing to
+            // assign, no button. Its place is kept (`reserveActions`), so its
+            // arrival pushes no row under the finger that ticked the lead.
+            reserveActions={Boolean(canAssign)}
+            actions={canAssign && selectedCount > 0 ? (
+                <Button variant="primary" onClick={onAssignLeads}>
                     <Icon icon={Users} />
-                    {selectedCount > 0 ? `Assign (${selectedCount})` : 'Assign'}
+                    {`Assign (${selectedCount})`}
                 </Button>
             ) : null}
         />
