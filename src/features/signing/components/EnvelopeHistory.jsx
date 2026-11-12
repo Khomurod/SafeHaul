@@ -275,6 +275,13 @@ export default function EnvelopeHistory({
         );
     };
 
+    /*
+     * "Send signed copy" is the longest quick action: where a listed document
+     * offers it, the column takes the next step so the label stays on one line
+     * in its button.
+     */
+    const offersSignedCopy = docs.some((docItem) => canSendSignedCopy(docItem, signedCopy.recordFor(docItem)));
+
     /** The one quick action, in a column of its own at every width but a phone's. */
     const actionsColumn = {
         key: 'actions',
@@ -282,7 +289,7 @@ export default function EnvelopeHistory({
         align: 'end',
         // 'lg', not 'actions': one labelled quick action needs a real column,
         // and the old 64px 'actions' width is what stacked buttons vertically.
-        width: 'lg',
+        width: offersSignedCopy ? 'xl' : 'lg',
         mobileRole: 'actions',
         // A quick action must never also activate the row.
         stopPropagation: true,

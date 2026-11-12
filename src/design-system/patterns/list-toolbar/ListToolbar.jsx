@@ -1,7 +1,7 @@
 import React, { useId, useRef } from 'react';
 import { Filter, Icon, Search } from '../../icons';
 import { Button, Input, Switch } from '@design-system/components';
-import { phoneColumnsFor, reservedText } from '../../components/tabs/segmentedGroup';
+import { phoneColumnsFor, reservedText, useTrayWraps } from '../../components/tabs/segmentedGroup';
 import { contractViolation } from '../../contract';
 import { useToolsWrap } from './useToolsWrap';
 import './ListToolbar.css';
@@ -131,6 +131,12 @@ export function ListToolbar({
     shown.placement === 'page' && (hasLead || hasSegments),
     `${hasLead}:${hasSegments}:${hasTools}`,
   );
+  // A page row's tray too wide for the row (six Applications segments beside
+  // the menu on a tablet) takes its full-row layout, as on a phone: 3 x 2, not
+  // a ragged four and two.
+  const [segmentsRef, segmentsWrapped] = useTrayWraps(
+    shown.placement === 'page' && hasSegments && shown.segmentVariant === 'segmented',
+  );
 
   // "Clear filters" goes away once nothing is applied; focus moves to the
   // Filters button instead of being lost with it.
@@ -176,11 +182,13 @@ export function ListToolbar({
 
         {hasSegments && (
           <div
+            ref={segmentsRef}
             role="group"
             aria-label={segments.ariaLabel}
             className={`ds-list-toolbar__segments${shown.segmentVariant === 'underline' ? '' : ' ds-segmented-group'}`}
             data-variant={shown.segmentVariant}
             data-phone-columns={phoneColumnsFor(shown.segmentItems.length)}
+            data-wrapped={segmentsWrapped ? 'true' : undefined}
           >
             {/* The toolbar's own buttons, not `SegmentedControl`, which draws
                 boxed cards for a form choice: these carry counts and narrow a

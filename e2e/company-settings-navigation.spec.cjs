@@ -13,7 +13,7 @@ function backToSettings(page) {
 
 async function openSettings(page) {
   await page.goto(SETTINGS_URL);
-  // From 1181px up Company profile opens beside the rail; a phone or a tablet
+  // From 1280px up Company profile opens beside the rail; a phone or a tablet
   // opens its menu of sections instead.
   await expect(page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ })).toBeVisible();
 }
@@ -74,9 +74,9 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(email).toHaveAttribute('aria-current', 'page');
   });
 
-  test('keeps the rail beside the section from 1181px: 288px wide, 40px from it, in view as the section scrolls', async ({ page }, testInfo) => {
+  test('keeps the rail beside the section from 1280px: 288px wide, 40px from it, in view as the section scrolls', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop geometry check.');
-    for (const width of [1181, 1440]) {
+    for (const width of [1280, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`${SETTINGS_URL}&section=application`);
       await page.getByRole('tab', { name: 'Rules' }).click();
@@ -127,7 +127,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
 
   test('works like a phone on a tablet: the menu is its own page and each section links back to it', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Tablet presentation check.');
-    for (const width of [768, 1024, 1180]) {
+    for (const width of [768, 1024, 1279]) {
       await page.setViewportSize({ width, height: 900 });
       await openSettings(page);
 

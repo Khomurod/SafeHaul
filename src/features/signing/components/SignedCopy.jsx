@@ -22,7 +22,14 @@ const LINE_TONE = {
 export function SignedCopyStatus({ record, size = 'text-ds-xs' }) {
     const line = signedCopyLine(record);
     if (!line) return null;
-    return <span className={`${size} ${LINE_TONE[line.tone]} [overflow-wrap:anywhere]`}>{line.text}</span>;
+    // An address breaks before its "@" and between words, never mid-word.
+    const [before, ...after] = line.text.split('@');
+    return (
+        <span className={`${size} ${LINE_TONE[line.tone]} [overflow-wrap:break-word]`}>
+            {before}
+            {after.map((part, index) => <React.Fragment key={index}><wbr />@{part}</React.Fragment>)}
+        </span>
+    );
 }
 
 /**

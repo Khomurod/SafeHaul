@@ -19,6 +19,11 @@
   background: var(--ds-color-surface);
 }
 
+/* The page row answers to its own width (below), not the window's. */
+.ds-list-toolbar[data-placement='page'] {
+  container: ds-list-toolbar / inline-size;
+}
+
 .ds-list-toolbar__bar {
   display: flex;
   flex-wrap: wrap;
@@ -264,6 +269,46 @@
   max-width: none;
 }
 
+/*
+ * Tools on a row of their own that still do not fit it (Applications beside
+ * the menu on a narrow tablet: the search, the switch and Filters need about
+ * 540px) take the phone's layout — the search alone, then the switch beside
+ * Filters — rather than leaving Filters alone on a third line. Nothing moves
+ * out of Tab order. (A phone has these rules of its own, below.)
+ */
+@media (min-width: 768px) {
+  @container ds-list-toolbar (max-width: 559px) {
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--ds-space-3) var(--ds-space-2);
+    }
+
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__tools > * {
+      grid-column: 1 / -1;
+    }
+
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__tools .ds-list-toolbar__search {
+      min-width: 0;
+      grid-column: 1;
+    }
+
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__tools .ds-list-toolbar__search:has(+ .ds-list-toolbar__toggle),
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__tools .ds-list-toolbar__search:last-child {
+      grid-column: 1 / -1;
+    }
+
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__toggle:has(+ .ds-list-toolbar__filters-button) {
+      grid-column: 1;
+    }
+
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__search ~ .ds-list-toolbar__filters-button,
+    .ds-list-toolbar[data-wrapped] .ds-list-toolbar__toggle + .ds-list-toolbar__filters-button {
+      grid-column: 2;
+    }
+  }
+}
+
 /* The open filters: one row of fields, "Clear filters" at its end. */
 .ds-list-toolbar__filters {
   display: flex;
@@ -451,6 +496,26 @@
 @media (max-width: 419px) {
   .ds-list-toolbar[data-placement] .ds-list-toolbar__tools .ds-list-toolbar__search,
   .ds-list-toolbar__search + .ds-list-toolbar__filters-button {
+    grid-column: 1 / -1;
+  }
+
+  /* Filters moved off the search's row shares its own with the actions (Leads' Assign). */
+  .ds-list-toolbar__search + .ds-list-toolbar__filters-button:has(+ .ds-list-toolbar__actions) {
+    grid-column: 1;
+  }
+
+  .ds-list-toolbar__filters-button + .ds-list-toolbar__actions {
+    grid-column: 2;
+  }
+}
+
+/*
+ * Under 390px a card strip's switch ("Needs attention only") and Filters each
+ * take a row: beside each other the switch's label would break in two.
+ */
+@media (max-width: 389px) {
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__toggle:has(+ .ds-list-toolbar__filters-button),
+  .ds-list-toolbar[data-placement='card'] .ds-list-toolbar__toggle + .ds-list-toolbar__filters-button {
     grid-column: 1 / -1;
   }
 }

@@ -17,8 +17,8 @@ afterEach(() => {
 });
 
 describe('useIsCompact', () => {
-    it('asks for windows up to 1180px: phones and tablets', () => {
-        expect(COMPACT_QUERY).toBe('(max-width: 1180px)');
+    it('asks for windows up to 1279px: phones, tablets and narrow laptop windows', () => {
+        expect(COMPACT_QUERY).toBe('(max-width: 1279px)');
     });
 
     it.each([
@@ -26,7 +26,8 @@ describe('useIsCompact', () => {
         [768, true],
         [1024, true],
         [1180, true],
-        [1181, false],
+        [1279, true],
+        [1280, false],
         [1366, false],
     ])('a %ipx window is compact: %s', (width, compact) => {
         windowOf(width);

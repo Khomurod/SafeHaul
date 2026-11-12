@@ -1729,10 +1729,10 @@ A company page is one centred canvas, 1200px of content: an eyebrow naming its
 section (none on the Dashboard), a 30px title with its actions on its line (a line of their own when they
 do not fit; on a phone a full-width row after the description, or a bar pinned to
 the bottom on the Add lead and Company profile edit forms, with toasts above it),
-16px-round cards and initials discs for people. Up to 1180px wide Settings opens
+16px-round cards and initials discs for people. Up to 1279px wide Settings opens
 its list of sections as a page of its own; wider, a rail sits beside the open
 section. Add person and Create an API key rise from the bottom of a phone screen.
-Settings: from 1181px a 288px rail lists the sections, each with a one-line description; up to 1180px the menu is its own page, one card per group, and each section links back with "← Settings".
+Settings: from 1280px a 288px rail lists the sections, each with a one-line description (narrower, Team's and API keys' tables would not fit beside it); up to 1279px the menu is its own page, one card per group, and each section links back with "← Settings".
 
 Reuse approved components and semantic `--ds-*` tokens. Do not add a local
 button, modal, form control, table, status treatment, arbitrary color or

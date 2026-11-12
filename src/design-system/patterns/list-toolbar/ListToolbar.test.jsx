@@ -302,8 +302,11 @@ describe('ListToolbar', () => {
       };
       vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function offsetWidth() { return widthOf(this); });
       vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function clientWidth() { return widthOf(this); });
+      // Every observer on the page answers a resize: the row's and the tray's.
+      const callbacks = [];
+      resize = () => callbacks.forEach((callback) => callback([]));
       vi.stubGlobal('ResizeObserver', class {
-        constructor(callback) { resize = () => callback([]); }
+        constructor(callback) { callbacks.push(callback); }
 
         observe(element) { observed.add(element); }
 
@@ -328,6 +331,17 @@ describe('ListToolbar', () => {
       widths.bar = 1200;
       act(() => resize());
       expect(toolbar).not.toHaveAttribute('data-wrapped');
+    });
+
+    it('give a tray too wide for the row its full-row layout, as on a phone', () => {
+      stubLayout();
+      // Three 120px labels need 360px; the row has 300.
+      widths.bar = 300;
+      vi.spyOn(Range.prototype, 'getBoundingClientRect')
+        .mockReturnValue({ width: 120, height: 0, top: 0, left: 0, right: 120, bottom: 0, x: 0, y: 0 });
+      const segments = { ariaLabel: 'Show', items: SEGMENTS, value: 'all', onChange: vi.fn() };
+      render(<ListToolbar placement="page" segments={segments} />);
+      expect(screen.getByRole('group', { name: 'Show' })).toHaveAttribute('data-wrapped', 'true');
     });
 
     it('re-measure when the row gains a part without changing size', () => {

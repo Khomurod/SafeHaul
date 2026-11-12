@@ -47,7 +47,7 @@ vi.mock('./IntegrationsTab', () => ({
 vi.mock('./api-keys/ApiKeysTab', () => ({
     ApiKeysTab: () => <h1>API Keys Content</h1>,
 }));
-/** Up to 1180px — a phone or a tablet — the menu of sections is its own page. */
+/** Up to 1279px — a phone, a tablet, a narrow window — the menu of sections is its own page. */
 const isCompactMock = vi.hoisted(() => vi.fn(() => false));
 vi.mock('@shared/hooks/useIsCompact', () => ({
     useIsCompact: () => isCompactMock(),

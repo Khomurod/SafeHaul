@@ -83,8 +83,8 @@ function movedSectionTarget(searchParams) {
 }
 
 /**
- * The menu of sections, a page of its own up to 1180px (phones and tablets,
- * `useIsCompact`): shown when the address names no section.
+ * The menu of sections, a page of its own up to 1279px (phones, tablets and
+ * narrow windows, `useIsCompact`): shown when the address names no section.
  */
 const MENU = 'menu';
 
@@ -113,7 +113,7 @@ export function CompanySettings() {
 function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigationType = useNavigationType();
-    // Up to 1180px there is no room for the rail beside a section: the menu
+    // Up to 1279px there is no room for the rail beside a section: the menu
     // of sections is its own page and every section links back to it.
     const isCompact = useIsCompact();
     const guard = useUnsavedChangesGuard();
