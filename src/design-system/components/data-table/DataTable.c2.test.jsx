@@ -312,7 +312,7 @@ describe('DataTable header and selected row', () => {
   });
 
   it('rings a person\'s disc on a selected row with an outline, which forced colours keep', () => {
-    const rule = declarationsFor(stylesheet('DataTable.css'), "tr[data-selected='true'] .ds-avatar[data-tone='brand']");
+    const rule = declarationsFor(stylesheet('selection.css'), "tr[data-selected='true'] .ds-avatar[data-tone='brand']");
     expect(rule).toMatch(/outline:\s*2px solid var\(--ds-color-surface\)/);
   });
 

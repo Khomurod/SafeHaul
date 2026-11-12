@@ -7,10 +7,12 @@ import { SortButton } from './SortControls';
 import { CardStrip, SelectionCheckbox } from './SelectionControls';
 import { TablePagination } from './TablePagination';
 import { LoadingRows, SelectionGutter, StateContent } from './TableStates';
-import { RowDetailContent, rowDetailOf } from './rowDetail';
+import { RowDetailContent } from './rowDetail';
+import { rowDetailOf } from './rowDetailOf';
 import { cardLabelOf, cardRoleOf, isEmptyCellContent, usesMobileRoles } from './mobileRoles';
 import { contractViolation } from '../../contract';
 import './DataTable.css';
+import './selection.css';
 import './pinnedColumn.css';
 import './mobileCards.css';
 import './roleCards.css';
@@ -115,7 +117,7 @@ function cardStatusOf(mobileStatus, columns) {
  *
  * `getRowDetail(row)` returns `{ tone, content }` (or `null`): a sentence about
  * the record that belongs to no column, drawn under it as a row of its own
- * across the table, or as a line of its card by role (`rowDetail.jsx`). The
+ * across the table, or as a line of its card by role (`rowDetailOf.js`). The
  * row's header cell points at it (`aria-describedby`); it is never part of the
  * row's name.
  *

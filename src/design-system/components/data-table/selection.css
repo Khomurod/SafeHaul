@@ -1,0 +1,48 @@
+/*
+ * SELECTION for `DataTable`: a selected row, and the checkbox column — the
+ * cell, its 40px hit area around an 18px box. Cards place the same cell in
+ * their leading slot (`roleCards.css`).
+ */
+
+.ds-data-table tbody tr[data-selected='true'] > * {
+  background: var(--ds-table-row-selected-bg);
+}
+
+/*
+ * A selected row is the brand tint, and so is a person's disc
+ * (`Avatar tone="brand"`): on that row the disc takes a ring of the surface,
+ * so it stays a disc rather than melting into the row. An outline, not a
+ * shadow, so forced colours draw it too (in the system's text colour).
+ */
+.ds-data-table tbody tr[data-selected='true'] .ds-avatar[data-tone='brand'] {
+  outline: 2px solid var(--ds-color-surface);
+}
+
+.ds-data-table__selection-cell {
+  padding-right: var(--ds-space-2) !important;
+  padding-left: var(--ds-space-2) !important;
+  text-align: center;
+}
+
+.ds-data-table__selection-control {
+  display: inline-flex;
+  width: var(--ds-table-selection-control-size);
+  height: var(--ds-table-selection-control-size);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ds-data-table__selection-control input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-color: var(--ds-color-border);
+  accent-color: var(--ds-color-action-primary);
+  cursor: pointer;
+}
+
+.ds-data-table__selection-control input:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}

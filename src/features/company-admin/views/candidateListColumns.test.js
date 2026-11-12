@@ -135,6 +135,8 @@ describe('the columns each list shows', () => {
         expect(width('my_leads', false)).toBe(972);
         expect(width('company_leads', true)).toBe(1028);
         expect(width('unassigned_leads', true)).toBe(1028);
+        // An admin's Assigned to me keeps the selection column's place (`reserveSelection`).
+        expect(width('my_leads', true)).toBe(1028);
     });
 
     it('lays a phone card out by role: initials, the Driver as its title, the status corner, inline facts, the assignee line', () => {
