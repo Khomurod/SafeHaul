@@ -86,10 +86,10 @@ const SCREENS = [
      * same applicant whatever row opens it), opened from the list on the
      * driver's name: on a phone the middle of a row is its call button. On a
      * phone, Close, the name on one line and the section strip stay put above
-     * the record. Each part that loads on its own is waited on: Do not text once
-     * the opt-out check is answered here, the DQ marker once its (empty) list
-     * arrives, and the Application tab's summary once the preserved record's
-     * read fails, as every read does in E2E mode.
+     * the record. Each part that loads on its own is waited on: Do not text (in
+     * the Summary's Contact card) once the opt-out check is answered here, the
+     * DQ marker once its (empty) list arrives, and the Application tab's
+     * summary, which it opens on.
      */
     {
         name: 'company-dossier-loaded',

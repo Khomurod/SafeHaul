@@ -8,9 +8,11 @@ import { useDoNotText } from './useDoNotText';
 import { lastCallOf, recordDayOf } from './dossierFacts';
 
 /**
- * What matters about a driver, seen at once in the dossier's left column: the
- * phone and email as text, the day the record came in (Applied or Added, as the
- * list names it), and the last call with its result (`dossierFacts.js`).
+ * How to reach a driver, the first card of the Application tab's Summary View
+ * (the owner's choice: the dossier's left column holds only the name, the
+ * status, Call, Log call and Email): the phone and email as text, the day the
+ * record came in (Applied or Added, as the list names it), and the last call
+ * with its result (`dossierFacts.js`).
  *
  * Beside the phone, **Do not text** puts the number on the company's SMS
  * opt-out list after a question, for any team member (`canEdit`); a number
@@ -130,8 +132,8 @@ export function DossierKeyFacts({ appData, collectionName, companyId, canEdit = 
 
     return (
         // Phone and the record's day side by side; the email and the last call,
-        // the two long values, across both columns.
-        <dl className="grid grid-cols-2 gap-x-ds-4 gap-y-ds-3">
+        // the two long values, across two columns. Four columns on a wide card.
+        <dl className="grid grid-cols-2 gap-x-ds-4 gap-y-ds-3 xl:grid-cols-4">
             {phone && (
                 <Fact label="Phone">
                     <span className="block tabular-nums">{phoneShown}</span>

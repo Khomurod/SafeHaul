@@ -35,6 +35,11 @@ vi.mock('@features/applications/hooks/useSubmissionRecord', () => ({
   useSubmissionRecord: () => submissionRecordState,
 }));
 
+// The opt-out lookup is a callable; `DossierKeyFacts.test.jsx` covers it.
+vi.mock('../useDoNotText', () => ({
+  useDoNotText: () => ({ usable: true, checking: false, listed: false, markDoNotText: async () => ({ added: true }) }),
+}));
+
 import { ApplicationTab } from './ApplicationTab';
 
 afterEach(cleanup);
@@ -152,6 +157,48 @@ const renderTab = (appData = APP, props = {}) => {
     />,
   );
 };
+
+describe('ApplicationTab contact summary (the left column\'s facts, moved here)', () => {
+  const CONTACT = {
+    ...APP,
+    phone: '5125551234',
+    email: 'maria@example.com',
+    createdAt: { toDate: () => new Date('2026-07-11T12:00:00Z') },
+    lastCallOutcome: 'No Answer',
+  };
+
+  it('opens with the phone, email, the day it came in and the last call, first among the cards', () => {
+    renderTab(CONTACT);
+    const valueOf = (label) => screen.getByText(label, { selector: 'dt' }).nextElementSibling;
+    expect(screen.getByRole('heading', { level: 4, name: 'Contact' })).toBeInTheDocument();
+    expect(valueOf('Phone')).toHaveTextContent('(512) 555-1234');
+    expect(valueOf('Email')).toHaveTextContent('maria@example.com');
+    expect(valueOf('Applied')).toHaveTextContent(/2026/);
+    expect(valueOf('Last call')).toHaveTextContent('No Answer');
+    // First: before Personal Information.
+    const headings = screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
+    expect(headings.indexOf('Contact')).toBeLessThan(headings.indexOf('Personal Information'));
+  });
+
+  it('offers Do not text beside the phone to someone who can edit, and not to anyone else', () => {
+    renderTab(CONTACT, { canEdit: true });
+    expect(screen.getByRole('button', { name: 'Do not text (512) 555-1234' })).toBeInTheDocument();
+    cleanup();
+    renderTab(CONTACT, { canEdit: false });
+    expect(screen.queryByRole('button', { name: /Do not text/ })).toBeNull();
+  });
+
+  it('says Added for a lead', () => {
+    renderTab(CONTACT, { collectionName: 'leads' });
+    expect(screen.getByText('Added', { selector: 'dt' })).toBeInTheDocument();
+  });
+
+  it('is the summary\'s alone: the preserved original and the full application leave it out', () => {
+    renderTab(CONTACT);
+    fireEvent.click(screen.getByRole('button', { name: /Full Application/i }));
+    expect(screen.queryByRole('heading', { level: 4, name: 'Contact' })).toBeNull();
+  });
+});
 
 describe('ApplicationTab identity summary', () => {
   it('joins the full name including a middle name', () => {
@@ -367,6 +414,13 @@ describe('ApplicationTab view toggle', () => {
     expect(screen.queryByTestId('schema-personal')).toBeNull();
   });
 
+  it('orders the views Summary, As Submitted, Full Application, each with its glyph', () => {
+    renderTab();
+    const views = within(screen.getByRole('group', { name: 'Application view' })).getAllByRole('button');
+    expect(views.map((view) => view.textContent)).toEqual(['Summary View', 'As Submitted', 'Full Application']);
+    for (const view of views) expect(view.querySelector('svg')).not.toBeNull();
+  });
+
   it('switches to the full application view', () => {
     renderTab();
     fireEvent.click(screen.getByRole('button', { name: /full application/i }));
@@ -467,13 +521,18 @@ describe('ApplicationTab pending changes', () => {
 describe('ApplicationTab — which record it shows', () => {
   // The defect this replaces: the provenance banner said "preserved original"
   // while every view below it rendered the live, editable application document.
-  const withPreserved = (appData = APP) => renderTab(appData, {
-    submissionRecord: { record: PRESERVED, loading: false, error: null },
-  });
+  /** A record with a preserved original, shown with "As Submitted" chosen. */
+  const withPreserved = (appData = APP) => {
+    renderTab(appData, { submissionRecord: { record: PRESERVED, loading: false, error: null } });
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
+  };
 
-  it('opens on the preserved original when one exists', () => {
-    withPreserved();
-    expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
+  it('opens on the summary even with a preserved original, which is one click away', () => {
+    renderTab(APP, { submissionRecord: { record: PRESERVED, loading: false, error: null } });
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Choose “As Submitted” for the frozen original/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
     expect(screen.getByText(/Preserved original submission/i)).toBeInTheDocument();
   });
 
@@ -532,12 +591,25 @@ describe('ApplicationTab — which record it shows', () => {
     expect(screen.queryByText('***-**-6789')).toBeNull();
   });
 
-  it('waits for the record rather than opening on live data and swapping', () => {
-    // Defaulting to the summary during the read would show the live document
-    // and then replace it with the frozen one — the one transition that must
-    // not happen quietly on this screen.
+  it('stays on the summary when the preserved record arrives: only the reader changes the view', () => {
+    resetChanges();
+    submissionRecordState = { record: null, loading: true, error: null };
+    const tab = () => <ApplicationTab appData={APP} companyId="co-1" applicationId="app-1" />;
+    const { rerender } = render(tab());
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Maria Elena Garcia')).toBeInTheDocument();
+
+    // The read resolves: the summary stays, now pointing to the original.
+    submissionRecordState = { record: PRESERVED, loading: false, error: null };
+    rerender(tab());
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Maria Elena Garcia')).toBeInTheDocument();
+    expect(screen.getByText(/Choose “As Submitted” for the frozen original/)).toBeInTheDocument();
+  });
+
+  it('says it is loading the original when "As Submitted" is chosen before the read is back', () => {
     renderTab(APP, { submissionRecord: { record: null, loading: true, error: null } });
-    expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
     expect(screen.getByText(/Loading the preserved record/i)).toBeInTheDocument();
     expect(screen.queryByText('Maria Elena Garcia')).toBeNull();
   });

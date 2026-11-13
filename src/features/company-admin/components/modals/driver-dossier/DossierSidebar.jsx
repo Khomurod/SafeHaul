@@ -4,7 +4,6 @@ import { Avatar, Badge, Button, ButtonLink, TabList } from '@design-system/compo
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 import { dossierStatusLabel } from './dossierStatusLabel';
-import { DossierKeyFacts } from './DossierKeyFacts';
 import { DossierCloseButton } from './DossierHeader';
 import { DOSSIER_SECTIONS, sectionTitle } from './dossierSections';
 
@@ -41,9 +40,9 @@ import { DOSSIER_SECTIONS, sectionTitle } from './dossierSections';
  * - Missing contact details render as inert text, never as a live
  *   `<a href="tel:">` with `pointer-events-none`, which stays in the tab order
  *   and announces as a link pointing nowhere.
- * - Under Call and Email, the key facts (`DossierKeyFacts`): the phone and
- *   email as text, Do not text beside the phone, the day the record came in and
- *   the last call.
+ * - The phone, email, the day the record came in and the last call are not
+ *   here: they are the Contact card of the Application tab's Summary View
+ *   (`DossierKeyFacts`), which the tab opens on.
  *
  * On a phone the dossier does not render `DossierSidebar`: `DriverProfileModal`
  * lays out its parts. `DossierIdentityBar` (Close first, then the name and the
@@ -105,55 +104,49 @@ function RecordLinks({ appData, collectionName, onOpenRecord }) {
 }
 
 /**
- * Call, Log call and Email in one row, then the key facts.
+ * Call, Log call and Email in one row.
  *
  * Call is the primary action: it is the reason a recruiter opens a dossier from
  * a list, so it is the one filled button. The three share the row by content
  * (`flex-1` from a zero basis, never below their own width), so "Log call" keeps
  * one line at the sidebar's narrowest.
  */
-function ContactBlock({ appData, collectionName, companyId, canEdit, logCall = null }) {
+function ContactBlock({ appData, logCall = null }) {
     const email = appData?.email || '';
     const phone = appData?.phone || '';
 
+    // `ButtonLink`, not a styled `<a>`: these are navigations (a dialler, a mail
+    // client), so they must be announced as links. Border, radius, focus ring and
+    // hover are the primitive's.
     return (
-        <>
-            {/*
-              `ButtonLink`, not a styled `<a>`: these are navigations
-              (a dialler, a mail client), so they must be announced as
-              links. Border, radius, focus ring and hover are the primitive's.
-            */}
-            <div className="flex gap-ds-2 [&>*]:min-w-fit [&>*]:flex-1">
-                {phone ? (
-                    <ButtonLink href={`tel:${phone}`} variant="primary" size="sm">
-                        {/* Inside `ButtonLink`, whose `.ds-button__content > svg` rule owns the size. */}
-                        <Icon icon={Phone} />
-                        <span>Call</span>
-                    </ButtonLink>
-                ) : (
-                    <p className="flex min-h-9 items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
-                        <Icon icon={Phone} size="sm" />
-                        <span>No phone</span>
-                    </p>
-                )}
+        <div className="flex gap-ds-2 [&>*]:min-w-fit [&>*]:flex-1">
+            {phone ? (
+                <ButtonLink href={`tel:${phone}`} variant="primary" size="sm">
+                    {/* Inside `ButtonLink`, whose `.ds-button__content > svg` rule owns the size. */}
+                    <Icon icon={Phone} />
+                    <span>Call</span>
+                </ButtonLink>
+            ) : (
+                <p className="flex min-h-9 items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
+                    <Icon icon={Phone} size="sm" />
+                    <span>No phone</span>
+                </p>
+            )}
 
-                {logCall}
+            {logCall}
 
-                {email ? (
-                    <ButtonLink href={`mailto:${email}`} variant="secondary" size="sm">
-                        <Icon icon={Mail} />
-                        <span>Email</span>
-                    </ButtonLink>
-                ) : (
-                    <p className="flex min-h-9 items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
-                        <Icon icon={Mail} size="sm" />
-                        <span>No email</span>
-                    </p>
-                )}
-            </div>
-
-            <DossierKeyFacts appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} />
-        </>
+            {email ? (
+                <ButtonLink href={`mailto:${email}`} variant="secondary" size="sm">
+                    <Icon icon={Mail} />
+                    <span>Email</span>
+                </ButtonLink>
+            ) : (
+                <p className="flex min-h-9 items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
+                    <Icon icon={Mail} size="sm" />
+                    <span>No email</span>
+                </p>
+            )}
+        </div>
     );
 }
 
@@ -217,13 +210,13 @@ export function DossierIdentityBar({ appData, currentStatus, onClose }) {
 
 /**
  * The rest of the left column on a phone, at the top of what scrolls: the
- * referral and linked record, Call and Email, and the key facts.
+ * referral and linked record, then Call, Log call and Email.
  */
-export function DossierDetails({ appData, collectionName, onOpenRecord, companyId, canEdit = false, logCall = null }) {
+export function DossierDetails({ appData, collectionName, onOpenRecord, logCall = null }) {
     return (
         <div className="space-y-ds-4 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-4">
             <RecordLinks appData={appData} collectionName={collectionName} onOpenRecord={onOpenRecord} />
-            <ContactBlock appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} logCall={logCall} />
+            <ContactBlock appData={appData} logCall={logCall} />
         </div>
     );
 }
@@ -237,8 +230,6 @@ export function DossierSidebar({
     idBase = 'dossier',
     collectionName,
     onOpenRecord,
-    companyId,
-    canEdit = false,
     // Beside Call: the dossier's Log call (`DossierLogCall`), or nothing.
     logCall = null,
 }) {
@@ -271,7 +262,7 @@ export function DossierSidebar({
 
                 <RecordLinks appData={appData} collectionName={collectionName} onOpenRecord={onOpenRecord} />
 
-                <ContactBlock appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} logCall={logCall} />
+                <ContactBlock appData={appData} logCall={logCall} />
             </div>
 
             {/* Navigation */}
