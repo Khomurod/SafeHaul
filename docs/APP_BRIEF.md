@@ -603,8 +603,10 @@ worker (§8); the carrier connects and pays its own messaging provider. No
 two-way threads or drips. Tabs: Drafts and **Sent & live**. *Create campaign* opens
 an unsaved campaign; its draft is created by the first save (or the save before
 Launch), so leaving without saving writes nothing. A sent or live campaign has
-one report (its card's Details): the recipient log with each failure's reason and
-one *Retry failed*. Campaigns lists the newest 50 drafts and campaigns
+one report (its card's Details): the recipient log with each failure's reason,
+counts of sent, not sent and not attempted yet, and one *Retry failed*. A campaign
+that failed part-way offers *Continue* (confirmed; Company Admin): it sends only to
+those not attempted yet, never again to anyone already tried. Campaigns lists the newest 50 drafts and campaigns
 (more on request) and every live one (Total outreach: a server sum once
 incomplete). A draft launches once: the editor saves it (a failed
 save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
@@ -1533,7 +1535,9 @@ An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
 An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
-no sent text between them, also across batches, pause the campaign. The recipient log and the Delivery Report
+no sent text between them, also across batches, pause the campaign. Resume (paused) and Continue (failed) are one
+claim (`resumeSession.js`): only from those two states, from `currentPointer`, under a new `workerGeneration`;
+with no one left the campaign completes instead. The recipient log and the Delivery Report
 read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any
 log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 

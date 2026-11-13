@@ -147,6 +147,7 @@ const outreachOf = (sessions) => sessions.reduce((acc, s) => acc + (s.progress?.
  * `?e2eCampaign=mock` (E2E test mode only, never a read): the seeded draft and
  * session, all loaded. `&e2eCampaignList=many`: 60 of each, 50 at a time, with
  * the numbers and totals over all 60, standing in for the server.
+ * `&e2eCampaignList=stopped`: the seeded draft and a campaign that failed part-way.
  */
 function useFixtureLists(mode) {
     // `!PROD` keeps the fixture lists out of a production build (`isE2ETestMode`).
@@ -199,7 +200,8 @@ function useFixtureLists(mode) {
  */
 export function useCampaignLists({ companyId, enabled }) {
     const isE2EMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
-    const isE2EMany = isE2EMock && getE2EQueryParam('e2eCampaignList', '') === 'many';
+    const e2eList = isE2EMock ? getE2EQueryParam('e2eCampaignList', '') : '';
+    const fixtureMode = ['many', 'stopped'].includes(e2eList) ? e2eList : 'mock';
     const reads = Boolean(enabled && companyId) && !isE2EMock;
 
     const drafts = useLiveQueryWindow({
@@ -242,7 +244,7 @@ export function useCampaignLists({ companyId, enabled }) {
             return snapshot.data().outreach;
         },
     });
-    const fixture = useFixtureLists(isE2EMock ? (isE2EMany ? 'many' : 'mock') : null);
+    const fixture = useFixtureLists(isE2EMock ? fixtureMode : null);
     const draftItems = useMemo(() => drafts.docs.filter((draft) => !isLaunchedDraft(draft)), [drafts.docs]);
     const sessions = useMemo(() => mergeSessions(history.docs, live.docs), [history.docs, live.docs]);
     const retryHistory = history.retry;
