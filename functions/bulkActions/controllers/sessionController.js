@@ -6,8 +6,9 @@ const { checkRateLimit } = require("../../shared/rateLimiter");
 const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gatherTargets");
 const { persistImportTargets } = require("./session/importTargets");
 const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
-const { readSessionTargetIds, writeNewSession } = require("../helpers/sessionTargets");
+const { writeNewSession } = require("../helpers/sessionTargets");
 const { DRAFT_GONE, claimDraftLaunch, launchedMark, releaseDraftLaunch } = require("../helpers/launchClaim");
+const { claimResume } = require("./session/resumeSession");
 
 /**
  * 1. Initialize Bulk Session
@@ -170,49 +171,35 @@ const updateSessionStatus = async (request, status) => {
     await assertCompanyAdmin(request.auth.uid, companyId);
 
     const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(sessionId);
-
-    // AUDIT FIX #4: Increment workerGeneration on resume to invalidate stale workers
-    const updatePayload = {
+    await sessionRef.update({
         status: status,
         updatedBy: request.auth.uid,
         lastUpdateAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    if (status === 'active') {
-        updatePayload.workerGeneration = admin.firestore.FieldValue.increment(1);
-    }
-    await sessionRef.update(updatePayload);
+    });
+    return { success: true };
+};
 
-    // If resuming, kick off worker again.
-    // P2 HARDENING: Defensive reads — older/failed sessions may be missing
-    // `progress` or `targetIds`. Crashing here means a recruiter clicks Resume
-    // and sees an opaque INTERNAL error with no recovery path.
-    if (status === 'active') {
-        const snap = await sessionRef.get();
-        if (!snap.exists) {
-            throw new HttpsError('not-found', 'Session not found.');
-        }
-        const sessionData = snap.data() || {};
-        const pointer = sessionData.progress?.currentPointer ?? 0;
-        const total = (await readSessionTargetIds(sessionRef, sessionData)).length;
-        if (total === 0) {
-            // Already-empty target list — mark as completed instead of busy-looping a worker.
-            await sessionRef.update({
-                status: 'completed',
-                completedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            return { success: true, message: 'No remaining targets — session marked complete.' };
-        }
-        if (pointer < total) {
-            await enqueueWorker(companyId, sessionId, 1, sessionData.workerGeneration);
-        }
-    }
+/**
+ * Resume a paused campaign, or continue one that stopped with an error part-way
+ * (`session/resumeSession.js`): the worker carries on from where it stopped, so
+ * no one already tried is messaged again.
+ */
+const resumeSession = async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated');
+    const { companyId, sessionId } = request.data;
+    await assertCompanyAdmin(request.auth.uid, companyId);
+
+    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(sessionId);
+    const claim = await claimResume(sessionRef, request.auth.uid);
+    if (claim.completed) return { success: true, message: claim.message };
+    await enqueueWorker(companyId, sessionId, 1, claim.generation);
     return { success: true };
 };
 
 exports.pauseBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'paused'));
 exports.resumeBulkSession = onCall(
     { cors: true, secrets: ['BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL'] },
-    (req) => updateSessionStatus(req, 'active'),
+    resumeSession,
 );
 exports.cancelBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'cancelled'));
 

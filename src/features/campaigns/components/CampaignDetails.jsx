@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon, ArrowLeft, Users, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, RefreshCw, Pause, Play, XCircle, Search } from '@design-system/icons';
+import { Icon, ArrowLeft, Users, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Hourglass, RefreshCw, Pause, Play, XCircle, Search } from '@design-system/icons';
 import { CampaignResultsTable } from './CampaignResultsTable';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -24,6 +24,7 @@ function StatCard({ icon: Glyph, label, value, tone }) {
         info: 'bg-ds-status-info-bg text-ds-status-info-fg',
         success: 'bg-ds-status-success-bg text-ds-status-success-fg',
         danger: 'bg-ds-status-danger-bg text-ds-status-danger-fg',
+        neutral: 'bg-ds-status-neutral-bg text-ds-status-neutral-fg',
     }[tone];
     return (
         <Card>
@@ -50,6 +51,8 @@ export function CampaignDetails({ campaign, onClose }) {
     );
     const [pausing, setPausing] = useState(false);
     const [resuming, setResuming] = useState(false);
+    const [continuing, setContinuing] = useState(false);
+    const [pendingContinue, setPendingContinue] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     // Replace the two bare `confirm(...)` guards on retry and cancel.
     const [pendingRetry, setPendingRetry] = useState(false);
@@ -131,23 +134,46 @@ export function CampaignDetails({ campaign, onClose }) {
         }
     };
 
-    const handleResume = async () => {
+    /**
+     * Resume (a paused campaign) and Continue (one that stopped with an error
+     * part-way) are one server action: sending carries on from where it stopped,
+     * so no one already tried is messaged again. The server says when there was
+     * no one left, and the campaign is then completed.
+     */
+    const sendTheRest = async (setBusy, { done, refused, failed }) => {
         try {
-            setResuming(true);
+            setBusy(true);
             const resumeFn = httpsCallable(functions, 'resumeBulkSession');
             const result = await resumeFn({ companyId: effectiveCompanyId, sessionId: campaign.id });
             if (result?.data?.success === false) {
-                showError(result.data.message || "Could not resume campaign.");
-                return;
+                showError(result.data.message || refused);
+                return false;
             }
-            showSuccess("Campaign resumed.");
+            showSuccess(result?.data?.message || done);
             onClose();
+            return true;
         } catch (err) {
             console.error('Resume failed:', err);
-            showError(plainErrorMessage(err, 'The campaign could not be resumed.'));
+            showError(plainErrorMessage(err, failed));
+            return false;
         } finally {
-            setResuming(false);
+            setBusy(false);
         }
+    };
+
+    const handleResume = () => sendTheRest(setResuming, {
+        done: 'Campaign resumed.',
+        refused: 'Could not resume campaign.',
+        failed: 'The campaign could not be resumed.',
+    });
+
+    const confirmContinue = async () => {
+        const continued = await sendTheRest(setContinuing, {
+            done: 'Campaign continued.',
+            refused: 'Could not continue the campaign.',
+            failed: 'The campaign could not be continued.',
+        });
+        if (continued) setPendingContinue(false);
     };
 
     /** Asks the server to check this SMS campaign's texts with RingCentral now. */
@@ -191,6 +217,13 @@ export function CampaignDetails({ campaign, onClose }) {
     const hasFailures = campaign.progress?.failedCount > 0;
     const isActive = ['active', 'queued', 'scheduled'].includes(campaign.status);
     const isPaused = campaign.status === 'paused';
+    // Recipients no send has reached yet: Continue sends to them, and only them.
+    const notAttempted = campaign.progress
+        ? Math.max(0, (campaign.progress.totalCount || 0) - (campaign.progress.processedCount || 0))
+        : 0;
+    const attempted = campaign.progress?.processedCount || 0;
+    const canContinue = campaign.status === 'failed' && notAttempted > 0;
+    const recipients = (count) => `${count} ${count === 1 ? 'recipient' : 'recipients'}`;
     const canCheckDelivery = String(campaign.messageConfig?.method || '').toLowerCase() === 'sms' && campaign.progress?.processedCount > 0;
     const { tone, label } = campaignStatusPresentation(campaign.status);
 
@@ -227,6 +260,14 @@ export function CampaignDetails({ campaign, onClose }) {
                         <Button variant="primary" size="sm" onClick={handleResume} loading={resuming}>
                             {!resuming && <Icon icon={Play} size="sm" />}
                             {resuming ? 'Resuming...' : 'Resume'}
+                        </Button>
+                    )}
+
+                    {/* A campaign that stopped with an error part-way carries on from where it stopped. */}
+                    {canContinue && (
+                        <Button variant="primary" size="sm" onClick={() => setPendingContinue(true)} loading={continuing}>
+                            {!continuing && <Icon icon={Play} size="sm" />}
+                            {continuing ? 'Continuing...' : 'Continue'}
                         </Button>
                     )}
 
@@ -270,7 +311,7 @@ export function CampaignDetails({ campaign, onClose }) {
                     )}
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 gap-ds-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2 xl:grid-cols-4">
                         <StatCard
                             icon={Users}
                             label="Audience"
@@ -289,6 +330,13 @@ export function CampaignDetails({ campaign, onClose }) {
                             label="Not sent or unconfirmed"
                             tone="danger"
                             value={campaign.progress ? campaign.progress.failedCount : 0}
+                        />
+                        <StatCard
+                            icon={Hourglass}
+                            // No send has reached them yet: neither sent nor failed.
+                            label="Not attempted yet"
+                            tone="neutral"
+                            value={notAttempted}
                         />
                     </div>
 
@@ -363,6 +411,18 @@ export function CampaignDetails({ campaign, onClose }) {
 
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={pendingContinue}
+                tone="info"
+                title="Continue this campaign?"
+                description={`Sending picks up where it stopped: the ${recipients(notAttempted)} not attempted yet get the message. The ${recipients(attempted)} already attempted are not messaged again. If the problem that stopped it is still there, the campaign stops again and you can continue later.`}
+                confirmLabel={`Send to ${recipients(notAttempted)}`}
+                cancelLabel="Not now"
+                loading={continuing}
+                onConfirm={confirmContinue}
+                onCancel={() => setPendingContinue(false)}
+            />
 
             {/* Replaces the bare `confirm("Start a new campaign for FAILED recipients only? …")`. */}
             <ConfirmDialog
