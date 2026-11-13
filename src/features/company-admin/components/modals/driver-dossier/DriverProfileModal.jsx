@@ -186,10 +186,9 @@ export function DriverProfileModal({
         appData,
         collectionName,
         onOpenRecord: openLinkedRecord,
-        companyId,
-        // Do not text acts on the phone shown, which is the last record's while
-        // the next loads or after its read failed.
-        canEdit: canEdit && !loading && !error,
+        // Do not text is in the Application tab's Summary, which is not drawn
+        // while a record loads or after its read failed: the phone it would act
+        // on is then the last record's.
         logCall: (
             <DossierLogCall
                 companyId={companyId}

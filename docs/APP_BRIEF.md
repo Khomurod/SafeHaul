@@ -378,8 +378,10 @@ at an earlier one it applied with.
 record's collection (a list, a bell notice, the linked lead or application, Add lead)
 names it, so a lead is one read; without one, applications are looked in first. Each
 section has one name, the tab's (`dossierSections.js`); a lead's first is "Lead", it is deleted as a lead and has no
-application PDF. The left column shows the phone and email as text, Applied (application) or
-Added (lead), and the last call: its result, and its time unless a campaign message moved
+application PDF. The left column holds the name, the status, Call, Log call and Email. The
+Application tab opens on **Summary View** (then As Submitted, the frozen original, and Full
+Application); its first card, Contact, shows the phone and email as text, Applied (application)
+or Added (lead), and the last call: its result, and its time unless a campaign message moved
 `lastContactedAt`. The Summary's CDL expiry says it is from the application or lead; the DQ
 file may hold another date. Under the phone, **Do not text** (any staff member who can edit;
 asks first) adds the number to the opt-out list, and a listed number reads "Texts off".
