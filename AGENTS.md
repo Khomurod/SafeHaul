@@ -110,6 +110,11 @@ rule on this page only when it says so; say what the rule protects first.
 Claude Code loads these files on its own when it opens matching files. Every
 other agent must open them.
 
+Two skills hold the order of work, for every agent: follow
+`.claude/skills/implement/SKILL.md` for any change to the application, and
+`.claude/skills/check-and-report/SKILL.md` when the owner asks to check, review
+or explain and no change is asked.
+
 ## 6. Tools
 
 - On the owner's machine three MCP servers may be configured: **codebase-memory-mcp**
