@@ -26,6 +26,12 @@
  *
  * jsdom cannot do this either: it has no layout engine and no cascade
  * resolution, so `getComputedStyle` there returns the declared value or nothing.
+ *
+ * The snapshot holds each value under the name the pinned browser reads it
+ * back with, which is not always the name the stylesheet wrote: Chromium
+ * reports `align-items: flex-start` as `flow-start` (and `flex-end` as
+ * `flow-end`), its alias with the same layout. Keep `flex-*` in the
+ * stylesheets; browsers that predate the alias do not understand `flow-*`.
  */
 
 import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';

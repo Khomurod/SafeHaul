@@ -22,7 +22,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(241, 245, 249)",
     "color": "rgb(51, 65, 85)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[info]": {
@@ -32,7 +32,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(219, 234, 254)",
     "color": "rgb(29, 78, 216)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[success]": {
@@ -42,7 +42,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(220, 252, 231)",
     "color": "rgb(22, 101, 52)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[warning]": {
@@ -52,7 +52,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(254, 243, 199)",
     "color": "rgb(146, 64, 14)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[danger]": {
@@ -62,7 +62,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(254, 226, 226)",
     "color": "rgb(153, 27, 27)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "mobile \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[accent]": {
@@ -72,7 +72,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(237, 233, 254)",
     "color": "rgb(109, 40, 217)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "mobile \u00b7 the compact notice, which must differ from the default in three places only \u00b7 compact": {
@@ -719,7 +719,7 @@
     "paddingTop": "12px"
   },
   "mobile \u00b7 the dialog that is a bottom sheet on a phone \u00b7 overlay": {
-    "alignItems": "flex-end",
+    "alignItems": "flow-end",
     "borderTopLeftRadius": "0px",
     "borderBottomLeftRadius": "0px",
     "paddingBottom": "0px"
@@ -771,7 +771,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(241, 245, 249)",
     "color": "rgb(51, 65, 85)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[info]": {
@@ -781,7 +781,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(219, 234, 254)",
     "color": "rgb(29, 78, 216)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[success]": {
@@ -791,7 +791,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(220, 252, 231)",
     "color": "rgb(22, 101, 52)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[warning]": {
@@ -801,7 +801,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(254, 243, 199)",
     "color": "rgb(146, 64, 14)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[danger]": {
@@ -811,7 +811,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(254, 226, 226)",
     "color": "rgb(153, 27, 27)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "desktop \u00b7 the notice chrome, and the six tints that replaced 66 hand-built blocks \u00b7 notice[accent]": {
@@ -821,7 +821,7 @@
     "paddingTop": "16px",
     "backgroundColor": "rgb(237, 233, 254)",
     "color": "rgb(109, 40, 217)",
-    "alignItems": "flex-start",
+    "alignItems": "flow-start",
     "columnGap": "12px"
   },
   "desktop \u00b7 the compact notice, which must differ from the default in three places only \u00b7 compact": {
