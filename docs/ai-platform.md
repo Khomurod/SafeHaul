@@ -741,9 +741,10 @@ request says otherwise: `store` defaults to true. Google's own page gives the
 retention as 1 day on the free tier and 55 days on the paid one
 (<https://ai.google.dev/gemini-api/docs/interactions>, read 2026-11-16). The
 adapter sends `store: false` on every request, a top-level field beside `model`
-and `input`. That gives up only `previous_interaction_id` and background mode.
-Every SafeHaul call is one synchronous turn and uses neither, and neither can be
-added to this adapter while the setting stays.
+and `input`. That gives up `previous_interaction_id`, background mode and the
+request's entry in Google AI Studio's logs, which list only stored interactions.
+Every SafeHaul call is one synchronous turn and uses neither of the first two,
+and neither can be added to this adapter while the setting stays.
 
 What it does not do:
 
@@ -753,9 +754,10 @@ What it does not do:
   be read by human reviewers, and that on the paid tier prompts and responses are
   logged for a limited period to detect abuse. `store` changes neither.
 - **It was taken from Google's API reference, not captured from a live call.**
-  The connection test, the hourly watcher and the daily model check all go
-  through this adapter and send it too. A passing **Test connection** on Gemini
-  shows that the live API accepts the field; it cannot show what Google kept. A
+  The connection test and the daily model check call this adapter directly and
+  send it too; the hourly watcher reaches it only when the router picks Gemini.
+  A passing **Test connection** on Gemini shows that the live API accepts the
+  field; it cannot show what Google kept. A
   refusal would show there as `provider_request_rejected`. Users' tasks would
   then go to the next provider able to serve them, so the hourly watcher, which
   passes when any provider answers, would stay quiet: the connection test is the

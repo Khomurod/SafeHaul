@@ -45,6 +45,9 @@ export const WARN_LIMIT = 500;
 export const SOURCE_EXTENSIONS = Object.freeze([
   '.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx',
   '.css', '.scss', '.html', '.rules', '.svelte', '.vue',
+  // Shell is tooling written by hand, such as the hook that installs the
+  // dependencies when a cloud session starts.
+  '.sh',
 ]);
 
 /**
