@@ -91,7 +91,9 @@ fits on one phone screen, about 120 words:
 
 When the detail is worth keeping, put it in a separate document and link it in
 one line. The chat reply must stand without it: the owner may never open the
-document. Do not add the document to the repository unless the owner asks.
+document. Do not add the document to the repository unless the owner asks, and
+never when it describes an unfixed security weakness: the repository is public
+(`AGENTS.md` §3).
 
 ## 5. Stop at the report
 

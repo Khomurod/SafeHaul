@@ -118,6 +118,13 @@ Fix what you find, then run the affected tests and checks again and read the
 final diff once more. Bring to the owner only what cannot be settled inside this
 task.
 
+Your own reading is not enough when the change touches `functions/`, Firestore
+or Storage rules, or permissions, or changes more than 100 files. Get a second
+reading from a fresh context that sees the diff and the request but not your
+reasoning: your agent's own review command (`/code-review` and
+`/security-review` in Claude Code). Its findings are claims to check
+(`AGENTS.md` §3): fix the valid ones, and say why the rest do not apply.
+
 ## 7. Documents
 
 - Update `docs/APP_BRIEF.md` in the same pull request wherever the change made
@@ -133,6 +140,9 @@ task.
   `.github/pull_request_template.md`. Tick only the checks you ran.
 - It opens with **Кратко**: three or four plain Russian lines on what changed
   for users, what was checked, the risks, and what the owner must do.
+- On a pull request that changes code, comment `@coderabbitai review`. The
+  review bot reads a pull request only when asked, and skips one over 100
+  files. Check its findings the same way before you call the work done.
 - Then report to the owner in chat, in plain Russian, in a few short lines:
   1. what changed for users;
   2. whether everything asked is done, or exactly what is missing;
