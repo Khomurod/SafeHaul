@@ -160,7 +160,9 @@ Privacy:
   images are sent to the configured AI provider.
 - **We do not claim provider Zero Data Retention.** No ZDR configuration has
   been verified in this project's production account, so no such claim is made in
-  the product or in these docs.
+  the product or in these docs. The Gemini adapter asks Google not to store
+  requests (`store: false`), which is narrower than ZDR; its limits are in
+  [`docs/ai-platform.md`](ai-platform.md#google-is-asked-not-to-keep-the-request).
 
 ## Super Admin Environment & Integrations vault
 

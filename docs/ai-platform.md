@@ -734,6 +734,33 @@ recorded verbatim (ids and timings trimmed) with the capture date. This does not
 weaken the rule that no test may contact a vendor — the capture is a manual,
 one-off act by a human or agent, and the recording is what CI runs against.
 
+### Google is asked not to keep the request
+
+The Interactions API stores every interaction for later retrieval unless the
+request says otherwise: `store` defaults to true. Google's own page gives the
+retention as 1 day on the free tier and 55 days on the paid one
+(<https://ai.google.dev/gemini-api/docs/interactions>, read 2026-11-16). The
+adapter sends `store: false` on every request, a top-level field beside `model`
+and `input`. That gives up only `previous_interaction_id` and background mode.
+Every SafeHaul call is one synchronous turn and uses neither, and neither can be
+added to this adapter while the setting stays.
+
+What it does not do:
+
+- **It is not Zero Data Retention.** Google's API terms
+  (<https://ai.google.dev/gemini-api/terms>) say that on the unpaid tier
+  submitted content and responses are used to improve Google's products and may
+  be read by human reviewers, and that on the paid tier prompts and responses are
+  logged for a limited period to detect abuse. `store` changes neither.
+- **It was taken from Google's API reference, not captured from a live call.**
+  The connection test, the hourly watcher and the daily model check all go
+  through this adapter and send it too. A passing **Test connection** on Gemini
+  shows that the live API accepts the field; it cannot show what Google kept. A
+  refusal would show there as `provider_request_rejected`. Users' tasks would
+  then go to the next provider able to serve them, so the hourly watcher, which
+  passes when any provider answers, would stay quiet: the connection test is the
+  check to run after any change to this request.
+
 ## Credential storage
 
 **Secrets** live in Google Secret Manager under a strict SafeHaul-owned
@@ -881,6 +908,10 @@ paths nothing about the content is logged — not the prompt, not the response, 
 an excerpt, and never the provider's own error body, because several vendors echo
 the submitted prompt back inside their error strings. Only a category and a
 provider id reach a log line.
+
+What a provider keeps on its own side is a separate matter, and SafeHaul claims
+nothing about it beyond one setting: Gemini is asked not to store the request or
+the answer ([`store: false`](#google-is-asked-not-to-keep-the-request)).
 
 Blog generation receives public internet material plus the approved SafeHaul
 knowledge package, and never driver, applicant, employee or company-private data.
