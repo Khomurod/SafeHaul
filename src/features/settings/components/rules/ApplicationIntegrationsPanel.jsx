@@ -1,6 +1,6 @@
-import React, { useId } from 'react';
-import { Icon, Blocks } from '@design-system/icons';
-import { Card, Switch } from '@/design-system/components';
+import React from 'react';
+import { FormSection, Switch } from '@/design-system/components';
+import { SettingRows, SwitchSettingRow } from './SettingRows';
 
 /**
  * Optional data sources for the driver application: the FMCSA Pre-Employment
@@ -31,29 +31,24 @@ const SOURCES = [
 ];
 
 export function ApplicationIntegrationsPanel({ integrations, onChange, readOnly = false }) {
-    const rawId = useId().replace(/:/g, '');
-    const titleId = `application-integrations-title-${rawId}`;
     const current = integrations && typeof integrations === 'object' ? integrations : {};
     const isOn = (id) => Boolean(current[id] && current[id].enabled === true);
 
     return (
-        <Card padding="none" className="overflow-hidden" aria-labelledby={titleId}>
-            <div className="flex items-center gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Icon icon={Blocks} size="lg" className="text-ds-content-muted" />
-                <h4 id={titleId} className="text-ds-body font-bold text-ds-content">Report uploads</h4>
-            </div>
-            <p className="border-b border-ds-border-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-muted">
-                Optional. A company that leaves these off is not affected in any way. When on, imported information helps the
-                applicant fill in the application and is always shown for confirmation before it becomes part of their record.
-            </p>
-            <ul className="divide-y divide-ds-border-subtle">
+        <FormSection
+            layout="stacked"
+            padding="none"
+            title="Report uploads"
+            description="Optional. A company that leaves these off is not affected in any way. When on, imported information helps the applicant fill in the application and is always shown for confirmation before it becomes part of their record."
+        >
+            <SettingRows>
                 {SOURCES.map((source) => (
-                    <li key={source.id} className="flex flex-col gap-ds-3 px-ds-4 py-ds-4 sm:flex-row sm:items-start sm:justify-between sm:gap-ds-6" data-integration={source.id}>
-                        <div className="min-w-0 space-y-ds-1">
-                            <p className="text-ds-sm font-semibold text-ds-content">{source.title}</p>
-                            <p className="text-ds-xs text-ds-content-muted">{source.help}</p>
-                        </div>
-                        <div className="shrink-0">
+                    <SwitchSettingRow
+                        key={source.id}
+                        data-integration={source.id}
+                        title={source.title}
+                        help={source.help}
+                        control={(
                             <Switch
                                 checked={isOn(source.id)}
                                 tone="success"
@@ -61,11 +56,11 @@ export function ApplicationIntegrationsPanel({ integrations, onChange, readOnly 
                                 disabled={readOnly}
                                 onChange={(checked) => onChange({ ...current, [source.id]: { ...(current[source.id] || {}), enabled: checked } })}
                             />
-                        </div>
-                    </li>
+                        )}
+                    />
                 ))}
-            </ul>
-        </Card>
+            </SettingRows>
+        </FormSection>
     );
 }
 

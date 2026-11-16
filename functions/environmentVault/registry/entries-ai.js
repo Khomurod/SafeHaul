@@ -33,9 +33,7 @@ const AI_CREDENTIAL_ENTRIES = AI_PROVIDERS.flatMap((provider) =>
     provider.secretFields.map((field) => ({
         key: buildAiSecretId(provider.id, field.name),
         displayName: `${provider.displayName} ${field.label.toLowerCase()}`,
-        description: provider.retired
-            ? `${provider.displayName} was retired by its vendor on ${provider.retired.since}. The credential slot is listed for completeness and cannot be configured.`
-            : `${field.description} Managed from Super Admin → AI Integrations; stored in Google Secret Manager as ${buildAiSecretId(provider.id, field.name)}.`,
+        description: `${field.description} Managed from Super Admin → AI Integrations; stored in Google Secret Manager as ${buildAiSecretId(provider.id, field.name)}.`,
         category: CATEGORIES.GLOBAL_INTEGRATION,
         integration: `${provider.displayName} (AI)`,
         sensitivity: SENSITIVITY.CRITICAL,

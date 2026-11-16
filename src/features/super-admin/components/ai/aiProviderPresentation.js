@@ -21,10 +21,6 @@ export const MASKED_PLACEHOLDER = '********';
  * @returns {{ tone: string, label: string, detail: string }}
  */
 export function describeProviderState(provider) {
-    if (provider.retired) {
-        return { tone: 'neutral', label: 'Retired by vendor', detail: provider.retired.reason };
-    }
-
     // Before "not configured", because the two look identical from a distance and
     // need opposite actions. A credential that exists and cannot be READ is an
     // IAM fault on SafeHaul's side; telling the operator to add a key sends them
@@ -103,8 +99,6 @@ export function describeProviderState(provider) {
  */
 export function describeSkipReason(reason) {
     switch (reason) {
-        case 'retired':
-            return 'Retired by the vendor.';
         case 'incapable':
             return 'Does not support what this kind of task needs.';
         case 'disabled':

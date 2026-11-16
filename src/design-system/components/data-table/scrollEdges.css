@@ -1,0 +1,77 @@
+/*
+ * The SHADED EDGES of a `DataTable` that scrolls sideways.
+ *
+ * Where columns are hidden past an edge of the scroll region, that edge is
+ * shaded: a 16px fade from `--ds-table-edge-shadow` to nothing, over the cells.
+ * The far edge shades while columns remain to the right and clears once the
+ * last one is in view; the near edge shades once the table has scrolled away
+ * from its first column. A table that fits its card shows neither, so nothing
+ * changes where nothing is hidden.
+ *
+ * The cut-off column is the affordance NN/g asks for ("arrows or cut-off
+ * elements convey this information best"); a cut that falls between two
+ * columns hides that anything is left, and the shade says so at any cut. The
+ * marks come from `useScrollEdges`, which reads the region on every scroll and
+ * resize.
+ *
+ * A pinned first column (`pinnedColumn.css`) already holds the near edge:
+ * shading over it would sit on the names it keeps in view, so a pinned table
+ * shades its far edge only, and its own seam marks the near one on a phone.
+ *
+ * The shades live on a frame around the scroll region, not on the region: a
+ * region's own background or inset shadow paints under its cells, and every
+ * `DataTable` cell paints its background. The frame is a stacking boundary, and
+ * the region inside it another, so the sticky header and the pinned cells stay
+ * under the shade without either number meeting anything outside the table.
+ */
+.ds-data-table__scroll-frame {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+.ds-data-table[data-state] .ds-data-table__scroll-frame {
+  flex: 0 0 auto;
+}
+
+.ds-data-table__scroll-region {
+  isolation: isolate;
+}
+
+.ds-data-table__scroll-frame::before,
+.ds-data-table__scroll-frame::after {
+  content: '';
+  position: absolute;
+  z-index: var(--ds-z-layer-1);
+  top: 0;
+  bottom: 0;
+  width: var(--ds-space-4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-data-table__scroll-frame::before {
+  left: 0;
+  background: linear-gradient(to right, var(--ds-table-edge-shadow), transparent);
+}
+
+.ds-data-table__scroll-frame::after {
+  right: 0;
+  background: linear-gradient(to left, var(--ds-table-edge-shadow), transparent);
+}
+
+.ds-data-table__scroll-frame[data-overflow-end]::after,
+.ds-data-table:not([data-pin-first-column]) .ds-data-table__scroll-frame[data-overflow-start]::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-data-table__scroll-frame::before,
+  .ds-data-table__scroll-frame::after {
+    transition: none;
+  }
+}

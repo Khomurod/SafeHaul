@@ -53,7 +53,8 @@ test.describe('E-Doc Documents workspace', () => {
     await glance.getByRole('button', { name: /^Completed: / }).click();
     await expect(tab(page, 'Sent Documents')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByLabel('Status')).toHaveValue('signed');
-    await expect(page.locator('header [role="status"]')).toHaveText(/^2\s*sent documents$/);
+    await expect(tab(page, 'Sent Documents')).toHaveText(/^Sent Documents\s*2$/);
+    await expect(page.getByTestId('sent-documents-count')).toHaveText(/^2\s*sent documents$/);
 
     await tab(page, 'Overview').click();
     await page.getByRole('region', { name: 'At a glance' }).getByRole('button', { name: /^Awaiting signature: / }).click();
@@ -64,10 +65,10 @@ test.describe('E-Doc Documents workspace', () => {
     await expect(tab(page, 'Templates')).toHaveAttribute('aria-selected', 'true');
   });
 
-  test('opens a failed delivery from its card, with the reason and what to do', async ({ page }) => {
+  test('opens a failed delivery from its Review button, with the reason and what to do', async ({ page }) => {
     await page.goto(`${URL}&e2eEdocSent=mock`);
     const attention = page.getByRole('region', { name: 'Needs attention' });
-    await attention.getByRole('button', { name: /^Drug and Alcohol Policy Acknowledgement/ }).click({ timeout: 20_000 });
+    await attention.getByRole('button', { name: 'Review details for Drug and Alcohol Policy Acknowledgement' }).click({ timeout: 20_000 });
 
     const dialog = page.getByRole('dialog', { name: 'Drug and Alcohol Policy Acknowledgement' });
     await expect(dialog).toBeVisible();
@@ -203,14 +204,20 @@ test.describe('E-Doc Documents workspace', () => {
 
   // The made-up sent documents (`e2eEdocSent=mock`): six, two signed, two with
   // a failure that needs attention.
-  test('narrows sent documents from one row of controls, the count beside the heading', async ({ page }) => {
+  test('narrows sent documents from one row of controls, the count in the Sent Documents tab', async ({ page }) => {
     await page.goto(`${URL}&e2eEdocSent=mock`);
+    // The number is in the tab on every tab, never beside the heading (C2).
+    await expect(tab(page, 'Sent Documents')).toHaveText(/^Sent Documents\s*6$/, { timeout: 20_000 });
+    await expect(page.locator('header [role="status"]')).toHaveCount(0);
     await tab(page, 'Sent Documents').click();
-    const count = page.locator('header [role="status"]');
+    await expect(tab(page, 'Sent Documents')).toHaveText(/^Sent Documents\s*6$/);
+    // Read out as it changes: a hidden status region beside the tabs.
+    const count = page.getByTestId('sent-documents-count');
     await expect(count).toHaveText(/^6\s*sent documents$/, { timeout: 20_000 });
 
     await page.getByRole('searchbox', { name: 'Search documents or recipients' }).fill('W-9');
     await expect(count).toHaveText(/^1\s*sent document$/);
+    await expect(tab(page, 'Sent Documents')).toHaveText(/^Sent Documents\s*1$/);
     await page.getByRole('searchbox', { name: 'Search documents or recipients' }).fill('');
 
     await page.getByRole('button', { name: /^Filters/ }).click();
@@ -225,6 +232,28 @@ test.describe('E-Doc Documents workspace', () => {
     const table = page.getByRole('table', { name: /^Document history/ });
     await expect(table.getByText('Drug and Alcohol Policy Acknowledgement')).toBeVisible();
     await expect(table.getByText('Lease Agreement')).toBeVisible();
+    await expect(tab(page, 'Sent Documents')).toHaveText(/^Sent Documents\s*2$/);
+
+    // Away from Sent its search and filters are out of sight: the tab counts
+    // every sent document again.
+    await tab(page, 'Overview').click();
+    await expect(tab(page, 'Sent Documents')).toHaveText(/^Sent Documents\s*6$/);
+    await expect(count).toHaveText(/^$/);
+  });
+
+  test('on a tablet each sent document is one item beside its quick action, with nothing to scroll sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto(`${URL}&e2eEdocSent=mock`);
+    await tab(page, 'Sent Documents').click();
+    const table = page.getByRole('table', { name: /^Document history/ });
+    await expect(table.getByText('Lease Agreement')).toBeVisible({ timeout: 20_000 });
+    // C2 below 1280px: the document, its status and its recipient read as one
+    // item, the action in a column of its own.
+    await expect(table.getByRole('columnheader')).toHaveText(['Document · Status · Recipient', 'Actions']);
+    await expect(table.getByRole('button', { name: 'Review details for Lease Agreement' })).toBeVisible();
+    const sideways = await page.getByRole('region', { name: /^Document history/ })
+      .evaluate((region) => region.scrollWidth - region.clientWidth);
+    expect(sideways).toBeLessThanOrEqual(0);
   });
 
   // More made-up sent documents than one window (`e2eEdocSent=many`): 230 rows,
@@ -240,11 +269,11 @@ test.describe('E-Doc Documents workspace', () => {
     await expect(page.getByRole('button', { name: 'Review all 76' })).toBeVisible();
 
     await tab(page, 'Sent Documents').click();
-    const count = page.locator('header [role="status"]');
+    const count = page.getByTestId('sent-documents-count');
     await expect(count).toHaveText(/^230\s*sent documents$/);
     await expect(page.getByText('Showing the newest 100 of 230 sent documents. Search and filters look at these 100.')).toBeVisible();
     const table = page.getByRole('table', { name: /^Document history/ });
-    await expect(page.getByText('Showing 1–25 of 100 documents')).toBeVisible();
+    await expect(page.getByText('100 total')).toBeVisible();
 
     const loadOlder = page.getByRole('button', { name: 'Load older documents' });
     await loadOlder.press('Enter');
@@ -256,11 +285,11 @@ test.describe('E-Doc Documents workspace', () => {
     const done = page.locator('.ds-notice', { hasText: 'All 230 sent documents are loaded.' });
     await expect(done).toBeVisible();
     await expect(done).toBeFocused();
-    await expect(page.getByText('Showing 1–25 of 230 documents')).toBeVisible();
+    await expect(page.getByText('230 total')).toBeVisible();
 
     await page.getByRole('switch', { name: 'Needs attention only' }).click();
     await expect(count).toHaveText(/^76\s*sent documents$/);
-    await expect(page.getByText('Showing 1–25 of 76 documents')).toBeVisible();
+    await expect(page.getByText('76 total')).toBeVisible();
     await expect(page.getByText(/^Showing the newest/)).toHaveCount(0);
     await expect(table.getByText('Lease Agreement').first()).toBeVisible();
 
@@ -320,6 +349,10 @@ test.describe('E-Doc Documents workspace', () => {
   });
 
   test('has no serious/critical or contrast violations on any view @a11y', async ({ page }) => {
+    // The chosen tab fades to its dark fill; with motion reduced it is there at
+    // once, so axe reads the colours a person reads rather than a frame of the
+    // fade (white text on a still-light fill).
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await openDocuments(page);
 
     const check = async () => {

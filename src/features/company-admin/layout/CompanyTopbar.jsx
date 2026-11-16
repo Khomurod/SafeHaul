@@ -7,6 +7,7 @@ import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { getPortalUser, onPortalUserForgotten } from '@features/auth';
 import { isSuperAdminClaims } from '@app/auth/roles';
+import { initialsOf } from '@shared/utils/initials';
 
 const PROFILE_PATH = '/company/profile';
 
@@ -86,8 +87,7 @@ export const CompanyTopbar = ({
     };
 
     const roleLabel = getUserRoleLabel(currentUserClaims, companyId);
-    // Use displayName for initials
-    const initials = displayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'U';
+    const initials = initialsOf(displayName) || 'U';
 
     return (
         <header className="h-16 bg-ds-surface border-b border-ds-border-subtle flex items-center justify-between gap-2 px-3 sm:px-6 shadow-ds-xs">
@@ -126,7 +126,7 @@ export const CompanyTopbar = ({
                 <div className="hidden md:flex">
                     <ButtonLink href={PROFILE_PATH} variant="ghost" onClick={openProfile}>
                         <span className="sr-only">Your profile: </span>
-                        <span className="flex flex-col items-end">
+                        <span className="flex flex-col items-start">
                             <span className="text-ds-body font-semibold text-ds-content">
                                 {displayName}
                             </span>{' '}
@@ -135,8 +135,8 @@ export const CompanyTopbar = ({
                             </span>
                         </span>
 
-                        {/* Avatar */}
-                        <Avatar size="md" tone="primary">
+                        {/* The frame's blue, not the action colour (the frame is unchanged by C2). */}
+                        <Avatar size="md" tone="navigation">
                             {initials}
                         </Avatar>
                     </ButtonLink>

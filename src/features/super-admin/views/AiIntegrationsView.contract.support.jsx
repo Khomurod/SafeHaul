@@ -4,7 +4,7 @@
  * The properties pinned here are the ones the page exists to provide, and each
  * is a real regression risk:
  *
- *  - all nine providers are listed, in the router's own fallback order;
+ *  - every provider is listed, in the router's own fallback order;
  *  - credentials are masked as `********` and no plaintext exists in the
  *    initial DOM;
  *  - a reveal is one request for one credential, and revealing one never leaves
@@ -12,7 +12,6 @@
  *  - a revealed value clears after 30 seconds, on a second press, when the tab
  *    is hidden, and on unmount;
  *  - nothing is written to localStorage, sessionStorage or a data attribute;
- *  - the retired provider is shown honestly with no actions offered;
  *  - a stale session is answered with re-authentication and the action retried;
  *  - deletion needs the provider name typed back;
  *  - a cancelled re-authentication never reports success.
@@ -95,7 +94,6 @@ function provider(id, displayName, priority, overrides = {}) {
         // reorders; the tests that exercise a reorder override `rank`.
         rank: priority,
         docsUrl: `https://example.test/${id}`,
-        retired: null,
         capabilities: CAPABILITIES,
         credentialFields: [{
             name: 'apiKey',
@@ -128,7 +126,7 @@ function provider(id, displayName, priority, overrides = {}) {
     };
 }
 
-/** The nine registry rows, in the documented fallback order. */
+/** The eight registry rows, in the documented fallback order. */
 const PROVIDERS = [
     provider('groq', 'Groq', 1),
     provider('gemini', 'Google Gemini', 2),
@@ -142,22 +140,8 @@ const PROVIDERS = [
             required: true, placeholder: '32 hex characters', value: 'a'.repeat(32),
         }],
     }),
-    provider('github-models', 'GitHub Models', 4, {
-        retired: {
-            since: '2026-07-30',
-            reason: 'GitHub retired GitHub Models on 30 July 2026.',
-            reference: 'https://github.blog/changelog/2026-07-30-github-models-is-now-retired/',
-        },
-        configured: false,
-        enabled: false,
-        health: 'retired',
-        credentialFields: [{
-            name: 'token', label: 'Personal access token', description: 'GitHub token.',
-            required: true, configured: false, maskedValue: '********',
-        }],
-    }),
-    provider('mistral', 'Mistral', 5),
-    provider('cerebras', 'Cerebras', 6, {
+    provider('mistral', 'Mistral', 4),
+    provider('cerebras', 'Cerebras', 5, {
         configured: false,
         missingCredentials: ['apiKey'],
         credentialFields: [{
@@ -165,12 +149,12 @@ const PROVIDERS = [
             required: true, configured: false, maskedValue: '********',
         }],
     }),
-    provider('sambanova', 'SambaNova', 7, { enabled: false }),
-    provider('openrouter', 'OpenRouter', 8, {
+    provider('sambanova', 'SambaNova', 6, { enabled: false }),
+    provider('openrouter', 'OpenRouter', 7, {
         cooldown: { active: true, until: Date.now() + 60000, reason: 'quota' },
         health: 'quota',
     }),
-    provider('huggingface', 'Hugging Face', 9),
+    provider('huggingface', 'Hugging Face', 8),
 ];
 
 const MEDIA_PROVIDERS = [
@@ -198,9 +182,8 @@ const REAL_SECRET = 'gsk-do-not-render-this-value';
 function routingFor(providers, { usingDefaultOrder = true } = {}) {
     const laneRow = (row, capable) => ({
         providerId: row.id,
-        eligible: capable && row.configured && row.enabled && !row.cooldown.active && !row.retired,
+        eligible: capable && row.configured && row.enabled && !row.cooldown.active,
         reason: (() => {
-            if (row.retired) return 'retired';
             if (!capable) return 'incapable';
             if (!row.configured) return 'unconfigured';
             if (!row.enabled) return 'disabled';
@@ -275,9 +258,6 @@ function stubCallables(overrides = {}) {
                 { id: 'vision_single', label: 'Single-image vision', status: 'skipped', message: 'Not offered by this provider.' },
             ],
         },
-    });
-    callables.migrateGroqCredential = vi.fn().mockResolvedValue({
-        data: { migrated: true, verified: true, message: 'Groq credential migrated and verified.' },
     });
     callables.saveMediaCredential = vi.fn().mockResolvedValue({ data: { saved: true } });
     callables.deleteMediaCredential = vi.fn().mockResolvedValue({ data: { deleted: true } });

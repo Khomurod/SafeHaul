@@ -17,10 +17,10 @@ const toneOf = (text) => screen.getByText(text).closest('.ds-badge').getAttribut
 afterEach(cleanup);
 
 describe('EnvelopeStatusBadge', () => {
-    it('says Delivery Failed, with the reason, for a document still with its signer', () => {
+    it('says Delivery failed, with the reason, for a document still with its signer', () => {
         badgeOf({ status: 'sent', sendSms: true, smsStatus: 'failed', smsError: 'Line unavailable (artificial)' });
 
-        expect(toneOf('Delivery Failed')).toBe('danger');
+        expect(toneOf('Delivery failed')).toBe('danger');
         expect(screen.getByText('Line unavailable (artificial)')).toBeInTheDocument();
         expect(screen.queryByText('Awaiting signature')).toBeNull();
     });
@@ -29,7 +29,7 @@ describe('EnvelopeStatusBadge', () => {
         badgeOf({ status: 'signed', sendSms: true, smsStatus: 'failed', smsError: 'Line unavailable (artificial)' });
 
         expect(toneOf('Signed')).toBe('success');
-        expect(screen.queryByText('Delivery Failed')).toBeNull();
+        expect(screen.queryByText('Delivery failed')).toBeNull();
         expect(screen.queryByText('Line unavailable (artificial)')).toBeNull();
     });
 
@@ -41,7 +41,7 @@ describe('EnvelopeStatusBadge', () => {
         badgeOf({ status, emailStatus: 'failed', emailError: 'SMTP 550 rejected (artificial)' });
 
         expect(screen.getByText(label)).toBeInTheDocument();
-        expect(screen.queryByText('Delivery Failed')).toBeNull();
+        expect(screen.queryByText('Delivery failed')).toBeNull();
         expect(screen.queryByText('SMTP 550 rejected (artificial)')).toBeNull();
     });
 
@@ -51,7 +51,7 @@ describe('EnvelopeStatusBadge', () => {
         expect(toneOf('Awaiting signature')).toBe('info');
         expect(screen.getByText(OPTED_OUT)).toBeInTheDocument();
         expect(screen.getByText(OPTED_OUT).className).not.toMatch(/danger/);
-        expect(screen.queryByText('Delivery Failed')).toBeNull();
+        expect(screen.queryByText('Delivery failed')).toBeNull();
     });
 
     it('drops the note once the document is signed', () => {

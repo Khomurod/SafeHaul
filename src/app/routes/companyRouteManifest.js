@@ -68,7 +68,12 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     screen: 'leadsRedirect',
     featureName: 'Leads',
     requiresCompanyProfile: true,
-    nav: { kind: 'group-item', group: 'applications', label: 'Leads', icon: 'Building2' },
+    // Add lead and Import leads open from the Leads page's header and lead back
+    // to it, so the menu shows Leads as where you are on them too (C2).
+    nav: {
+      kind: 'group-item', group: 'applications', label: 'Leads', icon: 'Building2',
+      alsoCurrentOn: ['quick-add-lead', 'import-leads'],
+    },
   },
   {
     // The Leads tabs (`LeadListTabs`): one route each and no menu item. All and

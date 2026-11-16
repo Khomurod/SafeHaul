@@ -1,15 +1,26 @@
 import React, { useCallback, useState } from 'react';
-import { Icon, Share2 } from '@design-system/icons';
+import { Icon, Info, Share2 } from '@design-system/icons';
 import { ConfirmDialog } from '@design-system/patterns';
-import { Button, Card, Notice } from '@/design-system/components';
+import { Button, Card } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { COMPANY_NAV_GROUPS } from '@app/routes/companyRouteManifest';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { CreateReferralLinkDialog } from './CreateReferralLinkDialog';
 import { ReferralLinksTable } from './ReferralLinksTable';
 import { referralLinkUrl } from './referralLinksService';
 import { useReferralLinks } from './useReferralLinks';
+
+/** The sidebar group the page sits in, named above its title. */
+const EYEBROW = COMPANY_NAV_GROUPS.applications.label;
+
+/** How a referral link works, in the order it happens. */
+const HOW_IT_WORKS = [
+    'Create a link with the referring driver’s name.',
+    'Copy it and send it to them to share.',
+    'A driver who opens it fills in the full application or a one-minute interest form. You are notified and they are assigned to you.',
+];
 
 /** The name this person's links are made under: the team list's, else their sign-in. */
 function creatorNameOf(profile, user) {
@@ -73,9 +84,10 @@ export function ReferralLinksPage() {
     };
 
     return (
-        <PageContainer>
+        <PageContainer width="standard">
             <Stack gap="lg">
                 <PageHeader
+                    eyebrow={EYEBROW}
                     title="Referral Links"
                     description="A link for a driver who sends you others. Whoever applies through it is assigned to you."
                     actions={(
@@ -86,18 +98,7 @@ export function ReferralLinksPage() {
                     )}
                 />
 
-                <Notice tone="info" title="How it works" titleAs="h2">
-                    <ol className="list-decimal space-y-ds-1 ps-ds-5">
-                        <li>Create a link with the referring driver’s name.</li>
-                        <li>Copy it and send it to them to share.</li>
-                        <li>A driver who opens it fills in the full application or a one-minute interest form. You are notified and they are assigned to you.</li>
-                    </ol>
-                    {isAdmin
-                        ? <p className="mt-ds-2">As a Company Admin you see every link in the company.</p>
-                        : <p className="mt-ds-2">You see the links you made.</p>}
-                </Notice>
-
-                <Card padding="none">
+                <Card padding="none" elevation="soft" className="overflow-hidden">
                     <ReferralLinksTable
                         links={links}
                         counts={counts}
@@ -106,6 +107,42 @@ export function ReferralLinksPage() {
                         onDeactivate={askDeactivate}
                         error={error ? { message: error, onRetry: reload } : undefined}
                     />
+                    {/* Whose links the list holds: the card's last row. */}
+                    <p className="flex min-h-14 items-center border-t border-ds-table-divider px-ds-4 py-ds-3 text-ds-xs text-ds-content-muted">
+                        {isAdmin ? 'As a Company Admin you see every link in the company.' : 'You see the links you made.'}
+                    </p>
+                </Card>
+
+                {/* Under the links, so the links are the first thing on the page.
+                    One band of three steps where each fits its words (1440px and
+                    up); a list, one step under another, where three columns would
+                    starve one of them. */}
+                <Card as="section" padding="none" aria-labelledby="referral-links-how-it-works">
+                    {/* Inset 16px at the sides, as the table's cells and its footer are, so the
+                        page's cards share one inner edge. */}
+                    <div className="px-ds-4 py-ds-5">
+                        <h2 id="referral-links-how-it-works" className="flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content">
+                            <Icon icon={Info} className="text-ds-brand-primary" />
+                            How it works
+                        </h2>
+                        <ol className="mt-ds-3 grid gap-ds-3 text-ds-body text-ds-content-secondary min-[1440px]:grid-cols-[auto_max-content_minmax(30rem,1fr)] min-[1440px]:gap-ds-8">
+                            {HOW_IT_WORKS.map((step, index) => (
+                                <li key={step} className="flex items-start gap-ds-3 [text-wrap:pretty]">
+                                    {/* The numbered disc before a step a person reads, not operates:
+                                        decoration, since the list numbers the steps. Feature-owned
+                                        until the design system has its "Step indicator (read, not
+                                        operated)" (roadmap §5, open). */}
+                                    <span
+                                        aria-hidden="true"
+                                        className="flex h-ds-6 w-ds-6 shrink-0 items-center justify-center rounded-ds-full bg-ds-brand-primary-subtle text-ds-xs font-bold tabular-nums text-ds-brand-primary"
+                                    >
+                                        {index + 1}
+                                    </span>
+                                    <span>{step}</span>
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
                 </Card>
 
                 {creating && <CreateReferralLinkDialog onCreate={createLink} onClose={() => setCreating(false)} />}

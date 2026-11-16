@@ -217,6 +217,29 @@ describe('Providers and Logs tabs', () => {
         expect(within(dialog).getByText('Success via mistral')).toBeTruthy();
     });
 
+    it('still opens a stored transaction that names a provider no longer listed', async () => {
+        // Logs are kept 30 days, so ones from before GitHub Models was removed
+        // still carry its skipped turn, with a reason the router no longer gives.
+        stubWithLogs([{
+            ...TRANSACTION,
+            attempts: [
+                { providerId: 'github-models', attemptNumber: 1, status: 'skipped', skipReason: 'retired', success: false },
+                ...TRANSACTION.attempts.map((attempt) => ({ ...attempt, attemptNumber: attempt.attemptNumber + 1 })),
+            ],
+        }]);
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+        const table = await screen.findByRole('table', { name: /AI transactions/i });
+        await waitFor(() => expect(within(table).getByText('CDL extraction')).toBeTruthy());
+
+        fireEvent.click(within(table).getByText('CDL extraction'));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText(/1\. github-models/)).toBeTruthy();
+        expect(within(dialog).getByText(/passed over/)).toBeTruthy();
+        expect(within(dialog).getByText('Success via groq')).toBeTruthy();
+    });
+
     it('shows the request as a shape description, never as content', async () => {
         const table = await openLogs();
         fireEvent.click(within(table).getByText('CDL extraction'));

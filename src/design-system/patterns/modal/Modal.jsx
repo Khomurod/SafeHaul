@@ -14,7 +14,7 @@ import './Modal.css';
 const CHROME = {
     size: ['sm', 'md', 'lg', 'xl', '2xl', '4xl', '5xl', '7xl'],
     scroll: ['panel', 'body'],
-    mobile: ['inset', 'fullscreen'],
+    mobile: ['inset', 'fullscreen', 'sheet'],
     placement: ['center', 'bottom'],
     tone: ['neutral', 'danger'],
 };
@@ -81,8 +81,10 @@ function checkedChrome(values) {
  *   `body` makes the panel a column so a header and footer inside it stay pinned.
  * @param {boolean} [props.fill=false] Fix the panel height instead of capping it,
  *   for a viewer that must not resize as its content changes.
- * @param {'inset'|'fullscreen'} [props.mobile='inset'] Below 640px, `fullscreen`
- *   takes the whole screen — for the dialogs that are really a screen.
+ * @param {'inset'|'fullscreen'|'sheet'} [props.mobile='inset'] Below 640px,
+ *   `fullscreen` takes the whole screen — for the dialogs that are really a
+ *   screen — and `sheet` turns a centred dialog into a bottom sheet, for a short
+ *   form a thumb fills in (C2: Add person, Create an API key).
  * @param {'center'|'bottom'} [props.placement='center'] `bottom` is a sheet.
  * @param {'neutral'|'danger'} [props.tone='neutral'] Borders a destructive dialog.
  * @param {React.ReactNode} props.children Dialog contents.

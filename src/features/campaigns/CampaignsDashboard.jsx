@@ -12,6 +12,7 @@ import { useCampaignLists } from './hooks/useCampaignLists';
 import { useCampaignSessionById } from './hooks/useCampaignSessionById';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { ConfirmDialog, LoadingState } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
@@ -55,6 +56,7 @@ export function CampaignsDashboard({ companyId }) {
     const [pendingDelete, setPendingDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const { showSuccess, showError } = useToast();
+    const isMobile = useIsMobile();
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
     // The newest 50 of each list (more on request) and every live campaign; the two numbers stay exact.
     const { drafts, sessions, liveCount, totalOutreach } = useCampaignLists({ companyId, enabled: isCampaignsEnabled });
@@ -209,7 +211,7 @@ export function CampaignsDashboard({ companyId }) {
     if (viewingSessionId && !viewingSession && lookup.status === 'loading') {
         return (
             <div className="min-h-full bg-ds-canvas">
-                <PageContainer>
+                <PageContainer width="standard">
                     <LoadingState title="Opening the report…" />
                 </PageContainer>
             </div>
@@ -226,9 +228,10 @@ export function CampaignsDashboard({ companyId }) {
 
     return (
         <div className="min-h-full bg-ds-canvas">
-            <PageContainer>
+            <PageContainer width="standard">
                 <Stack gap="lg">
                     <PageHeader
+                        eyebrow="Outreach"
                         title="Campaigns"
                         description="Text or email a group of your leads at once."
                         actions={
@@ -240,19 +243,22 @@ export function CampaignsDashboard({ companyId }) {
                     />
 
                     <Section aria-label="Campaign performance summary">
-                        <ResponsiveGrid minItemWidth="240px">
+                        {/* Two tiles side by side on a phone; one each under 2 × 240px. */}
+                        <ResponsiveGrid minItemWidth={isMobile ? '150px' : '240px'}>
                             <MetricCard
                                 id="campaigns-stat-live"
-                                label="Live Campaigns"
+                                label="Live campaigns"
                                 value={liveCount ?? '—'}
-                                icon={<Icon icon={Zap} size="xl" />}
+                                description="Sending right now"
+                                icon={<Icon icon={Zap} />}
                                 tone="info"
                             />
                             <MetricCard
                                 id="campaigns-stat-outreach"
-                                label="Total Outreach"
+                                label="Total outreach"
                                 value={totalOutreach ?? '—'}
-                                icon={<Icon icon={Users} size="xl" />}
+                                description="Messages across all campaigns"
+                                icon={<Icon icon={Users} />}
                                 tone="success"
                             />
                         </ResponsiveGrid>
@@ -262,12 +268,13 @@ export function CampaignsDashboard({ companyId }) {
                         <TabList
                             ariaLabel="Campaign views"
                             idBase="campaigns"
+                            variant="segmented"
                             tabs={CAMPAIGN_TABS}
                             activeTab={activeTab}
                             onChange={setActiveTab}
                         />
 
-                        <TabPanel idBase="campaigns" tabId={activeTab} className="mt-ds-6">
+                        <TabPanel idBase="campaigns" tabId={activeTab} className="mt-ds-4">
                             {loading ? (
                                 <div
                                     role="status"
@@ -287,7 +294,7 @@ export function CampaignsDashboard({ companyId }) {
                                     {activeList.error}
                                 </Notice>
                             ) : visibleCampaigns.length === 0 && !activeList.hasMore ? (
-                                <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-lg border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
+                                <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-card border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
                                     <span
                                         aria-hidden="true"
                                         className="flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted"
@@ -306,7 +313,10 @@ export function CampaignsDashboard({ companyId }) {
                                 </div>
                             ) : (
                                 <>
-                                    <ResponsiveGrid minItemWidth="280px">
+                                    {/* Columns of at least 340px that never stretch a lone
+                                        card across the page: three on the 1200px canvas,
+                                        one on a tablet or a phone. */}
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] gap-ds-5">
                                         {visibleCampaigns.map(campaign => (
                                             <CampaignCard
                                                 key={campaign.id}
@@ -316,7 +326,7 @@ export function CampaignsDashboard({ companyId }) {
                                                 onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
                                             />
                                         ))}
-                                    </ResponsiveGrid>
+                                    </div>
                                     <CampaignListMore
                                         tab={activeTab}
                                         list={activeList}

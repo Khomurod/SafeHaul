@@ -43,7 +43,7 @@
  * to type into a `gcloud` command.
  */
 
-const { PROVIDERS, requireProvider, isRetired } = require('../registry/providers');
+const { PROVIDERS, requireProvider } = require('../registry/providers');
 const { buildSecretId, readSecret, clearCache } = require('../credentials/secretManager');
 
 /**
@@ -165,17 +165,6 @@ async function diagnoseCredentialAccess(options = {}) {
 
     const providers = [];
     for (const provider of PROVIDERS) {
-        if (isRetired(provider)) {
-            providers.push({
-                providerId: provider.id,
-                displayName: provider.displayName,
-                retired: true,
-                secrets: [],
-                legacyBinding: false,
-            });
-            continue;
-        }
-
         const secrets = [];
         for (const field of provider.secretFields) {
             secrets.push(await checkSecret(provider, field, secretOptions));
@@ -184,13 +173,7 @@ async function diagnoseCredentialAccess(options = {}) {
         providers.push({
             providerId: provider.id,
             displayName: provider.displayName,
-            retired: false,
             secrets,
-            // Whether the pre-migration deploy binding is present on *this*
-            // runtime. It is the reason Groq keeps working when a managed read
-            // fails, and it is per-function — a binding is declared per
-            // function — so it belongs in a per-runtime report.
-            legacyBinding: provider.id === 'groq' && Boolean(process.env.GROQ_API_KEY),
         });
     }
 

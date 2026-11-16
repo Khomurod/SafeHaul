@@ -10,13 +10,12 @@
  *    denied to all clients in `firestore.rules`; the console reads it through
  *    an audited Super Admin callable.
  *
- * The legacy `GROQ_API_KEY` binding is honoured as a read-only fallback so
- * production CDL and E-Doc parsing keeps working from the moment this deploys,
- * before anyone has migrated anything. See `resolveCredentials`.
+ * Secret Manager is the only credential source: no function reads a deploy-time
+ * binding as a fallback.
  */
 
 const { admin } = require('../../firebaseAdmin');
-const { requireProvider, isRetired } = require('../registry/providers');
+const { requireProvider } = require('../registry/providers');
 const { readSecret, writeSecret, destroySecretVersions } = require('./secretManager');
 const {
     COLLECTION,
@@ -97,75 +96,17 @@ async function readCredentials(providerId, options = {}) {
 }
 
 /**
- * The pre-migration deploy binding for a credential, or null: only Groq's API
- * key has one (`GROQ_API_KEY`). The only reader of that binding as a fallback,
- * so the router, the console and a reveal cannot disagree about when it counts.
- */
-function legacyCredential(providerId, fieldName) {
-    return providerId === 'groq' && fieldName === 'apiKey' && process.env.GROQ_API_KEY
-        ? process.env.GROQ_API_KEY
-        : null;
-}
-
-/** Which route reached the legacy binding: after a failed managed read (a fault to fix), or with none saved. */
-function legacySource(readFailed) {
-    return readFailed ? 'legacy-env-after-read-failure' : 'legacy-env';
-}
-
-/**
- * Credentials plus the legacy fallback.
- *
- * Before migration, Groq's key exists only as the deploy-time `GROQ_API_KEY`
- * binding. Reading it here means the shared router serves production traffic
- * from the first deploy, and it stays as a rollback path afterwards: if the
- * migrated secret is destroyed or an operator rolls back, the old binding
- * still answers. `source` records which one was used so the console and
- * telemetry can show the truth.
- *
- * ### The fallback covers a failed read, not only an absent secret
- *
- * It originally triggered on `missing` alone, and that made it useless in the
- * failure mode it exists for. The migration promises a rollback path that needs
- * no code change — "destroy the managed credential and the router falls back" —
- * but the far likelier fault is the managed credential being *unreadable*: a
- * runtime service account without `secretAccessor`, which `readSecret`
- * deliberately surfaces as an error rather than as absence. That threw before
- * this function ever reached the fallback branch, so the deploy binding sat
- * there, working, and was never consulted. A safety net that only catches the
- * rarer of two falls is not a safety net.
- *
- * The managed credential still always wins when it can be read. `source`
- * distinguishes the two routes to the legacy binding so the console can say
- * which one is in play — a fallback after a read failure is a fault to fix, not
- * a migration state to leave alone.
+ * Credentials plus the source they came from: `'secret-manager'` when every
+ * field was read and had a value, otherwise `null`. Telemetry records `source`
+ * per request.
  */
 async function resolveCredentials(providerId, options = {}) {
     const resolved = await readCredentials(providerId, options);
-    if (resolved.complete) {
-        return { ...resolved, source: 'secret-manager' };
-    }
-
-    const apiKeyUnavailable = resolved.missing.includes('apiKey')
-        || resolved.unreadable.includes('apiKey');
-    const legacy = apiKeyUnavailable ? legacyCredential(providerId, 'apiKey') : null;
-    if (legacy) {
-        return {
-            complete: true,
-            values: { ...resolved.values, apiKey: legacy },
-            missing: [],
-            unreadable: [],
-            source: legacySource(resolved.unreadable.includes('apiKey')),
-        };
-    }
-
-    return { ...resolved, source: null };
+    return { ...resolved, source: resolved.complete ? 'secret-manager' : null };
 }
 
 async function saveCredential(providerId, fieldName, value, options = {}) {
     const provider = requireProvider(providerId);
-    if (isRetired(provider)) {
-        throw new Error(`${provider.displayName} has been retired and cannot be configured.`);
-    }
     const result = await writeSecret(provider.id, fieldName, value, options);
     await configRef(provider.id).set({
         credentialUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -190,9 +131,6 @@ async function revealCredential(providerId, fieldName, options = {}) {
     const field = provider.secretFields.find((candidate) => candidate.name === fieldName);
     if (!field) throw new Error(`Unknown credential field "${String(fieldName)}".`);
 
-    // A failed read must not deny an operator the legacy value, for the same
-    // reason `resolveCredentials` consults it: the read failing is precisely the
-    // situation in which the fallback matters.
     let value = null;
     let readFailed = false;
     try {
@@ -202,9 +140,6 @@ async function revealCredential(providerId, fieldName, options = {}) {
         readFailed = true;
     }
     if (value) return { value, source: 'secret-manager' };
-
-    const legacy = legacyCredential(provider.id, field.name);
-    if (legacy) return { value: legacy, source: legacySource(readFailed) };
     return { value: null, source: null, unreadable: readFailed };
 }
 
@@ -222,8 +157,6 @@ module.exports = {
     readCredentials,
     resolveCredentials,
     revealCredential,
-    legacyCredential,
-    legacySource,
     saveCredential,
     deleteCredential,
     recordProviderOutcome,

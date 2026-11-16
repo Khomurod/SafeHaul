@@ -122,6 +122,7 @@ const meta = {
           '| `truncate` | allows the cell to ellipsise instead of wrapping |',
           '| `stopPropagation` | stops a cell\'s clicks from activating the row |',
           '| `mobileLabel` | the label beside the value when the table is cards on a phone; `\'\'` shows none |',
+          '| `mobileRole` | where the value goes on a phone card: `lead`, `title`, `status`, `meta`, `line`, `actions` or `hidden` (see `Components/DataTable phone cards`) |',
           '',
           'Numeric columns should be `align: "end"`. An action column must be',
           '`width: "actions"`, `align: "end"` and',
@@ -204,7 +205,7 @@ export const WithSelection = {
 export const WithPagination = {
   args: {
     pagination: {
-      label: 'Showing 1–6 of 128 records',
+      label: '128 total',
       currentPage: 1,
       totalPages: 22,
       hasPrev: false,
@@ -494,7 +495,7 @@ export const PageSize = {
   args: {
     pagination: {
       ...WithPagination.args.pagination,
-      label: 'Showing 1–20 of 128 records',
+      label: '128 total',
       totalPages: 7,
       pageSize: 20,
       pageSizes: [20, 50, 100],

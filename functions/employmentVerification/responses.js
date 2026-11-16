@@ -8,6 +8,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, storage } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
+const { trustedClientIp } = require("../shared/clientIp");
 const { logger } = require("firebase-functions");
 const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete, notifyRequestSender } = require("./notifications");
@@ -184,7 +185,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             respondentEmail: formResponse.respondentEmail || null,
 
             // Audit trail
-            ipAddress: request.rawRequest?.ip || 'unknown',
+            ipAddress: trustedClientIp(request.rawRequest),
             userAgent: request.rawRequest?.headers?.['user-agent'] || 'unknown',
         };
 

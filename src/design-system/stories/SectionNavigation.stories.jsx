@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Icon, Bell, FileText, History, MessageSquare, Rocket, Settings, Shield,
+    Bell, FileText, History, MessageSquare, Rocket, Settings, Shield,
     SlidersHorizontal, Users
 } from '@design-system/icons';
 import { Card, SectionNavigation } from '@design-system/components';
@@ -75,11 +75,21 @@ const meta = {
           '`mobileLayout` is `stack` (default — one item per row) or `grid` (a compact tile',
           'grid for short labels). `label` names the `<nav>` landmark.',
           '',
+          '`item.description` adds a second line under the label (the settings rail\'s',
+          'one-line summaries). It wraps, it is muted, and it is the item\'s *description*,',
+          'not part of its name: the item is still found and announced by its label.',
+          '',
+          'The current item wears the brand tint and the action navy, with a semibold',
+          'label; in forced colours its left edge is a `Highlight` bar. The rail is a card',
+          '(the card roles\' border, radius and elevation). Its width is the consumer\'s.',
+          '',
           '### Accessibility expectations',
           '',
           '- It renders a real `<nav>` with an accessible name, and each group is a',
           '  `<section>` labelled by its own heading, so the structure is navigable.',
-          '- The current item carries `aria-current="page"` — not just a colour change.',
+          '- The current item carries `aria-current="page"` — not just a colour change — and',
+          '  a semibold label, so it is not told by colour alone.',
+          '- A description is linked with `aria-describedby`; the name stays the label.',
           '- Arrow Up/Down move focus between items, and Home/End jump to the first and last.',
           '  Disabled items are skipped, and focus wraps at both ends.',
           '- **Moving focus does not select.** Selection happens on activation, which is the',
@@ -181,6 +191,41 @@ export const LongLabels = {
   render: (args) => (
     <div style={{ maxWidth: '240px' }}>
       <SectionNavigationExample {...args} groups={withIcons(NAVIGATION_GROUPS)} />
+    </div>
+  ),
+};
+
+const DESCRIBED_GROUPS = [
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    items: [
+      { id: 'overview', label: 'Overview', icon: FileText, description: 'Name, logo and the address people see' },
+      { id: 'details', label: 'Details', icon: SlidersHorizontal, description: 'Questions, rules, agreements and uploads' },
+      { id: 'history', label: 'History', icon: History, description: 'Who changed what, and when' },
+    ],
+  },
+  {
+    id: 'messages',
+    label: 'Messages',
+    items: [
+      { id: 'preferences', label: 'Preferences', icon: Settings, description: 'Sending from your own mailbox' },
+      { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Messages sent at each step of a sequence' },
+      { id: 'advanced', label: 'Advanced', icon: Shield, description: 'Let another service read your records' },
+    ],
+  },
+];
+
+/**
+ * `item.description`: a second line under each label, as the settings rail
+ * draws its section summaries — at the 288px the settings frame gives it.
+ * The line wraps rather than truncating; the current item is tinted, navy and
+ * semibold, and its description stays muted.
+ */
+export const WithDescriptions = {
+  render: (args) => (
+    <div style={{ maxWidth: '288px' }}>
+      <SectionNavigationExample {...args} label="Workspace sections" groups={DESCRIBED_GROUPS} />
     </div>
   ),
 };

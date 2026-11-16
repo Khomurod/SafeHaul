@@ -51,7 +51,7 @@ describe('routing order', () => {
     });
 
     it('says so when an operator has chosen a different order', async () => {
-        const reordered = [PROVIDERS[4], ...PROVIDERS.filter((row) => row.id !== 'mistral')]
+        const reordered = [PROVIDERS.find((row) => row.id === 'mistral'), ...PROVIDERS.filter((row) => row.id !== 'mistral')]
             .map((row, index) => ({ ...row, rank: index + 1 }));
         stubCallables({
             listAiProviders: vi.fn().mockResolvedValue({
@@ -69,7 +69,7 @@ describe('routing order', () => {
     });
 
     it('shows a row its effective position, and its default when they differ', async () => {
-        const reordered = [PROVIDERS[4], ...PROVIDERS.filter((row) => row.id !== 'mistral')]
+        const reordered = [PROVIDERS.find((row) => row.id === 'mistral'), ...PROVIDERS.filter((row) => row.id !== 'mistral')]
             .map((row, index) => ({ ...row, rank: index + 1 }));
         stubCallables({
             listAiProviders: vi.fn().mockResolvedValue({
@@ -82,9 +82,9 @@ describe('routing order', () => {
         });
         await renderView();
 
-        // Mistral now runs first but ships fifth. Saying only one of those
+        // Mistral now runs first but ships fourth. Saying only one of those
         // makes the registry documentation look wrong.
-        expect(screen.getByText('Default position 5')).toBeTruthy();
+        expect(screen.getByText('Default position 4')).toBeTruthy();
     });
 
     // The accessibility policy is binding, and a drag-only control fails it.
@@ -105,8 +105,8 @@ describe('routing order', () => {
 
             fireEvent.click(screen.getByRole('button', { name: 'Move Mistral up' }));
 
-            // Mistral is fifth in the fixture; one move up puts it fourth.
-            expect(orderedNames()[3]).toBe('Mistral');
+            // Mistral is fourth in the fixture; one move up puts it third.
+            expect(orderedNames()[2]).toBe('Mistral');
         });
 
         it('moves a provider down the order', async () => {
@@ -120,7 +120,7 @@ describe('routing order', () => {
         it('promotes a provider to first with repeated moves', async () => {
             await renderView();
 
-            for (let i = 0; i < 4; i += 1) {
+            for (let i = 0; i < 3; i += 1) {
                 fireEvent.click(screen.getByRole('button', { name: 'Move Mistral up' }));
             }
 
@@ -153,7 +153,7 @@ describe('routing order', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Move Mistral up' }));
 
             const announcements = screen.getAllByRole('status').map((node) => node.textContent);
-            expect(announcements.some((text) => /Mistral moved to position 4 of 9/.test(text))).toBe(true);
+            expect(announcements.some((text) => /Mistral moved to position 3 of 8/.test(text))).toBe(true);
             expect(announcements.some((text) => /Not saved yet/.test(text))).toBe(true);
         });
     });
@@ -183,7 +183,7 @@ describe('routing order', () => {
 
         await waitFor(() => expect(callables.setAiProviderPriority).toHaveBeenCalledWith({
             providerIds: [
-                'groq', 'gemini', 'cloudflare', 'mistral', 'github-models',
+                'groq', 'gemini', 'mistral', 'cloudflare',
                 'cerebras', 'sambanova', 'openrouter', 'huggingface',
             ],
         }));
@@ -201,7 +201,7 @@ describe('routing order', () => {
     it('discards an unsaved reorder on request', async () => {
         await renderView();
         fireEvent.click(screen.getByRole('button', { name: 'Move Mistral up' }));
-        expect(orderedNames()[3]).toBe('Mistral');
+        expect(orderedNames()[2]).toBe('Mistral');
 
         fireEvent.click(screen.getByRole('button', { name: /Discard changes/i }));
 
@@ -247,7 +247,7 @@ describe('routing order', () => {
         expect(showSuccess).not.toHaveBeenCalled();
         // The draft is still on screen: a cancelled save must not look like a
         // completed one, and must not silently discard the operator's work.
-        expect(orderedNames()[3]).toBe('Mistral');
+        expect(orderedNames()[2]).toBe('Mistral');
     });
 
     it('surfaces a rejected order without pretending it saved', async () => {

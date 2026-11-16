@@ -372,7 +372,7 @@ export const REMEDIES = {
     'raw-hex-colour': 'Use a `--ds-*` semantic role. Artwork, a third-party mark or an exported '
         + 'document that must not follow the theme is an exception recorded in roadmap §5.',
     'sub-12px-type': 'The interface floor is 12px (`text-ds-xs`).',
-    'arbitrary-type-size': 'Use the `--ds-*` type scale (`text-ds-xs` … `text-ds-heading-xl`); an '
+    'arbitrary-type-size': 'Use the `--ds-*` type scale (`text-ds-xs` … `text-ds-heading-2xl`); an '
         + 'arbitrary size is a type scale of one.',
     'raw-z-index': 'Name the layer: `z-ds-raised`, `-sticky`, `-dropdown`, `-drawer`, `-modal`, '
         + '`-toast`, or `z-ds-layer-1..4` inside one `isolate` container (`tokens/foundation.css`).',

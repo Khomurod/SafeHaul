@@ -21,9 +21,15 @@ test.describe('Company Settings → Team', () => {
   test('lists the team with roles and states, and the row actions', async ({ page }) => {
     await openTeamTab(page);
     const table = page.getByRole('table', { name: 'Team' });
-    await expect(table.getByRole('row')).toHaveCount(4);
+    await expect(table.getByRole('rowheader')).toHaveCount(3);
     await expect(table.getByText('Company admin')).toBeVisible();
     await expect(table.getByText('No sign-in account')).toBeVisible();
+    // The problem with a member is a line of its own that describes their row,
+    // never part of the member's name.
+    const former = table.getByRole('rowheader', { name: /^Former Recruiter/ });
+    await expect(former).toHaveAccessibleDescription(/points to an account that no longer exists/);
+    await expect(former).not.toHaveAccessibleName(/no longer exists/);
+    await expect(table.getByText(/points to an account that no longer exists/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copy personal link for Artificial Admin' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Daily goals for Artificial Admin' })).toBeVisible();
   });
@@ -42,7 +48,10 @@ test.describe('Company Settings → Team', () => {
     await expect(email).toHaveAttribute('autocomplete', 'off');
     await expect(password).toHaveAttribute('type', 'password');
     await expect(password).toHaveAttribute('autocomplete', 'new-password');
-    await expect(dialog.getByRole('combobox', { name: /Role/i })).toHaveValue('hr_user');
+    // The role is a pair of radio cards; Recruiter is chosen to start with.
+    const role = dialog.getByRole('group', { name: /Role/i });
+    await expect(role.getByRole('radio')).toHaveCount(2);
+    await expect(role.getByRole('radio', { name: /Recruiter/ })).toBeChecked();
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
@@ -65,6 +74,13 @@ test.describe('Company Settings → Team', () => {
     expect(focusPresentation.boxShadow !== 'none' || focusPresentation.outline !== 'none').toBe(true);
     await page.keyboard.press('Tab');
     await expect(dialog.getByRole('textbox', { name: /Email/i })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByLabel(/Password/i)).toBeFocused();
+    // Tab reaches the chosen role; the arrow keys move between the roles.
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByRole('radio', { name: /Recruiter/ })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(dialog.getByRole('radio', { name: /Company Admin/ })).toBeChecked();
   });
 
   test('fits desktop and tablet without document overflow', async ({ page }, testInfo) => {
@@ -77,6 +93,32 @@ test.describe('Company Settings → Team', () => {
     }
   });
 
+  test('draws a member\'s problem as a tinted line under them, the rows one height', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop geometry check.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openTeamTab(page);
+    const table = page.getByRole('table', { name: 'Team' });
+
+    // Every member is one 68px row, the role and its badge on one line.
+    for (const row of await table.locator('tbody tr.ds-data-table__row').all()) {
+      expect(Math.round((await row.boundingBox()).height)).toBe(68);
+    }
+    // The detail is the row right under the former recruiter, its words
+    // (after their glyph) starting where the name does.
+    const formerRow = table.getByRole('rowheader', { name: /^Former Recruiter/ }).locator('xpath=ancestor::tr[1]');
+    const detail = formerRow.locator('xpath=following-sibling::tr[1]');
+    await expect(detail).toHaveClass(/ds-data-table__detail-row/);
+    await expect(detail).toContainText('re-invite the person.');
+    const [nameBox, glyphBox, rowBox, detailBox] = await Promise.all([
+      formerRow.getByText('Former Recruiter', { exact: true }).boundingBox(),
+      detail.locator('svg').boundingBox(),
+      formerRow.boundingBox(),
+      detail.boundingBox(),
+    ]);
+    expect(Math.abs(glyphBox.x - nameBox.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(detailBox.y - (rowBox.y + rowBox.height))).toBeLessThanOrEqual(1);
+  });
+
   test('shows one card per member on a phone without horizontal overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await openTeamTab(page);
@@ -86,6 +128,16 @@ test.describe('Company Settings → Team', () => {
     }));
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
     await expect(page.getByRole('button', { name: 'Add person' })).toBeVisible();
+    // The problem is a line of the former recruiter's card, after the goals and
+    // before the actions.
+    const card = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: /^Former Recruiter/ }) });
+    const [goals, problem, remove] = await Promise.all([
+      card.getByText(/^Goals:/).boundingBox(),
+      card.getByText(/no longer exists/).boundingBox(),
+      card.getByRole('button', { name: 'Remove Former Recruiter from the team' }).boundingBox(),
+    ]);
+    expect(problem.y).toBeGreaterThan(goals.y + goals.height - 1);
+    expect(remove.y).toBeGreaterThan(problem.y + problem.height - 1);
   });
 
   test('has no serious or critical accessibility violations on the team page', async ({ page }) => {

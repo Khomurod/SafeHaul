@@ -173,7 +173,8 @@ returns to Review; the submission pre-flight and the server still check it all.
 **The company shapes what the wizard asks, without code.** Company Settings →
 Application questions has four tabs: *Questions* (show / hide / require the DOT
 questions, plus custom ones), *Rules* (§5), *Agreements* (versioned legal
-wording, saved on their own) and *Report uploads* (optional PSP-report and MVR
+wording, saved on their own: a list of each agreement and its version, Read
+opening its wording and history) and *Report uploads* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
 (pre-employment, past two years), kept apart from the broader one it replaced;
 a draft lacking its answer goes back there.
@@ -270,12 +271,18 @@ dossier signs a record's uploads in one call (`getSignedApplicationFileUrls`, ea
 file as `getSignedApplicationFileUrl` signs it; the single call stays for Open
 file, a fallback and the Production build).
 
-**The bucket's CORS lets browsers read files cross-origin.** pdf.js fetches a
-signed URL from the app's origin (signing room, envelope editor), which needs it.
-The live setting (read-only check, 2026-11-07) allows any origin with GET, PUT,
-POST, DELETE and HEAD; `cors.json` holds it, and `npm run storage:set-cors`
-applies it by hand (not CI). Narrowing it to the SafeHaul sites with GET and HEAD
-is a live security change that waits for the owner's approval.
+**The bucket's CORS lets the SafeHaul sites read files cross-origin.** The app
+fetches PDFs from Storage (signing room, envelope editor), which needs it.
+`cors.json` allows the Production and Testing app sites (custom and default
+domains) with GET and HEAD (owner decision, 2026-11-10); it is applied by hand
+(`npm run storage:set-cors`, or the same file through `gsutil cors set` in Cloud
+Shell), never by CI. The live bucket carries it since 2026-11-10 (read-only
+preflight check: another origin gets no CORS answer, PUT is refused). Uploads,
+deletes and metadata go through the Firebase SDK's endpoint, which answers CORS
+by its own fixed policy (read-only check), so they do not depend on this file. A new site
+that reads files needs its origin added. `localhost` is deliberately not listed:
+a local server with the real configuration cannot load a stored PDF in the
+envelope editor.
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
@@ -294,12 +301,15 @@ too, go as JPEGs at most 2400 px a side.
 ### Unfinished applications workspace
 
 `/company/drivers/unfinished` (*Unfinished applications*) lists every
-application started and not submitted, by either side, with **+ Start an
-application** first. A call to make, not an ATS record: it stays out of the
-pipeline, reads `listApplicationDrafts` alone (one document, one row), and rows
-never carry answers (`toCompanySummary`). A search and counted filters sit above
-it; a row gives its step, status, last activity and days left
-(`unfinishedWorklist.js`), as a card on a phone. **Copy link** makes and copies
+application started and not submitted, by either side; **Start an application**
+is its header's primary action, beside Refresh. A call to make, not an ATS
+record: it stays out of the pipeline, reads `listApplicationDrafts` alone (one
+document, one row), and rows never carry answers (`toCompanySummary`). Counted
+filters and a search sit on a row above it; a row gives who it is (email, the
+phone to call), its step, status (who prepared it, when its link went), last
+activity (under the status where the list is narrow) and days left
+(`unfinishedWorklist.js`), its actions in fixed places, as a card on a phone.
+**Copy link** makes and copies
 a link, **New link** replaces one sent, **Email link** has the server email it to
 the row's own address instead (a row without one says so); on answers the driver owns, its opener
 must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
@@ -327,11 +337,19 @@ documents, assignment. Leads come by Add lead, CSV / spreadsheet import, the
 Facebook Lead Ads webhook, or a referral quick form. **Leads** is one page with
 three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segments
 are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
-Process, Interested and Declined (`Declined`, `Rejected`). Assign (admins) is on
-All and Unassigned, the Assigned to filter on All and Applications, the Assigned
-to me switch on Applications; the lists' column reads Assignee (no wider column fits at 1440px). **Add lead** (any staff member) assigns a recruiter's lead to them
+Process, Interested and Declined (`Declined`, `Rejected`), pills at the top of the
+table card under the tabs. Assign (admins) is on All and Unassigned, in the toolbar
+row once a lead is ticked, in a place the row keeps for it so nothing below moves; the Assigned to filter is on
+All and Applications, the Assigned to me switch on Applications. Applications and
+every Leads tab show the same columns at the same widths (initials, Driver with the
+number to call under the name, Status, Freight · State, Applied or Added, Last call,
+Assignee), so moving between tabs moves no column. An admin's Assigned to me keeps an empty column where the checkboxes are on All, so Status and Assignee do not move. On a phone each
+driver is a card, All's and Unassigned's led by their checkboxes under "Select all"
+and "Sort by". **Add lead** (any staff member) assigns a recruiter's lead to them
 (Д13; an admin's stays unassigned) and opens it in the dossier on the person's
-list; **Import leads** (admins, `importLeads`) returns there. **Driver referral links**
+list; **Import leads** (admins, `importLeads`) returns there. Both link back to the
+person's list ("← Leads") above their title; the import card has no close of its
+own. **Driver referral links**
 (Referral Links page: any staff member makes one; admins see all, others
 theirs; deactivate only; `referral_links`, team-only). `/apply/<slug>?ref=`
 offers, in the intake chooser's place, the quick form (names, phone, email,
@@ -360,14 +378,18 @@ at an earlier one it applied with.
 record's collection (a list, a bell notice, the linked lead or application, Add lead)
 names it, so a lead is one read; without one, applications are looked in first. Each
 section has one name, the tab's (`dossierSections.js`); a lead's first is "Lead", it is deleted as a lead and has no
-application PDF. The left column shows the phone and email as text, Applied (application) or
-Added (lead), and the last call: its result, and its time unless a campaign message moved
+application PDF. The left column holds the name, the status, Call, Log call and Email. The
+Application tab opens on **Summary View** (then As Submitted, the frozen original, and Full
+Application); its first card, Contact, shows the phone and email as text, Applied (application)
+or Added (lead), and the last call: its result, and its time unless a campaign message moved
 `lastContactedAt`. The Summary's CDL expiry says it is from the application or lead; the DQ
-file may hold another date. Beside the phone, **Do not text** (any staff member who can edit;
+file may hold another date. Under the phone, **Do not text** (any staff member who can edit;
 asks first) adds the number to the opt-out list, and a listed number reads "Texts off".
-**Log call** beside Call opens the list's call window (same rules) and the dossier reads the
-record, Activity and Notes again. On a phone only Close, the name and status, and the tab
-strip stay fixed; the rest scrolls. Previous Employment shows its counts on one line and
+**Log call** between Call (the one filled button) and Email opens the list's call window
+(same rules) and the dossier reads the record, Activity and Notes again. An incomplete DQ
+file reads "Incomplete" beside its section. On a phone only Close, the name and status, and
+the tab strip (one row that scrolls sideways) stay fixed; the rest scrolls. Below 1440px
+the header's Status and Assigned to take a row under the title and its actions. Previous Employment shows its counts on one line and
 claims no compliance status. Notes marks the call window's notes as calls; Notes and
 Activity stay separate tabs.
 **The bell.** A status change on an assigned application tells its assignee only (an
@@ -465,13 +487,14 @@ the newest 100 requests live, older on request; past that, its numbers are serve
 counts and a live list holds those needing attention (`firestore.indexes.json`): an
 unsigned document (`sent`, or the older `opened`) whose send failed, or a failed seal; a
 signed or voided one leaves by itself, and its details keep the old error. Each
-Overview number opens its list; a Needs attention card opens the document: its cause in
+Overview number opens its list; a Needs attention row's **Review** opens the document: its cause in
 plain words (`deliveryFailureCause.js`) and, while `sent`, **Fix recipient and resend**
 (inline: Correct's write for the recipient alone, on the current fields and title;
 refused if it would resend nothing while a send stays failed), **Resend** (Remind) and
 **Void** (records `voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…`
 form is never resent; never Delete). Only admins see a template's Delete; the forms tab
-is *After-application forms* (`?view=forms`).
+is *After-application forms* (`?view=forms`). The Sent Documents tab carries a count on
+every tab: on Sent what its search and filters list, elsewhere every sent document.
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -580,9 +603,11 @@ worker (§8); the carrier connects and pays its own messaging provider. No
 two-way threads or drips. Tabs: Drafts and **Sent & live**. *Create campaign* opens
 an unsaved campaign; its draft is created by the first save (or the save before
 Launch), so leaving without saving writes nothing. A sent or live campaign has
-one report (its card's Details): the recipient log with each failure's reason and
-one *Retry failed*. Campaigns lists the newest 50 drafts and campaigns
-(more on request) and every live one (Total Outreach: a server sum once
+one report (its card's Details): the recipient log with each failure's reason,
+counts of sent, not sent and not attempted yet, and one *Retry failed*. A campaign
+that failed part-way offers *Continue* (confirmed; Company Admin): it sends only to
+those not attempted yet, never again to anyone already tried. Campaigns lists the newest 50 drafts and campaigns
+(more on request) and every live one (Total outreach: a server sum once
 incomplete). A draft launches once: the editor saves it (a failed
 save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
 refuses a second launch from another tab or person. The batch that writes the
@@ -880,7 +905,12 @@ authorization is answered on the Violations step (`consent-mvr`); on Consent
 each other agreement has its own page, then the certification ending with the
 exact 391.21(b)(12) sentence, and the signature. An acceptance counts only at
 the version on screen and binds the submission to it. **An acceptance's IP is
-the one the server saw**, never the browser's claim. `legacy-1` bodies are a
+the one the server saw**, never a field the browser sends. Known gap: 1st-generation
+functions (this submission, application drafts, agreements, guest uploads, CDL
+and report parsing) still read Express's `req.ip`, the first X-Forwarded-For
+entry, which a caller can write, for that IP and their rate limits. The 2nd
+generation uses `trustedClientIp` (verified live); the 1st waits for its own live
+check (`docs/code-cleanup/README.md`, Ч1.1). `legacy-1` bodies are a
 **frozen forensic record — never edit them**; `clearinghouseConsent` has no
 `legacy-1`, so reconstruction cannot attribute a consent nobody gave.
 **Applications from before the MVR authorization have no acceptance for it**,
@@ -1345,8 +1375,8 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
   `createdBy`, `adminId`) or a super admin; a deactivated company refused, but for a super
   admin; never a recruiter or HR user. Claims are read from the Auth record on each call,
   never from the token, so a removed role is refused at once (К4). The Settings screens and
-  the `integrations` documents stay Company Admin only, so an owner without that role
-  reaches these only through the callables.
+  the `integrations` documents stay Company Admin only (owner decision, 2026-11-10: no
+  SMS settings screen for an owner without that role).
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
@@ -1505,7 +1535,9 @@ An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
 An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
-no sent text between them, also across batches, pause the campaign. The recipient log and the Delivery Report
+no sent text between them, also across batches, pause the campaign. Resume (paused) and Continue (failed) are one
+claim (`resumeSession.js`): only from those two states, from `currentPointer`, under a new `workerGeneration`;
+with no one left the campaign completes instead. The recipient log and the Delivery Report
 read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any
 log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 
@@ -1619,8 +1651,8 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   application and previous-employer PDFs, the company API); a value with fewer
   than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
   on `functions/shared/maskSsn.vectors.json`. The dossier's Full application
-  view still prints the SSN whole (no field marks it sensitive): a known gap
-  for the owner to decide.
+  view shows the SSN whole, by the owner's decision (2026-11-10): the recruiter
+  sees the driver's full record there, as other ATS platforms show it.
 - **A screen offers to email a link only to an address the server would send
   to:** `canEmailLinkTo` and Fix recipient use `isWellFormedEmail`, the server's
   `isValidEmail` rule (`functions/shared/isValidEmail.vectors.json`).
@@ -1697,6 +1729,19 @@ never know what a driver, lead or campaign is; feature folders own content,
 actions and domain-to-visual mapping; hooks and services own data, state and
 business logic; `src/app` owns routing and composition.
 
+**The C2 look (owner-approved for the company screens, 2026-11).** Primary
+buttons, toggles and selected states are the brand navy (the tokens are
+app-wide); links, the focus ring and the company sidebar and top bar stay blue.
+A company page is one centred canvas, 1200px of content: an eyebrow naming its
+section (none on the Dashboard), a 30px title with its actions on its line (a line of their own when they
+do not fit; on a phone a full-width row after the description, or a bar pinned to
+the bottom on the Add lead and Company profile edit forms, with toasts above it),
+16px-round cards and initials discs for people (the first letters of the first two
+names, a hyphen joining two: "Jean-Baptiste Okonkwo" is JB). Settings opens on
+its list of sections, a page of its own at every width; from 1280px a rail sits
+beside the open section. Add person and Create an API key rise from the bottom of a phone screen.
+Settings: the menu (one card per group) is what `/company/settings` with no section shows, at every width; from 1280px a 288px rail lists the sections beside an open one, each with a one-line description (narrower, Team's and API keys' tables would not fit beside it); up to 1279px each section links back with "← Settings".
+
 Reuse approved components and semantic `--ds-*` tokens. Do not add a local
 button, modal, form control, table, status treatment, arbitrary color or
 unsupported font size unless the roadmap records the gap and the code documents
@@ -1711,8 +1756,11 @@ focusable horizontal-scroll region, sticky header, first column pinned
 per-row form controls worked one record at a time — the SMS recruiter-assignment
 matrix — becomes one card per row under 768px
 (`data-mobile-presentation="cards"`), the same elements at every width, as does
-a `DataTable` of such rows (`mobilePresentation="cards"`). Source and guards:
-`src/design-system/components/data-table/README.md`.
+a `DataTable` of such rows (`mobilePresentation="cards"`). Its columns may state a
+`mobileRole`, which lays each card out as one record (avatar or icon, title, status
+in the corner, short facts inline, actions across the card), and it may carry a
+selection: each card led by its checkbox under a "Select all" and "Sort by" strip.
+Table headers are a 44px band; a row can carry a tinted line under it (`getRowDetail`, Team's membership problem), which its row header names as its description. Source and guards: `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
 dialog goes through `Modal` and takes its size and shape from the chrome
@@ -1769,7 +1817,13 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Lead Distribution Engine** (no `isPlatformLead`, `distributedAt`,
   `visitedCompanyIds`, `dailyLeadQuota`). **Job board / saved jobs** (rules
   deleted; old documents unreachable). **`/join/:companyId`** (use Create Portal User).
-- **GitHub Models** as an AI provider.
+- **GitHub Models** as an AI provider: removed from the registry. A leftover
+  `ai_provider_config/github-models` document and a saved routing order naming it
+  are ignored, not errors. Logs recorded before the removal still show its
+  turns, by its id, for as long as logs are kept.
+- **The `GROQ_API_KEY` deploy binding** and *Migrate legacy key*: no function binds
+  or reads it; Groq's key is `SAFEHAUL_AI_GROQ_APIKEY`. The secret still exists in
+  Secret Manager, unused, until the owner deletes it.
 - **Smart Segments** — triggers go at the next promotion; data stays unread.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.

@@ -37,7 +37,6 @@ const vaultOptions = {
         'FACEBOOK_APP_ID',
         'FACEBOOK_APP_SECRET',
         'FACEBOOK_VERIFY_TOKEN',
-        'GROQ_API_KEY',
         'BULK_WORKER_SECRET',
         'PROCESS_BULK_BATCH_URL',
         // LANDING_TELEGRAM_BOT_TOKEN and LANDING_TELEGRAM_CHAT_ID were bound here

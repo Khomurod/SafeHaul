@@ -28,7 +28,6 @@ import { formatDate } from '@shared/utils/helpers';
 export function buildProviderColumns({
     busyId,
     configDrafts,
-    handleMigrateGroq,
     handleSaveConfig,
     handleTest,
     handleToggleEnabled,
@@ -103,7 +102,6 @@ export function buildProviderColumns({
                             revealedValue={revealed.revealedValue}
                             unavailableReason={revealed.unavailableReason}
                             secondsRemaining={revealed.secondsRemaining}
-                            canReveal={!provider.retired}
                             onToggle={revealed.reveal}
                         />
                     ))}
@@ -128,7 +126,6 @@ export function buildProviderColumns({
                                 placeholder={field.placeholder}
                                 autoComplete="off"
                                 spellCheck={false}
-                                disabled={Boolean(provider.retired)}
                                 onChange={(event) => setConfigDrafts((current) => ({
                                     ...current,
                                     [provider.id]: {
@@ -217,16 +214,6 @@ export function buildProviderColumns({
             width: 'sm',
             align: 'end',
             render: (provider) => {
-                if (provider.retired) {
-                    // Retired providers keep their row so the fallback order is
-                    // legible, but every action would be a lie.
-                    return (
-                        <span className="text-ds-xs text-ds-content-secondary">
-                            No actions available.
-                        </span>
-                    );
-                }
-
                 const firstField = provider.credentialFields[0];
                 const anyConfigured = provider.credentialFields.some((field) => field.configured);
 
@@ -267,17 +254,6 @@ export function buildProviderColumns({
                         >
                             {provider.enabled ? 'Disable' : 'Enable'}
                         </Button>
-
-                        {provider.id === 'groq' && provider.credentialSource === 'legacy-env' && (
-                            <Button
-                                size="sm"
-                                variant="primary"
-                                loading={busyId === 'groq'}
-                                onClick={handleMigrateGroq}
-                            >
-                                Migrate legacy key
-                            </Button>
-                        )}
 
                         {anyConfigured && firstField && (() => {
                             const target = provider.credentialFields.find((f) => f.configured) || firstField;

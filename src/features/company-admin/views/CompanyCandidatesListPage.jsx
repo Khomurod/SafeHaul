@@ -4,7 +4,8 @@ import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
 import { validPeriod } from '@features/companies/hooks/dashboardPeriods';
 import { isLeadsTab } from '@features/companies/hooks/dashboardSearch';
 import { Card, DataTable } from '@/design-system/components';
-import { PageHeader } from '@/design-system/layouts';
+import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { ListToolbar } from '@/design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { whenIdle } from '@lib/runtime/whenIdle';
@@ -22,6 +23,7 @@ import { LeadListTabs } from './LeadListTabs';
 import { CLEARED_NARROWING, candidateListEmpty, isListNarrowed } from './candidateListEmpty';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { canOfferCompanyRoute, companyRoute } from '@app/routes/companyRouteAccess';
+import { COMPANY_NAV_GROUPS } from '@app/routes/companyRouteManifest';
 
 // The table is memoized: what the page hands it is built here, or memoized
 // below, so typing in the search (which changes nothing in the rows until the
@@ -34,6 +36,9 @@ function rowTone(item) {
 
 const dossierRowLabel = (item) => `Open driver dossier for ${getCandidateName(item)}`;
 const selectRowLabel = (item) => `Select ${getCandidateName(item)}`;
+
+/** The menu group the lists sit in, named above their heading. */
+const EYEBROW = COMPANY_NAV_GROUPS.applications.label;
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -197,6 +202,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     // need an owner: All and Unassigned.
     const canAssign = isCompanyAdmin && (scope === 'company_leads' || scope === 'unassigned_leads');
 
+    // An admin's Assigned to me keeps the checkbox column's place, empty, so
+    // its columns stand where All and Unassigned draw them beside their boxes.
+    const reserveSelection = isCompanyAdmin && scope === 'my_leads';
+
     const selection = useMemo(() => (canAssign ? {
         selectedIds: selectedRowIds,
         onToggleRow: toggleRowSelection,
@@ -238,14 +247,24 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         onPrev: prevPage,
         hasPrev: dashboard.currentPage > 1,
         hasNext: dashboard.currentPage < dashboard.totalPages,
-        label: `Page ${dashboard.currentPage} of ${dashboard.totalPages || 1} · ${dashboard.totalCount} total`,
+        // The pager beside it says which page.
+        label: `${dashboard.totalCount} total`,
     }), [dashboard.currentPage, dashboard.totalPages, dashboard.totalCount, nextPage, prevPage]);
 
+    const isLeads = isLeadsTab(scope);
     const segments = useMemo(() => ({
         items: pipelineTabs,
         value: dashboard.pipelineSegment,
         onChange: dashboard.setPipelineSegment,
     }), [pipelineTabs, dashboard.pipelineSegment, dashboard.setPipelineSegment]);
+    // A lead list's scope is its own page, a link at the start of the toolbar
+    // row; its status segments narrow that scope, as pills at the top of the
+    // table card. Applications has no scope: its segments lead the row.
+    const leadTabs = useMemo(() => (isLeads ? <LeadListTabs scope={scope} /> : undefined), [isLeads, scope]);
+    const statusPills = useMemo(
+        () => ({ ...segments, ariaLabel: 'Pipeline segment', variant: 'pill' }),
+        [segments],
+    );
 
     // ── Column Config ──
     // The columns rebuild when the list or the team changes. The phone
@@ -257,76 +276,82 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- handlePhoneClick left out (see above)
         [scope, teamMembers],
     );
+    const table = (
+        <DataTable
+            embedded={isLeads}
+            ariaLabel={`${getPageTitle()} table`}
+            data={sortedData}
+            columns={columns}
+            getRowTone={rowTone}
+            sort={sort}
+            onSortChange={handleSortChange}
+            getRowLabel={dossierRowLabel}
+            onRowActivate={openRow}
+            isLoading={dashboard.loading}
+            loadingLabel={`Loading ${getPageTitle().toLowerCase()}`}
+            empty={emptyState}
+            error={tableError}
+            selection={selection}
+            reserveSelection={reserveSelection}
+            // A driver is worked one at a time, so a phone shows one card
+            // each, laid out by the columns' roles; a list with checkboxes
+            // leads each card with its own, under "Select all". A lead's
+            // status takes a line under its number on a narrow phone, so every
+            // lead card has one shape; Applications keeps the corner.
+            mobilePresentation="cards"
+            mobileStatus={isLeads ? 'below' : 'corner'}
+            pagination={pagination}
+        />
+    );
+
     return (
-        <div className="h-full flex flex-col bg-ds-surface-subtle">
-            {/* It scrolls once the toolbar, its filters open, leaves the table
-                less than its minimum height (on a phone, a tablet or a short
-                window), so the rows and every filter stay in reach. The minimum
-                is lower from lg up, where the toolbar is one row and a desktop
-                window keeps its layout. */}
-            <div className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-6 flex flex-col gap-ds-4">
-                <PageHeader
-                    title={getPageTitle()}
-                    count={listCount}
-                    countLabel={countLabel}
-                    actions={isLeadsTab(scope) ? <LeadsHeaderActions /> : undefined}
-                />
-                {isLeadsTab(scope) && <LeadListTabs scope={scope} />}
-                <PeriodNotice period={dashboard.filters.period} truncated={dashboard.listTruncated} onShowAll={handleShowAll} />
-                <UndatedRecordsNotice count={dashboard.undatedCount} />
-
-                {/* The list-page standard: one card holding the toolbar and the
-                    table. It fills the height left and never shrinks below its
-                    content (`shrink-0`): clipping its corners makes it a flex item
-                    that could, and the page would stop scrolling to the rows. */}
-                <Card as="div" padding="none" className="flex flex-auto shrink-0 flex-col overflow-hidden">
-                    <DashboardToolbar
-                        segments={segments}
-                        searchQuery={dashboard.searchQuery}
-                        setSearchQuery={dashboard.setSearchQuery}
-                        filters={dashboard.filters}
-                        setFilters={setFilters}
-                        selectedCount={selectedRowIds.length}
-                        canAssign={canAssign}
-                        onAssignLeads={handleAssignLeads}
-                        teamMembers={dashboard.teamMembers}
-                        // Assigned to me is a switch on Applications: the leads lists
-                        // have Assigned to me as a tab. Assigned to me and
-                        // Unassigned name their assignee, so they offer no
-                        // Assigned to filter (`listAssignees` ignores one).
-                        showMyAssignmentsToggle={scope === 'applications'}
-                        myAssignmentsOnly={!!dashboard.filters.myAssignmentsOnly}
-                        onToggleMyAssignments={handleToggleMyAssignments}
-                        showAssigneeFilter={scope === 'applications' || scope === 'company_leads'}
+        <div className="min-h-full bg-ds-canvas">
+            <PageContainer width="standard">
+                <Stack gap="lg">
+                    <PageHeader
+                        eyebrow={EYEBROW}
+                        title={getPageTitle()}
+                        count={listCount}
+                        countLabel={countLabel}
+                        actions={isLeads ? <LeadsHeaderActions /> : undefined}
                     />
+                    <PeriodNotice period={dashboard.filters.period} truncated={dashboard.listTruncated} onShowAll={handleShowAll} />
+                    <UndatedRecordsNotice count={dashboard.undatedCount} />
 
-                    <div className="flex-1 min-h-[448px] overflow-hidden lg:min-h-[240px]">
-                        <DataTable
-                            embedded
-                            ariaLabel={`${getPageTitle()} table`}
-                            data={sortedData}
-                            columns={columns}
-                            getRowTone={rowTone}
-                            sort={sort}
-                            onSortChange={handleSortChange}
-                            getRowLabel={dossierRowLabel}
-                            onRowActivate={openRow}
-                            isLoading={dashboard.loading}
-                            loadingLabel={`Loading ${getPageTitle().toLowerCase()}`}
-                            empty={emptyState}
-                            error={tableError}
-                            selection={selection}
-                            density="compact"
-                            minWidth="wide"
-                            // A record is worked one at a time, so a phone shows
-                            // cards; a list with checkboxes stays a table that
-                            // scrolls, as cards take no selection.
-                            mobilePresentation={canAssign ? 'scroll' : 'cards'}
-                            pagination={pagination}
+                    {/* The list-page standard: one row of controls above the
+                        table card, which ends after its last row. */}
+                    <Stack gap="md">
+                        <DashboardToolbar
+                            lead={leadTabs}
+                            segments={isLeads ? undefined : segments}
+                            searchQuery={dashboard.searchQuery}
+                            setSearchQuery={dashboard.setSearchQuery}
+                            filters={dashboard.filters}
+                            setFilters={setFilters}
+                            selectedCount={selectedRowIds.length}
+                            canAssign={canAssign}
+                            onAssignLeads={handleAssignLeads}
+                            teamMembers={dashboard.teamMembers}
+                            // Assigned to me is a switch on Applications: the leads lists
+                            // have Assigned to me as a tab. Assigned to me and
+                            // Unassigned name their assignee, so they offer no
+                            // Assigned to filter (`listAssignees` ignores one).
+                            showMyAssignmentsToggle={scope === 'applications'}
+                            myAssignmentsOnly={!!dashboard.filters.myAssignmentsOnly}
+                            onToggleMyAssignments={handleToggleMyAssignments}
+                            showAssigneeFilter={scope === 'applications' || scope === 'company_leads'}
                         />
-                    </div>
-                </Card>
-            </div>
+                        {isLeads ? (
+                            // The status pills are the card's top strip, over the
+                            // column headers, so they read as narrowing this table.
+                            <Card as="div" padding="none" elevation="soft" className="overflow-hidden">
+                                <ListToolbar segments={statusPills} />
+                                {table}
+                            </Card>
+                        ) : table}
+                    </Stack>
+                </Stack>
+            </PageContainer>
 
             {/* Modals */}
             {renderSelectedModal()}

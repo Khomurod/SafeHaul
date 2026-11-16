@@ -15,7 +15,9 @@
 }
 
 .ds-link:hover {
-  color: var(--ds-color-action-primary-hover);
+  /* Links stay blue: the action colour is the brand navy, which no link uses. */
+  color: var(--ds-color-content-link);
+  text-decoration-thickness: 2px;
 }
 
 .ds-link:focus-visible {

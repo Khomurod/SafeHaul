@@ -119,7 +119,7 @@ function toHttpsError(error) {
 }
 
 exports.parseCdlWithGroq = functions
-    .runWith({ memory: "512MB", timeoutSeconds: FUNCTION_TIMEOUT_SECONDS, secrets: ["GROQ_API_KEY"] })
+    .runWith({ memory: "512MB", timeoutSeconds: FUNCTION_TIMEOUT_SECONDS })
     .https.onCall(async (data, context) => {
         const { companyId, imageDataUrl, storagePath } = data || {};
 

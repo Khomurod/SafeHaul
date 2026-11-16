@@ -177,7 +177,9 @@ describe('SmsSettingsPage — loading and setup states', () => {
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         const steps = await screen.findByRole('list', { name: 'Setup steps' });
         expect(within(steps).getAllByRole('listitem')).toHaveLength(4);
-        expect(screen.getByRole('heading', { level: 2, name: 'Connect RingCentral (to do)' })).toBeInTheDocument();
+        // The steps are one section under their own heading; each step is a level-3 heading in it.
+        expect(screen.getByRole('heading', { level: 2, name: 'Set up in four steps' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 3, name: 'Connect RingCentral (to do)' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Add line' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Copy request for support' })).toBeInTheDocument();
     });
@@ -185,8 +187,8 @@ describe('SmsSettingsPage — loading and setup states', () => {
     it('marks done steps as done', async () => {
         CONFIG_DATA = { isActive: true, inventory: [], config: { clientId: 'id', clientSecret: 'set' }, assignments: {} };
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
-        expect(await screen.findByRole('heading', { level: 2, name: 'Connect RingCentral (done)' })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { level: 2, name: 'Add your first line (to do)' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 3, name: 'Connect RingCentral (done)' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 3, name: 'Add your first line (to do)' })).toBeInTheDocument();
     });
 
     it('says texting is switched off when lines exist but SMS is not active', async () => {

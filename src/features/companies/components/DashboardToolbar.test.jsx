@@ -144,23 +144,33 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('__unassigned__');
     });
 
-    it('offers Assign only to someone who can assign, once rows are selected', () => {
+    it('shows Assign to someone who can assign once rows are ticked, in a place the row keeps for it', () => {
         const onAssignLeads = vi.fn();
-        const { rerender } = renderToolbar({ canAssign: true, selectedCount: 0, onAssignLeads });
+        const { container, rerender } = renderToolbar({ canAssign: false, selectedCount: 2, onAssignLeads });
         expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+        expect(container.querySelector('.ds-list-toolbar')).not.toHaveAttribute('data-reserve-actions');
 
-        rerender(
+        // Nothing ticked: no button, as C2 draws the list, but its place is kept
+        // so ticking a lead adds no row above the list.
+        const toolbar = (selectedCount) => (
             <DashboardToolbar
                 searchQuery=""
                 setSearchQuery={noop}
                 filters={{}}
                 setFilters={noop}
                 canAssign
-                selectedCount={3}
+                selectedCount={selectedCount}
                 onAssignLeads={onAssignLeads}
-            />,
+            />
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Assign (3)' }));
+        rerender(toolbar(0));
+        expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+        expect(container.querySelector('.ds-list-toolbar')).toHaveAttribute('data-reserve-actions', 'true');
+
+        rerender(toolbar(3));
+        const ready = screen.getByRole('button', { name: 'Assign (3)' });
+        expect(ready).toBeEnabled();
+        fireEvent.click(ready);
         expect(onAssignLeads).toHaveBeenCalledTimes(1);
     });
 });

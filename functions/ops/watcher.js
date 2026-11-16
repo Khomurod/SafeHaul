@@ -259,8 +259,6 @@ exports.watchAiAndBlog = onSchedule({
     timeZone: TIMEZONE,
     timeoutSeconds: 300,
     memory: '256MiB',
-    // The legacy Groq binding, so the probe sees the fallback production does.
-    secrets: ['GROQ_API_KEY'],
 }, async () => {
     const outcome = await runWatch();
     // Statuses and change ids only: no message text, token or chat.

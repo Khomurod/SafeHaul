@@ -3,11 +3,12 @@ import { httpsCallable } from 'firebase/functions';
 import { Icon, Plus, RefreshCw } from '@design-system/icons';
 
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { COMPANY_NAV_GROUPS } from '@app/routes/companyRouteManifest';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
 import { Button, Card, FieldMessage, Notice } from '@/design-system/components';
-import { Inline, PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { LoadingState } from '@/design-system/patterns';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
 import { useUnfinishedDraftDelete } from '../applicationPrep/useUnfinishedDraftDelete';
@@ -17,6 +18,9 @@ import UnfinishedWorklistTable from '../applicationPrep/UnfinishedWorklistTable'
 import UnfinishedWorklistToolbar from '../applicationPrep/UnfinishedWorklistToolbar';
 import { countByFilter, visibleRows } from '../applicationPrep/unfinishedWorklist';
 import { mockDrafts } from './unfinishedApplicationsMock';
+
+/** The sidebar group the page sits in, named above its title. */
+const EYEBROW = COMPANY_NAV_GROUPS.applications.label;
 
 // Reading or preparing an application replaces the worklist, and both views bring
 // the application's editor: they load together when either is first opened, not
@@ -340,24 +344,27 @@ export function UnfinishedApplicationsPage() {
     }
 
     return (
-        <PageContainer>
+        <PageContainer width="standard">
             <Stack gap="lg">
                 <PageHeader
+                    eyebrow={EYEBROW}
                     title="Unfinished applications"
                     // The rows the filter and the search keep; none while the
                     // list loads or could not be read.
                     count={ready ? shown.length : undefined}
                     countLabel={shown.length === 1 ? 'unfinished application' : 'unfinished applications'}
                     description={`Applications a driver or your team began and nobody has submitted yet. They are not in the applications pipeline: nothing has been signed and no consent given. Each is removed automatically after ${retentionDays} days without activity.`}
+                    // Laid out by the header: the quieter action first, the one
+                    // that starts something last, at the end of the title's row.
                     actions={(
-                        <Inline gap="sm">
-                            <Button variant="primary" onClick={startNew} disabled={!companyId}>
-                                <Icon icon={Plus} size="sm" /> Start an application
-                            </Button>
+                        <>
                             <Button variant="secondary" onClick={load} disabled={loading}>
                                 <Icon icon={RefreshCw} size="sm" /> Refresh
                             </Button>
-                        </Inline>
+                            <Button variant="primary" onClick={startNew} disabled={!companyId}>
+                                <Icon icon={Plus} size="sm" /> Start an application
+                            </Button>
+                        </>
                     )}
                 />
 
@@ -385,7 +392,9 @@ export function UnfinishedApplicationsPage() {
                     <Notice tone="danger" announce="assertive">{deletion.checkError}</Notice>
                 )}
 
-                <Card padding="none" className="overflow-hidden">
+                {/* The list page's shape: its controls on a row of their own,
+                    then the table's card. */}
+                <Stack gap="md">
                     <UnfinishedWorklistToolbar
                         counts={counts}
                         ready={ready}
@@ -395,42 +404,46 @@ export function UnfinishedApplicationsPage() {
                         filter={filter}
                         onFilter={setFilter}
                     />
-                    <UnfinishedWorklistTable
-                        rows={shown}
-                        loading={loading}
-                        onOpen={openRow}
-                        onEdit={editRow}
-                        onDelete={askDelete}
-                        isCompanyAdmin={isCompanyAdmin}
-                        now={now}
-                        retentionDays={retentionDays}
-                        hasCustomQuestions={hasCustomQuestions}
-                        empty={drafts.length > 0
-                            ? { title: 'Nothing here matches.', description: 'Try another search, or another filter above.' }
-                            : {
-                                title: 'Nothing is unfinished.',
-                                description: 'Everyone who has started an application has either submitted it or their draft has expired. Start one yourself when you have a driver’s paperwork in hand.',
+                    <Card padding="none" elevation="soft" className="overflow-hidden">
+                        <UnfinishedWorklistTable
+                            rows={shown}
+                            loading={loading}
+                            onOpen={openRow}
+                            onEdit={editRow}
+                            onDelete={askDelete}
+                            isCompanyAdmin={isCompanyAdmin}
+                            now={now}
+                            retentionDays={retentionDays}
+                            hasCustomQuestions={hasCustomQuestions}
+                            empty={drafts.length > 0
+                                ? { title: 'Nothing here matches.', description: 'Try another search, or another filter above.' }
+                                : {
+                                    title: 'Nothing is unfinished.',
+                                    description: 'Everyone who has started an application has either submitted it or their draft has expired. Start one yourself when you have a driver’s paperwork in hand.',
+                                }}
+                            link={{
+                                linkFor,
+                                deliveredFor,
+                                busyKey,
+                                emailKey,
+                                copied,
+                                copyFailed,
+                                error: mintError,
+                                failedKey,
+                                onCreate: createLink,
+                                onEmail: emailRow,
+                                onCopy: copyUrl,
                             }}
-                        link={{
-                            linkFor,
-                            deliveredFor,
-                            busyKey,
-                            emailKey,
-                            copied,
-                            copyFailed,
-                            error: mintError,
-                            failedKey,
-                            onCreate: createLink,
-                            onEmail: emailRow,
-                            onCopy: copyUrl,
-                        }}
-                    />
-                    {ready && truncated && (
-                        <p className="border-t border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-secondary">
-                            {`Only the ${drafts.length} most recently active are listed.`}
-                        </p>
-                    )}
-                </Card>
+                        />
+                        {/* The card's last row: the list has no pages, so this is
+                            the one thing its footer ever says. */}
+                        {ready && truncated && (
+                            <p className="flex min-h-14 items-center border-t border-ds-table-divider px-ds-4 py-ds-3 text-ds-xs text-ds-content-muted">
+                                {`Only the ${drafts.length} most recently active are listed.`}
+                            </p>
+                        )}
+                    </Card>
+                </Stack>
 
                 <UnfinishedDeleteDialog deletion={deletion} />
             </Stack>

@@ -407,6 +407,5 @@ describe('describeRouting', () => {
         expect(byId.groq).toMatchObject({ eligible: true, model: MODEL_VERSIONS.groq[CAPABILITIES.VISION][0] });
         expect(byId.gemini).toMatchObject({ eligible: false, reason: SKIP_REASONS.DISABLED });
         expect(byId.cerebras).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
-        expect(byId['github-models']).toMatchObject({ eligible: false, reason: SKIP_REASONS.RETIRED });
     });
 });

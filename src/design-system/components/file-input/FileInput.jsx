@@ -54,6 +54,14 @@ import './FileInput.css';
  */
 const VARIANTS = new Set(['button', 'dropzone']);
 
+/**
+ * The button's height: `md` (default), the shared control height, or `sm`, a
+ * 36px picker beside a preview it changes (the company logo, a profile photo),
+ * as C2 draws them. On a phone `sm` keeps the full control height: a target
+ * there is never under 44px.
+ */
+const SIZES = new Set(['md', 'sm']);
+
 export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
   label,
   labelHidden = false,
@@ -64,6 +72,7 @@ export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
   loading = false,
   loadingStatus,
   variant = 'button',
+  size = 'md',
   onChange,
   onReject,
   id,
@@ -77,6 +86,9 @@ export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
   }
   if (!VARIANTS.has(variant)) {
     contractViolation(`Unsupported FileInput variant: ${variant}`);
+  }
+  if (!SIZES.has(size) || (size === 'sm' && variant !== 'button')) {
+    contractViolation(`Unsupported FileInput size: ${size}${variant !== 'button' ? ` for the ${variant} variant` : ''}; use md, or sm on the button.`);
   }
 
   const generatedId = useId().replace(/:/g, '');
@@ -312,6 +324,7 @@ export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
       <label
         className="ds-file-input__control"
         htmlFor={inputId}
+        data-size={size === 'sm' && variant === 'button' ? 'sm' : undefined}
         data-disabled={inert || undefined}
         data-loading={loading || undefined}
         onDragOver={handleDragOver}

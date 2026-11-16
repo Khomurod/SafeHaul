@@ -235,6 +235,20 @@ describe('employmentVerification callables', () => {
       expect(verificationDocs.get('pev-token-3')).toMatchObject({ status: 'completed' });
     });
 
+    it("records the address Google's front end saw, not the first X-Forwarded-For entry", async () => {
+      seedSubmittableRequest('pev-token-16', 'app-16');
+      // The respondent writes that first entry, and Express's `req.ip` is it.
+      await submitVerificationResponse({
+        data: {
+          token: 'pev-token-16',
+          response: { wasEmployed: true, respondentName: 'HR Lead', respondentTitle: 'HR Manager', respondentPhone: '555-222-3333' },
+        },
+        rawRequest: { ip: '6.6.6.6', headers: { 'user-agent': 'jest', 'x-forwarded-for': '6.6.6.6, 203.0.113.5' } },
+      });
+
+      expect(responseDocs.get('pev-token-16/submission').ipAddress).toBe('203.0.113.5');
+    });
+
     it('stores a drawn signature as a PNG in Storage and records the path and the method', async () => {
       seedSubmittableRequest('pev-token-4', 'app-4');
 

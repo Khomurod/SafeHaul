@@ -71,6 +71,23 @@ const member = (over = {}) => ({
     duplicateMembershipCount: 0, membershipIds: ['m1'], ...over,
 });
 
+/** A viewport for the rest of the test: a phone (under 768px each member is a card), or 1440px and up. */
+let phoneViewport = null;
+const viewportWhere = (matches) => {
+    phoneViewport = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+        matches: matches(query),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    }));
+};
+const onAPhone = () => viewportWhere((query) => query.includes('max-width: 767px'));
+const onAWideScreen = () => viewportWhere((query) => query.includes('min-width: 1440px'));
+
 const respondWith = (members, invalidMemberships = []) => {
     fn.listTeamFn.mockResolvedValue({ data: { companyId: 'company-1', members, invalidMemberships, repairedCount: 0 } });
 };
@@ -100,6 +117,8 @@ beforeEach(() => {
 });
 afterEach(() => {
     vi.unstubAllEnvs();
+    phoneViewport?.mockRestore();
+    phoneViewport = null;
 });
 
 describe('TeamManagementTab — the page', () => {
@@ -252,7 +271,8 @@ describe('TeamManagementTab — never invents an Unknown member', () => {
         renderTab();
         const row = await findRow('Gone Gray');
         expect(within(row).getByText('No sign-in account')).toBeInTheDocument();
-        expect(within(row).getByText(/points to an account that no longer exists/i)).toBeInTheDocument();
+        // The sentence is the row's detail, a line under it that describes the member.
+        expect(within(row).getByRole('rowheader')).toHaveAccessibleDescription(/points to an account that no longer exists/i);
         expect(within(row).getByRole('button', { name: 'Remove Gone Gray from the team' })).toBeEnabled();
     });
 
@@ -429,11 +449,107 @@ describe('TeamManagementTab — accessibility', () => {
         expect((await axe(container)).violations).toEqual([]);
     });
 
-    it('becomes one card per member on a phone, every value labelled', async () => {
+    it('becomes one card per member on a phone, laid out by role', async () => {
+        onAPhone();
         await renderLoaded();
         const table = screen.getByRole('table', { name: 'Team' });
         expect(table.closest('[data-mobile-presentation]')).toHaveAttribute('data-mobile-presentation', 'cards');
-        const cells = within(await findRow('Artificial One')).getAllByRole('cell');
-        expect(cells.map((cell) => cell.getAttribute('data-label') ?? '')).toEqual(['Role', 'Status', '']);
+        // Initials leading, the member as the title, role and status on a line, the actions across the card.
+        const row = await findRow('Artificial One');
+        expect(within(row).getByRole('rowheader')).toHaveAttribute('data-mobile-role', 'title');
+        const cells = within(row).getAllByRole('cell');
+        expect(cells.map((cell) => cell.getAttribute('data-mobile-role'))).toEqual(['lead', 'line', 'actions']);
+        expect(cells.map((cell) => cell.getAttribute('data-label'))).toEqual([null, null, null]);
+    });
+
+    it('merges role and status under one header, with the initials inside the member cell, and keeps the actions header', async () => {
+        await renderLoaded();
+        const table = screen.getByRole('table', { name: 'Team' });
+        const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent);
+        expect(headers).toEqual(['Team member', 'Role and status', 'Actions']);
+        const row = await findRow('Artificial One');
+        // The initials are decoration beside the name: the row is still named by the member.
+        expect(within(row).getByRole('rowheader', { name: /^Artificial One/ })).toHaveTextContent(/^AOArtificial One/);
+    });
+
+    it('squeezes to fit its box down to 606px and scrolls with the name pinned below that', async () => {
+        const original = Element.prototype.getBoundingClientRect;
+        const minWidthAt = async (width) => {
+            Element.prototype.getBoundingClientRect = () => ({ width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 });
+            const { unmount } = await renderLoaded();
+            const minWidth = screen.getByRole('table', { name: 'Team' }).getAttribute('data-min-width');
+            unmount();
+            return minWidth;
+        };
+        try {
+            // A 1280px laptop leaves the table 616px: it fits, Actions in view.
+            expect(await minWidthAt(616)).toBe('none');
+            expect(await minWidthAt(600)).toBe('standard');
+        } finally {
+            Element.prototype.getBoundingClientRect = original;
+        }
+    });
+
+    it('gives a phone card its initials as their own leading column', async () => {
+        onAPhone();
+        await renderLoaded();
+        const table = screen.getByRole('table', { name: 'Team' });
+        const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent);
+        expect(headers).toEqual(['Initials', 'Team member', 'Role and status', 'Actions']);
+    });
+
+    it('puts a problem sentence on a line of its own under the member, and after the goals on a phone card', async () => {
+        respondWith([member({ id: 'ghost', name: 'Gone Gray', email: 'gone@example.test', status: 'auth_missing' })]);
+        const { unmount } = renderTab();
+        let row = await findRow('Gone Gray');
+        const sentence = /points to an account that no longer exists/;
+        // Not in the member's cell, nor part of its name: it describes the row.
+        const header = within(row).getByRole('rowheader', { name: /^Gone Gray/ });
+        expect(header).not.toHaveTextContent(sentence);
+        expect(header).toHaveAccessibleDescription(sentence);
+        // A row of its own under the member, across all three columns, in the problem's tone.
+        const detail = row.nextElementSibling;
+        expect(within(detail).getByRole('cell')).toHaveAttribute('colspan', '3');
+        expect(within(detail).getByRole('cell')).toHaveAttribute('data-detail-tone', 'danger');
+        expect(detail).toHaveTextContent(sentence);
+        // "re-invite" never splits at its hyphen.
+        expect([...detail.querySelectorAll('.whitespace-nowrap')].map((part) => part.textContent)).toContain('re-invite');
+        // Its words start under the name, after the initials the member cell leads with.
+        expect(row.closest('.ds-data-table')).toHaveAttribute('data-row-header-avatar', 'true');
+        unmount();
+
+        onAPhone();
+        renderTab();
+        row = await findRow('Gone Gray');
+        expect(within(row).getByRole('rowheader')).not.toHaveTextContent(sentence);
+        const roleCell = within(row).getAllByRole('cell').find((cell) => cell.getAttribute('data-mobile-role') === 'line');
+        expect(roleCell).not.toHaveTextContent(sentence);
+        // A line of the card itself (the card draws it after the goals, before the actions).
+        expect(row.lastElementChild).toHaveClass('ds-data-table__detail');
+        expect(row.lastElementChild).toHaveTextContent(sentence);
+        expect(row.nextElementSibling).toBeNull();
+    });
+
+    it('widens role and status from 1440px, so a role and its badge share a line', async () => {
+        const { unmount } = await renderLoaded();
+        expect(screen.getByRole('columnheader', { name: 'Role and status' })).toHaveAttribute('data-width', 'xl');
+        unmount();
+
+        onAWideScreen();
+        await renderLoaded();
+        expect(screen.getByRole('columnheader', { name: 'Role and status' })).toHaveAttribute('data-width', '2xl');
+    });
+
+    it('keeps a hyphenated name and an email whole between their breaks', async () => {
+        respondWith([member({ id: 'u7', name: 'Ana Delacroix-Whitfield', email: 'ana.delacroix-whitfield@example.test' })]);
+        renderTab();
+        const row = await findRow('Ana Delacroix-Whitfield');
+        const header = within(row).getByRole('rowheader');
+        expect(header).toHaveTextContent('Ana Delacroix-Whitfield');
+        expect(header).toHaveTextContent('ana.delacroix-whitfield@example.test');
+        // The hyphenated parts never break; the email may break only after its "@" or a dot before it.
+        const unbroken = [...header.querySelectorAll('.whitespace-nowrap')].map((part) => part.textContent);
+        expect(unbroken).toEqual(['Delacroix-Whitfield', 'delacroix-whitfield@']);
+        expect(header.querySelectorAll('wbr')).toHaveLength(2);
     });
 });

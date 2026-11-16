@@ -37,3 +37,23 @@ describe('Badge width', () => {
     expect(BADGE_CSS).not.toMatch(/\.ds-badge\s*\{[^}]*align-self/);
   });
 });
+
+/**
+ * A borderless pill (C2): the tint and the label are the badge. The border is
+ * still there, 1px and transparent, because forced-colours mode paints a
+ * transparent border in the system text colour; take it away and a badge in
+ * Windows' high-contrast themes is bare text.
+ */
+describe('Badge outline', () => {
+  const BADGE_CSS = readFileSync(path.join(__dirname, 'Badge.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('keeps a 1px border, transparent, for forced colours', () => {
+    expect(BADGE_CSS).toMatch(/\.ds-badge\s*\{[^}]*border:\s*1px solid transparent/);
+    expect(BADGE_CSS).not.toMatch(/--ds-color-status-\w+-border/);
+  });
+
+  it('sets its label in the medium weight', () => {
+    expect(BADGE_CSS).toMatch(/\.ds-badge\s*\{[^}]*font-weight:\s*var\(--ds-font-weight-medium\)/);
+  });
+});

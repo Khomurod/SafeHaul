@@ -172,12 +172,42 @@ describe('Notice', () => {
     expect(container.querySelector('.ds-notice')).not.toHaveAttribute('data-size');
   });
 
+  describe('frame', () => {
+    it('omits data-frame at the default box, so nothing existing moved', () => {
+      const { container } = render(<Notice>x</Notice>);
+      expect(container.querySelector('.ds-notice')).not.toHaveAttribute('data-frame');
+    });
+
+    it('marks a flush notice, the last row of a card', () => {
+      const { container } = render(<Notice tone="warning" frame="flush">Hidden fields may be required.</Notice>);
+      expect(container.querySelector('.ds-notice')).toHaveAttribute('data-frame', 'flush');
+      // Tone, glyph and words are unchanged: only the frame differs.
+      expect(container.querySelector('.ds-notice')).toHaveAttribute('data-tone', 'warning');
+      expect(container.querySelector('.ds-notice__icon')).toBeInTheDocument();
+    });
+
+    it('rejects a frame it does not have', () => {
+      expect(() => render(<Notice frame="floating">x</Notice>)).toThrow(/Unsupported Notice frame/i);
+    });
+
+    it('draws a flush notice with a top rule only, inset like the card, square unless it is the last row', () => {
+      const rules = readFileSync(path.join(__dirname, 'Notice.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      const flush = rules.slice(rules.indexOf(".ds-notice[data-frame='flush'] {"));
+      const own = flush.slice(0, flush.indexOf('}'));
+      expect(own).toMatch(/border-width:\s*1px 0 0/);
+      expect(own).toMatch(/border-radius:\s*0;/);
+      expect(own).toMatch(/padding:\s*var\(--ds-space-3\) var\(--ds-card-padding\)/);
+      expect(rules).toMatch(/\.ds-notice\[data-frame='flush'\]:last-child\s*\{\s*border-radius:\s*0 0 calc\(var\(--ds-card-radius\) - 1px\)/);
+    });
+  });
+
   it('has no axe violations in any tone, with and without a title', async () => {
     const { container } = render(
       <div>
         <Notice tone="danger" title="Could not send" announce="assertive">Try again.</Notice>
         <Notice tone="success" announce="polite">Saved.</Notice>
         <Notice tone="warning" actions={<button type="button">Review</button>}>Check this.</Notice>
+        <Notice tone="warning" frame="flush">The last row of a card.</Notice>
       </div>,
     );
     expect((await axe(container)).violations).toEqual([]);
