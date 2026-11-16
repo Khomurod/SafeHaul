@@ -30,7 +30,6 @@ vi.mock('@shared/components/layout/Stepper', async () => (await import('./Public
 
 import { PublicApplyHandler } from './PublicApplyHandler';
 import {
-  showSuccess,
   showError,
   callableSpy,
   httpsCallableSpy,
@@ -43,6 +42,7 @@ import {
   retryWaitSpy,
   generateIdSpy,
   profileOverride,
+  partialSubmitOutcome,
   SIGNED_DRAFT,
   stubDraftCallables,
   makeRenderers,
@@ -262,14 +262,13 @@ describe('PublicApplyHandler submission contract', () => {
     expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
   });
 
-  it('clears the local draft and the pending recruiter code on success', async () => {
-    sessionStorage.setItem('pending_application_recruiter', 'REC-9');
-    await renderWithCompleteDraft();
+  it('sends the recruiter code the answers carry, and clears the local draft on success', async () => {
+    // Kept with the draft (`PublicApplyHandler.recruiterLink.contract.test.jsx`).
+    await renderWithCompleteDraft({ recruiterCode: 'REC-9' });
     await submit();
 
     await waitFor(() => expect(callableSpy).toHaveBeenCalled());
     await waitFor(() => expect(localStorage.getItem('draft_acme')).toBeNull());
-    expect(sessionStorage.getItem('pending_application_recruiter')).toBeNull();
     expect(callableSpy.mock.calls[0][0].formData.recruiterCode).toBe('REC-9');
   });
 
@@ -439,6 +438,7 @@ describe('PublicApplyHandler submission contract', () => {
   });
 
   it('reports a failed local draft save instead of silently losing it', async () => {
+    partialSubmitOutcome.current = undefined;
     await renderWithCompleteDraft();
     const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
@@ -449,7 +449,8 @@ describe('PublicApplyHandler submission contract', () => {
     expect(showError).toHaveBeenCalledWith(
       'Could not save progress locally. Your data is still here — please continue filling the form.',
     );
-    expect(showSuccess).not.toHaveBeenCalledWith('Progress saved.');
+    // Nothing saved, so the step footer says nothing about coming back.
+    expect(partialSubmitOutcome.current).toBeNull();
     setItem.mockRestore();
   });
 
@@ -463,7 +464,11 @@ describe('PublicApplyHandler submission contract', () => {
       </MemoryRouter>,
     );
     await chooseManualIntake();
-    expect(sessionStorage.getItem('pending_application_recruiter')).toBe('FROM-LONG');
+    await submit();
+    await waitFor(() => expect(callableSpy).toHaveBeenCalled());
+    // In the answers, not in this tab's session: `PublicApplyHandler.recruiterLink.contract.test.jsx`.
+    expect(callableSpy.mock.calls[0][0].formData.recruiterCode).toBe('FROM-LONG');
+    expect(sessionStorage.getItem('pending_application_recruiter')).toBeNull();
     expect(sessionStorage.getItem('pending_application_company')).toBe('company-1');
   });
 });

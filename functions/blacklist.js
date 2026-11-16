@@ -1,6 +1,6 @@
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { admin, db } = require("./firebaseAdmin");
-const { normalizePhone } = require("./shared/normalizePhone"); // M6 FIX
+const { toE164Us } = require("./shared/toE164Us"); // M6 FIX
 
 /**
  * Compliance Firewall: Manages the global blacklist and opt-outs.
@@ -17,7 +17,7 @@ exports.handleOptOut = onDocumentCreated("companies/{companyId}/inbound_messages
 
     if (text === "STOP" || text === "UNSUBSCRIBE" || text === "QUIT") {
         // M6 FIX: Normalize phone to E.164 before storing
-        const phone = normalizePhone(data.from);
+        const phone = toE164Us(data.from);
         if (!phone) return;
 
         console.log(`Opt-out received from ${phone}. Adding to blacklist.`);
@@ -42,7 +42,7 @@ exports.handleOptOut = onDocumentCreated("companies/{companyId}/inbound_messages
  */
 async function isBlacklisted(companyId, phone) {
     // M6 FIX: Normalize phone before lookup so format never causes a miss
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedPhone = toE164Us(phone);
     if (!normalizedPhone) return true; // Treat invalid/missing phone as blocked
 
     // Check company blacklist

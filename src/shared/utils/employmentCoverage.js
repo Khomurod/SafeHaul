@@ -8,12 +8,17 @@
 // `functions/shared/employmentCoverage.vectors.json`, so editing one without the
 // other fails the other suite — the same convention `searchNormalization` uses.
 //
-// Keep the two files structurally identical apart from module syntax.
+// Keep the two files structurally identical apart from module syntax: the body
+// between the markers is byte-identical to the server copy, and
+// employmentCoverage.test.js fails if the two drift.
 
 import { parseApplicationDate } from '@/config/applicationDates';
 
+// --- body ---------------------------------------------------------------------
+// Identical to functions/shared/employmentCoverage.js. Edit both, or the parity test fails.
+
 /** Months of history the application must account for. */
-export const REQUIRED_COVERAGE_MONTHS = 36;
+const REQUIRED_COVERAGE_MONTHS = 36;
 
 /**
  * Parse every date shape the application validator accepts (`parseApplicationDate`:
@@ -25,7 +30,7 @@ export const REQUIRED_COVERAGE_MONTHS = 36;
  * Returning null rather than guessing matters: an unreadable date must not be
  * silently treated as covering time the driver never claimed.
  */
-export function parseMonthIndex(value) {
+function parseMonthIndex(value) {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
     if (!raw) return null;
@@ -53,7 +58,7 @@ export function parseMonthIndex(value) {
 }
 
 /** Render an absolute month index back to `YYYY-MM` for display. */
-export function formatMonthIndex(index) {
+function formatMonthIndex(index) {
     if (typeof index !== 'number' || !Number.isFinite(index)) return null;
     const year = Math.floor(index / 12);
     const month = (index % 12) + 1;
@@ -66,7 +71,7 @@ export function formatMonthIndex(index) {
  */
 const ONGOING_TOKENS = new Set(['present', 'current', 'ongoing', 'now', 'to date']);
 
-export function isOngoing(value) {
+function isOngoing(value) {
     if (value === null || value === undefined) return true;
     const raw = String(value).trim().toLowerCase();
     return raw === '' || ONGOING_TOKENS.has(raw);
@@ -79,7 +84,7 @@ export function isOngoing(value) {
  * @param {Record<string, unknown>} record Anything with start/end-ish fields.
  * @param {number} nowIndex Reference month, used to close ongoing periods.
  */
-export function toSpan(record, nowIndex) {
+function toSpan(record, nowIndex) {
     if (!record || typeof record !== 'object') return null;
 
     const startRaw = record.startDate ?? record.start ?? record.from ?? record.dateFrom ?? null;
@@ -99,7 +104,7 @@ export function toSpan(record, nowIndex) {
  * Classify a record so the confirmation screen can tell the driver what kinds of
  * period they have already accounted for.
  */
-export function spanKind(record, fallback) {
+function spanKind(record, fallback) {
     const declared = record && typeof record === 'object'
         ? String(record.type || record.kind || '').trim().toLowerCase()
         : '';
@@ -112,7 +117,7 @@ export function spanKind(record, fallback) {
 }
 
 /** Merge overlapping/adjacent spans into a minimal ascending set. */
-export function mergeSpans(spans) {
+function mergeSpans(spans) {
     const sorted = [...spans].sort((a, b) => a.start - b.start || a.end - b.end);
     const merged = [];
     for (const span of sorted) {
@@ -142,7 +147,7 @@ export function mergeSpans(spans) {
  * @returns {{requiredMonths, coveredMonths, missingMonths, isComplete,
  *            windowStart, windowEnd, gaps, accountedKinds, unparseableRecords}}
  */
-export function computeEmploymentCoverage(history = {}, opts = {}) {
+function computeEmploymentCoverage(history = {}, opts = {}) {
     const requiredMonths = Number.isFinite(opts.requiredMonths) && opts.requiredMonths > 0
         ? Math.floor(opts.requiredMonths)
         : REQUIRED_COVERAGE_MONTHS;
@@ -232,3 +237,16 @@ export function computeEmploymentCoverage(history = {}, opts = {}) {
         unparseableRecords,
     };
 }
+
+// --- exports -------------------------------------------------------------------
+
+export {
+    REQUIRED_COVERAGE_MONTHS,
+    computeEmploymentCoverage,
+    formatMonthIndex,
+    isOngoing,
+    mergeSpans,
+    parseMonthIndex,
+    spanKind,
+    toSpan,
+};

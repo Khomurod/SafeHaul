@@ -411,6 +411,7 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onSaveDraft={onPartialSubmit}
+                answers={formData}
                 onContinue={handleContinue}
                 continueLabel={isUploading ? 'Uploading...' : 'Continue'}
                 continueLoading={isUploading}

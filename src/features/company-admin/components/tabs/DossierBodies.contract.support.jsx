@@ -78,6 +78,7 @@ export const firebaseFirestoreMock = () => ({
     deleteDoc: (...a) => fs.deleteDoc(...a),
     updateDoc: (...a) => fs.updateDoc(...a),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
+    deleteField: () => 'DELETE_FIELD',
 });
 export const firebaseStorageMock = () => ({
     ref: (...a) => storageMocks.ref(...a),
@@ -92,7 +93,12 @@ export const applicationPdfServiceMock = () => ({
 });
 export const userServiceMock = () => ({ getPortalUser: (...a) => getPortalUser(...a) });
 export const applicationFileLinkMock = () => ({ signedApplicationFileUrl: (...a) => signedFileUrl(...a) });
-export const dqFileSyncMock = () => ({ fileDriverUploads: (...a) => fileDriverUploads(...a) });
+// The tab files through `fileDriverUploadsOnce`; here every opening asks, so each
+// suite sees the call it makes (`dqFileSync.test.js` proves the once).
+export const dqFileSyncMock = () => ({
+    fileDriverUploads: (...a) => fileDriverUploads(...a),
+    fileDriverUploadsOnce: (...a) => fileDriverUploads(...a),
+});
 
 // --- helpers and fixtures, verbatim ----------------------------------------
 
@@ -149,6 +155,16 @@ export const FILED_PEV_REQUEST = {
     fileName: 'PEV_REQUEST_Old_Carrier_abcd1234.pdf',
     url: null,
     storagePath: 'companies/co-1/applications/app-1/pev_requests/PEV_REQUEST_Old_Carrier_abcd1234.pdf',
+    isSynced: true,
+};
+
+/** A verification result the server filed: a portal answer's PDF or an uploaded result. */
+export const FILED_PEV_RESULT = {
+    type: 'pev_result',
+    fileType: 'PEV Result – Old Carrier',
+    fileName: 'Verification-of-Employment-Response-Jane-Driver.pdf',
+    url: null,
+    storagePath: 'companies/co-1/applications/app-1/pev_results/PEV_Old_Carrier_abcd1234.pdf',
     isSynced: true,
 };
 

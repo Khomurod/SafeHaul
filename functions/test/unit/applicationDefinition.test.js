@@ -4,7 +4,6 @@ const {
   STANDARD_SECTIONS,
   buildApplicationDefinition,
   canonicalize,
-  findFieldLabel,
   hashDefinition,
   normalizeCustomQuestion,
   resolveGate,
@@ -157,12 +156,6 @@ describe('every standard field carries human wording', () => {
   it('uses unique field ids across all sections', () => {
     const ids = STANDARD_SECTIONS.flatMap((s) => s.fields.map((f) => f.id));
     expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it('resolves a label by id for renderers', () => {
-    const def = buildApplicationDefinition({ company: company() });
-    expect(findFieldLabel(def, 'cdlNumber')).toBe('License Number');
-    expect(findFieldLabel(def, 'not-a-field')).toBeNull();
   });
 });
 

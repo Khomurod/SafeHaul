@@ -62,7 +62,7 @@ always-required `callable-contract` CI job, which every push and pull request
 runs, and as part of `npm run lint`.
 
 Notably absent, and never to be claimed as shipped: document-expiry monitoring
-or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
+beyond a daily in-app notice about hired drivers, or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
 applicant-facing disclosures exist; the queries do not) · a job board · drip
 campaigns or two-way message threads · **opt-out capture** (the blacklist is
 enforced on every send, but nothing feeds it from a recipient's reply — see App
@@ -130,7 +130,7 @@ SafeHaul/
 │   ├── design-system/       # Business-neutral visual contract (see its README)
 │   ├── features/            # Domain modules (driver-app, company-admin, signing, …)
 │   ├── hooks/               # Cross-feature hooks (global schema, submission queue)
-│   ├── lib/                 # firebase.js, applicationId.js, submissionQueue.js
+│   ├── lib/                 # firebase/ (app setup), applicationId.js, submissionQueue.js
 │   ├── shared/              # Cross-feature components, hooks, utils, workers
 │   ├── firestore.rules      # Firestore security rules — deployed from here
 │   ├── storage.rules        # Storage security rules — deployed from here
@@ -185,8 +185,8 @@ cd functions && npm install && cd ..
 ### Running locally
 
 ```bash
-npm run dev          # Vite dev server at http://localhost:5000
-firebase emulators:start   # Firestore, Functions, Auth
+npm run dev                    # Vite dev server at http://localhost:5000
+npm run test:rules:emulators   # Firestore and Storage rules suites on the emulator
 ```
 
 > The dev server is pinned to port **5000** with `strictPort: true` — it fails
@@ -233,7 +233,6 @@ Google Secret Manager; they are shared by the test and production builds.
 |---|---|
 | `PROCESS_BULK_BATCH_URL` | Cloud Run URL for `processBulkBatch` (required for bulk campaigns) |
 | `BULK_WORKER_SECRET` | Shared secret for bulk worker HTTP auth (same on `initBulkSession` and `processBulkBatch`) |
-| `GROQ_API_KEY` | Groq vision API for CDL parsing (legacy binding, retained as an AI-platform rollback path) |
 | `SMS_ENCRYPTION_KEY` | AES key for encrypting SMS provider credentials |
 
 A local `functions/.env` is only for emulator development and must never be
@@ -257,16 +256,21 @@ every exported function — callables, Firestore triggers and scheduled jobs.
 not export; the full mapping is in
 [docs/callable-frontend-map.md](docs/callable-frontend-map.md).
 
+**Deploys happen only through CI.** Merging to `main` deploys the Testing site
+and the shared backend (functions, rules, indexes), which Production uses too, so
+a backend change reaches Production at once. The Production *frontend* changes
+only when someone promotes a tested Testing release (Super Admin → Releases). Never deploy
+from a workstation: Testing and Production share one backend, and
+`firebase deploy --only hosting` would publish **every** hosting target,
+Production included. Emergencies and rollbacks:
+[docs/FIREBASE_HOSTING_RUNBOOK.md](docs/FIREBASE_HOSTING_RUNBOOK.md).
+
 ```bash
-npm run deploy:functions:plan          # Plan an incremental deploy
-npm run deploy:functions:incremental   # Incremental deploy — the normal path
-firebase deploy --only functions:functionName
-firebase deploy --only hosting
+DEPLOY_GIT_BASE=origin/main npm run deploy:functions:plan   # Dry run: functions changed since main
 ```
 
-> On a machine with limited CPU, prefer `deploy:functions:incremental` (or
-> `deploy:functions:sequential`) over a full parallel deploy, to avoid OOM
-> during the build.
+Without `DEPLOY_GIT_BASE` the plan compares with the previous commit only. CI
+picks its own base and also deploys the functions it always includes.
 
 ---
 
@@ -341,7 +345,8 @@ npm run lint              # Frontend + backend + public-site claims
 npm run typecheck
 ```
 
-CI additionally runs `check:callable-contract`, `check:ai-boundary`,
+CI additionally runs `node scripts/check-callable-contract.mjs` (the
+`callable-contract` job), `check:ai-boundary`,
 `check:ci-plan`, `check:release-scripts`, `check:deploy-script`,
 `check:table-layout` and a Gitleaks secret scan.
 

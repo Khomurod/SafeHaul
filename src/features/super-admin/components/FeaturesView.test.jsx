@@ -71,7 +71,7 @@ describe('FeaturesView — frozen write contract', () => {
     it('lists the five features in the frozen order', () => {
         renderView();
         const features = screen.getAllByRole('rowheader').map((h) => h.textContent);
-        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Call Tracking']);
+        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Facebook leads']);
     });
 
     it('reports a failed toggle through the frozen toast, and lets the operator try again', async () => {
@@ -130,6 +130,20 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
         ));
     });
 
+    it('shows Facebook leads off until it is switched on, and switching it on writes true', async () => {
+        renderView({ company: UNSET });
+        const facebook = screen.getByRole('switch', { name: 'Facebook leads for Second Artificial Carrier' });
+        expect(facebook).not.toBeChecked();
+        // Off, so there is no switch-off to schedule.
+        expect(screen.queryByRole('button', { name: 'Schedule deactivation of Facebook leads for Second Artificial Carrier' })).toBeNull();
+
+        fireEvent.click(facebook);
+        await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(
+            { path: 'companies/co-2' },
+            { 'features.callTracking': true, 'featureSchedules.callTracking': null },
+        ));
+    });
+
     it('is operable by keyboard', async () => {
         renderView();
         const box = screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' });
@@ -179,6 +193,12 @@ describe('FeaturesView — schedule dialog (defects)', () => {
         const payload = updateDoc.mock.calls[0][1];
         expect(Object.keys(payload)).toEqual(['featureSchedules.pev']);
         expect(payload['featureSchedules.pev']).toMatch(/^2099-01-01T/);
+    });
+
+    it('shows the scheduled switch-off in the app\'s one date style, with its time (K3)', () => {
+        renderView({ company: scheduled });
+        expect(screen.getByText(/^Jan 1, 2099, \d{2}:\d{2} (AM|PM)$/)).toBeInTheDocument();
+        expect(screen.queryByText(/1\/1\/99/)).not.toBeInTheDocument();
     });
 
     it('names the cancel-schedule control, and still offers a new schedule beside it', () => {

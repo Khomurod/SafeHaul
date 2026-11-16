@@ -16,7 +16,8 @@ import {
     recordMatchesSearch,
     applyClientSideFilters,
     createdAtMillis,
-    dateFilterRange,
+    addedWindow,
+    hiredWindow,
     sortByAddedDate,
     searchableTerm,
 } from './dashboardSearch';
@@ -28,15 +29,30 @@ import {
 import {
     buildDashboardConstraints,
     runDashboardSearch,
+    runHiredPeriodList,
 } from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /** Records on one page of the list. */
 const ITEMS_PER_PAGE = 20;
 
-/** applications: all | new | hired | terminated | declined — leads: all | attempting | in_process | interested */
-export function useCompanyDashboard(companyId, { initialTab = 'applications', initialSegment = 'all' } = {}) {
+/**
+ * Tabs: applications, and the leads lists company_leads (All), my_leads (Assigned to me) and
+ * unassigned_leads (Unassigned) (`LEAD_TABS`). Segments: applications all | new | in_process | hired |
+ * terminated | declined — leads all | new | attempting | in_process | interested | declined.
+ * `initialPeriod` (`{ field, month }`, `dashboardPeriods.js`) opens the list on a month of
+ * applications added or hired, as the dashboard's brief does; `filters.period`, cleared with null.
+ * `navigationKey` (the location's key) ties it to that navigation: a new one opens on its own
+ * `initialPeriod`, or none, and a tab other than applications has none.
+ */
+export function useCompanyDashboard(companyId, {
+    initialTab = 'applications',
+    initialSegment = 'all',
+    initialPeriod = null,
+    navigationKey,
+} = {}) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -51,6 +67,8 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     // createdAt: counted so the page can say how many there are and that search
     // finds them.
     const [undatedCount, setUndatedCount] = useState(0);
+    // A period of hires lists at most `HIRED_PERIOD_LIMIT`; this says it held more.
+    const [listTruncated, setListTruncated] = useState(false);
 
     const lastVisibleDocsRef = useRef({});
     // Monotonic fetch id — a stale (slower) fetch must never overwrite the
@@ -72,8 +90,11 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         dob: '',
         assignee: '',
         dateFilter: '',
-        myAssignmentsOnly: false
+        myAssignmentsOnly: false,
+        period: initialPeriod,
     });
+    // A period of hires is one list sorted here, as search results are: no pages, no server count.
+    const hiredPeriod = Boolean(hiredWindow(filters));
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -89,12 +110,28 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     if (segmentTab !== activeTab) {
         setSegmentTab(activeTab);
         setPipelineSegment('all');
+        // Only applications have a period: a month of hires is never a leads list.
+        if (activeTab !== 'applications') setFilters((prev) => (prev.period ? { ...prev, period: null } : prev));
+    }
+
+    // A tab and a period belong to the navigation that opened them
+    // (`navigationKey`, the location's key): the page stays mounted across the
+    // menu's lists, so the next navigation, Back included, opens on its own tab
+    // and period, or none. Both are set while rendering, together, so no query
+    // goes out with a tab from one navigation and a period from another.
+    const [periodNavigation, setPeriodNavigation] = useState(navigationKey);
+    if (periodNavigation !== navigationKey) {
+        setPeriodNavigation(navigationKey);
+        if (initialTab !== activeTab) setActiveTab(initialTab);
+        setFilters((prev) => (prev.period === initialPeriod ? prev : { ...prev, period: initialPeriod }));
     }
 
     // E2E fixture dataset: the placeholder Firebase project is unreachable in
     // E2E runs, so search/filters/tabs are exercised against in-memory records
-    // through the same pure helpers the live query path uses.
+    // through the same pure helpers the live query path uses. Only E2E mode
+    // calls it; `PROD` keeps the fixtures out of a production build.
     const e2eRecordsForTab = useCallback((tab) => {
+        if (import.meta.env.PROD) return [];
         const source = tab === 'applications' ? E2E_DASHBOARD_APPLICATIONS : E2E_DASHBOARD_LEADS;
         return source.map((record) => ({ ...record, companyId }));
     }, [companyId]);
@@ -116,13 +153,13 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     }), [activeTab, pipelineSegment, filters]);
 
     const fetchListTotalCount = useCallback(async () => {
-        if (!companyId || debouncedSearch) return;
+        if (!companyId || debouncedSearch || hiredPeriod) return;
         const countVersion = ++countVersionRef.current;
         setListCountError('');
 
-        // A record without createdAt matches no day, so with a date picked
-        // there is nothing to count outside the list.
-        const countsUndated = !dateFilterRange(filters.dateFilter);
+        // A record without createdAt matches no day or month, so with one
+        // asked for there is nothing to count outside the list.
+        const countsUndated = !addedWindow(filters);
 
         if (isE2ETestMode) {
             const records = applyClientSideFilters(e2eRecordsForTab(activeTab), clientFilterContext());
@@ -164,9 +201,9 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
             console.error('fetchListTotalCount', e);
             setListTotalCount(0);
             setUndatedCount(0);
-            setListCountError(e?.message || 'Could not load total count.');
+            setListCountError(plainErrorMessage(e, 'The total count could not be loaded.'));
         }
-    }, [companyId, activeTab, pipelineSegment, filters, debouncedSearch, buildConstraints, clientFilterContext, e2eRecordsForTab]);
+    }, [companyId, activeTab, pipelineSegment, filters, debouncedSearch, hiredPeriod, buildConstraints, clientFilterContext, e2eRecordsForTab]);
 
     useEffect(() => {
         fetchListTotalCount();
@@ -194,14 +231,15 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
                 if (isSearch) {
                     const classified = classifySearchTerm(debouncedSearch);
                     records = records.filter((record) => recordMatchesSearch(record, classified));
-                } else {
+                } else if (!hiredPeriod) {
                     // As the list query: only records with createdAt, in its order.
                     records = records.filter((record) => createdAtMillis(record) !== null);
                 }
                 records = sortByAddedDate(records, dateOrder);
                 if (fetchVersion !== fetchVersionRef.current) return;
                 setData(records);
-                if (isSearch) setTotalPages(1);
+                setListTruncated(false);
+                if (isSearch || hiredPeriod) setTotalPages(1);
                 return;
             }
 
@@ -209,9 +247,14 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
             const baseRef = collection(db, "companies", companyId, collectionName);
 
             let newData;
+            let truncated = false;
 
             if (isSearch) {
                 newData = sortByAddedDate(await runSearchQuery(debouncedSearch.trim()), dateOrder);
+            } else if (hiredPeriod) {
+                const period = await runHiredPeriodList({ companyId, filterContext: clientFilterContext() });
+                newData = sortByAddedDate(period.records, dateOrder);
+                truncated = period.truncated;
             } else {
                 let constraints = buildConstraints();
                 // Two different assignees match no record: nothing to ask for.
@@ -255,8 +298,9 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
                 lastCall: record.lastContactedAt || record.lastCall,
                 lastCallOutcome: record.lastCallOutcome,
             })));
+            setListTruncated(truncated);
 
-            if (isSearch) {
+            if (isSearch || hiredPeriod) {
                 setTotalPages(1);
             }
 
@@ -264,26 +308,29 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
             if (fetchVersion !== fetchVersionRef.current) return;
             console.error("Dashboard fetch error:", err);
 
-            if (err.message && err.message.includes('requires an index')) {
-                setError("Missing Index: Please check the browser console for the creation link.");
+            // A missing index is the developers' to fix: its creation link stays
+            // in the console, and the person reads a plain sentence.
+            if (err?.message?.includes('requires an index')) {
                 console.warn("CLICK THIS LINK TO CREATE INDEX:", err);
-            } else {
-                setError(err.message || "Failed to load data.");
             }
+            setError(plainErrorMessage(err, 'The list could not be loaded.'));
         } finally {
             if (fetchVersion === fetchVersionRef.current) {
                 setLoading(false);
             }
         }
-    }, [companyId, activeTab, currentPage, debouncedSearch, dateOrder, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
+    }, [companyId, activeTab, currentPage, debouncedSearch, dateOrder, hiredPeriod, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
+
+    // Search results and a period of hires are one list, counted as listed.
+    const listedHere = Boolean(debouncedSearch) || hiredPeriod;
 
     useEffect(() => {
-        if (debouncedSearch) {
+        if (listedHere) {
             setTotalPages(1);
         } else {
             setTotalPages(Math.max(1, Math.ceil((listTotalCount || 0) / ITEMS_PER_PAGE)));
         }
-    }, [listTotalCount, debouncedSearch]);
+    }, [listTotalCount, listedHere]);
 
     // Any change to scope, search, filters, or pipeline resets pagination and
     // clears page cursors so stale cursors can never leak across queries.
@@ -319,7 +366,7 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     const nextPage = useCallback(() => setCurrentPage(p => p + 1), []);
     const prevPage = useCallback(() => setCurrentPage(p => Math.max(1, p - 1)), []);
 
-    const headerTotalCount = debouncedSearch
+    const headerTotalCount = listedHere
         ? data.length
         : listTotalCount;
 
@@ -336,7 +383,8 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         currentPage,
         totalPages,
         totalCount: headerTotalCount,
-        undatedCount: debouncedSearch ? 0 : undatedCount,
+        undatedCount: listedHere ? 0 : undatedCount,
+        listTruncated: hiredPeriod && listTruncated,
 
         nextPage,
         prevPage,

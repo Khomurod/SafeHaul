@@ -7,7 +7,8 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
-import { useSigningEnvelope } from '@features/signing/hooks/useSigningEnvelope';
+import { isCompanySignatureField, withoutCompanySignatureValues } from '@features/signing/utils/companySignature';
+import { isTerminalSubmitRefusal, useSigningEnvelope } from '@features/signing/hooks/useSigningEnvelope';
 import {
     sortFieldsForFlow,
     isFieldComplete,
@@ -22,13 +23,9 @@ import { SignatureSheet } from '@features/signing/components/SignatureSheet';
 // SigningDocumentView.jsx. This room keeps the signer interaction handlers
 // and passes them down.
 import { SigningDocumentView } from '@features/signing/components/signing-room/SigningDocumentView';
-import {
-    SigningLoadingScreen,
-    SigningErrorScreen,
-    SigningVoidedScreen,
-    SigningSuccessScreen,
-    EsignConsentScreen,
-} from '@features/signing/components/signing-room/StatusScreens';
+import { resolveSigningStatusScreen } from '@features/signing/components/signing-room/resolveSigningStatusScreen';
+import { requestNewLink } from '@shared/services/requestNewLink';
+import { isSignedStatus, rememberSignedHere } from '@features/signing/utils/alreadySigned';
 import { useSigningDraftWriter } from '@features/signing/hooks/useSigningDraftWriter';
 import { usePdfZoomGestures } from '@features/signing/hooks/usePdfZoomGestures';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -36,6 +33,7 @@ import { useIsMobile } from '@shared/hooks';
 import { useToast } from '@shared/components/feedback';
 import { Button, IconButton } from '@/design-system/components';
 import { Icon, CheckCircle, ChevronDown, AlertTriangle, ZoomIn, ZoomOut } from '@design-system/icons';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // Focused fields smaller than this (CSS px) trigger an automatic zoom bump on
 // touch devices — at fit-width on a phone, a 5%-height field is ~18px and
@@ -60,13 +58,24 @@ export default function SigningRoom() {
 
     // Post-application flow: the apply page stores a return path for its own
     // requests before navigating here. Recruiter-sent documents have none, so
-    // their success screen keeps the plain "Close Window" behavior.
+    // their success screen only says the tab can be closed.
     const postApplyReturnPath = readSigningReturnPath(companyId, requestId);
 
     // Envelope loading + field-value initialization (draft merge, locked-field
-    // seeding, E2E mock) live in useSigningEnvelope.
-    const { request, fieldValues, setFieldValues, loading, error, refreshSignedDate } =
-        useSigningEnvelope({ companyId, requestId, accessToken });
+    // seeding, E2E mock) live in useSigningEnvelope; so does why a link failed.
+    const {
+        request, fieldValues, setFieldValues, loading, linkProblem, companyName, retry, endWithRefusal,
+        refreshSignedDate,
+    } = useSigningEnvelope({ companyId, requestId, accessToken });
+    // Back to the driver's list of required documents. A document the server
+    // reports signed is recorded as done for that list first, as a submission
+    // made here is, so the list does not show it as still to sign.
+    const returnToDocuments = postApplyReturnPath
+        ? () => {
+            if (isSignedStatus(request?.status)) markRequestSigned(companyId, requestId);
+            navigate(postApplyReturnPath);
+        }
+        : undefined;
     // The local draft: written once typing pauses, never with a drawn signature.
     const { save: saveDraft, clear: clearSavedDraft } = useSigningDraftWriter(companyId, requestId);
     // ESIGN-8 FIX: Track electronic consent before allowing signing.
@@ -74,6 +83,10 @@ export default function SigningRoom() {
     // to use electronic records/signatures. Without this screen, e-signatures may not be
     // legally enforceable in disputes.
     const [hasEsignConsent, setHasEsignConsent] = useState(false);
+    // Decline ends the visit on a screen that says so; nothing is recorded.
+    const [declined, setDeclined] = useState(false);
+    // Go back from the declined screen: the consent's heading then takes the focus.
+    const [consentFocus, setConsentFocus] = useState(false);
     // { fieldId, kind: 'signature' | 'initial' } while the drawing sheet is open
     const [activeSignature, setActiveSignature] = useState(null);
     const [submitting, setSubmitting] = useState(false);
@@ -131,7 +144,8 @@ export default function SigningRoom() {
 
     const lockedRequiredMissing = useMemo(() => {
         return (request?.fields || []).filter((field) => {
-            if (!field || !field.required || !isFieldLocked(field)) return false;
+            // A company signature carries an image, not a value: never "missing" here.
+            if (!field || !field.required || !isFieldLocked(field) || isCompanySignatureField(field)) return false;
             return String(field.defaultValue || '').trim() === '';
         });
     }, [request?.fields]);
@@ -250,6 +264,7 @@ export default function SigningRoom() {
         try {
             if (isE2ETestMode && getE2EQueryParam('e2eSign', '') === 'mock') {
                 clearSavedDraft();
+                rememberSignedHere(companyId, requestId);
                 if (postApplyReturnPath) markRequestSigned(companyId, requestId);
                 setSuccess(true);
                 return;
@@ -267,7 +282,8 @@ export default function SigningRoom() {
                 companyId,
                 requestId,
                 accessToken,
-                fieldValues,
+                // A company signature is the company's, never the signer's to submit.
+                fieldValues: withoutCompanySignatureValues(request?.fields, fieldValues),
                 auditData,
                 // The zone the room showed Date Signed in, so the sealed date matches it;
                 // a room stamped without one was stamped in UTC.
@@ -275,6 +291,9 @@ export default function SigningRoom() {
             });
 
             clearSavedDraft();
+            // The submission used up the link's token: opened again on this
+            // device, it reads as the signed document it is (`alreadySigned.js`).
+            rememberSignedHere(companyId, requestId);
             // Post-application flow: record completion so the Required Documents
             // checklist marks this template as completed when the driver returns.
             if (postApplyReturnPath) markRequestSigned(companyId, requestId);
@@ -284,37 +303,32 @@ export default function SigningRoom() {
 
         } catch (e) {
             console.error("Submission Error:", e);
-            showError("Error saving document: " + e.message);
+            // The link stopped working while the document was filled in: the room
+            // says so on the link screen rather than leaving a form that cannot
+            // be sent. Anything else keeps the form and the answers for another try.
+            if (isTerminalSubmitRefusal(e)) await endWithRefusal(e);
+            else showError(plainErrorMessage(e, 'Your document could not be submitted.', { viaLink: true }));
         } finally {
             setSubmitting(false);
         }
     };
 
-    if (loading) return <SigningLoadingScreen />;
-
-    if (error) return <SigningErrorScreen error={error} />;
-
-    // PHASE 4: Voided document hard-stop
-    if (request?.status === 'voided') return <SigningVoidedScreen />;
-
-    if (success) {
-        return (
-            <SigningSuccessScreen
-                recipientName={request.recipientName}
-                onReturnToDocuments={
-                    postApplyReturnPath ? () => navigate(postApplyReturnPath) : undefined
-                }
-            />
-        );
-    }
-
-    // ESIGN-8 FIX: Electronic consent screen required before document access.
-    // UETA Sec. 5(b) and ESIGN Act Sec. 101(c) mandate that signers affirmatively agree to
-    // conduct business electronically before they can be bound by electronic signatures.
-    // The consent must be presented BEFORE the document is displayed (not inline).
-    if (!hasEsignConsent) return (
-        <EsignConsentScreen title={request?.title} onAgree={() => setHasEsignConsent(true)} />
-    );
+    // Loading, a link that did not open, voided, signed, declined and the
+    // ESIGN-8 consent (required before the document is shown), in that order.
+    const statusScreen = resolveSigningStatusScreen({
+        loading, linkProblem, companyName, onRetry: retry,
+        // The company is told; the link's token is not needed for that.
+        onRequestNewLink: () => requestNewLink({ kind: 'sign', companyId, requestId }),
+        request, success, declined, hasEsignConsent, consentFocus,
+        onReturnToDocuments: returnToDocuments,
+        onAgree: () => setHasEsignConsent(true),
+        onDecline: () => setDeclined(true),
+        onGoBack: () => {
+            setConsentFocus(true);
+            setDeclined(false);
+        },
+    });
+    if (statusScreen) return statusScreen;
 
     // ------------------------------------------------------------------
     // Unified document-first view (desktop AND mobile).

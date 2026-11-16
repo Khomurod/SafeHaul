@@ -9,7 +9,7 @@
 
 import { REQUIRED_DEPLOY_JOBS, evaluateDeployResults } from '../verify-shipped.mjs';
 import {
-    SHIP_GRACE_MS, judgeCallables, judgeChannel, judgeMainShipped,
+    SHIP_GRACE_MS, judgeCallables, judgeChannel, judgeMainShipped, readConfirmedReleases,
 } from '../check-release-health.mjs';
 import { assert } from './test-support.mjs';
 
@@ -108,6 +108,29 @@ assert('H7. a channel with no recorded release yet raises nothing',
         'a deploy still in flight must not raise an alarm');
     assert('H10. a commit with a confirmed release is fine at any age',
         judgeMainShipped(head, [head.sha], long).problems.length === 0);
+}
+
+// The releases it compares with: every confirmed one, newest first, read as
+// the deploy base reads the newest (`scripts/lib/confirmedReleases.mjs`).
+{
+    const statuses = { 4: ['success'], 3: ['in_progress'], 2: ['success'], 1: ['success'] };
+    const deployments = [
+        { id: 4, sha: 'd'.repeat(40), payload: { appVersionId: 'v4' } },
+        { id: 3, sha: 'c'.repeat(40), payload: { appVersionId: 'v3' } },
+        { id: 2, sha: 'b'.repeat(40), payload: {} },
+        { id: 1, sha: 'a'.repeat(40), payload: { appVersionId: 'v1' } },
+    ];
+    const asked = [];
+    const api = async (path) => {
+        asked.push(path);
+        const match = path.match(/^\/deployments\/(\d+)\/statuses/);
+        return match ? (statuses[match[1]] || []).map((state) => ({ state })) : deployments;
+    };
+    const confirmed = await readConfirmedReleases(api, 'production');
+    assert('H11. the confirmed releases are every SafeHaul release whose latest status is success, newest first',
+        JSON.stringify(confirmed) === JSON.stringify(['d'.repeat(40), 'a'.repeat(40)])
+            && asked[0] === '/deployments?environment=production&per_page=100',
+        JSON.stringify({ confirmed, asked }));
 }
 
 /* ========================================================================== */

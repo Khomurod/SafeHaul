@@ -180,7 +180,9 @@ describe('Maintenance — the employer backfill keeps its contract', () => {
         fireEvent.click(trigger());
         fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
 
-        await waitFor(() => expect(showError).toHaveBeenCalledWith('Employer backfill failed: nope'));
+        await waitFor(() => expect(showError).toHaveBeenCalledWith(
+            'The employer backfill could not run. Please try again. If it keeps happening, contact support.',
+        ));
         expect(refreshData).not.toHaveBeenCalled();
     });
 
@@ -333,12 +335,14 @@ describe('Maintenance — Sync Public Profiles waits for a confirmation', () => 
         fireEvent.click(await screen.findByRole('button', { name: 'Sync public profiles' }));
 
         expect(await screen.findByText('Failed — see the output log')).toBeInTheDocument();
-        expect(screen.getByText('❌ Backfill Failed: refused')).toBeInTheDocument();
+        const FAILED_LINE = '❌ The backfill could not run. Please try again. If it keeps happening, contact support.';
+        expect(screen.getByText(FAILED_LINE)).toBeInTheDocument();
 
         httpsCallable.mockReturnValue(vi.fn(async () => { throw new Error('boom'); }));
         fireEvent.click(syncButton());
         fireEvent.click(await screen.findByRole('button', { name: 'Sync public profiles' }));
-        expect(await screen.findByText('❌ Backfill Failed: boom')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getAllByText(FAILED_LINE)).toHaveLength(2));
+        expect(screen.queryByText(/boom/)).not.toBeInTheDocument();
     });
 
     it('exposes its description as an accessible description, not a title tooltip', () => {

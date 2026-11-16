@@ -36,7 +36,7 @@ const E2E_APPLICANT_KEY = 'e2e-applicant-key';
 const E2E_RESUME_TOKEN = 'e2e-resume-token';
 
 /** Deliberately a different step and different answers from a fresh first page. */
-const E2E_RESUME_DRAFT = Object.freeze({
+const E2E_RESUME_DRAFT = /* #__PURE__ */ Object.freeze({
     applicantKey: E2E_APPLICANT_KEY,
     // A sequence, so a restored copy can be recorded as already-synced and the
     // reconciliation branches are reachable from a browser test.
@@ -65,7 +65,7 @@ const E2E_RESUME_DRAFT = Object.freeze({
  * both halves: its identity is fixed, and the dates beside it are not.
  */
 const E2E_INVITE_TOKEN = 'e2e-invite-token';
-const E2E_PREPARED_APPLICATION = Object.freeze({
+const E2E_PREPARED_APPLICATION = /* #__PURE__ */ Object.freeze({
     opened: true,
     applicantKey: E2E_APPLICANT_KEY,
     resumeToken: E2E_RESUME_TOKEN,
@@ -113,7 +113,7 @@ const E2E_PREPARED_APPLICATION = Object.freeze({
  */
 const E2E_TAKEOVER_INVITE_TOKEN = 'e2e-invite-token-taken-over';
 const E2E_TAKEOVER_SSN = '123-45-6789';
-const E2E_TAKEN_OVER_APPLICATION = Object.freeze({
+const E2E_TAKEN_OVER_APPLICATION = /* #__PURE__ */ Object.freeze({
     opened: true,
     requiresIdentity: false,
     applicantKey: E2E_APPLICANT_KEY,
@@ -137,13 +137,12 @@ const E2E_TAKEN_OVER_APPLICATION = Object.freeze({
     preparedBy: null,
 });
 
-function e2eDraftsEnabled() {
-    if (import.meta.env.PROD) return false;
-    return isE2ETestMode;
-}
+// A constant rather than a function, so a production build folds every branch
+// that reads it, and the fixtures above with them, out of the bundle.
+const E2E_DRAFTS_ENABLED = !import.meta.env.PROD && isE2ETestMode;
 
 function e2eResumeMode() {
-    return e2eDraftsEnabled() ? getE2EQueryParam('e2eResume', '') : '';
+    return E2E_DRAFTS_ENABLED ? getE2EQueryParam('e2eResume', '') : '';
 }
 
 /**
@@ -161,7 +160,7 @@ function e2eResumeMode() {
  * the local copy newer than the server's.
  */
 function e2eSaveShouldFail() {
-    if (!e2eDraftsEnabled()) return false;
+    if (!E2E_DRAFTS_ENABLED) return false;
     if (getE2EQueryParam('e2eDraftSave', '') === 'fail') return true;
     return typeof window !== 'undefined' && /** @type {E2EWindow} */ (window).__e2eFailDraftSave === true;
 }
@@ -311,13 +310,13 @@ export function clearResumeToken(slug) {
  */
 export async function saveApplicationProgress(input) {
     const payload = saveOnTheWire(input);
-    if (e2eDraftsEnabled() && e2eSaveShouldFail()) {
+    if (E2E_DRAFTS_ENABLED && e2eSaveShouldFail()) {
         // The same shape a real failure produces: the client swallows it and the
         // applicant is never blocked, so the local copy is left holding work the
         // server has not acknowledged.
         return { saved: false };
     }
-    if (e2eDraftsEnabled()) {
+    if (E2E_DRAFTS_ENABLED) {
         // Recorded so a browser test can assert what the client *actually* built,
         // rather than only what a mocked callable was handed in jsdom. The SSN is
         // a deliberate top-level field — the server needs it to derive the identity
@@ -348,7 +347,7 @@ export async function saveApplicationProgress(input) {
  * filling the form rather than be shown a diagnostic.
  */
 export async function findResumableApplication(payload) {
-    if (e2eDraftsEnabled()) {
+    if (E2E_DRAFTS_ENABLED) {
         if (e2eResumeMode() !== 'offer') return { resumable: false };
         return {
             resumable: true,
@@ -370,7 +369,7 @@ export async function findResumableApplication(payload) {
 
 /** Exchanges a resume token for the saved answers. Throws, because the caller shows an error. */
 export async function resumeApplicationDraft(payload) {
-    if (e2eDraftsEnabled()) {
+    if (E2E_DRAFTS_ENABLED) {
         // Throws exactly as the callable does for an unknown or discarded draft,
         // so the "start over, then reload" path is a real test of the client's
         // stale-token handling rather than of the double.
@@ -412,7 +411,7 @@ export async function resumeApplicationDraft(payload) {
  * to decide what to do about it. Wrong and expired stay indistinguishable there.
  */
 export async function exchangeApplicationInvite(payload) {
-    if (e2eDraftsEnabled()) {
+    if (E2E_DRAFTS_ENABLED) {
         if (payload?.inviteToken === E2E_TAKEOVER_INVITE_TOKEN) {
             const claim = payload?.identity;
             if (!claim) {
@@ -458,7 +457,7 @@ export async function exchangeApplicationInvite(payload) {
 
 /** Discards an unfinished application. Throws, because the caller must not proceed silently. */
 export async function startNewApplication(payload) {
-    if (e2eDraftsEnabled()) return { discarded: true };
+    if (E2E_DRAFTS_ENABLED) return { discarded: true };
     const call = httpsCallable(functions, 'startNewApplication');
     const result = await call(payload);
     return result.data;

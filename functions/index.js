@@ -11,7 +11,7 @@ const functionTarget = process.env.FUNCTION_TARGET || '';
 
 function exportFunctions(wanted) {
   // Bulk Actions (Resilient session-based)
-  // Note: pause/resume/cancel moved to frontend direct Firestore writes
+  // Pause, resume and cancel are callables too (CampaignDetails).
   if (wanted('initBulkSession')) exports.initBulkSession = require('./bulkActions').initBulkSession;
   if (wanted('processBulkBatch')) exports.processBulkBatch = require('./bulkActions').processBulkBatch;
   if (wanted('retryFailedAttempts')) exports.retryFailedAttempts = require('./bulkActions').retryFailedAttempts;
@@ -30,6 +30,8 @@ function exportFunctions(wanted) {
   if (wanted('notifySigner')) exports.notifySigner = require('./notifySigner').notifySigner;
   if (wanted('getPublicEnvelope')) exports.getPublicEnvelope = require('./publicSigning').getPublicEnvelope;
   if (wanted('submitPublicEnvelope')) exports.submitPublicEnvelope = require('./publicSigning').submitPublicEnvelope;
+  // "Ask <Company> for a new link" on a public link that no longer works: the company is told in its bell
+  if (wanted('requestNewLink')) exports.requestNewLink = require('./requestNewLink').requestNewLink;
   // ESIGN-9 FIX: Nightly cleanup of orphaned signature PNG files after sealing
   if (wanted('cleanupOrphanedSignatures')) exports.cleanupOrphanedSignatures = require('./digitalSealing').cleanupOrphanedSignatures;
   // FEAT-3: SMS notification for signing requests
@@ -38,6 +40,14 @@ function exportFunctions(wanted) {
   if (wanted('resendSignerOnCorrection')) exports.resendSignerOnCorrection = require('./resendSignerOnCorrection').resendSignerOnCorrection;
   // ADV-1 FIX: Secure callable to retrieve full signing link (with token from secrets)
   if (wanted('getSigningLink')) exports.getSigningLink = require('./getSigningLink').getSigningLink;
+  // A company user's approval emails the signer their sealed copy, once
+  if (wanted('sendSignedDocumentCopy')) exports.sendSignedDocumentCopy = require('./signedCopyDelivery').sendSignedDocumentCopy;
+  // "Retry seal": a failed or unfinished seal is sealed again, from what the signer submitted
+  if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
+  // "Remind": an unsigned document's link is sent again where it went, with seven more days
+  if (wanted('remindSigner')) exports.remindSigner = require('./remindSigner').remindSigner;
+  // The automatic reminder: once a day, one reminder on day 3 for a document still waiting for its signature
+  if (wanted('remindUnsignedSigners')) exports.remindUnsignedSigners = require('./remindUnsignedSigners').remindUnsignedSigners;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;
@@ -66,13 +76,14 @@ function exportFunctions(wanted) {
   // 4a. Employer dashboard counter rollups (internal_stats — server writes only)
   if (wanted('onApplicationWrittenDashboardRollup')) exports.onApplicationWrittenDashboardRollup = require('./dashboardStatsRollup').onApplicationWrittenDashboardRollup;
   if (wanted('onLeadWrittenDashboardRollup')) exports.onLeadWrittenDashboardRollup = require('./dashboardStatsRollup').onLeadWrittenDashboardRollup;
-  if (wanted('reconcileCompanyDashboardStats')) exports.reconcileCompanyDashboardStats = require('./dashboardStatsRollup').reconcileCompanyDashboardStats;
+  if (wanted('reconcileDashboardStatsDaily')) exports.reconcileDashboardStatsDaily = require('./dashboardStatsRollup').reconcileDashboardStatsDaily;
+  // The dashboard's "Needs attention": the company's counts of what waits on someone (team)
+  if (wanted('getDashboardAttention')) exports.getDashboardAttention = require('./dashboardAttention').getDashboardAttention;
 
   // 4. Applications & Driver Sync
   if (wanted('onApplicationSubmitted')) exports.onApplicationSubmitted = require('./driverSync').onApplicationSubmitted;
   if (wanted('onApplicationUpdated')) exports.onApplicationUpdated = require('./driverSync').onApplicationUpdated;  // NEW: Sync files on update
   if (wanted('syncDriverOnLog')) exports.syncDriverOnLog = require('./driverSync').syncDriverOnLog;
-  if (wanted('syncDriverOnActivity')) exports.syncDriverOnActivity = require('./driverSync').syncDriverOnActivity;
   if (wanted('onCompanyLeadSubmitted')) exports.onCompanyLeadSubmitted = require('./driverSync').onCompanyLeadSubmitted;
 
   // 4c. ATS automated SMS on contact-attempt transitions
@@ -123,10 +134,13 @@ function exportFunctions(wanted) {
   if (wanted('exchangeApplicationInvite')) exports.exchangeApplicationInvite = require('./companyApplications').exchangeApplicationInvite;
   if (wanted('extractCompanyApplicationDocuments')) exports.extractCompanyApplicationDocuments = require('./companyApplications').extractCompanyApplicationDocuments;
   if (wanted('createPostApplicationSigningRequest')) exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
+  // Send to driver: a team member sends a post-application form from the dossier (the same document).
+  if (wanted('sendPostApplicationDocument')) exports.sendPostApplicationDocument = require('./sendPostApplicationDocument').sendPostApplicationDocument;
+  // Every 15 minutes: the required post-application forms a driver did not deal with on the thank-you page, sent as Send to driver sends them.
+  if (wanted('autoSendPostApplicationForms')) exports.autoSendPostApplicationForms = require('./autoSendPostApplicationForms').autoSendPostApplicationForms;
   // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
   // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
   if (wanted('analyzeEdocFieldPlacement')) exports.analyzeEdocFieldPlacement = require('./edocFieldPlacement').analyzeEdocFieldPlacement;
-  if (wanted('backfillApplicationSearchFields')) exports.backfillApplicationSearchFields = require('./searchFieldsBackfill').backfillApplicationSearchFields;
   // Maintenance → Data cleanup: the owner's one-time removal of leftover data, checked before it runs.
   if (wanted('dataCleanup')) exports.dataCleanup = require('./maintenance/dataCleanup').dataCleanup;
   // Gives applications submitted before preservation a preserved record and PDF,
@@ -158,15 +172,10 @@ function exportFunctions(wanted) {
   // REFACTOR: Sanitized callable for Email Settings UI — never returns smtpPass
   if (wanted('getEmailSettingsMeta')) exports.getEmailSettingsMeta = require('./getEmailSettingsMeta').getEmailSettingsMeta;
 
-  // MIGRATION: One-time migration of email settings from root doc to admin-only subcollection
-  if (wanted('migrateEmailSettings')) exports.migrateEmailSettings = require('./migrateEmailSettings').migrateEmailSettings;
-
   if (wanted('backfillPublicProfiles')) exports.backfillPublicProfiles = require('./companyAdmin').backfillPublicProfiles;
   // Hourly reconciler: rewrites public profiles left behind by a change to the
   // projection itself, which the onWrite trigger alone can never reach.
   if (wanted('reconcilePublicProfilesSchedule')) exports.reconcilePublicProfilesSchedule = require('./companyAdmin').reconcilePublicProfilesSchedule;
-
-  // 9. Scheduled Jobs (Removed)
 
   // 10. Integrations
 
@@ -186,13 +195,10 @@ function exportFunctions(wanted) {
 
   // 11. Stats Aggregation
   if (wanted('onActivityLogCreated')) exports.onActivityLogCreated = require('./statsAggregator').onActivityLogCreated;
-  if (wanted('onLegacyActivityCreated')) exports.onLegacyActivityCreated = require('./statsAggregator').onLegacyActivityCreated;
   if (wanted('onLeadsActivityLogCreated')) exports.onLeadsActivityLogCreated = require('./statsAggregator').onLeadsActivityLogCreated; // NEW: Leads trigger
-  if (wanted('onLeadsLegacyActivityCreated')) exports.onLeadsLegacyActivityCreated = require('./statsAggregator').onLeadsLegacyActivityCreated; // NEW: Leads legacy trigger
 
   // 12. Activity-log retention (B2): stamp expiresAt for the eventual TTL policy.
   if (wanted('stampActivityLogExpiry')) exports.stampActivityLogExpiry = require('./activityLogRetention').stampActivityLogExpiry;
-  if (wanted('stampLegacyActivityExpiry')) exports.stampLegacyActivityExpiry = require('./activityLogRetention').stampLegacyActivityExpiry;
 
   // 13. Stats Backfill (Admin Tools)
   // CALL-3 FIX: These functions are called by StatsBackfillPanel.jsx and were previously missing.
@@ -202,10 +208,17 @@ function exportFunctions(wanted) {
   // 14. Compliance (SMS opt-out)
 
   if (wanted('handleOptOut')) exports.handleOptOut = require('./blacklist').handleOptOut;
+  // The company's list as its team keeps it in Settings → Text messages: any member lists and adds, a Company Admin removes.
+  if (wanted('listSmsOptOuts')) exports.listSmsOptOuts = require('./smsOptOuts').listSmsOptOuts;
+  // The driver dossier's "Texts off": whether one number is on that list, for any member.
+  if (wanted('checkSmsOptOut')) exports.checkSmsOptOut = require('./smsOptOuts').checkSmsOptOut;
+  if (wanted('addSmsOptOut')) exports.addSmsOptOut = require('./smsOptOuts').addSmsOptOut;
+  if (wanted('removeSmsOptOut')) exports.removeSmsOptOut = require('./smsOptOuts').removeSmsOptOut;
 
   // 15. In-App Notifications
   if (wanted('onApplicationStatusChanged')) exports.onApplicationStatusChanged = require('./notificationTriggers').onApplicationStatusChanged;
   if (wanted('onLeadAssigned')) exports.onLeadAssigned = require('./notificationTriggers').onLeadAssigned;
+  if (wanted('onApplicationAssigned')) exports.onApplicationAssigned = require('./notificationTriggers').onApplicationAssigned;
   if (wanted('onNewApplicationNotification')) exports.onNewApplicationNotification = require('./notificationTriggers').onNewApplicationNotification;
   if (wanted('onCallbackScheduled')) exports.onCallbackScheduled = require('./notificationTriggers').onCallbackScheduled;
   if (wanted('onLeadCallbackScheduled')) exports.onLeadCallbackScheduled = require('./notificationTriggers').onLeadCallbackScheduled;
@@ -217,6 +230,8 @@ function exportFunctions(wanted) {
   if (wanted('getVerificationRequest')) exports.getVerificationRequest = require('./employmentVerification').getVerificationRequest;
   if (wanted('submitVerificationResponse')) exports.submitVerificationResponse = require('./employmentVerification').submitVerificationResponse;
   if (wanted('processVerificationReminders')) exports.processVerificationReminders = require('./employmentVerification').processVerificationReminders;
+  if (wanted('recordManualVerificationResult')) exports.recordManualVerificationResult = require('./employmentVerification').recordManualVerificationResult;
+  if (wanted('recordVerificationAttempt')) exports.recordVerificationAttempt = require('./employmentVerification').recordVerificationAttempt;
   // PEV-BRK-3 companion: On-demand signed URL generation for PEV result PDFs
   if (wanted('getSignedPevUrl')) exports.getSignedPevUrl = require('./getSignedPevUrl').getSignedPevUrl;
   // Signed download URLs for secure_documents (e-signature envelopes)
@@ -225,8 +240,14 @@ function exportFunctions(wanted) {
   // Signed download URLs for driver-uploaded application files (guest_uploads): re-signs
   // at view time so company users can open CDLs/medical cards (the persisted URL expires).
   if (wanted('getSignedApplicationFileUrl')) exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrl;
-  // The DQ tab, on opening: files the record's uploads no DQ record holds yet.
+  // The dossier's driver uploads in one call, each signed as getSignedApplicationFileUrl signs it.
+  if (wanted('getSignedApplicationFileUrls')) exports.getSignedApplicationFileUrls = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrls;
+  // The DQ tab, the first time it opens in a dossier opening: files the record's uploads no DQ record holds yet.
   if (wanted('syncDqFiles')) exports.syncDqFiles = require('./syncDqFiles').syncDqFiles;
+  // Every DQ write: keeps the record's `dqExpiresNext` (earliest valid-until date) true.
+  if (wanted('onDqFileWritten')) exports.onDqFileWritten = require('./dqExpiresNext').onDqFileWritten;
+  // Once a day: a bell notice for a hired driver whose earliest DQ date expires within 30 days, and when it has expired
+  if (wanted('notifyDqExpiry')) exports.notifyDqExpiry = require('./notifyDqExpiry').notifyDqExpiry;
   // The ONLY way to read a preserved original application PDF. Authorizes the
   // caller and writes an audit record before issuing a short-lived signed URL.
   if (wanted('getApplicationOriginalPdfUrl')) exports.getApplicationOriginalPdfUrl = require('./applicationOriginalPdf').getApplicationOriginalPdfUrl;
@@ -278,7 +299,6 @@ function exportFunctions(wanted) {
   if (wanted('checkAiModelVersionsNow')) exports.checkAiModelVersionsNow = require('./ai/callables').checkAiModelVersionsNow;
   if (wanted('setAiModelAutoSelect')) exports.setAiModelAutoSelect = require('./ai/callables').setAiModelAutoSelect;
   if (wanted('resetAiModelLists')) exports.resetAiModelLists = require('./ai/callables').resetAiModelLists;
-  if (wanted('migrateGroqCredential')) exports.migrateGroqCredential = require('./ai/callables').migrateGroqCredential;
   // Credential access is diagnosed from BOTH Functions generations on purpose:
   // 1st gen defaults to the App Engine service account and 2nd gen to the Compute
   // Engine one, so a Secret Manager grant can fix some AI entry points and not

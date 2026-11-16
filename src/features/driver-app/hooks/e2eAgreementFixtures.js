@@ -26,13 +26,16 @@
 
 export const E2E_AGREEMENT_VERSION = 'e2e-fixture';
 
-const fixture = (id, title, requiresSignature, presentedOn = 'consent') => ({
+// Marked free of side effects, so a production build, which never reads the
+// list, drops it.
+const fixture = /* #__NO_SIDE_EFFECTS__ */ (id, title, requiresSignature, presentedOn = 'consent', extra = {}) => ({
     id,
     version: E2E_AGREEMENT_VERSION,
     title,
     body: `TEST FIXTURE — NOT LEGAL TEXT.\n\nThis stands in for the "${title}" disclosure while the application is exercised end to end against an unreachable backend. The real wording is resolved from the server-side agreement registry and is what a real applicant reads and accepts.`,
     requiresSignature,
     presentedOn,
+    ...extra,
 });
 
 export const E2E_AGREEMENTS = [
@@ -43,10 +46,9 @@ export const E2E_AGREEMENTS = [
     fixture('pspDisclosure', 'FMCSA PSP Disclosure and Authorization', true),
     fixture('clearinghouseConsent', 'FMCSA Drug and Alcohol Clearinghouse Consent', true),
     // Shown only once an employer is listed, with one statement naming each.
-    {
-        ...fixture('previousEmployerRelease', 'Authorization for Previous Employers to Release Information', true),
+    fixture('previousEmployerRelease', 'Authorization for Previous Employers to Release Information', true, 'consent', {
         employerStatement: 'TEST FIXTURE: {{employerName}} may release to the carrier the information described above.',
-    },
+    }),
 ];
 
 export default E2E_AGREEMENTS;

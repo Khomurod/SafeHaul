@@ -7,6 +7,7 @@ const { runSendLoop } = require("./sendLoop");
 const { queueDeliveryCheck } = require("../delivery/deliveryQueue");
 const { readSessionTargetIds } = require("../helpers/sessionTargets");
 const { nameFromProfile, cleanString } = require("../../shared/userIdentity");
+const { applicationLinks } = require("../../shared/applicationLink");
 
 // B4: hard per-session lifetime ceiling — a runaway-cost circuit breaker so a single
 // bulk_session can never process more than this many items total, regardless of how large
@@ -217,6 +218,10 @@ exports.processBulkBatch = onRequest({
         const senderId = sessionData.createdBy;
         const usesRecruiterName = [config.message, config.subject].some((text) => String(text || '').includes('[Recruiter Name]'));
         const recruiterName = usesRecruiterName ? await senderDisplayName(senderId) : null;
+        // [Application Link]: the apply page with each recipient's recruiter's
+        // link, each recruiter looked up once for the batch (`shared/applicationLink.js`).
+        const usesApplicationLink = [config.message, config.subject].some((text) => String(text || '').includes('[Application Link]'));
+        const applicationLinkFor = usesApplicationLink ? applicationLinks(db, companyId, companyData) : null;
         const setup = await setupSender({ companyId, sessionRef, config, senderId });
         if (setup.failed) {
             return res.status(200).send(setup.failed);
@@ -236,6 +241,7 @@ exports.processBulkBatch = onRequest({
             config,
             companyName,
             recruiterName,
+            applicationLinkFor,
             senderId,
             adapter,
             emailTransporter,

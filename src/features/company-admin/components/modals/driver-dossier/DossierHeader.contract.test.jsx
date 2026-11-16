@@ -1,16 +1,28 @@
 /**
  * Contract freeze for the Driver Dossier header.
  *
- * Frozen: the per-tab title strings, the App-ID presentation rule, the status
- * option set and its dedupe/`'New'` fallback, the assign option labels and their
+ * Frozen: the per-tab title strings, the confirmation-number rule, the status
+ * option set and its `'New'` fallback, the assign option labels and their
  * fallback chain, the exact single-argument callbacks, the Download forwarding,
  * and the `canEdit` / `canDelete` visibility rules.
+ *
+ * The status option set is the funnel stages and Interested, plus the record's
+ * own value when it is none of those: a legacy value that names a stage stands
+ * in for that stage under its name, any other is kept by its stored name. The
+ * stored value never changes; the legacy values stay valid in the rules
+ * (`src/tests/statusVocabulary.test.js`).
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
-import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
+import {
+  ATS_INTERESTED_STATUS,
+  ATS_LEGACY_STATUS_ALIASES,
+  ATS_PIPELINE_STATUSES,
+  ATS_STATUS_DROPDOWN_OPTIONS,
+  LEAD_DEFAULT_STATUS,
+} from '@shared/constants/atsStatus';
 import { DossierHeader } from './DossierHeader';
 
 afterEach(cleanup);
@@ -19,7 +31,6 @@ const baseProps = () => ({
   activeTab: 'application',
   // As the dossier loads it: the record's fields, without its document id.
   appData: { firstName: 'Maria' },
-  recordId: 'app12345678',
   currentStatus: 'New',
   onClose: vi.fn(),
   onStatusUpdate: vi.fn(),
@@ -40,12 +51,12 @@ const renderHeader = (overrides = {}) => {
 
 describe('DossierHeader titles', () => {
   it.each([
-    ['application', 'Application Review'],
-    ['documents', 'Document Gallery'],
-    ['dq', 'Driver Qualification File'],
-    ['activity', 'Activity Timeline'],
-    ['notes', 'Internal Notes'],
-    ['pev', 'Previous Employment Verification'],
+    ['application', 'Application'],
+    ['documents', 'Documents to sign'],
+    ['dq', 'DQ File'],
+    ['activity', 'Activity'],
+    ['notes', 'Notes'],
+    ['pev', 'Previous Employment'],
     ['something-else', 'Driver Dossier'],
   ])('tab %s keeps the frozen title %s', (activeTab, expected) => {
     renderHeader({ activeTab });
@@ -53,56 +64,113 @@ describe('DossierHeader titles', () => {
   });
 });
 
-describe('DossierHeader application id', () => {
-  it("shows the first 8 characters of the record's id on the application tab", () => {
-    renderHeader();
-    expect(screen.getByText('App ID: app12345')).toBeInTheDocument();
+describe('DossierHeader confirmation number', () => {
+  const withNumber = { firstName: 'Maria', confirmationNumber: 'SAF-2026-AB3CD' };
+
+  it('shows the confirmation number the driver was given, on the application tab', () => {
+    renderHeader({ appData: withNumber });
+    // One line of text; the number is its own span so it never breaks at a hyphen.
+    expect(screen.getByText(/^Confirmation Number:/)).toHaveTextContent(/^Confirmation Number: SAF-2026-AB3CD$/);
   });
 
-  it('shows the loading placeholder when there is no appData yet', () => {
-    renderHeader({ appData: null });
+  it("never shows the record's document id, and nothing when the record has no number", () => {
+    // A caller handing the header an id must not bring the old chip back.
+    renderHeader({ recordId: 'app12345678' });
+    expect(screen.queryByText(/Confirmation Number/)).toBeNull();
+    expect(screen.queryByText(/App ID|app12345/)).toBeNull();
+  });
+
+  it('shows the loading placeholder while the record loads, not a number it had before', () => {
+    renderHeader({ appData: withNumber, loading: true });
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.queryByText(/Confirmation Number/)).toBeNull();
   });
 
-  it('does not show the id on other tabs', () => {
-    renderHeader({ activeTab: 'documents' });
-    expect(screen.queryByText(/App ID:/)).toBeNull();
+  it('shows nothing when there is no record to show', () => {
+    renderHeader({ appData: null });
+    expect(screen.queryByText(/Loading|Confirmation Number/)).toBeNull();
+  });
+
+  it('does not show the number on other tabs', () => {
+    renderHeader({ activeTab: 'documents', appData: withNumber });
+    expect(screen.queryByText(/Confirmation Number/)).toBeNull();
   });
 });
 
 describe('DossierHeader status control', () => {
-  it('offers every ATS dropdown option and defaults the value to New', () => {
+  const STAGES = [...ATS_PIPELINE_STATUSES, ATS_INTERESTED_STATUS];
+  const asOptions = (values) => values.map((value) => ({ value, label: value }));
+  const statusSelect = () => screen.getByRole('combobox', { name: /status/i });
+  const optionsOf = (select) => [...select.querySelectorAll('option')]
+    .map((option) => ({ value: option.value, label: option.textContent }));
+
+  it('offers the funnel stages and Interested, and defaults the value to New', () => {
     renderHeader({ currentStatus: '' });
-    const select = screen.getByRole('combobox', { name: /status/i });
+    const select = statusSelect();
     expect(select).toHaveValue('New');
-    const values = [...select.querySelectorAll('option')].map((o) => o.value);
-    for (const option of ATS_STATUS_DROPDOWN_OPTIONS) {
-      expect(values).toContain(option);
+    expect(optionsOf(select)).toEqual(asOptions(STAGES));
+    expect(ATS_STATUS_DROPDOWN_OPTIONS).toEqual(STAGES);
+  });
+
+  it('offers no legacy value to a record that holds none', () => {
+    renderHeader({ currentStatus: 'In Process' });
+    const values = optionsOf(statusSelect()).map((option) => option.value);
+    for (const legacy of [...ATS_LEGACY_STATUS_ALIASES, LEAD_DEFAULT_STATUS]) {
+      expect(values).not.toContain(legacy);
     }
   });
 
-  it('adds an unknown current status without duplicating it', () => {
-    renderHeader({ currentStatus: 'Bespoke Stage' });
-    const select = screen.getByRole('combobox', { name: /status/i });
-    const values = [...select.querySelectorAll('option')].map((o) => o.value);
-    expect(values.filter((v) => v === 'Bespoke Stage')).toHaveLength(1);
-    expect(select).toHaveValue('Bespoke Stage');
+  it.each([
+    ['New Application', 'New'],
+    [LEAD_DEFAULT_STATUS, 'New'],
+    ['Approved', 'Hired'],
+    ['Rejected', 'Declined'],
+  ])("shows a record's %s as its stage, %s, offered once in the stage's place", (stored, stage) => {
+    renderHeader({ currentStatus: stored });
+    const select = statusSelect();
+    expect(select).toHaveValue(stored);
+    expect(select.selectedOptions[0].textContent).toBe(stage);
+    // The stored value takes the stage's place, so choosing "New" on a
+    // `New Application` record writes nothing, and "New" is not offered twice.
+    const expected = asOptions(STAGES).map((option) => (option.value === stage ? { value: stored, label: stage } : option));
+    expect(optionsOf(select)).toEqual(expected);
   });
 
-  it('does not duplicate a status that is already an ATS option', () => {
-    const existing = ATS_STATUS_DROPDOWN_OPTIONS[0];
-    renderHeader({ currentStatus: existing });
-    const select = screen.getByRole('combobox', { name: /status/i });
-    const values = [...select.querySelectorAll('option')].map((o) => o.value);
-    expect(values.filter((v) => v === existing)).toHaveLength(1);
+  it.each(['Background Check', 'Offer Accepted', 'Contacted', 'Bespoke Stage'])(
+    "keeps a record's own %s, once, by its stored name, after the stages",
+    (stored) => {
+      renderHeader({ currentStatus: stored });
+      const select = statusSelect();
+      expect(select).toHaveValue(stored);
+      expect(optionsOf(select)).toEqual([...asOptions(STAGES), { value: stored, label: stored }]);
+    },
+  );
+
+  it('does not duplicate a status that is already a stage', () => {
+    renderHeader({ currentStatus: 'Hired' });
+    expect(optionsOf(statusSelect())).toEqual(asOptions(STAGES));
   });
 
-  it('calls onStatusUpdate with just the new value', () => {
-    const target = ATS_STATUS_DROPDOWN_OPTIONS[1];
-    const props = renderHeader();
-    fireEvent.change(screen.getByRole('combobox', { name: /status/i }), { target: { value: target } });
-    expect(props.onStatusUpdate).toHaveBeenCalledWith(target);
+  it('calls onStatusUpdate with just the stored value chosen', () => {
+    const props = renderHeader({ currentStatus: 'New Application' });
+    fireEvent.change(statusSelect(), { target: { value: 'Contact Attempt 1' } });
+    expect(props.onStatusUpdate).toHaveBeenCalledWith('Contact Attempt 1');
     expect(props.onStatusUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  // У5.3: the server texts the driver on a move into a Contact Attempt stage.
+  it('warns on each stage that texts the driver, and keeps every value', () => {
+    const outlooks = { 'Contact Attempt 2': 'texts', 'Contact Attempt 3': 'may' };
+    renderHeader({ currentStatus: 'Contact Attempt 1', textOutlookFor: (stage) => outlooks[stage] || null });
+
+    const expected = asOptions(STAGES).map((option) => {
+      if (option.value === 'Contact Attempt 2') return { ...option, label: 'Contact Attempt 2 — texts the driver' };
+      if (option.value === 'Contact Attempt 3') return { ...option, label: 'Contact Attempt 3 — may text the driver' };
+      return option;
+    });
+    expect(optionsOf(statusSelect())).toEqual(expected);
+    // The stage the record is in reads as itself.
+    expect(statusSelect().selectedOptions[0].textContent).toBe('Contact Attempt 1');
   });
 });
 
@@ -155,6 +223,44 @@ describe('DossierHeader permission gating', () => {
     const props = renderHeader({ canDelete: true });
     fireEvent.click(screen.getByRole('button', { name: /delete application/i }));
     expect(props.onDelete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DossierHeader for a lead (a lead is not an application)', () => {
+  it("titles a lead's first tab Lead, deletes a lead, and offers no application PDF", () => {
+    const props = renderHeader({ collectionName: 'leads', canDelete: true });
+
+    expect(screen.getByRole('heading', { level: 3, name: 'Lead' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3, name: 'Application' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /delete application/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete lead' }));
+    expect(props.onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps every other tab's title", () => {
+    renderHeader({ collectionName: 'leads', activeTab: 'dq' });
+    expect(screen.getByRole('heading', { level: 3, name: 'DQ File' })).toBeInTheDocument();
+  });
+
+  it.each([['applications'], [undefined]])(
+    'keeps the application wording for collection %s, the default before a record loads',
+    (collectionName) => {
+      renderHeader({ collectionName, canDelete: true });
+      expect(screen.getByRole('heading', { level: 3, name: 'Application' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
+    },
+  );
+});
+
+describe('DossierHeader on a phone', () => {
+  it('leaves Close to the identity bar when told to, and keeps every other action', () => {
+    renderHeader({ showClose: false, canDelete: true });
+    expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /status/i })).toBeInTheDocument();
   });
 });
 

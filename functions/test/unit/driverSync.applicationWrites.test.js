@@ -66,6 +66,11 @@ jest.mock('../../firebaseAdmin', () => {
 // A placeholder email with no phone makes processDriverData return early, which
 // keeps these tests on the application's own writes.
 jest.mock('../../shared/placeholderDomains', () => ({ isPlaceholderEmail: () => true }));
+// The lead link has its own suite (leadApplicationLink.test.js); here, when it runs.
+const mockLinkApplicantLead = jest.fn(async () => null);
+jest.mock('../../shared/leadApplicationLink', () => ({
+    linkApplicantLead: (...args) => mockLinkApplicantLead(...args),
+}));
 
 const { onApplicationSubmitted } = require('../../driverSync');
 
@@ -79,6 +84,8 @@ const submit = (data) => onApplicationSubmitted({
 const applicationWrites = () => mockWrites.filter(({ path }) => path === APP_PATH);
 
 beforeEach(() => {
+    mockLinkApplicantLead.mockReset();
+    mockLinkApplicantLead.mockImplementation(async () => null);
     mockWrites.length = 0;
     mockState.guardExists = false;
     mockState.recruiterLinks = {};
@@ -259,3 +266,38 @@ describe('a driver referral link', () => {
     });
 });
 
+
+describe("the driver's lead", () => {
+    it('is linked after the recruiter link has assigned the application', async () => {
+        mockState.recruiterLinks = { 'link-1': { userId: 'artificial-recruiter', companyId: 'co1' } };
+        mockState.members = [{ userId: 'artificial-recruiter', companyId: 'co1', role: 'recruiter' }];
+        mockState.users = { 'artificial-recruiter': { name: 'Riley Recruiter' } };
+        const order = [];
+        mockLinkApplicantLead.mockImplementation(async () => { order.push(`link after ${applicationWrites().length} write`); return null; });
+        const data = { signature: SIGNATURE, recruiterCode: 'link-1', email: 'alice@example.com' };
+
+        await submit(data);
+
+        expect(mockLinkApplicantLead).toHaveBeenCalledTimes(1);
+        expect(mockLinkApplicantLead).toHaveBeenCalledWith({ companyId: 'co1', applicationId: 'app1', application: data });
+        expect(order).toEqual(['link after 1 write']);
+    });
+
+    it('is not linked to an application rejected for its signature, or to an event already processed', async () => {
+        await submit({ signature: 'not-a-signature' });
+        mockState.guardExists = true;
+        await submit({ signature: SIGNATURE });
+
+        expect(mockLinkApplicantLead).not.toHaveBeenCalled();
+    });
+
+    it('cannot stop the rest of the submission when the link fails', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockLinkApplicantLead.mockImplementation(async () => { throw new Error('lookup failed'); });
+
+        await expect(submit({ signature: SIGNATURE })).resolves.toBeUndefined();
+
+        expect(console.error).toHaveBeenCalledWith(expect.stringContaining('lead link failed'), 'lookup failed');
+        console.error.mockRestore();
+    });
+});

@@ -157,7 +157,6 @@ export function describeAttempt(attempt) {
  */
 function describeSkip(reason) {
     switch (reason) {
-        case 'retired': return 'retired by the vendor';
         case 'incapable': return 'cannot serve this capability';
         case 'disabled': return 'disabled by an operator';
         case 'unconfigured': return 'no credential configured';
@@ -269,8 +268,6 @@ export function describePinStatus(entry) {
             return { tone: 'neutral', label: 'Not configured' };
         case 'credential_error':
             return { tone: 'danger', label: 'Credential unreadable' };
-        case 'retired':
-            return { tone: 'neutral', label: 'Retired' };
         default:
             return { tone: 'neutral', label: 'Unknown' };
     }

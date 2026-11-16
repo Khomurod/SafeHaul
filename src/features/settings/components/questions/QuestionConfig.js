@@ -84,3 +84,6 @@ export const INITIAL_QUESTION_STATE = {
 export const hasOptions = (type) => {
     return ['multipleChoice', 'checkboxes', 'dropdown'].includes(type);
 };
+
+/** What the Custom Questions section is for, under its heading (admins and read-only alike). */
+export const CUSTOM_QUESTIONS_DESCRIPTION = 'Add specific questions for your company (e.g. "Do you have flatbed experience?").';

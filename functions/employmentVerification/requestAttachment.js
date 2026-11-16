@@ -1,5 +1,7 @@
 /**
- * PEV — the request PDF as a stored file and as an email attachment.
+ * PEV — the request PDF as a stored file and as an email attachment, and the
+ * request, its result and its day-30 record of attempts filed in the driver's
+ * DQ file.
  *
  * Built once, when the request is sent, and kept at
  * `companies/{companyId}/{collection}/{recordId}/pev_requests/...`: the team can
@@ -11,6 +13,7 @@
  * told, so the screen can say so.
  */
 
+const crypto = require('crypto');
 const { admin, storage } = require('../firebaseAdmin');
 const { logger } = require('firebase-functions');
 const { buildRequestPdf, requestPdfFilename } = require('./requestPdf');
@@ -87,4 +90,84 @@ async function fileRequestInDq(recordRef, { requestId, path, employerName, appli
     }
 }
 
-module.exports = { fileRequestInDq, requestPdfPath, storeRequestPdf, reminderAttachments };
+/** Firestore's ALREADY_EXISTS, as `create()` reports it. */
+const isAlreadyExists = (error) => error?.code === 6 || /already exists/i.test(error?.message || '');
+
+/** One DQ record per result file: its id is named by the file's path, so filing it again finds it. */
+function resultDqId(path) {
+    return `pev_result_${crypto.createHash('sha256').update(path).digest('hex').slice(0, 24)}`;
+}
+
+/** The portal answer's name in the DQ file, beside the request's. */
+function resultPdfFilename(applicantName) {
+    return requestPdfFilename(applicantName).replace('-Request-', '-Response-');
+}
+
+/**
+ * File a verification result — the portal answer's PDF, or a file the company
+ * uploaded with "Upload Result" — in the driver's DQ file, as the request's is
+ * filed (`isSynced`, opens from a link signed when pressed). Created once: a
+ * second filing of the same file, or of one the team removed on the DQ tab,
+ * changes nothing.
+ *
+ * @returns {Promise<boolean>} whether the DQ file holds it
+ */
+async function fileResultInDq(recordRef, { path, employerName, fileName, uploadedBy = 'pev_result' }) {
+    const { FieldValue } = admin.firestore;
+    try {
+        await recordRef.collection('dq_files').doc(resultDqId(path)).create({
+            type: 'pev_result',
+            fileType: `PEV Result – ${employerName || 'Employer'}`,
+            label: 'PEV Result',
+            fileName,
+            storagePath: path,
+            url: null,
+            source: 'pev_result',
+            isSynced: true,
+            uploadedBy,
+            uploadedAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        if (isAlreadyExists(error)) return true;
+        logger.error('[PEV] The verification result could not be filed in the DQ file.', error);
+        return false;
+    }
+}
+
+/**
+ * File the day-30 record of attempts (./attemptRecord.js) in the DQ file, as a
+ * result is filed: one record per request (`pev_attempts_<requestId>`), created
+ * once, so a second filing or one the team removed changes nothing.
+ *
+ * @returns {Promise<boolean>} whether the DQ file holds it
+ */
+async function fileAttemptRecordInDq(recordRef, { requestId, path, employerName, fileName }) {
+    const { FieldValue } = admin.firestore;
+    try {
+        await recordRef.collection('dq_files').doc(`pev_attempts_${requestId}`).create({
+            type: 'pev_attempts',
+            fileType: `PEV Attempt Record – ${employerName || 'Employer'}`,
+            label: 'PEV Attempt Record',
+            fileName,
+            storagePath: path,
+            url: null,
+            source: 'pev_attempts',
+            isSynced: true,
+            uploadedBy: 'pev_attempts',
+            uploadedAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        if (isAlreadyExists(error)) return true;
+        logger.error('[PEV] The record of attempts could not be filed in the DQ file.', error);
+        return false;
+    }
+}
+
+module.exports = {
+    fileAttemptRecordInDq, fileRequestInDq, fileResultInDq, requestPdfPath, resultPdfFilename, storeRequestPdf,
+    reminderAttachments,
+};

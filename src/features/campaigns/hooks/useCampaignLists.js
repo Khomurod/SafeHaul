@@ -4,19 +4,23 @@ import { db } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useLiveQueryWindow } from '@shared/hooks/useLiveQueryWindow';
 import { useServerAggregate } from '@shared/hooks/useServerAggregate';
-import { CANCELLABLE_SESSION_STATUSES } from '../constants/campaignConstants';
+import { CANCELLABLE_SESSION_STATUSES, isLaunchedDraft } from '../constants/campaignConstants';
 import { e2eCampaignLists } from '../components/campaignListsMock';
 
 /** Drafts and campaigns listed at a time: the newest first, more on request. */
 export const CAMPAIGN_LIST_PAGE_SIZE = 50;
 
-// "Live Campaigns" counts these; a paused session is live (listed, cancellable) but not counted.
+// "Live campaigns" counts these; a paused session is live (listed, cancellable) but not counted.
 const COUNTED_AS_LIVE = ['active', 'queued', 'scheduled'];
 const SESSIONS_ERROR = 'Campaigns could not be loaded.';
 const noop = () => {};
 
 const sessionsRef = (companyId) => collection(db, 'companies', companyId, 'bulk_sessions');
-const draftsQuery = (companyId) => query(collection(db, 'companies', companyId, 'campaign_drafts'), orderBy('updatedAt', 'desc'));
+const draftsRef = (companyId) => collection(db, 'companies', companyId, 'campaign_drafts');
+const draftsQuery = (companyId) => query(draftsRef(companyId), orderBy('updatedAt', 'desc'));
+// An unlaunched draft has no `launchedAt`, which no query can select: the
+// launched ones are counted and left out instead.
+const launchedDraftsQuery = (companyId) => query(draftsRef(companyId), where('launchedAt', '!=', null));
 const historyQuery = (companyId) => query(sessionsRef(companyId), orderBy('createdAt', 'desc'));
 const countOf = async (countQuery) => (await getCountFromServer(countQuery)).data().count;
 
@@ -143,9 +147,11 @@ const outreachOf = (sessions) => sessions.reduce((acc, s) => acc + (s.progress?.
  * `?e2eCampaign=mock` (E2E test mode only, never a read): the seeded draft and
  * session, all loaded. `&e2eCampaignList=many`: 60 of each, 50 at a time, with
  * the numbers and totals over all 60, standing in for the server.
+ * `&e2eCampaignList=stopped`: the seeded draft and a campaign that failed part-way.
  */
 function useFixtureLists(mode) {
-    const all = useMemo(() => (mode ? e2eCampaignLists(mode) : null), [mode]);
+    // `!PROD` keeps the fixture lists out of a production build (`isE2ETestMode`).
+    const all = useMemo(() => (!import.meta.env.PROD && mode ? e2eCampaignLists(mode) : null), [mode]);
     const [shown, setShown] = useState({ drafts: CAMPAIGN_LIST_PAGE_SIZE, sessions: CAMPAIGN_LIST_PAGE_SIZE });
     if (!all) return null;
 
@@ -177,7 +183,8 @@ function useFixtureLists(mode) {
  * The Campaigns dashboard's lists and numbers.
  *
  * - Drafts and the session history are live windows of the newest 50
- *   (`useLiveQueryWindow`), growing by 50 on `loadMore`. A third listener holds
+ *   (`useLiveQueryWindow`), growing by 50 on `loadMore`. Drafts leaves out the
+ *   launched ones (`isLaunchedDraft`), in its rows and its count. A third listener holds
  *   every live session, so one older than the window is still listed (after
  *   the window's rows) with its Cancel control.
  * - `liveCount` counts the merged sessions, which hold every live one: exact.
@@ -193,7 +200,8 @@ function useFixtureLists(mode) {
  */
 export function useCampaignLists({ companyId, enabled }) {
     const isE2EMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
-    const isE2EMany = isE2EMock && getE2EQueryParam('e2eCampaignList', '') === 'many';
+    const e2eList = isE2EMock ? getE2EQueryParam('e2eCampaignList', '') : '';
+    const fixtureMode = ['many', 'stopped'].includes(e2eList) ? e2eList : 'mock';
     const reads = Boolean(enabled && companyId) && !isE2EMock;
 
     const drafts = useLiveQueryWindow({
@@ -218,7 +226,10 @@ export function useCampaignLists({ companyId, enabled }) {
     const draftsTotal = useServerAggregate({
         enabled: drafts.hasMore,
         refreshKey: drafts.snapshotVersion,
-        run: () => countOf(draftsQuery(companyId)),
+        run: async () => {
+            const [all, launched] = await Promise.all([countOf(draftsQuery(companyId)), countOf(launchedDraftsQuery(companyId))]);
+            return all - launched;
+        },
     });
     const sessionsTotal = useServerAggregate({
         enabled: history.hasMore,
@@ -233,7 +244,8 @@ export function useCampaignLists({ companyId, enabled }) {
             return snapshot.data().outreach;
         },
     });
-    const fixture = useFixtureLists(isE2EMock ? (isE2EMany ? 'many' : 'mock') : null);
+    const fixture = useFixtureLists(isE2EMock ? fixtureMode : null);
+    const draftItems = useMemo(() => drafts.docs.filter((draft) => !isLaunchedDraft(draft)), [drafts.docs]);
     const sessions = useMemo(() => mergeSessions(history.docs, live.docs), [history.docs, live.docs]);
     const retryHistory = history.retry;
     const retryLive = live.retry;
@@ -249,7 +261,7 @@ export function useCampaignLists({ companyId, enabled }) {
     else if (history.error) totalOutreach = null;
 
     return {
-        drafts: listOf(drafts, drafts.docs, draftsTotal.value),
+        drafts: listOf(drafts, draftItems, draftsTotal.value),
         sessions: listOf(history, sessions, sessionsTotal.value, {
             isLoading: history.isLoading || live.isLoading,
             error: history.error || live.error,

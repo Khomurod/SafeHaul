@@ -7,10 +7,14 @@ import {
 } from '@features/applications/services/applicationPdfService';
 import { useApplicationDetails } from '@features/applications/hooks/useApplicationDetails';
 import { useToast } from '@shared/components/feedback';
+import { buildDqChecklist } from '../utils/dqChecklist';
+import { todayUtc } from '../utils/dqExpiry';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
-export function useApplicationView(companyId, applicationId, onStatusUpdate) {
+/** `collectionHint`: the record's collection when the opener knows it (`useAppFetch`). */
+export function useApplicationView(companyId, applicationId, onStatusUpdate, collectionHint) {
     const { showError } = useToast();
-    const details = useApplicationDetails(companyId, applicationId, onStatusUpdate);
+    const details = useApplicationDetails(companyId, applicationId, onStatusUpdate, collectionHint);
 
     const { appData, collectionName } = details;
 
@@ -39,42 +43,16 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate) {
 
     // `'complete'` or `'incomplete'`, the values the sidebar's marker reads;
     // `null` while the entries are unknown, so no marker claims what nobody saw.
+    // It is the DQ tab's checklist: incomplete while an item that is not
+    // optional is missing or expired (`dqChecklist.js`), so the marker and the
+    // list never disagree.
+    // Expiry is judged by the UTC day, so a new day rebuilds it on its first render.
+    const today = todayUtc();
     const dqStatus = useMemo(() => {
         if (!dqFiles) return null;
-        const requiredDocTypes = ['mvr', 'medical', 'roadtest', 'psp', 'clearinghouse', 'clearinghouse_annual', 'violations'];
-        const keyMappings = {
-            'mvr': ['mvr', 'mvr (annual)', 'motor vehicle record'],
-            'medical': ['medical', 'med card', 'medical card', 'medical examiner'],
-            'roadtest': ['road test', 'roadtest', 'road test certificate'],
-            'psp': ['psp', 'psp report', 'pre-employment screening'],
-            'clearinghouse': ['clearinghouse report (full)', 'clearinghouse full', 'ch full'],
-            'clearinghouse_annual': ['clearinghouse report (annual)', 'clearinghouse annual', 'ch annual'],
-            'violations': ['certificate of violations', 'violations', 'certificate of violations (annual)']
-        };
-
-        const textOf = (f) => ({
-            type: (f.fileType || f.type || f.docType || '').toLowerCase(),
-            name: (f.fileName || f.name || '').toLowerCase(),
-        });
-        // The entries the tab lists (removing one keeps its record, with
-        // `removedAt`), less the consents the application syncs: an MVR Consent
-        // is the driver's permission, not the MVR it permits.
-        const listed = dqFiles.filter((f) => {
-            const { type, name } = textOf(f);
-            return !f.removedAt && !type.includes('consent') && !name.includes('consent');
-        });
-        let completeCount = 0;
-        requiredDocTypes.forEach(docKey => {
-            const matches = listed.filter(f => {
-                const { type, name } = textOf(f);
-                const keywords = keyMappings[docKey] || [docKey];
-                return keywords.some(kw => type.includes(kw) || name.includes(kw));
-            });
-            if (matches.length > 0) completeCount++;
-        });
-
-        return completeCount === requiredDocTypes.length ? 'complete' : 'incomplete';
-    }, [dqFiles]);
+        const { missing, expired } = buildDqChecklist({ files: dqFiles, record: appData, now: new Date(`${today}T12:00:00Z`) });
+        return missing + expired > 0 ? 'incomplete' : 'complete';
+    }, [dqFiles, appData, today]);
 
     /**
      * Download the PRESERVED original application document.
@@ -101,7 +79,7 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate) {
                 return;
             }
             console.error('Preserved application PDF unavailable:', e);
-            showError(e.message || 'Could not open the application document. Please try again.');
+            showError(plainErrorMessage(e, 'Could not open the application document.'));
         }
     };
 

@@ -67,6 +67,7 @@ describe('ContentComposer — variable insertion', () => {
         ['Driver Name', '[Driver Name]'],
         ['My Company', '[Company Name]'],
         ['Recruiter Name', '[Recruiter Name]'],
+        ['Application Link', '[Application Link]'],
     ])('inserts the exact %s value with surrounding spaces', (label, value) => {
         const { onChange } = renderComposer({ method: 'sms', message: '' });
         const textarea = screen.getByLabelText('Message Body');

@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
-import { Icon, Loader2 } from '@design-system/icons';
+import { LoadingState } from '@design-system/patterns';
 import { ApplicationTab } from './tabs/ApplicationTab';
-import { DocumentsTab } from './tabs/DocumentsTab';
+import { SigningDocumentsSection } from './tabs/SigningDocumentsSection';
 import { DQFileTab } from '@features/company-admin/components/tabs/DQFileTab';
 
 // The tabs that load when opened, each from its own file: through a shared
@@ -18,9 +18,21 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * | 'pev' | 'activity' | 'notes'` routing values. Notes also receives the
  * record's `sharedHistory` from `appData`, so it does not read the record again.
  *
- * The lazy-tab loading fallback is a `role="status"` region, so switching to
- * Previous Employment, Activity or Notes is announced while the chunk
- * downloads.
+ * The lazy-tab loading fallback is the design system's `LoadingState`, a
+ * `role="status"` region, so switching to Previous Employment, Activity or
+ * Notes is announced while the chunk downloads.
+ *
+ * Documents (shown as "Documents to sign") holds the driver's signing documents
+ * (`SigningDocumentsSection`) only. The driver's uploads have one place, the DQ
+ * File tab, which lists and opens them; the gallery that repeated them here is
+ * gone, and the tab says where they are. The DQ File tab also takes the record
+ * (`appData`): its checklist reads the employers' verifications from it, and
+ * opens Previous Employment for them (`onOpenTab`); Documents to sign sends a
+ * document to it.
+ *
+ * `refreshKey` changes when a call is logged in the dossier: Activity, which
+ * reads its entries once, starts again; Notes reads its notes again and keeps a
+ * note being written.
  */
 export function DossierContent({
     activeTab,
@@ -30,14 +42,12 @@ export function DossierContent({
     collectionName,
     fileUrls,
     filesPending = false,
-    canEdit
+    canEdit,
+    refreshKey = 0,
+    onOpenTab,
 }) {
-    // Shared Loading Fallback
-    const TabLoading = () => (
-        <div role="status" className="flex items-center justify-center py-ds-12 text-ds-content-secondary">
-            <Icon icon={Loader2} size="2xl" className="mr-ds-2 animate-spin" /> Loading Tab...
-        </div>
-    );
+    // Shared loading fallback: `h4`, under the header's `h3` section title.
+    const TabLoading = () => <LoadingState surface="bare" headingLevel={4} title="Loading this tab…" />;
 
     const renderContent = () => {
         switch (activeTab) {
@@ -53,17 +63,27 @@ export function DossierContent({
                 />;
 
             case 'documents':
-                return <DocumentsTab
-                    appData={appData}
-                    fileUrls={fileUrls}
-                    filesPending={filesPending}
-                />;
+                return (
+                    <div className="space-y-ds-6">
+                        <SigningDocumentsSection
+                            companyId={companyId}
+                            recordId={driverId}
+                            collectionName={collectionName}
+                            record={appData}
+                        />
+                        <p className="px-ds-1 text-ds-sm text-ds-content-secondary">
+                            The driver&apos;s uploads, such as the CDL and the medical card, are in the DQ File tab.
+                        </p>
+                    </div>
+                );
 
             case 'dq':
                 return <DQFileTab
                     companyId={companyId}
                     applicationId={driverId}
                     collectionName={collectionName}
+                    appData={appData}
+                    onOpenTab={onOpenTab}
                 />;
 
             case 'pev':
@@ -82,6 +102,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <ActivityHistoryTab
+                            key={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}
@@ -93,6 +114,7 @@ export function DossierContent({
                 return (
                     <Suspense fallback={<TabLoading />}>
                         <NotesTab
+                            refreshKey={refreshKey}
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}
@@ -106,8 +128,15 @@ export function DossierContent({
         }
     };
 
+    /*
+      Only Activity fills the panel's height: its log scrolls inside its own
+      card under a filter that stays put. Every other section is as tall as its
+      content. A full-height wrapper around a longer section let the content run
+      past the wrapper, and the panel's bottom padding stayed at the wrapper's
+      end, so the last card met the dialog's edge with no space under it.
+    */
     return (
-        <div className="h-full animate-in fade-in duration-300">
+        <div className={`${activeTab === 'activity' ? 'h-full ' : ''}animate-in fade-in duration-300`}>
             {renderContent()}
         </div>
     );

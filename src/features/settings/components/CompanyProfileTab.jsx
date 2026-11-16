@@ -5,11 +5,12 @@ import { Icon, Save, Edit2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/design-system/components';
-import { PageHeader } from '@/design-system/layouts';
+import { PageHeader, Stack } from '@/design-system/layouts';
 import { useUnsavedChanges } from '@/design-system/patterns';
 import { CompanyInfoSection } from './profile';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // The Company Information fields, which "Edit Profile" opens and Cancel puts back.
 const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
@@ -19,6 +20,9 @@ const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
  * address, as drivers see them. "Edit Profile" opens the fields; Save stores
  * them through `saveCompanySettings` with only these keys. The application
  * form has its own section (`ApplicationFormTab`).
+ *
+ * It also shows the company's plan, read only: `planType` is a label a super
+ * admin sets (`paid` is Pro, anything else Free) and nothing here changes it.
  */
 export function CompanyProfileTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -36,6 +40,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     const editStartRef = useRef({});
 
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
+    const planName = currentCompanyProfile?.planType === 'paid' ? 'Pro Plan' : 'Free Plan';
 
     // The company as saved; while the fields are open, what is typed stays.
     useEffect(() => {
@@ -73,7 +78,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
             setIsEditing(false);
         } catch (error) {
             console.error("Save failed", error);
-            showError("Failed to save settings: " + error.message);
+            showError(plainErrorMessage(error, 'The company settings could not be saved.'));
         } finally {
             setLoading(false);
         }
@@ -91,7 +96,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
             showSuccess("Logo uploaded successfully!");
         } catch (error) {
             console.error("Logo failed", error);
-            showError("Logo upload failed: " + error.message);
+            showError(plainErrorMessage(error, 'The logo could not be uploaded.'));
         } finally {
             setLogoUploading(false);
         }
@@ -116,28 +121,21 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         setIsEditing(false);
     };
 
+    // Editing, a phone keeps Cancel and Save Changes in a bar at the foot of
+    // the screen, so they stay in reach below a long form. The same buttons,
+    // rendered once: Cancel hands focus back to Edit Profile.
     return (
-        <div className="space-y-ds-6">
+        <Stack gap="lg">
             <PageHeader
                 title="Company profile"
                 description="Your name, logo, contact details and address, as drivers see them."
-                actions={(isCompanyAdmin || isEditing) && (<>
-                {isCompanyAdmin && !isEditing && (
-                    <Button
-                        variant="secondary"
-                        ref={editButtonRef}
-                        onClick={startEditing}
-                    >
-                        <Icon icon={Edit2} />
-                        Edit Profile
-                    </Button>
-                )}
-                {isEditing && (
-                    <div className="flex flex-wrap gap-ds-2">
+                mobileActions={isEditing ? 'sticky' : 'row'}
+                actions={isEditing ? (
+                    <>
                         {/* Not while a save is on its way: it stores the edit, and Cancel
                             would put back what it replaced, for the next save to store. */}
                         <Button
-                            variant="ghost"
+                            variant="secondary"
                             onClick={cancelEditing}
                             disabled={loading}
                         >
@@ -151,12 +149,20 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                             {!loading && <Icon icon={Save} />}
                             Save Changes
                         </Button>
-                    </div>
+                    </>
+                ) : isCompanyAdmin && (
+                    <Button
+                        variant="secondary"
+                        ref={editButtonRef}
+                        onClick={startEditing}
+                    >
+                        <Icon icon={Edit2} />
+                        Edit Profile
+                    </Button>
                 )}
-                </>)}
             />
 
-            <CompanyInfoSection compData={compData} isEditing={isEditing} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
-        </div>
+            <CompanyInfoSection compData={compData} isEditing={isEditing} plan={planName} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
+        </Stack>
     );
 }

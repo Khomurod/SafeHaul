@@ -24,6 +24,8 @@ const ITEMS = Object.freeze({
     leadFields: require('./cleanup/leadFields'),
     searchFields: require('./cleanup/searchFields'),
     smtpCopies: require('./cleanup/smtpCopies'),
+    dqExpiry: require('./cleanup/dqExpiry'),
+    pendingUpdates: require('./cleanup/pendingUpdates'),
 });
 const MODES = Object.freeze(['check', 'run']);
 /** Counts that describe what is left alone, not what a run changes. */

@@ -8,6 +8,8 @@ import {
     customQuestionKey,
     firstUnansweredRequiredQuestion,
     isEmptyCustomAnswer,
+    unansweredQuestionMessage,
+    unansweredRequiredQuestionKeys,
 } from './requiredCustomQuestions';
 
 describe('customQuestionKey / customAnswerOf', () => {
@@ -55,5 +57,30 @@ describe('firstUnansweredRequiredQuestion', () => {
     it('is null when every required question is answered, or there are none', () => {
         expect(firstUnansweredRequiredQuestion(questions, { customAnswers: { q2: 'a', q3: 'b' } })).toBeNull();
         expect(firstUnansweredRequiredQuestion(undefined, {})).toBeNull();
+    });
+});
+
+describe('unansweredRequiredQuestionKeys', () => {
+    it('keys every required question with no answer, in order, by the key its answer is stored under', () => {
+        const questions = [
+            { id: 'q1', label: 'Optional', type: 'shortAnswer' },
+            { key: 'by-key', label: 'Required A', type: 'shortAnswer', required: true },
+            { id: 'q3', label: 'Answered', type: 'dropdown', required: true },
+            { label: 'Required B', type: 'checkboxes', required: true },
+        ];
+        expect(unansweredRequiredQuestionKeys(questions, { customAnswers: { q3: 'West', 'custom-question-3': [] } }))
+            .toEqual(['by-key', 'custom-question-3']);
+        expect(unansweredRequiredQuestionKeys(undefined, {})).toEqual([]);
+    });
+});
+
+describe('unansweredQuestionMessage', () => {
+    it.each([
+        ['fileUpload', 'Please upload a file.'],
+        ['checkboxes', 'Please choose at least one.'],
+        ['shortAnswer', 'Please answer this question.'],
+        ['linearScale', 'Please answer this question.'],
+    ])('a %s question: %s', (type, message) => {
+        expect(unansweredQuestionMessage({ type })).toBe(message);
     });
 });

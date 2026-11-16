@@ -6,7 +6,7 @@
 // lives in `DossierBodies.contract.support.jsx`; the registrations below
 // delegate to it. See that file's header for the scope of this freeze.
 import React from 'react';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./DossierBodies.contract.support')).libFirebaseMock());
@@ -194,10 +194,45 @@ describe('NotesTab — reads', () => {
     });
 });
 
+describe('NotesTab — what a note is', () => {
+    // The call window writes one of these with each call (`useCallOutcome`).
+    it('marks a note the call window wrote as a call, and only that one', async () => {
+        fs.getDocs.mockResolvedValue(snap([
+            ['n1', { text: '[Call Log: Interested]\nWants a start date', author: 'Rita Recruiter', type: 'call_log', createdAt: { seconds: 2000 } }],
+            ['n2', { text: 'Interview went well', author: 'Rita Recruiter', type: 'note', createdAt: { seconds: 1000 } }],
+        ]));
+        renderNotes();
+
+        const call = (await screen.findByText(/Wants a start date/)).closest('article');
+        expect(within(call).getByText('Call')).toBeInTheDocument();
+        const note = screen.getByText('Interview went well').closest('article');
+        expect(within(note).queryByText('Call')).toBeNull();
+    });
+
+    it('dates a note in the app\'s one date style, with its time (K3)', async () => {
+        fs.getDocs.mockResolvedValue(snap([
+            ['n1', { text: 'Dated note', author: 'Rita Recruiter', type: 'note', createdAt: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 } }],
+        ]));
+        renderNotes();
+
+        const note = (await screen.findByText('Dated note')).closest('article');
+        expect(note).toHaveTextContent(/Mar 7, 2026, \d{2}:\d{2} (AM|PM)/);
+        expect(note).not.toHaveTextContent('3/7/2026');
+    });
+
+    // A call written as a note moves no stage, sets no callback and is not counted.
+    it('does not suggest logging a call in a note', async () => {
+        renderNotes();
+        const field = await screen.findByLabelText('New note');
+        expect(field).toHaveAccessibleDescription('Visible only to your team');
+        expect(field.getAttribute('placeholder')).not.toMatch(/call/i);
+    });
+});
+
 describe('NotesTab — write contract', () => {
     async function addNote(text = 'Spoke with the driver') {
         renderNotes();
-        const field = await screen.findByLabelText(/Internal Note \(Private\)/);
+        const field = await screen.findByLabelText('New note');
         fireEvent.change(field, { target: { value: text } });
         fireEvent.click(screen.getByRole('button', { name: /Add Note/ }));
     }
@@ -230,12 +265,12 @@ describe('NotesTab — write contract', () => {
     it('optimistically shows the new note and clears the composer', async () => {
         await addNote();
         expect(await screen.findByText('Spoke with the driver')).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByLabelText(/Internal Note \(Private\)/)).toHaveValue(''));
+        await waitFor(() => expect(screen.getByLabelText('New note')).toHaveValue(''));
     });
 
     it('ignores an empty or whitespace-only note', async () => {
         renderNotes();
-        const field = await screen.findByLabelText(/Internal Note \(Private\)/);
+        const field = await screen.findByLabelText('New note');
         fireEvent.change(field, { target: { value: '   ' } });
         fireEvent.submit(field.closest('form'));
         expect(fs.addDoc).not.toHaveBeenCalled();
@@ -258,7 +293,7 @@ describe('NotesTab — write contract', () => {
         fs.addDoc.mockImplementation(() => new Promise((resolve) => { release = () => resolve({ id: 'n9' }); }));
 
         renderNotes();
-        const field = await screen.findByLabelText(/Internal Note \(Private\)/);
+        const field = await screen.findByLabelText('New note');
         fireEvent.change(field, { target: { value: 'note' } });
         const form = field.closest('form');
         fireEvent.submit(form);
@@ -275,3 +310,94 @@ describe('NotesTab — write contract', () => {
     });
 });
 
+
+// A call logged in the dossier (`refreshKey`) reads the notes again so the
+// call's note shows, without starting the tab over: a note being written
+// stays in its box.
+describe('NotesTab — a call logged meanwhile', () => {
+    it('reads the notes again and keeps the note being written', async () => {
+        const { rerender } = renderNotes({ refreshKey: 0 });
+        const box = await screen.findByLabelText('New note');
+        fireEvent.change(box, { target: { value: 'Prefers night runs' } });
+        await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(1));
+
+        rerender(<NotesTab companyId="co-1" applicationId="app-1" refreshKey={1} />);
+
+        await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(2));
+        expect(await screen.findByLabelText('New note')).toHaveValue('Prefers night runs');
+    });
+});
+
+// A read that failed is not an empty list: the tab says the notes could not be
+// loaded and Retry reads them again, keeping a note being written.
+describe('NotesTab — a failed read', () => {
+    const NOTE = ['n1', { text: 'Called back about the start date', author: 'Test Recruiter', createdAt: { seconds: 1_800_000_000 } }];
+    const offline = () => Object.assign(
+        new Error('Failed to get documents because the client is offline.'),
+        { code: 'unavailable' },
+    );
+    /** Each read answers the next of `answers`; a rejected one is handled here. */
+    const readsAnswer = (...answers) => {
+        answers.forEach((answer) => answer.catch(() => {}));
+        fs.getDocs.mockImplementation(() => answers.shift());
+    };
+
+    it('says the notes could not be loaded, not "No notes yet."', async () => {
+        readsAnswer(Promise.reject(offline()));
+        renderNotes();
+
+        const heading = await screen.findByRole('heading', { name: 'Notes could not be loaded.', level: 3 });
+        // The approved error state, announced.
+        expect(heading.closest('.ds-page-state')).toHaveAttribute('role', 'alert');
+        expect(screen.queryByText('No notes yet.')).not.toBeInTheDocument();
+        expect(screen.queryByText(/client is offline/)).not.toBeInTheDocument();
+        expect(console.error).toHaveBeenCalledWith('Error loading notes:', expect.any(Error));
+    });
+
+    it('reads again on Retry and shows the notes', async () => {
+        readsAnswer(Promise.reject(offline()), Promise.resolve(snap([NOTE])));
+        renderNotes();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Notes could not be loaded.' })).not.toBeInTheDocument();
+        expect(fs.getDocs).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a note being written across a Retry', async () => {
+        readsAnswer(Promise.reject(offline()), Promise.resolve(snap([])));
+        renderNotes();
+        fireEvent.change(await screen.findByLabelText('New note'), { target: { value: 'Prefers night runs' } });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('No notes yet.')).toBeInTheDocument();
+        expect(screen.getByLabelText('New note')).toHaveValue('Prefers night runs');
+    });
+
+    it('shows a note added after a failed read, so no one adds it twice', async () => {
+        readsAnswer(Promise.reject(offline()));
+        renderNotes();
+        await screen.findByRole('heading', { name: 'Notes could not be loaded.' });
+
+        fireEvent.change(screen.getByLabelText('New note'), { target: { value: 'Prefers night runs' } });
+        fireEvent.click(screen.getByRole('button', { name: /Add Note/ }));
+
+        expect(await screen.findByText('Prefers night runs')).toBeInTheDocument();
+        expect(screen.getByLabelText('New note')).toHaveValue('');
+        expect(screen.getByRole('heading', { name: 'Notes could not be loaded.' })).toBeInTheDocument();
+        expect(fs.addDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not leave an earlier read's notes on screen once a later read fails", async () => {
+        readsAnswer(Promise.resolve(snap([NOTE])), Promise.reject(offline()));
+        const { rerender } = renderNotes({ refreshKey: 0 });
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+
+        rerender(<NotesTab companyId="co-1" applicationId="app-1" refreshKey={1} />);
+
+        expect(await screen.findByRole('heading', { name: 'Notes could not be loaded.' })).toBeInTheDocument();
+        expect(screen.queryByText('Called back about the start date')).not.toBeInTheDocument();
+    });
+});

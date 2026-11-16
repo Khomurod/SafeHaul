@@ -39,7 +39,7 @@ jest.mock('../../firebaseAdmin', () => {
         if (ref?.__type === 'targets') return mockSnap(mockState.targets);
         return mockSnap(undefined);
       },
-      update: () => {},
+      update: (ref, payload) => { if (ref?.__type === 'session') mockState.sessionUpdates.push(payload); },
       set: () => {},
     }),
     collection: (name) => {
@@ -157,7 +157,8 @@ describe('Resume', () => {
 
     await expect(resume()).resolves.toEqual({ success: true });
 
-    expect(mockEnqueueWorker).toHaveBeenCalledWith('co-1', 'session-1', 1, 1);
+    // A new worker generation, so a worker still holding the old one stops.
+    expect(mockEnqueueWorker).toHaveBeenCalledWith('co-1', 'session-1', 1, 2);
     expect(completed()).toBe(false);
   });
 

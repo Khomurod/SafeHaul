@@ -1,8 +1,9 @@
 import React from 'react';
 import { FormField, FormSection, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { RadioGroup } from '../RadioGroup';
 import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
+import { ChoiceQuestion } from './ChoiceQuestion';
+import { RETURN_TO_DUTY_OPTIONS, YES_NO_OPTIONS } from './choiceOptions';
 
 /** Return-to-duty answers after which a follow-up testing plan applies. */
 const FOLLOW_UP_ANSWERS = ['yes', 'in_progress'];
@@ -17,47 +18,38 @@ export function SafetySection({ formData, formErrors, updateField }) {
             title="Section 2: Safety & Compliance (FMCSA Required)"
             description="This information is required by federal regulation"
         >
-            <RadioGroup
+            <ChoiceQuestion
                 name="subjectToFmcsrs"
                 legend="Was this driver subject to the Federal Motor Carrier Safety Regulations (FMCSRs)?"
                 description="i.e., Did they operate a commercial motor vehicle (CMV) for your company?"
+                options={YES_NO_OPTIONS}
                 required
-                value={formData.subjectToFmcsrs}
-                onChange={(v) => updateField('subjectToFmcsrs', v)}
-                options={[
-                    { value: true, label: 'Yes' },
-                    { value: false, label: 'No' },
-                ]}
-                error={formErrors.subjectToFmcsrs}
+                formData={formData}
+                formErrors={formErrors}
+                updateField={updateField}
             />
 
-            <RadioGroup
+            <ChoiceQuestion
                 name="subjectToDotTesting"
                 legend="Was this driver subject to DOT drug & alcohol testing requirements?"
+                options={YES_NO_OPTIONS}
                 required
-                value={formData.subjectToDotTesting}
-                onChange={(v) => updateField('subjectToDotTesting', v)}
-                options={[
-                    { value: true, label: 'Yes' },
-                    { value: false, label: 'No' },
-                ]}
-                error={formErrors.subjectToDotTesting}
+                formData={formData}
+                formErrors={formErrors}
+                updateField={updateField}
             />
 
             {formData.subjectToDotTesting && (
                 <Stack gap="md" className="rounded-ds-lg border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-4">
-                    <RadioGroup
+                    <ChoiceQuestion
                         name="hadDrugAlcoholViolations"
                         legend="Did this driver have any DOT drug or alcohol violations?"
                         description="Including positive tests, refusals, or other violations per 49 CFR Part 40"
+                        options={YES_NO_OPTIONS}
                         required
-                        value={formData.hadDrugAlcoholViolations}
-                        onChange={(v) => updateField('hadDrugAlcoholViolations', v)}
-                        options={[
-                            { value: true, label: 'Yes' },
-                            { value: false, label: 'No' },
-                        ]}
-                        error={formErrors.hadDrugAlcoholViolations}
+                        formData={formData}
+                        formErrors={formErrors}
+                        updateField={updateField}
                     />
 
                     {formData.hadDrugAlcoholViolations && (
@@ -78,16 +70,13 @@ export function SafetySection({ formData, formErrors, updateField }) {
                                     placeholder="Describe the nature of the violation(s), date(s), substance(s) involved..."
                                 />
                             </FormField>
-                            <RadioGroup
+                            <ChoiceQuestion
                                 name="completedReturnToDuty"
                                 legend="Did the driver complete the return-to-duty process per 49 CFR Part 40, Subpart O?"
-                                value={formData.completedReturnToDuty}
-                                onChange={(v) => updateField('completedReturnToDuty', v)}
-                                options={[
-                                    { value: 'yes', label: 'Yes' },
-                                    { value: 'no', label: 'No' },
-                                    { value: 'in_progress', label: 'In Progress' },
-                                ]}
+                                options={RETURN_TO_DUTY_OPTIONS}
+                                formData={formData}
+                                formErrors={formErrors}
+                                updateField={updateField}
                             />
                             {FOLLOW_UP_ANSWERS.includes(formData.completedReturnToDuty) && (
                                 <FormField
@@ -112,18 +101,15 @@ export function SafetySection({ formData, formErrors, updateField }) {
                 <h3 className="mb-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
                     Accident History
                 </h3>
-                <RadioGroup
+                <ChoiceQuestion
                     name="hadAccidents"
                     legend="Were there any DOT-recordable accidents involving this driver in the last 3 years?"
                     description="Per 49 CFR §390.5: accidents involving fatality, bodily injury requiring medical treatment away from the scene, or disabling damage to any vehicle requiring tow-away"
+                    options={YES_NO_OPTIONS}
                     required
-                    value={formData.hadAccidents}
-                    onChange={(v) => updateField('hadAccidents', v)}
-                    options={[
-                        { value: true, label: 'Yes' },
-                        { value: false, label: 'No' },
-                    ]}
-                    error={formErrors.hadAccidents}
+                    formData={formData}
+                    formErrors={formErrors}
+                    updateField={updateField}
                 />
 
                 {formData.hadAccidents && (
@@ -141,16 +127,14 @@ export function SafetySection({ formData, formErrors, updateField }) {
                 )}
 
                 <div className="mt-ds-4">
-                    <RadioGroup
+                    <ChoiceQuestion
                         name="hadNonRecordableAccidents"
                         legend="Were there any other accidents involving this driver in the last 3 years that were not DOT-recordable?"
                         description="Optional. For example, minor collisions or property damage below the DOT definition above."
-                        value={formData.hadNonRecordableAccidents}
-                        onChange={(v) => updateField('hadNonRecordableAccidents', v)}
-                        options={[
-                            { value: true, label: 'Yes' },
-                            { value: false, label: 'No' },
-                        ]}
+                        options={YES_NO_OPTIONS}
+                        formData={formData}
+                        formErrors={formErrors}
+                        updateField={updateField}
                     />
                 </div>
 

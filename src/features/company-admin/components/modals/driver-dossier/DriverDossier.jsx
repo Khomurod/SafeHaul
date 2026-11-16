@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Icon, Loader2 } from '@design-system/icons';
-import { Modal } from '@design-system/patterns';
+import { LoadingState, Modal } from '@design-system/patterns';
 import { loadDriverDossier } from './loadDriverDossier';
 
 /**
@@ -20,9 +19,8 @@ const DriverProfileModal = lazy(() => loadDriverDossier()
 function DossierCodeLoading({ onClose }) {
     return (
         <Modal label="Driver dossier" onClose={onClose} size="7xl" scroll="body" fill mobile="fullscreen">
-            <div role="status" className="flex flex-1 flex-col items-center justify-center gap-ds-2">
-                <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-action-primary" />
-                <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
+            <div className="flex flex-1 flex-col items-center justify-center">
+                <LoadingState surface="bare" title="Loading driver dossier…" />
             </div>
         </Modal>
     );

@@ -83,7 +83,8 @@ export function useApplicationAgreements(companyId) {
         // callable can never succeed there. Serving the fixture through this same
         // hook keeps the step's real logic — per-agreement acceptance, the
         // submit gate, the failure branch — under test.
-        if (isE2ETestMode) {
+        // `!PROD` keeps the fixture agreements out of a production build (`isE2ETestMode`).
+        if (!import.meta.env.PROD && isE2ETestMode) {
             setAgreements(E2E_AGREEMENTS);
             setLoading(false);
             setError(null);

@@ -49,7 +49,7 @@ const DELIVERY_RESULTS = {
  * when the SMS provider or the mail server took the message: that is "Sent",
  * not proof it arrived, until the delivery check records what RingCentral did.
  * A send the SMS provider never answered (`sendUnconfirmed`) is "May have been
- * sent", with the server's explanation as a note: Retry Failed leaves it out.
+ * sent", with the server's explanation as a note: Retry failed leaves it out.
  * Anything else is "Not sent" ("Not delivered" when RingCentral refused it
  * later), with the reason the server recorded.
  */
@@ -95,14 +95,6 @@ export function deliveryCheckMessage({ status, counts } = {}) {
     return { ok: false, text: 'RingCentral could not be reached to check delivery. Please try again later.' };
 }
 
-export const LAST_CALL_RESULTS = [
-    { id: 'no_answer', label: 'No Answer', value: 'No Answer' },
-    { id: 'left_voicemail', label: 'Left Voicemail', value: 'Left Voicemail' },
-    { id: 'busy', label: 'Busy', value: 'Busy' },
-    { id: 'wrong_number', label: 'Wrong Number', value: 'Wrong Number' },
-    { id: 'not_interested', label: 'Not Interested', value: 'Not Interested' }
-];
-
 /**
  * Bulk session lifecycle buckets.
  *
@@ -117,10 +109,69 @@ export const isCancellableSessionStatus = (status) =>
     CANCELLABLE_SESSION_STATUSES.includes(status);
 
 /**
+ * A campaign's status → its `Badge` tone, the one map the campaign cards and the
+ * campaign report share (K2). A failed campaign reads as a failure; an unknown
+ * status is neutral. Display only: the stored status never changes.
+ */
+const SESSION_STATUS_TONES = Object.freeze({
+    active: 'success',
+    draft: 'neutral',
+    completed: 'info',
+    scheduled: 'warning',
+    queued: 'accent',
+    failed: 'danger',
+    paused: 'warning',
+    cancelled: 'neutral',
+});
+
+/** The tone and the capitalised label a campaign's status is shown with. */
+export function campaignStatusPresentation(status) {
+    const tone = Object.prototype.hasOwnProperty.call(SESSION_STATUS_TONES, status)
+        ? SESSION_STATUS_TONES[status]
+        : 'neutral';
+    const label = typeof status === 'string' && status.length > 0
+        ? status.charAt(0).toUpperCase() + status.slice(1)
+        : 'Unknown';
+    return { tone, label };
+}
+
+/**
+ * How a campaign's channel reads on its card: the stored `messageConfig.method`
+ * is lower case ('sms', 'email') and SMS when unset, as the editor defaults it.
+ * The card used to capitalise it with CSS; now the words are the label's own.
+ * An unknown value is shown as stored.
+ */
+export function campaignMethodLabel(method) {
+    const stored = typeof method === 'string' ? method.trim() : '';
+    const key = stored.toLowerCase();
+    if (key === '' || key === 'sms') return 'SMS';
+    if (key === 'email') return 'Email';
+    return stored;
+}
+
+/**
+ * A draft that was launched (`useCampaignDraft.markLaunched`): kept as the
+ * campaign's record, no longer listed under Drafts or launchable. `launchedAt`
+ * is null, not absent, while the server time is pending.
+ */
+export const isLaunchedDraft = (draft) => draft?.launchedAt !== undefined;
+
+/**
+ * Limit Volume, read as the launch reads it
+ * (`functions/bulkActions/helpers/campaignLimit.js`): the most recipients a CRM
+ * campaign takes, or 0 for no limit. The screen applies it to the audience it
+ * already counted, so typing it asks the server for nothing.
+ */
+export const campaignLimitOf = (filters) => {
+    const limit = parseInt(filters?.campaignLimit, 10);
+    return Number.isFinite(limit) && limit > 0 ? limit : 0;
+};
+
+/**
  * Friendly error messages for Bulletproof Logic
  */
 export const ERROR_MESSAGES = {
-    ZERO_RESULTS: "No drivers match these filters. Try removing the 'Date' or 'Recruiter' filter to see more results.",
+    ZERO_RESULTS: "No drivers match these filters. Try removing the 'Date' or 'Assigned to' filter to see more results.",
     // The server could not count: not the same as nobody matching.
     COUNT_FAILED: "The server could not count this audience. Check your connection and try again.",
     MISSING_AUTH: "Verifying your security credentials...",

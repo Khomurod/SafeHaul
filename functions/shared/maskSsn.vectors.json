@@ -1,0 +1,23 @@
+{
+  "//": "Shared vectors for the two maskSsn copies (functions/shared/maskSsn.js, CommonJS, and src/shared/utils/maskSsn.js, ESM). Both unit suites run every vector; a change to one copy fails the other suite until it matches. A vector with no input is undefined.",
+  "maskSsn": [
+    { "input": "123-45-6789", "expected": "***-**-6789" },
+    { "input": "412887391", "expected": "***-**-7391" },
+    { "input": "412 88 7391", "expected": "***-**-7391" },
+    { "input": 412887391, "expected": "***-**-7391" },
+    { "input": "123-45-6789 ", "expected": "***-**-6789" },
+    { "input": " 123-45-6789", "expected": "***-**-6789" },
+    { "input": "***-**-6789", "expected": "***-**-6789" },
+    { "input": "12345", "expected": "***-**-2345" },
+    { "input": "1234", "expected": "***-**-1234" },
+    { "input": "123", "expected": "***-**-****" },
+    { "input": "12", "expected": "***-**-****" },
+    { "input": "Unknown", "expected": "***-**-****" },
+    { "input": "N/A", "expected": "***-**-****" },
+    { "input": "***-**-****", "expected": "***-**-****" },
+    { "input": "", "expected": null },
+    { "input": "   ", "expected": null },
+    { "input": null, "expected": null },
+    { "expected": null }
+  ]
+}

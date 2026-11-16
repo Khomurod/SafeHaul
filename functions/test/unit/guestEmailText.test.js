@@ -144,6 +144,20 @@ describe('the PEV emails', () => {
         expect(html).toContain('Safety Manager');
     });
 
+    it('cites the rule on documenting good-faith efforts, 49 CFR 391.23(c), and claims no compliance', () => {
+        const noResponse = buildCarrierNoResponseEmailHTML({ ...request, reminderCount: 3 });
+        expect(noResponse).toContain('49 CFR §391.23(c)');
+        // (j) is a driver's corrections and rebuttals, not an employer's silence.
+        expect(noResponse).not.toContain('391.23(j)');
+        expect(noResponse).toContain('3 reminders');
+        expect(noResponse).not.toMatch(/compliance/i);
+        // The employer's emails cite the rule the request is made under, not a compliance claim.
+        for (const html of [buildVerificationEmailHTML(request), buildReminderEmailHTML(request, 'final_notice')]) {
+            expect(html).toContain('Safety performance history request · 49 CFR §391.23');
+            expect(html).not.toContain('391.23 Compliance');
+        }
+    });
+
     it('escapes the names in the no-response email', () => {
         const html = buildCarrierNoResponseEmailHTML({ ...request, reminderCount: 3 });
         expect(html).not.toContain('evil.test');

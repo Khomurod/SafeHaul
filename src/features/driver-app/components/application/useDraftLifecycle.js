@@ -1,7 +1,7 @@
 // The guest application's draft lifecycle, for `PublicApplyHandler.jsx`: the
 // synchronous per-step local write, the restore-and-mark-synced path behind
 // Continue, the post-submission close, Start Over with its quota-ordering rules,
-// and the explicit Save-as-Draft. The refs arrive as the ref objects, so
+// and the explicit "Finish later". The refs arrive as the ref objects, so
 // ownership semantics are the component's.
 import { useCallback, useEffect, useRef } from 'react';
 import {
@@ -9,9 +9,12 @@ import {
   saveApplicationDraft,
   clearApplicationDraft,
   writeDiscardMark,
+  draftSyncState,
 } from './applicationDraftStorage';
+import { canBeFoundElsewhere } from './resumeIdentity';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
+import { NO_LINK_CODES, holdsLinkCodes } from './referralIntake';
 
 /** The `storagePath` of every uploaded file among the answers, a custom question's included. */
 export function storedFilePaths(formData) {
@@ -24,11 +27,17 @@ export function storedFilePaths(formData) {
     .map((value) => value.storagePath));
 }
 
+// The facts another device is matched on (`resumeIdentity.js`), re-exported for
+// the callers and tests that knew the rule here.
+export { canBeFoundElsewhere };
+
 export function useDraftLifecycle({
   slug,
   sandbox,
   formData,
   currentStep,
+  // The codes in the page address (`linkCodesFrom`), which win over a restored draft's.
+  linkCodes = NO_LINK_CODES,
   draftIdRef,
   restoredFromDraftRef,
   discardMarkRef,
@@ -38,6 +47,7 @@ export function useDraftLifecycle({
   startOver,
   forgetDraftOwnership,
   saveDraftToServer,
+  serverHoldsIdentity = () => false,
   setFormData,
   setCurrentStep,
   setIntakeMode,
@@ -176,7 +186,7 @@ export function useDraftLifecycle({
     // Nothing of this application was on this device before, so every answer a
     // Company Admin edited is new to the driver here. See `companyEditsSync.js`.
     const answers = withCompanyNotice(restored.formData, companyFieldsAfter(restored.companyEdits, 0));
-    setFormData((prev) => ({ ...prev, ...answers }));
+    setFormData((prev) => ({ ...prev, ...answers, ...linkCodes }));
     setCurrentStep(restored.stepIndex);
     setIntakeMode('manual');
     // Written straight back to the local copy, so a reload after a restore does
@@ -197,11 +207,18 @@ export function useDraftLifecycle({
       draftId: draftIdRef.current,
     });
     if (written.draftId) draftIdRef.current = written.draftId;
+    // The link this page was opened with wins over the codes the saved application
+    // carried, as on every other restore. That is new work, so an ordinary write,
+    // which the next save sends.
+    if (!holdsLinkCodes(answers, linkCodes)) {
+      const owed = saveApplicationDraft(slug, { ...formData, ...answers, ...linkCodes });
+      if (owed.draftId) draftIdRef.current = owed.draftId;
+    }
     // What is on screen now came out of the stored draft, which decides what a
     // discard elsewhere costs this tab.
     restoredFromDraftRef.current = true;
     showSuccess('Your saved application has been restored.');
-  }, [slug, formData, showSuccess, draftIdRef, restoredFromDraftRef, setFormData, setCurrentStep, setIntakeMode]);
+  }, [slug, formData, linkCodes, showSuccess, draftIdRef, restoredFromDraftRef, setFormData, setCurrentStep, setIntakeMode]);
 
   const handleContinueExisting = useCallback(async () => {
     applyRestoredDraft(await continueExisting());
@@ -280,6 +297,18 @@ export function useDraftLifecycle({
     showInfo('Starting a new application.');
   }, [startOver, slug, showInfo, discardMarkRef, draftIdRef, restoredFromDraftRef]);
 
+  /**
+   * "Finish later": the same save Continue makes, without moving on.
+   *
+   * Returns what the step footer tells the driver about coming back (see
+   * `FinishLaterNotice`), or null when nothing was saved. `saved` is the local
+   * copy, which this browser restores when the link is opened again. `anotherDevice`
+   * resolves true only once the server has confirmed holding this very copy and
+   * a save carrying the facts another device is matched on (`serverHoldsIdentity`),
+   * and those facts are on the page, so the footer never
+   * promises a match the server could not make. The save itself stays background
+   * work the driver never waits on.
+   */
   const handlePartialSubmit = () => {
     // SEC-2/DL-1 live in applicationDraftStorage: ssn/signature are stripped and a
     // QuotaExceededError is surfaced (false) rather than silently swallowed.
@@ -292,19 +321,28 @@ export function useDraftLifecycle({
     // failure look like a success.
     if (discardedElsewhere()) {
       handleDiscardedElsewhere();
-      return;
+      return null;
     }
     const { ok, localSeq, draftId } = saveApplicationDraft(slug, formData, {
       lastStep: currentStep,
       draftId: draftIdRef.current,
     });
     if (draftId) draftIdRef.current = draftId;
-    if (ok) {
-      saveDraftToServer({ formData, stepIndex: currentStep, localSeq, draftId: draftIdRef.current });
-      showSuccess("Progress saved.");
-    } else {
+    if (!ok) {
       showError("Could not save progress locally. Your data is still here — please continue filling the form.");
+      return null;
     }
+    const sent = saveDraftToServer({ formData, stepIndex: currentStep, localSeq, draftId: draftIdRef.current });
+    const anotherDevice = !sandbox && canBeFoundElsewhere(formData)
+      ? Promise.resolve(sent).then(
+        // The sync state alone is not enough: the local copy strips the SSN, so an
+        // SSN typed since the last confirmed save leaves it clean while the server
+        // never received it. The server must have confirmed these very facts.
+        () => !discardedElsewhere() && draftSyncState(slug)?.dirty === false && serverHoldsIdentity(formData),
+        () => false,
+      )
+      : Promise.resolve(false);
+    return { saved: true, anotherDevice };
   };
 
   return {

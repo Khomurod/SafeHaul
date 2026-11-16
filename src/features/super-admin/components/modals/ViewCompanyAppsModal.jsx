@@ -1,12 +1,12 @@
-import React, { useId, useState, useEffect, useMemo } from 'react';
-import { loadApplications } from '@features/applications/services/applicationService';
+import React, { useId, useState, useMemo } from 'react';
 import { Icon, X, Search, FileText, Calendar, User } from '@design-system/icons';
-import { Badge, Button, DataTable, IconButton, Input } from '@/design-system/components';
+import { Button, DataTable, IconButton, Input, Notice } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
+import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
 import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
-import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { applicationStatusTone } from '../applicationStatusTone';
-import { mockCompanyApplications } from '../companiesMock';
+import { useCompanyApplicationPages } from '../../hooks/useCompanyApplicationPages';
+import { formatDate } from '@shared/utils/helpers';
+import { StatusBadge } from '@shared/components/badges';
 
 // --- SMART NAME RESOLVER ---
 // Checks all possible locations where data might be saved
@@ -35,7 +35,7 @@ const getDriverPhone = (app) => app.phone || app.personalInfo?.phone || 'No Phon
 
 const getAppliedDate = (app) => {
   const seconds = app.submittedAt?.seconds || app.createdAt?.seconds;
-  return seconds ? new Date(seconds * 1000).toLocaleDateString() : '--';
+  return seconds ? formatDate(new Date(seconds * 1000)) : '--';
 };
 
 /** One fact per cell; the record id is the row header's quiet second line. */
@@ -67,9 +67,11 @@ const APPLICATION_COLUMNS = [
   {
     key: 'status',
     header: 'Status',
-    width: 'md',
+    // `lg`, as every list of `StatusBadge`s: the badge carries an icon and does
+    // not wrap, so "New Application" or "Background Check" outgrows `md`.
+    width: 'lg',
     render: (app) => (
-      <Badge tone={applicationStatusTone(app.status)}>{app.status || 'New Application'}</Badge>
+      <StatusBadge status={app.status || 'New Application'} />
     ),
   },
   {
@@ -86,15 +88,23 @@ const APPLICATION_COLUMNS = [
   },
 ];
 
+const format = (n) => n.toLocaleString('en-US');
+
 /**
  * Read-only list of a company's driver applications, opened from the Super Admin
  * companies table.
  *
  * Presentation only, in the approved accessible `Modal`. Frozen contracts: the
- * `loadApplications(companyId)` call, the multi-shape name/email/phone resolvers,
- * the client-side filter across name/email/status, the `submittedAt` →
- * `createdAt` → `'--'` date precedence, and every frozen string.
- * The `view-apps-modal` id is preserved for existing selectors.
+ * multi-shape name/email/phone resolvers, the client-side filter across
+ * name/email/status, the `submittedAt` → `createdAt` → `'--'` date precedence,
+ * and every frozen string. The `view-apps-modal` id is preserved for existing
+ * selectors.
+ *
+ * The applications are read 20 at a time (`useCompanyApplicationPages`), never
+ * all at once. While more remain, a line under the table says how many of how
+ * many are shown, with **Load more applications**; the filter looks at the rows
+ * read so far, and says so. After the last page it says all are shown. A list
+ * that fits in one page says nothing extra.
  *
  * Rules this dialog keeps:
  *  - It is the approved `Modal`: dialog role, focus trap, Escape and focus
@@ -107,8 +117,8 @@ const APPLICATION_COLUMNS = [
  *    and `EmptyState`, which own that announcement, so filtering the list to
  *    nothing is announced too; the brand loader stays, because `LoadingState`'s
  *    spinner is not it.
- *  - **Status is never colour alone.** It is an approved `Badge` whose text
- *    carries the meaning, with the domain→tone mapping owned by this feature.
+ *  - **Status is never colour alone.** It is the shared `StatusBadge`: its
+ *    text carries the meaning, with an icon and the company workspace's tone.
  *
  *  - The list is an embedded `DataTable` with its own height limit, so its
  *    header stays in view while the rows scroll inside the dialog. Email and
@@ -117,40 +127,21 @@ const APPLICATION_COLUMNS = [
  * Under `?e2eCompanies=mock` (E2E test mode only) it shows made-up records.
  */
 export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
-  const [loading, setLoading] = useState(true);
-  const [applications, setApplications] = useState([]);
-  const [error, setError] = useState('');
+  const { applications, total, loading, error, hasMore, loadMore, loadingMore, loadMoreFailed } =
+    useCompanyApplicationPages(companyId);
   const [search, setSearch] = useState('');
   const titleId = useId();
   const searchId = useId();
-
-  useEffect(() => {
-    async function fetchApplications() {
-      if (!companyId) return;
-      setLoading(true);
-      setError('');
-      if (isE2ETestMode && getE2EQueryParam('e2eCompanies', '') === 'mock') {
-        setApplications(mockCompanyApplications(companyId));
-        setLoading(false);
-        return;
-      }
-      try {
-        const querySnapshot = await loadApplications(companyId);
-
-        if (!querySnapshot || querySnapshot.length === 0) {
-          setApplications([]);
-        } else {
-          setApplications(querySnapshot);
-        }
-      } catch (err) {
-        console.error("Error loading applications:", err);
-        setError("Could not load applications. Please check your internet connection or permissions.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchApplications();
-  }, [companyId]);
+  const { buttonRef, doneRef, showDone, press } = useLoadMoreFocus({
+    resetKey: companyId,
+    hasMore,
+    isLoadingMore: loadingMore,
+    loadMoreFailed,
+    loadedCount: applications.length,
+  });
+  const shownLine = total === null
+    ? `Showing ${format(applications.length)} applications.`
+    : `Showing ${format(applications.length)} of ${format(total)} applications.`;
 
   // Filter logic
   const filteredApplications = useMemo(() => {
@@ -231,6 +222,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
               icon={User}
               headingLevel={3}
               title={search ? "No matches found." : "No applications submitted yet."}
+              description={search && hasMore ? 'Only the applications loaded so far were searched. Load more to search the rest.' : undefined}
             />
           )}
 
@@ -245,6 +237,32 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
                 columns={APPLICATION_COLUMNS}
                 getRowId={(app) => app.id}
               />
+          )}
+
+          {!loading && !error && (hasMore || showDone) && (
+            <div className="flex flex-col gap-ds-2 border-t border-ds-border-subtle p-ds-4">
+              {hasMore && (
+                <Notice
+                  tone="info"
+                  size="sm"
+                  actions={(
+                    <Button ref={buttonRef} variant="secondary" size="sm" loading={loadingMore} onClick={press(loadMore)}>
+                      Load more applications
+                    </Button>
+                  )}
+                >
+                  {`${shownLine}${search ? ' The filter looks at these only.' : ''}`}
+                </Notice>
+              )}
+              {hasMore && loadMoreFailed && (
+                <p role="alert" className="text-ds-sm text-ds-status-danger-fg">More applications could not be loaded.</p>
+              )}
+              {showDone && (
+                <Notice ref={doneRef} tabIndex={-1} tone="info" size="sm">
+                  {`All ${format(total ?? applications.length)} applications are shown.`}
+                </Notice>
+              )}
+            </div>
           )}
         </div>
 

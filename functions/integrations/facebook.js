@@ -3,7 +3,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { admin } = require("../firebaseAdmin");
 const { assertCompanyAdminStrict } = require("../shared/companyAccess");
-const { normalizeSearchPhone } = require("../shared/searchNormalization");
+const { normalizeSearchEmail, normalizeSearchPhone } = require("../shared/searchNormalization");
 const axios = require("axios");
 const crypto = require("crypto");
 
@@ -476,8 +476,10 @@ async function processLead(value) {
         mappedLead.lastName = 'Facebook Lead';
     }
 
-    // The phone key the lead import finds a duplicate by.
+    // The phone key the lead import finds a duplicate by, and the email an
+    // application is matched to its lead by (shared/leadApplicationLink.js).
     mappedLead.normalizedPhone = normalizeSearchPhone(mappedLead.phone);
+    mappedLead.emailNormalized = normalizeSearchEmail(mappedLead.email);
 
     // 4. Save to Company Subcollection
     await db.collection('companies').doc(companyId).collection('leads').add(mappedLead);

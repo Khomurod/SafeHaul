@@ -52,6 +52,7 @@ import {
     carriedOverLanes,
     readAttestations,
 } from './ci-plan-rules.mjs';
+import { createGithubApi } from './lib/githubApi.mjs';
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
@@ -158,20 +159,6 @@ export function changedFilesFor(range, log = () => {}, run = git) {
         return null;
     }
 }
-
-const createGithubApi = ({ token, repository }) => async (path) => {
-    const response = await fetch(`https://api.github.com/repos/${repository}${path}`, {
-        headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${token}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-        },
-    });
-    if (!response.ok) {
-        throw new Error(`GET ${path} -> ${response.status}`);
-    }
-    return response.json();
-};
 
 async function main() {
     const {

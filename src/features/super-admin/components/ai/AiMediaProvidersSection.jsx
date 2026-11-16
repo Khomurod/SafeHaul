@@ -6,10 +6,12 @@
  */
 
 import React from 'react';
+import { Icon, Trash2 } from '@design-system/icons';
 import {
     Badge,
     Button,
     Card,
+    IconButton,
 } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
@@ -77,18 +79,19 @@ export function AiMediaProvidersSection({
                                         >
                                             {field.configured ? 'Replace' : 'Add'}
                                         </Button>
+                                        {/* The one look of a row delete, named for the credential. */}
                                         {field.configured && (
-                                            <Button
+                                            <IconButton
                                                 size="sm"
-                                                variant="danger"
-                                                aria-label={`Delete ${provider.displayName} ${field.label}`}
+                                                variant="ghost"
+                                                label={`Delete ${provider.displayName} ${field.label}`}
                                                 onClick={() => {
                                                     setDeleteError(null);
                                                     setDeleteTarget({ provider, field, kind: 'media' });
                                                 }}
                                             >
-                                                Delete
-                                            </Button>
+                                                <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                                            </IconButton>
                                         )}
                                     </div>
                                 </div>

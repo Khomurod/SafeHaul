@@ -215,4 +215,46 @@ describe('upsertApplicationDoc', () => {
     expect(result.confirmationNumber).toBe('SAF-2026-ORIG1');
     expect(set.mock.calls[0][0].confirmationNumberNormalized).toBe('SAF-2026-ORIG1');
   });
+
+  describe('an owner the caller decided', () => {
+    const owner = { assignedTo: 'rec-1', assignedToName: 'Oleg Recruiter' };
+    const upsert = (db, assignIfUnassigned) => upsertApplicationDoc({
+      db, companyId: 'co1', applicationId: 'app1', applicantKeyFull: 'full',
+      applicationDoc: submission('SAF-2026-NEW11'), now: 'server-time', logLabel: 'test', assignIfUnassigned,
+    });
+
+    it('is assigned in the write that files a new record', async () => {
+      const { db, set } = createDbMock([]);
+
+      await expect(upsert(db, owner)).resolves.toMatchObject({ assigned: true });
+
+      expect(set).toHaveBeenCalledTimes(1);
+      expect(set.mock.calls[0][0]).toMatchObject(owner);
+    });
+
+    it('is assigned to a record nobody is assigned to', async () => {
+      const { db, set } = createDbMock([{ exists: true, data: () => ({ applicantKeyFull: 'full', assignedTo: '' }) }]);
+
+      await expect(upsert(db, owner)).resolves.toMatchObject({ assigned: true });
+      expect(set.mock.calls[0][0]).toMatchObject(owner);
+    });
+
+    it('never replaces the recruiter a record is assigned to', async () => {
+      const { db, set } = createDbMock([{
+        exists: true,
+        data: () => ({ applicantKeyFull: 'full', assignedTo: 'rec-2', assignedToName: 'Rita Recruiter' }),
+      }]);
+
+      await expect(upsert(db, owner)).resolves.toMatchObject({ assigned: false });
+      expect(set.mock.calls[0][0]).not.toHaveProperty('assignedTo');
+      expect(set.mock.calls[0][0]).not.toHaveProperty('assignedToName');
+    });
+
+    it('is no one when the caller names no one', async () => {
+      const { db, set } = createDbMock([]);
+
+      await expect(upsert(db, null)).resolves.toMatchObject({ assigned: false });
+      expect(set.mock.calls[0][0]).not.toHaveProperty('assignedTo');
+    });
+  });
 });

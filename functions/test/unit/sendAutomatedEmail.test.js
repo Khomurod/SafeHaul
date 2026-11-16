@@ -69,8 +69,9 @@ const sentBody = () => mockSendDynamicEmail.mock.calls[0][3];
 beforeEach(() => {
     jest.resetAllMocks();
     mockCompany.data = { companyName: 'Blue Line Freight', appSlug: 'blue-line' };
-    // A recruiter: on the company team, not a company admin.
-    mockAssertCompanyAccess.mockResolvedValue(undefined);
+    // A recruiter: on the company team, not a company admin. As the real check
+    // does, it hands back the company it read.
+    mockAssertCompanyAccess.mockImplementation(async () => ({ exists: Boolean(mockCompany.data), data: () => mockCompany.data || undefined }));
     mockAssertCompanyAdminStrict.mockRejectedValue(Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' }));
     mockSendDynamicEmail.mockResolvedValue({ success: true });
     mockOnFile.leads = ['driver@example.com'];
@@ -129,6 +130,24 @@ describe('sendAutomatedEmail — the "no answer" follow-up', () => {
         expect(sentBody()).not.toMatch(/Someone Else|elsewhere|our fleet/);
     });
 
+    it('takes the company as the access check read it, without reading it again', async () => {
+        mockAssertCompanyAccess.mockImplementation(async () => ({ exists: true, data: () => ({ companyName: 'Checked Freight', appSlug: 'checked' }) }));
+
+        await sendAutomatedEmail(noAnswer());
+
+        expect(sentBody()).toContain('<strong>Checked Freight</strong>');
+        expect(sentBody()).toContain('href="https://app.safehaul.io/apply/checked"');
+    });
+
+    it("reads the company itself when a super admin's check could not", async () => {
+        mockAssertCompanyAccess.mockImplementation(async () => undefined);
+
+        await sendAutomatedEmail(noAnswer());
+
+        expect(sentBody()).toContain('<strong>Blue Line Freight</strong>');
+        expect(sentBody()).toContain('href="https://app.safehaul.io/apply/blue-line"');
+    });
+
     it.each([
         // What the lead import writes for a row without an email, now and before.
         'placeholder_9f2c1a@placeholder.safehaulapp.com',
@@ -169,5 +188,21 @@ describe('sendAutomatedEmail — the other templates', () => {
         await expect(sendAutomatedEmail(manual)).rejects.toMatchObject({ code: 'permission-denied' });
         expect(mockAssertCompanyAdminStrict).toHaveBeenCalledWith('recruiter-1', 'co1');
         expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+    });
+});
+
+// A Cloud Functions log is read by everyone who can read the project's logs.
+describe('sendAutomatedEmail — logs', () => {
+    it('logs a failed email by its company, without the address the mail server names', async () => {
+        mockSendDynamicEmail.mockRejectedValue(new Error('Failed to send email: 550 5.1.1 <driver@example.com>: Recipient address rejected'));
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const result = await sendAutomatedEmail(noAnswer());
+
+        expect(result.success).toBe(false);
+        const logged = errorSpy.mock.calls.flat().map((v) => (v instanceof Error ? `${v.message} ${v.stack}` : String(v))).join('\n');
+        expect(logged).toContain('co1');
+        expect(logged).not.toContain('driver@example.com');
+        errorSpy.mockRestore();
     });
 });

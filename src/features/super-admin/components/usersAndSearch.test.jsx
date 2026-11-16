@@ -252,6 +252,21 @@ describe('GlobalSearchResults — status is never colour-only (defect)', () => {
         expect(screen.getByText('Approved')).toBeInTheDocument();
     });
 
+    it('tones each status as the company workspace does: Hired green, Declined red (K2)', () => {
+        const applications = [
+            { id: 'a-1', firstName: 'Hired', lastName: 'Driver', companyId: 'co-1', status: 'Hired' },
+            { id: 'a-2', firstName: 'Declined', lastName: 'Driver', companyId: 'co-1', status: 'Declined' },
+            { id: 'a-3', firstName: 'Approved', lastName: 'Driver', companyId: 'co-1', status: 'Approved' },
+            { id: 'a-4', firstName: 'Fresh', lastName: 'Driver', companyId: 'co-1' },
+        ];
+        renderSearch({ results: { companies: [], users: [], applications }, totalResults: 4 });
+        const toneOf = (text) => screen.getByText(text, { selector: '.ds-badge' });
+        expect(toneOf('Hired')).toHaveAttribute('data-tone', 'success');
+        expect(toneOf('Declined')).toHaveAttribute('data-tone', 'danger');
+        expect(toneOf('Approved')).toHaveAttribute('data-tone', 'success');
+        expect(toneOf('New Application')).toHaveAttribute('data-tone', 'info');
+    });
+
     it('names each result group section', () => {
         renderSearch();
         expect(screen.getByRole('region', { name: /Companies \(1\)/ })).toBeInTheDocument();

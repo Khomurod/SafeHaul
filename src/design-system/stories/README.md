@@ -54,9 +54,9 @@ approved design decision — nothing in the product may consume those classes.
 (`scripts/test-ci-plan.mjs` K1 asserts the step carries no `continue-on-error`,
 so it cannot quietly go back to advisory).
 
-**The visible families are owner-approved.** The owner approved the semantic
-brand and action colours and confirmed WCAG 2.2 AA as the accessibility target,
-the two decisions the per-page statuses depend on.
+**The visible families are owner-approved.** The owner approved the brand-led
+action colour (C2) and confirmed WCAG 2.2 AA as the accessibility target, the
+two decisions the per-page statuses depend on.
 
 Two honest gaps remain, both verified against the tree:
 

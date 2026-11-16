@@ -124,6 +124,9 @@ exports.getFilteredLeadsPage = onCall({ cors: true, memory: '512MiB' }, async (r
         const candidates = [];
         for (const d of snap.docs) {
             const data = d.data();
+            // A lead who applied gets no campaign (`gatherTargets.js`); an
+            // application carries its own id as `applicationId`.
+            if (filters?.leadType === 'leads' && data.applicationId) continue;
             candidates.push({
                 id: d.id,
                 firstName: data.firstName,

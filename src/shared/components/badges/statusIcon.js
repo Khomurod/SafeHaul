@@ -13,7 +13,8 @@ import { Sparkles, Clock, CheckCircle2, PauseCircle, XCircle, ShieldCheck, Send,
  * @returns {import('react').ComponentType<{ size?: number, className?: string }>}
  */
 export function getStatusIcon(status) {
-    const s = (status || '').toLowerCase();
+    // Only text is matched: a number or other stored value reads as unrecognised, never throws.
+    const s = typeof status === 'string' ? status.toLowerCase() : '';
     if (s.includes('reject') || s.includes('disqualif') || s.includes('declin')) return XCircle;
     if (s.includes('hired') || s.includes('accept') || s.includes('approved') || s.includes('qualified')) return CheckCircle2;
     if (s.includes('offer')) return Send;

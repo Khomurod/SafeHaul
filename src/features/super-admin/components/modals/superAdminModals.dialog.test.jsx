@@ -15,6 +15,7 @@ import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const httpsCallable = vi.fn();
+// The applications the dialog's first page holds; every test's list fits in one page.
 const mockLoadApplications = vi.fn();
 const mockUpdateCompany = vi.fn(() => Promise.resolve());
 const mockUploadCompanyLogo = vi.fn(() => Promise.resolve('https://example.test/logo.png'));
@@ -34,7 +35,8 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@features/companies', () => ({ updateCompany: (...a) => mockUpdateCompany(...a) }));
 vi.mock('@features/applications/services/applicationService', () => ({
-  loadApplications: (...a) => mockLoadApplications(...a),
+  loadApplicationsPage: async (...a) => ({ applications: await mockLoadApplications(...a), next: null }),
+  countApplications: async () => 0,
 }));
 vi.mock('../users/EditUserNameForm', () => ({
   EditUserNameForm: () => <div data-testid="edit-user-name-form" />,
@@ -331,7 +333,7 @@ describe('EditCompanyModal — frozen save contract and duplicate-id defect', ()
 });
 
 describe('ViewCompanyAppsModal — frozen data contract', () => {
-  it('loads applications for the exact company id', async () => {
+  it('reads the first page of applications for the exact company id', async () => {
     render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
     await waitFor(() => expect(mockLoadApplications).toHaveBeenCalledWith('co-1'));
   });
@@ -353,6 +355,18 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
     expect(screen.getAllByText('No Phone')).toHaveLength(2);
     // Missing both timestamps still renders the frozen placeholder.
     expect(screen.getByText('--')).toBeInTheDocument();
+  });
+
+  it('dates each application in the app\'s one date style (K3)', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Artificial', lastName: 'Driver', status: 'Hired', submittedAt: { seconds: Date.UTC(2026, 2, 7, 12) / 1000 } },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const table = await screen.findByRole('table', { name: 'Driver applications for Artificial Freight Co' });
+    expect(within(table).getByText('Mar 7, 2026')).toBeInTheDocument();
+    expect(within(table).queryByText('3/7/2026')).not.toBeInTheDocument();
   });
 
   it('shows the records in the shared table, one fact per column, with the name as row header', async () => {
@@ -381,6 +395,23 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
 
     expect(await screen.findByText('Hired')).toBeInTheDocument();
     expect(screen.getByText('New Application')).toBeInTheDocument();
+  });
+
+  it('tones each status as the company workspace does: Hired green, Rejected red (K2)', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Alpha', lastName: 'Driver', status: 'Hired' },
+      { id: 'a2', firstName: 'Beta', lastName: 'Driver', status: 'Rejected' },
+      { id: 'a3', firstName: 'Gamma', lastName: 'Driver' },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const hired = (await screen.findByText('Hired')).closest('.ds-badge');
+    expect(hired).toHaveAttribute('data-tone', 'success');
+    expect(screen.getByText('Rejected').closest('.ds-badge')).toHaveAttribute('data-tone', 'danger');
+    expect(screen.getByText('New Application').closest('.ds-badge')).toHaveAttribute('data-tone', 'info');
+    // The text carries the meaning; the shared badge adds a decorative icon.
+    expect(hired.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('filters across name, email and status', async () => {

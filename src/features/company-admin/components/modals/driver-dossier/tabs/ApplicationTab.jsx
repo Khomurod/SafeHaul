@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon, AlertTriangle, ShieldCheck, FileText, Pencil, Link2 } from '@design-system/icons';
+import { Icon, AlertTriangle, ShieldCheck, FileText, LayoutGrid, Pencil, Phone } from '@design-system/icons';
 import { APPLICATION_SCHEMA } from '@/config/applicationSchema';
 import { SchemaSection } from '@shared/components/schema/SchemaRenderer';
 import { useApplicationChanges } from '@features/applications/hooks/useApplicationChanges';
@@ -7,14 +7,18 @@ import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionR
 import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
 import { PreviousEmployersEditor } from '@features/applications/components/PreviousEmployersEditor';
+import { DISPLAY_ONLY_REASON, displayOnlyKeys } from '@features/applications/services/editableFields';
 import { Badge, Button, Card, Notice, SegmentedControl } from '@/design-system/components';
+import { DossierKeyFacts } from '../DossierKeyFacts';
 import {
+    DossierSummaryCard,
     IdentityCard,
     LicenseCard,
     SafetyCard,
     ExperienceTimeline,
     ConsentCard,
 } from './applicationTabCards';
+import { ReviewLinkActions } from './ReviewLinkActions';
 
 /**
  * Dossier Application tab.
@@ -40,6 +44,13 @@ import {
  * The verification mirror on each employer row is never edited or moved: the
  * server strips whatever a client sends and re-attaches it by employer identity
  * (`functions/shared/employerEdits.js`).
+ *
+ * ## Only the fields the server changes have a box
+ *
+ * `proposeApplicationChanges` applies its allowlist and returns the rest as
+ * `skipped`, so every field off that list (`editableFields.js`, the server's own
+ * file) is passed to `SchemaSection` as a locked key, a section with nothing left
+ * to edit says "Display only", and the edit bar says why.
  *
  * Frozen contracts: the SSN masking rule, every `--` / `'A'` / `'Driver'`
  * fallback, the CDL expiry bands and their exact labels, the clean-record copy,
@@ -71,12 +82,13 @@ function previewValue(v) {
 
 
 /**
- * The three records this tab can show, in the order a recruiter wants them:
- * what was submitted first, then what the record says now.
+ * The three records this tab can show, in the order a recruiter uses them (the
+ * owner's choice): the record at a glance first, then what was submitted, then
+ * the record in full.
  */
 const VIEW_MODES = [
+    { id: 'summary', label: 'Summary View', Icon: LayoutGrid },
     { id: 'submitted', label: 'As Submitted', Icon: ShieldCheck },
-    { id: 'summary', label: 'Summary View', Icon: null },
     { id: 'full', label: 'Full Application', Icon: FileText },
 ];
 
@@ -84,36 +96,30 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
     /**
      * Which record this tab is showing.
      *
+     *   summary   — the current record, at a glance, with how to reach the
+     *               driver (`DossierKeyFacts`); the tab opens on it.
      *   submitted — the PRESERVED original, frozen at submission.
-     *   summary   — the current record, at a glance.
      *   full      — the current record in full, and the only editable one.
      *
-     * The default is set below, once the preserved record has resolved: a
-     * recruiter opening an application should land on what the applicant
-     * actually submitted, not on data a company edit may have changed since.
+     * The summary says it is the current record, and points to "As Submitted"
+     * for the frozen original when there is one.
      */
     const [viewMode, setViewMode] = useState(null);
     const [editing, setEditing] = useState(false);
     const [editedData, setEditedData] = useState({});
 
-    const { pendingChanges, proposing, linking, proposeChanges, createReviewLink } =
-        useApplicationChanges(companyId, applicationId, collectionName);
+    const {
+        pendingChanges, proposing, linking, emailing, emailedTo, proposeChanges, createReviewLink, emailReviewLink,
+    } = useApplicationChanges(companyId, applicationId, collectionName);
 
     // Provenance of what this tab is showing. Resolved before the `!appData`
     // early return so the hook order stays stable across renders.
     const { record: submissionRecord, loading: recordLoading } = useSubmissionRecord(companyId, applicationId);
 
     const hasPreservedRecord = Boolean(submissionRecord?.isPreserved);
-    /**
-     * An explicit choice always wins, so a reader who has switched views is never
-     * moved. With no choice yet, the default assumes a preserved record WHILE THE
-     * READ IS STILL IN FLIGHT — otherwise the tab would open on live data and
-     * then swap to the frozen record a moment later, which is the one transition
-     * that must not happen quietly on this screen. It settles on the summary only
-     * once we know there is nothing preserved to show.
-     */
-    const resolvedViewMode = viewMode
-        ?? ((recordLoading || hasPreservedRecord) ? 'submitted' : 'summary');
+    // Only a reader's own choice changes the view: the read of the preserved
+    // record never swaps what is on screen.
+    const resolvedViewMode = viewMode ?? 'summary';
 
     // DEFECT FIX: this used to `return null`, so an application that resolved to
     // nothing left the dossier's tab panel completely blank — no explanation and
@@ -158,9 +164,13 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
         setEditedData((prev) => ({ ...prev, [key]: value }));
     };
 
+    // `startEdit` gives a record with no employers an empty list to edit: that
+    // list, still empty, is no change.
+    const savedValue = (key) => (key === 'employers' && !Array.isArray(appData.employers) ? [] : appData[key]);
+
     const handlePropose = async () => {
         const changes = Object.keys(editedData)
-            .filter((k) => JSON.stringify(editedData[k]) !== JSON.stringify(appData[k]))
+            .filter((k) => JSON.stringify(editedData[k]) !== JSON.stringify(savedValue(k)))
             .map((k) => ({ fieldKey: k, proposedValue: editedData[k] }));
         if (changes.length === 0) { setEditing(false); return; }
         const ok = await proposeChanges(changes);
@@ -175,16 +185,14 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                     tone="warning"
                     title={`${pendingChanges.length} field(s) edited by company — pending driver approval`}
                     actions={(
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={createReviewLink}
-                            disabled={linking}
-                            loading={linking}
-                        >
-                            {linking ? null : <Icon icon={Link2} size="sm" />}
-                            Copy driver review link
-                        </Button>
+                        <ReviewLinkActions
+                            email={appData.email}
+                            linking={linking}
+                            emailing={emailing}
+                            emailedTo={emailedTo}
+                            onEmail={emailReviewLink}
+                            onCopy={createReviewLink}
+                        />
                     )}
                 >
                     <ul className="space-y-ds-1">
@@ -203,51 +211,58 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                 </Notice>
             )}
 
-            {/* Edit controls */}
-            {canEdit && (
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    {!editing ? (
-                        <Button variant="secondary" size="sm" onClick={startEdit}>
-                            <Icon icon={Pencil} size="sm" /> Edit application
-                        </Button>
-                    ) : (
-                        <>
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={handlePropose}
-                                disabled={proposing}
-                                loading={proposing}
-                            >
-                                Propose changes for approval
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>
-                                Cancel
-                            </Button>
-                            <span className="text-ds-xs text-ds-content-secondary">Edits become pending changes the driver must approve.</span>
-                        </>
-                    )}
-                </div>
-            )}
+            {/* The view switch, and beside it what can be done to the record.
+                One row that wraps: the edit controls drop under the switch
+                when the panel is narrow. */}
+            <div className="flex flex-wrap items-center justify-between gap-ds-3">
+                {/*
+                  Toggle Header — the design system's `SegmentedControl`:
+                  `role="group"` + `aria-pressed`, not a radiogroup, by design. The
+                  icon size comes from the control-icon token, not from this call
+                  site.
+                */}
+                <SegmentedControl
+                    ariaLabel="Application view"
+                    columns={3}
+                    className="w-fit"
+                    value={resolvedViewMode}
+                    onChange={setViewMode}
+                    options={VIEW_MODES.map((mode) => ({
+                        value: mode.id,
+                        label: mode.label,
+                        icon: mode.Icon || undefined,
+                    }))}
+                />
 
-            {/*
-              Toggle Header — the design system's `SegmentedControl`:
-              `role="group"` + `aria-pressed`, not a radiogroup, by design. The
-              icon size comes from the control-icon token, not from this call
-              site.
-            */}
-            <SegmentedControl
-                ariaLabel="Application view"
-                columns={3}
-                className="w-fit"
-                value={resolvedViewMode}
-                onChange={setViewMode}
-                options={VIEW_MODES.map((mode) => ({
-                    value: mode.id,
-                    label: mode.label,
-                    icon: mode.Icon || undefined,
-                }))}
-            />
+                {/* Edit controls */}
+                {canEdit && (
+                    <div className="flex w-full flex-wrap items-center gap-ds-2 sm:w-auto">
+                        {!editing ? (
+                            <Button variant="secondary" size="sm" onClick={startEdit}>
+                                <Icon icon={Pencil} size="sm" /> Edit application
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handlePropose}
+                                    disabled={proposing}
+                                    loading={proposing}
+                                >
+                                    Propose changes for approval
+                                </Button>
+                                <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>
+                                    Cancel
+                                </Button>
+                                <span className="text-ds-xs text-ds-content-secondary">
+                                    Edits become pending changes the driver must approve. {DISPLAY_ONLY_REASON}
+                                </span>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/*
               Each view says which record it is. The provenance notice used to sit
@@ -278,30 +293,43 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                     : <PreservedApplicationView record={submissionRecord} />
             ) : resolvedViewMode === 'summary' ? (
                 /* Summary View (Cards) — the CURRENT record, at a glance */
-                <div className="grid grid-cols-1 gap-ds-6 md:grid-cols-12 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 gap-ds-6 xl:grid-cols-12 animate-in fade-in duration-300">
+
+                    {/* 0. How to reach the driver: phone (with Do not text), email,
+                        the day the record came in and the last call. */}
+                    <div className="xl:col-span-12">
+                        <DossierSummaryCard icon={Phone} title="Contact">
+                            <DossierKeyFacts
+                                appData={appData}
+                                collectionName={collectionName}
+                                companyId={companyId}
+                                canEdit={canEdit}
+                            />
+                        </DossierSummaryCard>
+                    </div>
 
                     {/* 1. Identity Card (Col Span 6) */}
-                    <div className="md:col-span-6">
+                    <div className="xl:col-span-6">
                         <IdentityCard appData={appData} />
                     </div>
 
                     {/* 2. License Card (Col Span 6) */}
-                    <div className="md:col-span-6">
-                        <LicenseCard appData={appData} fileUrls={fileUrls} filesPending={filesPending} />
+                    <div className="xl:col-span-6">
+                        <LicenseCard appData={appData} fileUrls={fileUrls} filesPending={filesPending} isLead={collectionName === 'leads'} />
                     </div>
 
                     {/* 3. Stats / Summary (Col Span 12) */}
-                    <div className="md:col-span-12">
+                    <div className="xl:col-span-12">
                         <SafetyCard appData={appData} />
                     </div>
 
                     {/* 4. Experience Timeline (Col Span 12) */}
-                    <div className="md:col-span-12">
+                    <div className="xl:col-span-12">
                         <ExperienceTimeline appData={appData} />
                     </div>
 
                     {/* 5. Consent & Signature (Col Span 12) */}
-                    <div className="md:col-span-12">
+                    <div className="xl:col-span-12">
                         <ConsentCard appData={appData} />
                     </div>
                 </div>
@@ -311,31 +339,38 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                    thing that can happen, so edits necessarily operate here. */
                 <Card padding="lg" className="animate-in fade-in duration-300">
                     <div className="mx-auto max-w-4xl space-y-ds-8">
-                        {APPLICATION_SCHEMA.sections.map(section => (
-                            <div key={section.id} className="border-b border-ds-border-subtle pb-ds-8 last:border-0 last:pb-0">
-                                <h4 className="mb-ds-4 flex items-center gap-ds-2 text-ds-body-lg font-bold text-ds-content">
-                                    {section.title}
-                                </h4>
-                                {editing && section.id === 'employmentHistory' ? (
-                                    /* The one section `SchemaSection` cannot edit —
-                                       see the header. Read-only rendering is still
-                                       its job, so this swap is scoped to editing. */
-                                    <PreviousEmployersEditor
-                                        employers={editedData.employers}
-                                        onChange={(employers) => handleFieldChange('employers', employers)}
-                                    />
-                                ) : (
-                                    <SchemaSection
-                                        sectionId={section.id}
-                                        data={editing ? editedData : appData}
-                                        isEditing={editing}
-                                        onChange={handleFieldChange}
-                                        fileUrls={fileUrls}
-                                        filesPending={filesPending}
-                                    />
-                                )}
-                            </div>
-                        ))}
+                        {APPLICATION_SCHEMA.sections.map((section) => {
+                            const lockedKeys = displayOnlyKeys(section);
+                            const nothingToEdit = editing && section.id !== 'employmentHistory'
+                                && lockedKeys.length === (section.fields || []).length;
+                            return (
+                                <div key={section.id} className="border-b border-ds-border-subtle pb-ds-8 last:border-0 last:pb-0">
+                                    <h4 className="mb-ds-4 flex items-center gap-ds-2 text-ds-body-lg font-bold text-ds-content">
+                                        {section.title}
+                                        {nothingToEdit && <Badge tone="neutral">Display only</Badge>}
+                                    </h4>
+                                    {editing && section.id === 'employmentHistory' ? (
+                                        /* The one section `SchemaSection` cannot edit —
+                                           see the header. Read-only rendering is still
+                                           its job, so this swap is scoped to editing. */
+                                        <PreviousEmployersEditor
+                                            employers={editedData.employers}
+                                            onChange={(employers) => handleFieldChange('employers', employers)}
+                                        />
+                                    ) : (
+                                        <SchemaSection
+                                            sectionId={section.id}
+                                            data={editing ? editedData : appData}
+                                            isEditing={editing}
+                                            onChange={handleFieldChange}
+                                            lockedKeys={lockedKeys}
+                                            fileUrls={fileUrls}
+                                            filesPending={filesPending}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </Card>
             )}

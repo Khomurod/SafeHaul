@@ -32,9 +32,6 @@ vi.mock('./CompanyProfileTab', async () => {
 vi.mock('./ApplicationFormTab', () => ({
     ApplicationFormTab: () => <h1>Application Form Content</h1>,
 }));
-vi.mock('./TeamManagementTab', () => ({
-    TeamManagementTab: () => <h1>Team Content</h1>,
-}));
 vi.mock('./EmailSettingsTab', () => ({
     EmailSettingsTab: () => <h1>Email Content</h1>,
 }));
@@ -44,30 +41,28 @@ vi.mock('./SmsSettingsTab', () => ({
 vi.mock('./AutomatedSmsTab', () => ({
     AutomatedSmsTab: () => <h1>Automated SMS Content</h1>,
 }));
-vi.mock('./PersonalProfileTab', () => ({
-    PersonalProfileTab: () => <h1>Personal Profile Content</h1>,
-}));
 vi.mock('./IntegrationsTab', () => ({
     IntegrationsTab: () => <h1>Integrations Content</h1>,
 }));
 vi.mock('./api-keys/ApiKeysTab', () => ({
     ApiKeysTab: () => <h1>API Keys Content</h1>,
 }));
-const isMobileMock = vi.hoisted(() => vi.fn(() => false));
-vi.mock('@shared/hooks/useIsMobile', () => ({
-    useIsMobile: () => isMobileMock(),
+/** Up to 1279px — a phone, a tablet, a narrow window — the menu of sections is its own page. */
+const isCompactMock = vi.hoisted(() => vi.fn(() => false));
+vi.mock('@shared/hooks/useIsCompact', () => ({
+    useIsCompact: () => isCompactMock(),
 }));
 
 /** A section that holds an unsaved edit while its box is ticked. */
-vi.mock('./BillingTab', async () => {
+vi.mock('./TeamManagementTab', async () => {
     const ReactModule = await import('react');
     const { useUnsavedChanges } = await import('@/design-system/patterns');
-    function BillingTab() {
+    function TeamManagementTab() {
         const [dirty, setDirty] = ReactModule.useState(false);
         useUnsavedChanges(dirty);
         return (
             <>
-                <h1>Plan Content</h1>
+                <h1>Team Content</h1>
                 <label>
                     <input type="checkbox" checked={dirty} onChange={(event) => setDirty(event.target.checked)} />
                     Unsaved edit
@@ -75,10 +70,13 @@ vi.mock('./BillingTab', async () => {
             </>
         );
     }
-    return { BillingTab };
+    return { TeamManagementTab };
 });
 
 import { CompanySettings } from './CompanySettings';
+
+/** Company profile, beside the rail from 1280px. */
+const COMPANY_PROFILE = '/company/settings?section=company';
 import { UnsavedChangesBoundary } from '@features/company-admin/layout/UnsavedChangesBoundary';
 
 const company = {
@@ -119,6 +117,7 @@ function renderSettings({
                 <Routes>
                     <Route path="/company/settings" element={<CompanySettings />} />
                     <Route path="/company/dashboard" element={<p>Company dashboard</p>} />
+                    <Route path="/company/profile" element={<h1>Profile page</h1>} />
                 </Routes>
             </UnsavedChangesBoundary>
             <AddressProbe />
@@ -129,24 +128,34 @@ function renderSettings({
 describe('CompanySettings shell', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => false);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => false);
     });
 
-    it('opens on Company profile, with no Overview page, and names it in the address', () => {
-        renderSettings();
-
-        expect(screen.getByRole('button', { name: 'Company profile' })).toHaveAttribute('aria-current', 'page');
-        expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
-        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?section=company$/);
-    });
-
-    it('keeps Company profile and its edit when the window narrows to phone width', () => {
+    it('opens on the menu of sections, as on a phone, with no rail and no section in the address', () => {
         renderSettings({ path: '/company/dashboard' });
         fireEvent.click(screen.getByRole('button', { name: 'App menu Settings' }));
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings$/);
+
+        // A row opens its section, now beside the rail, and Back returns to the menu.
+        fireEvent.click(screen.getByRole('button', { name: /^Team / }));
+        expect(screen.getByRole('heading', { level: 1, name: 'Team Content' })).toBeInTheDocument();
+        const nav = screen.getByRole('navigation', { name: 'Company settings sections' });
+        expect(within(nav).getByRole('button', { name: 'Team' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?section=team$/);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+    });
+
+    it('keeps Company profile and its edit when the window narrows to a tablet or a phone', () => {
+        renderSettings({ path: COMPANY_PROFILE });
         // The edit re-renders the page at the narrower width.
-        isMobileMock.mockImplementation(() => true);
+        isCompactMock.mockImplementation(() => true);
 
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved profile edit' }));
 
@@ -157,62 +166,101 @@ describe('CompanySettings shell', () => {
     });
 
     it('identifies the current section and keeps focus on the rail', () => {
-        renderSettings();
+        renderSettings({ path: COMPANY_PROFILE });
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
-        const myProfile = screen.getByRole('button', { name: 'My profile' });
+        const team = screen.getByRole('button', { name: 'Team' });
         expect(companyProfile).toHaveAttribute('aria-controls', 'company-settings-content');
 
         fireEvent.click(companyProfile);
         expect(companyProfile).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('heading', { name: 'Company Profile Content' })).toBeInTheDocument();
 
-        myProfile.focus();
-        fireEvent.click(myProfile);
-        expect(myProfile).toHaveFocus();
-        expect(myProfile).toHaveAttribute('aria-current', 'page');
+        team.focus();
+        fireEvent.click(team);
+        expect(team).toHaveFocus();
+        expect(team).toHaveAttribute('aria-current', 'page');
         expect(companyProfile).not.toHaveAttribute('aria-current');
-        expect(screen.getByRole('heading', { name: 'Personal Profile Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
+    });
+
+    it('names each section in the rail by its label, and describes it by its one line', () => {
+        // The line sits beside the button, so the button's visible text is its
+        // name (WCAG 2.5.3) and every test and speech-input user still finds "Team".
+        renderSettings({ path: COMPANY_PROFILE });
+        const nav = screen.getByRole('navigation', { name: 'Company settings sections' });
+        const team = within(nav).getByRole('button', { name: 'Team' });
+        expect(team).toHaveAccessibleDescription('Who recruits for you');
+        expect(team).toHaveTextContent(/^Team$/);
+        expect(within(nav).getByText('Who recruits for you')).toBeVisible();
+        expect(within(nav).getByRole('button', { name: 'Application questions' }))
+            .toHaveAccessibleDescription('Questions, rules, agreements and report uploads');
+    });
+
+    it('heads every section beside the rail with the Settings eyebrow, not a way back', () => {
+        renderSettings({ path: '/company/settings?section=team' });
+        const content = screen.getByRole('region', { name: 'Company settings content' });
+        expect(within(content).getByText('Settings')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
+    });
+
+    it('has no My profile: a person changes their own name and link on Profile', () => {
+        renderSettings({ path: COMPANY_PROFILE });
+        expect(screen.queryByRole('button', { name: /My profile/ })).toBeNull();
     });
 
     it('leaves the page heading to each section: one level-1 heading wherever you are', () => {
-        renderSettings();
-        const labels = ['Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile'];
+        renderSettings({ path: COMPANY_PROFILE });
+        const labels = ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads'];
         for (const label of labels) {
             fireEvent.click(screen.getByRole('button', { name: label }));
             expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
         }
     });
 
-    it('groups the sections under Company, Messaging, Connections and Account', () => {
-        renderSettings();
+    it('groups the sections under Company, Messaging and Connections', () => {
+        renderSettings({ path: COMPANY_PROFILE });
         const nav = screen.getByRole('navigation', { name: 'Company settings sections' });
         expect(within(nav).getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
-            .toEqual(['Company', 'Messaging', 'Connections', 'Account']);
+            .toEqual(['Company', 'Messaging', 'Connections']);
+    });
+
+    it('has no Plan section: the plan is a line in Company profile', () => {
+        renderSettings({ path: COMPANY_PROFILE });
+        expect(screen.queryByRole('button', { name: /Plan/ })).toBeNull();
     });
 
     it('supports directional focus navigation across visible settings sections', () => {
-        renderSettings();
+        renderSettings({ path: COMPANY_PROFILE });
 
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
-        const application = screen.getByRole('button', { name: 'Application form' });
-        const myProfile = screen.getByRole('button', { name: 'My profile' });
+        const application = screen.getByRole('button', { name: 'Application questions' });
+        const facebookLeads = screen.getByRole('button', { name: 'Facebook leads' });
 
         companyProfile.focus();
         fireEvent.keyDown(companyProfile, { key: 'ArrowDown' });
         expect(application).toHaveFocus();
 
         fireEvent.keyDown(application, { key: 'End' });
-        expect(myProfile).toHaveFocus();
+        expect(facebookLeads).toHaveFocus();
     });
 
-    it('hides Facebook leads with call tracking, and keeps API keys', () => {
+    it.each([
+        ['never switched on', {}],
+        ['switched off', { callTracking: false }],
+    ])('hides Facebook leads for a company it was %s for, and keeps API keys', (_case, features) => {
         renderSettings({
-            currentCompanyProfile: { ...company, features: { callTracking: false } },
+            currentCompanyProfile: { ...company, features },
+            path: COMPANY_PROFILE,
         });
 
         expect(screen.queryByRole('button', { name: 'Facebook leads' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'API keys' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /^Facebook leads / })).not.toBeInTheDocument();
+    });
+
+    it('shows Facebook leads only where a super admin switched it on', () => {
+        renderSettings({ path: COMPANY_PROFILE });
+        expect(screen.getByRole('button', { name: 'Facebook leads' })).toBeInTheDocument();
     });
 
     it('preserves the company-admin permission redirect', () => {
@@ -225,10 +273,10 @@ describe('CompanySettings shell', () => {
     });
 
     it('has no structural accessibility violations on the first section or another', async () => {
-        const { container } = renderSettings();
+        const { container } = renderSettings({ path: COMPANY_PROFILE });
         expect((await axe(container)).violations).toEqual([]);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
         expect((await axe(container)).violations).toEqual([]);
     });
 });
@@ -236,17 +284,17 @@ describe('CompanySettings shell', () => {
 describe('leaving a section with unsaved changes', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => false);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => false);
     });
 
-    function openDirtyPlan() {
-        renderSettings({ path: '/company/settings?section=billing' });
+    function openDirtyTeam() {
+        renderSettings({ path: '/company/settings?section=team' });
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
     }
 
     it('moves at once when nothing is changed', () => {
-        renderSettings({ path: '/company/settings?section=billing' });
+        renderSettings({ path: '/company/settings?section=team' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Email' }));
 
@@ -255,27 +303,27 @@ describe('leaving a section with unsaved changes', () => {
     });
 
     it('asks first, and stays when the person keeps editing', () => {
-        openDirtyPlan();
+        openDirtyTeam();
 
         fireEvent.click(screen.getByRole('button', { name: 'Email' }));
         const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
 
-        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
     });
 
     it('does not ask when the section already shown is chosen again', () => {
-        openDirtyPlan();
+        openDirtyTeam();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
 
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
     });
 
     it('moves when the person discards the changes', () => {
-        openDirtyPlan();
+        openDirtyTeam();
 
         fireEvent.click(screen.getByRole('button', { name: 'Email' }));
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
@@ -284,24 +332,24 @@ describe('leaving a section with unsaved changes', () => {
         expect(screen.getByTestId('address')).toHaveTextContent('section=email');
     });
 
-    /** Company profile first, then Plan with an edit, so the browser's Back leads to Company profile. */
-    function openDirtyPlanFromCompanyProfile() {
-        renderSettings();
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+    /** Company profile first, then Team with an edit, so the browser's Back leads to Company profile. */
+    function openDirtyTeamFromCompanyProfile() {
+        renderSettings({ path: COMPANY_PROFILE });
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
     }
 
     it('asks before the browser Back button leaves the edit, and keeps it on Keep editing', () => {
-        openDirtyPlanFromCompanyProfile();
+        openDirtyTeamFromCompanyProfile();
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
         const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
 
-        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
-        expect(screen.getByTestId('address')).toHaveTextContent('section=billing');
+        expect(screen.getByTestId('address')).toHaveTextContent('section=team');
 
         // The page the person came from is still one Back away.
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
@@ -311,7 +359,7 @@ describe('leaving a section with unsaved changes', () => {
     });
 
     it('follows the browser Back button once the person discards the changes', () => {
-        openDirtyPlanFromCompanyProfile();
+        openDirtyTeamFromCompanyProfile();
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
@@ -321,8 +369,8 @@ describe('leaving a section with unsaved changes', () => {
     });
 
     it('follows the browser Back button at once when nothing is changed', () => {
-        renderSettings();
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        renderSettings({ path: COMPANY_PROFILE });
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
 
@@ -331,11 +379,11 @@ describe('leaving a section with unsaved changes', () => {
     });
 });
 
-describe('Settings on a phone', () => {
+describe('Settings on a phone or a tablet', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => true);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => true);
     });
 
     it('shows no rail: a menu of every section is the way in', () => {
@@ -343,11 +391,34 @@ describe('Settings on a phone', () => {
 
         expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        // The menu's own eyebrow: the account area it belongs to.
+        expect(screen.getByText('Account')).toBeInTheDocument();
+        // Nothing cut: each way in says in full what it holds.
+        expect(screen.getByRole('button', { name: /^Application questions Questions, rules, agreements and report uploads$/ }))
+            .toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
-        for (const label of ['Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
+        for (const label of ['Company profile', 'Application questions', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
         expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
+    });
+
+    it('draws each group as one card of rows, in order, each row still a way in', () => {
+        const { container } = renderSettings({ path: '/company/settings?e2eAuth=company_admin' });
+
+        const cards = [...container.querySelectorAll('#company-settings-content .ds-card')];
+        const rowsPerCard = cards.map((card) => [...card.querySelectorAll('li > .ds-selectable-card')]
+            .map((row) => row.querySelector('.font-semibold').textContent));
+        expect(rowsPerCard).toEqual([
+            ['Company profile', 'Application questions', 'Team'],
+            ['Email', 'Text messages (SMS)', 'Automated texts'],
+            ['API keys', 'Facebook leads'],
+        ]);
+        // Rows of one card, not a card each: no box of their own.
+        for (const row of container.querySelectorAll('.ds-selectable-card')) {
+            expect(row).toHaveAttribute('data-frame', 'row');
+        }
+        expect(screen.getByRole('button', { name: 'Team Who recruits for you' })).toBeInTheDocument();
     });
 
     it('opens the menu for a section this company does not show', () => {
@@ -361,8 +432,8 @@ describe('Settings on a phone', () => {
     it('opens a section from its row, and the Settings link returns to the menu keeping the other parameters', () => {
         renderSettings({ path: '/company/settings?e2eAuth=company_admin' });
 
-        fireEvent.click(screen.getByRole('button', { name: /^Plan / }));
-        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Team / }));
+        expect(screen.getByRole('heading', { name: 'Team Content' })).toBeInTheDocument();
         const back = screen.getByRole('link', { name: 'Settings' });
         expect(back).toHaveAttribute('href', '/company/settings?e2eAuth=company_admin');
 
@@ -372,7 +443,7 @@ describe('Settings on a phone', () => {
     });
 
     it('asks before the Settings link leaves unsaved changes', () => {
-        renderSettings({ path: '/company/settings?section=billing' });
+        renderSettings({ path: '/company/settings?section=team' });
         fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
 
         fireEvent.click(screen.getByRole('link', { name: 'Settings' }));
@@ -384,7 +455,7 @@ describe('Settings on a phone', () => {
         const { container } = renderSettings();
         expect((await axe(container)).violations).toEqual([]);
 
-        fireEvent.click(screen.getByRole('button', { name: /^Plan / }));
+        fireEvent.click(screen.getByRole('button', { name: /^Team / }));
         expect((await axe(container)).violations).toEqual([]);
     });
 });
@@ -392,8 +463,8 @@ describe('Settings on a phone', () => {
 describe('the settings section in the address', () => {
     beforeEach(() => {
         useDataMock.mockReset();
-        isMobileMock.mockReset();
-        isMobileMock.mockImplementation(() => false);
+        isCompactMock.mockReset();
+        isCompactMock.mockImplementation(() => false);
     });
 
     it('opens the section the address names, old links included', () => {
@@ -404,7 +475,7 @@ describe('the settings section in the address', () => {
     });
 
     it('writes the chosen section into the address, keeping its other parameters', () => {
-        renderSettings({ path: '/company/settings?e2eAuth=company_admin' });
+        renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=email' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Team' }));
         expect(screen.getByTestId('address')).toHaveTextContent('/company/settings?e2eAuth=company_admin&section=team');
@@ -414,9 +485,9 @@ describe('the settings section in the address', () => {
     });
 
     it('goes back to the previous section with the browser', () => {
-        renderSettings();
+        renderSettings({ path: COMPANY_PROFILE });
         fireEvent.click(screen.getByRole('button', { name: 'Text messages (SMS)' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Team' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
 
@@ -424,11 +495,29 @@ describe('the settings section in the address', () => {
         expect(screen.getByRole('button', { name: 'Text messages (SMS)' })).toHaveAttribute('aria-current', 'page');
     });
 
-    it('opens Company profile for a section this company does not show', () => {
+    it.each([false, true])('opens the Profile page for an old My profile address, keeping the other parameters (phone: %s)', (phone) => {
+        isCompactMock.mockImplementation(() => phone);
+        renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=personal' });
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Profile page' })).toBeInTheDocument();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/profile\?e2eAuth=company_admin$/);
+    });
+
+    it.each([false, true])('opens Company profile, where the plan now is, for an old Plan address (phone: %s)', (phone) => {
+        isCompactMock.mockImplementation(() => phone);
+        renderSettings({ path: '/company/settings?e2eAuth=company_admin&section=billing' });
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?e2eAuth=company_admin&section=company$/);
+    });
+
+    it('opens the menu for a section this company does not show, with no rail', () => {
         renderSettings({
             currentCompanyProfile: { ...company, features: { callTracking: false } },
             path: '/company/settings?section=integrations',
         });
-        expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        expect(screen.queryByRole('navigation', { name: 'Company settings sections' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Facebook leads/ })).toBeNull();
     });
 });

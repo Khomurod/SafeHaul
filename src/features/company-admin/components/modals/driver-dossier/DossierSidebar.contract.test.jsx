@@ -32,7 +32,8 @@ const renderSidebar = (overrides = {}) => {
 
 const TAB_ORDER = [
   ['application', 'Application'],
-  ['documents', 'Documents'],
+  // "Documents" until the tab held only the driver's signing documents; the id stays.
+  ['documents', 'Documents to sign'],
   ['dq', 'DQ File'],
   ['pev', 'Previous Employment'],
   ['activity', 'Activity'],
@@ -172,6 +173,17 @@ describe('DossierSidebar identity presentation', () => {
     expect(screen.getByText('In Review')).toBeInTheDocument();
   });
 
+  it.each([
+    ['New Application', 'New'],
+    ['New Lead', 'New'],
+    ['Approved', 'Hired'],
+    ['Rejected', 'Declined'],
+  ])('names a stored %s as the status picker does, %s', (stored, shown) => {
+    renderSidebar({ currentStatus: stored });
+    expect(screen.getByText(shown)).toBeInTheDocument();
+    expect(screen.queryByText(stored)).toBeNull();
+  });
+
   it('renders initials from the first and last name', () => {
     renderSidebar();
     expect(screen.getByText('MG')).toBeInTheDocument();
@@ -213,6 +225,24 @@ describe('DossierSidebar contact actions', () => {
   });
 });
 
+describe('DossierSidebar contact (the owner\'s choice: Call and Email only)', () => {
+  it('keeps Call and Email, and leaves the phone, email, day and last call to the Summary\'s Contact card', () => {
+    renderSidebar({
+      appData: {
+        ...baseProps().appData,
+        createdAt: { toDate: () => new Date('2026-07-11T12:00:00Z') },
+        lastCallOutcome: 'No Answer',
+      },
+      collectionName: 'applications',
+    });
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+    for (const label of ['Phone', 'Email', 'Applied', 'Last call']) {
+      expect(screen.queryByText(label, { selector: 'dt' })).toBeNull();
+    }
+    expect(screen.queryByText('No Answer')).toBeNull();
+  });
+});
+
 describe('DossierSidebar — a referred driver', () => {
   afterEach(cleanup);
 
@@ -225,5 +255,60 @@ describe('DossierSidebar — a referred driver', () => {
     cleanup();
     renderSidebar({ appData: { firstName: 'Dana', lastName: 'Driver' } });
     expect(screen.queryByText(/Referred by/)).toBeNull();
+  });
+});
+
+describe('DossierSidebar — a lead and the application it became', () => {
+  afterEach(cleanup);
+
+  it("names a lead's first section Lead in the strip, as its header does", () => {
+    renderSidebar({ collectionName: 'leads' });
+    expect(screen.getByRole('tab', { name: /^Lead/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Application/ })).toBeNull();
+  });
+
+  it("keeps Application for an application's first section", () => {
+    renderSidebar({ collectionName: 'applications' });
+    expect(screen.getByRole('tab', { name: /^Application/ })).toBeInTheDocument();
+  });
+
+  it('a lead that applied opens its application', () => {
+    const onOpenRecord = vi.fn();
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', applicationId: 'app-9' },
+      collectionName: 'leads',
+      onOpenRecord,
+    });
+
+    expect(screen.getByText(/^Applied/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open application' }));
+    expect(onOpenRecord).toHaveBeenCalledWith('app-9', 'applications');
+  });
+
+  it('an application from a lead opens the lead', () => {
+    const onOpenRecord = vi.fn();
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', fromLeadId: 'lead-4' },
+      collectionName: 'applications',
+      onOpenRecord,
+    });
+
+    expect(screen.getByText(/^From a lead/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open lead' }));
+    expect(onOpenRecord).toHaveBeenCalledWith('lead-4', 'leads');
+  });
+
+  it("says nothing for an application's own applicationId, or a record with no link", () => {
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', applicationId: 'app-9' },
+      collectionName: 'applications',
+      onOpenRecord: vi.fn(),
+    });
+    expect(screen.queryByText(/^Applied/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Open / })).toBeNull();
+
+    cleanup();
+    renderSidebar({ collectionName: 'leads', onOpenRecord: vi.fn() });
+    expect(screen.queryByText(/^Applied|^From a lead/)).toBeNull();
   });
 });

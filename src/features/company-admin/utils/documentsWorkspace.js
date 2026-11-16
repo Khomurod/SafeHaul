@@ -3,35 +3,62 @@
  *
  * Everything here is derived from data the app already writes: signing-request
  * `status`, the `emailStatus`/`emailError` and `smsStatus`/`smsError` delivery
- * fields, `deliveryMethod`, `createdAt`, and template `fields`. No new business
- * rule is invented, and no metric is shown that the stored data cannot support.
+ * fields, `deliveryMethod`, `createdAt`, `expiresAt`, and template `fields`. No
+ * new business rule is invented, and no metric is shown that the stored data
+ * cannot support.
  */
 
-const toMillis = (value) => {
-    if (!value) return null;
-    if (typeof value.toMillis === 'function') return value.toMillis();
-    if (typeof value.seconds === 'number') return value.seconds * 1000;
-    if (value instanceof Date) return value.getTime();
-    return null;
-};
+import { millisOf as toMillis } from '@shared/utils/millisOf';
+import { formatDate } from '@shared/utils/helpers';
 
 const normalize = (value) => (value === null || value === undefined ? '' : String(value));
 
 /** Statuses that mean the signer has finished. */
 export const COMPLETED_STATUSES = Object.freeze(['signed', 'sealed', 'completed']);
 
-/** Statuses that mean the document is still with the signer. */
-export const AWAITING_STATUSES = Object.freeze(['sent', 'processing', 'pending_seal']);
+/**
+ * Statuses of a document its signer has not signed yet: `sent`, and the older
+ * `opened` the dossier always read (no writer stores it now). A failed send
+ * matters only on these (`openDeliveryFailure`).
+ */
+export const OPEN_STATUSES = Object.freeze(['sent', 'opened']);
 
-/** Status filter options. Values are the stored `status` values, unchanged. */
+/** Statuses counted as awaiting a signature: the open ones, and those being submitted or sealed. */
+export const AWAITING_STATUSES = Object.freeze([...OPEN_STATUSES, 'processing', 'pending_seal']);
+
+/**
+ * What each stored status is called on screen, in the filter, the history's
+ * badge and the details dialog alike. `opened` (older documents) is still
+ * awaiting a signature.
+ */
+export const STATUS_NAMES = Object.freeze({
+    sent: 'Awaiting signature',
+    opened: 'Awaiting signature',
+    processing: 'Processing',
+    signed: 'Signed',
+    pending_seal: 'Sealing',
+    error_sealing: 'Seal failed',
+    voided: 'Voided',
+});
+
+/**
+ * Status filter options. Values are the stored `status` values, unchanged, and
+ * `expired`, a document awaiting signature whose link ran out (`isLinkExpired`).
+ */
 export const STATUS_FILTERS = Object.freeze([
     { value: 'all', label: 'All statuses' },
-    { value: 'sent', label: 'Awaiting signature' },
-    { value: 'signed', label: 'Signed' },
-    { value: 'pending_seal', label: 'Sealing' },
-    { value: 'error_sealing', label: 'Seal failed' },
-    { value: 'voided', label: 'Voided' },
+    { value: 'sent', label: STATUS_NAMES.sent },
+    { value: 'expired', label: 'Link expired' },
+    { value: 'signed', label: STATUS_NAMES.signed },
+    { value: 'pending_seal', label: STATUS_NAMES.pending_seal },
+    { value: 'error_sealing', label: STATUS_NAMES.error_sealing },
+    { value: 'voided', label: STATUS_NAMES.voided },
 ]);
+
+/** A stored status's name on screen, or the value as stored when it has none. */
+export function statusLabel(status) {
+    return Object.hasOwn(STATUS_NAMES, status) ? STATUS_NAMES[status] : status;
+}
 
 /**
  * Delivery filter options. The values are the exact stored `deliveryMethod`
@@ -72,9 +99,10 @@ export function isAwaitingSignature(document) {
 }
 
 /**
- * The channel whose send failed and the error it recorded, or null. The
- * server's senders record each channel on the request; a text has no other way
- * to tell its sender it did not go out.
+ * The channel whose send failed and the error it recorded, or null, whatever
+ * the status: the record of what happened, kept after a document is signed or
+ * voided. The server's senders record each channel on the request; a text has
+ * no other way to tell its sender it did not go out.
  */
 export function deliveryFailure(document) {
     if (document?.emailStatus === 'failed') return { channel: 'Email', error: document.emailError || '' };
@@ -82,8 +110,42 @@ export function deliveryFailure(document) {
     return null;
 }
 
+const isOpen = (document) => OPEN_STATUSES.includes(normalize(document?.status).trim().toLowerCase());
+
+/**
+ * A failed send that still matters: the document is open (`OPEN_STATUSES`), so
+ * its signer may not have the link. Once it is signed, sealing or voided there
+ * is nothing to deliver, and `deliveryFailure` alone tells what happened.
+ */
+export function openDeliveryFailure(document) {
+    return isOpen(document) ? deliveryFailure(document) : null;
+}
+
+/** Whether an open document's send failed (`openDeliveryFailure`); the server's filters match it. */
 export function hasDeliveryFailure(document) {
-    return deliveryFailure(document) !== null;
+    return openDeliveryFailure(document) !== null;
+}
+
+/**
+ * A text left out on purpose, or null: the server skips an opted-out number
+ * when the email goes too (`smsStatus: 'skipped'`, the reason in `smsNote`).
+ * A note, never a failure.
+ */
+export function deliveryNote(document) {
+    if (document?.smsStatus !== 'skipped') return null;
+    return { channel: 'SMS', note: normalize(document.smsNote).trim() || 'SMS not sent.' };
+}
+
+/**
+ * An open document (`OPEN_STATUSES`) whose link has run out: derived here,
+ * never stored, so no server count or index knows it, and the numbers count it
+ * as awaiting a signature (`signingRequestQueries.js`). The dossier's list
+ * reads it too.
+ */
+export function isLinkExpired(document, now = Date.now()) {
+    if (!isOpen(document)) return false;
+    const expires = toMillis(document?.expiresAt);
+    return expires !== null && expires < now;
 }
 
 export function hasSealingFailure(document) {
@@ -92,7 +154,9 @@ export function hasSealingFailure(document) {
 
 /**
  * "Needs attention" is deliberately narrow: something went wrong that a person
- * has to act on. A document simply waiting for a signature is not a problem.
+ * has to act on, a failed send while the document is open or a failed seal. A
+ * document simply waiting for a signature is not a problem, and one signed or
+ * voided leaves by itself.
  */
 export function needsAttention(document) {
     return hasDeliveryFailure(document) || hasSealingFailure(document);
@@ -122,11 +186,6 @@ export function summarizeDocuments(documents = []) {
     return summary;
 }
 
-/** Most recent documents, already ordered by the live query. */
-export function recentDocuments(documents = [], limit = 5) {
-    return documents.slice(0, limit);
-}
-
 export function attentionDocuments(documents = [], limit = 5) {
     return documents.filter(needsAttention).slice(0, limit);
 }
@@ -153,7 +212,9 @@ export function filterDocuments(documents = [], filters = DEFAULT_FILTERS, now =
     return documents.filter((document) => {
         if (filters.needsAttention && !needsAttention(document)) return false;
 
-        if (filters.status && filters.status !== 'all') {
+        if (filters.status === 'expired') {
+            if (!isLinkExpired(document, now)) return false;
+        } else if (filters.status && filters.status !== 'all') {
             if (normalize(document.status).toLowerCase() !== filters.status) return false;
         }
 
@@ -242,7 +303,7 @@ export function searchTemplates(templates = [], search = '') {
  * a template with no `storagePath` would create a template that can never be
  * sent, and duplicating unknown field shapes would persist them unchanged.
  */
-export const DUPLICABLE_FIELD_TYPES = Object.freeze(['signature', 'initial', 'date', 'text', 'checkbox']);
+export const DUPLICABLE_FIELD_TYPES = Object.freeze(['signature', 'initial', 'date', 'text', 'checkbox', 'company_signature']);
 
 export function isTemplateDuplicable(template) {
     if (!template) return false;
@@ -253,9 +314,16 @@ export function isTemplateDuplicable(template) {
     );
 }
 
-/** Human-readable timestamp, or an em dash when the value is unusable. */
+/** The day a timestamp names ("Oct 23, 2026", the app's one date style), or an em dash when it is unusable. */
 export function formatTimestamp(value) {
     const millis = toMillis(value);
     if (millis === null) return '—';
-    return new Date(millis).toLocaleDateString();
+    return formatDate(new Date(millis));
+}
+
+/** "Oct 23, 2026", the date a request was sent (the history table's Date sent), or null without one. */
+export function formatSentDate(createdAt) {
+    if (typeof createdAt?.seconds !== 'number') return null;
+    return new Date(createdAt.seconds * 1000)
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }

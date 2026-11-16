@@ -1,0 +1,37 @@
+{
+  "//": "Check values for applicantIdentity.js, run by functions/test/unit/applicantIdentity.test.js (server) and src/shared/utils/applicantIdentity.test.js (browser mirror). All identities are artificial.",
+  "normalizeSsn": [
+    { "input": "123-45-6789", "expected": "123456789" },
+    { "input": " 123 45 6789 ", "expected": "123456789" },
+    { "input": 123456789, "expected": "123456789" },
+    { "input": "", "expected": "" },
+    { "input": null, "expected": "" },
+    { "input": "abc", "expected": "" }
+  ],
+  "normalizeName": [
+    { "input": "O'Brien", "expected": "obrien" },
+    { "input": "  Van Der Berg ", "expected": "vanderberg" },
+    { "input": "Muñoz", "expected": "munoz" },
+    { "input": "MÜLLER-Schmidt", "expected": "mullerschmidt" },
+    { "input": "Δημήτρης", "expected": "" },
+    { "input": "Lee2", "expected": "lee" },
+    { "input": null, "expected": "" }
+  ],
+  "normalizeDob": [
+    { "input": "1984-03-14", "expected": "1984-03-14" },
+    { "input": " 1984-03-14T00:00:00.000Z", "expected": "1984-03-14" },
+    { "input": "03/14/1984", "expected": "" },
+    { "input": "1984-3-14", "expected": "" },
+    { "input": "", "expected": "" },
+    { "input": null, "expected": "" }
+  ],
+  "nationalDigits": [
+    { "input": "+1 (512) 555-0142", "expected": "5125550142" },
+    { "input": "512-555-0142", "expected": "5125550142" },
+    { "input": "15125550142", "expected": "5125550142" },
+    { "input": "25125550142", "expected": "25125550142" },
+    { "input": "555-0101", "expected": "5550101" },
+    { "input": "", "expected": "" },
+    { "input": null, "expected": "" }
+  ]
+}

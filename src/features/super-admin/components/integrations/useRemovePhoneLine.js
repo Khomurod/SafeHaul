@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Removes one phone line from a company's SMS wallet through `removePhoneLine`
@@ -35,7 +36,7 @@ export function useRemovePhoneLine(companyId) {
             }
         } catch (error) {
             console.error('Remove Line Error:', error);
-            showError(error.message || 'Failed to remove line.');
+            showError(plainErrorMessage(error, 'The line could not be removed.'));
         } finally {
             inFlight.current = false;
             setRemovingLine(null);

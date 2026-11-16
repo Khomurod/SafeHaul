@@ -10,9 +10,13 @@
  *
  * Callables:
  *  - proposeApplicationChanges  (company_admin)  → writes pending_changes docs
- *  - createChangeReview         (company_admin)  → mints a token review link
- *  - getChangeReview            (public/token)   → driver loads before/after
- *  - submitChangeResolution     (public/token)   → driver approve/reject/edit
+ *  - createChangeReview         (company_admin)  → mints a token review link; with
+ *                                                  `deliver: 'email'` emails it to the
+ *                                                  application's own address instead
+ *  - getChangeReview            (public/token)   → driver loads before/after, and the
+ *                                                  company's name
+ *  - submitChangeResolution     (public/token)   → driver approve/reject/edit; with `shown`,
+ *                                                  only of the value the page showed
  *
  * ## `employers` is the one field that is not just a value
  *
@@ -28,7 +32,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
-const { v4: uuidv4 } = require("uuid");
+const { randomId } = require('./shared/randomId');
 const { admin, db } = require("./firebaseAdmin");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
 const { checkRateLimit } = require("./shared/rateLimiter");
@@ -36,16 +40,41 @@ const { isEditableField, fieldLabel, valuesEqual } = require("./shared/applicati
 const {
     describeEmployerEdit, reconcileEmployerEdit,
 } = require("./shared/employerEdits");
+const {
+    appOriginFor, assertEmailAllowed, deliverableEmail, deliveryClaim, deliveryCoolingDown,
+    emailSenderFor, linkEmailHtml, readDeliver, refusal, sendClaimedEmail,
+} = require("./shared/linkDelivery");
+const { sameAnswer } = require("./shared/companyEdits");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
-const REVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REVIEW_TTL_DAYS = 30;
+const REVIEW_TTL_MS = REVIEW_TTL_DAYS * 24 * 60 * 60 * 1000;
 const REPLACED_LINK = 'This review link was replaced by a newer one. Please use the latest link your recruiter sent.';
+// The page reads a refusal's words to tell a link that stopped working (replaced,
+// expired, already complete) from anything else, so this one uses none of them.
+const CHANGES_UPDATED = 'Some of these changes were updated after you opened this page. Please review them again.';
 
 /** Every review is written with a status (since the feature began): 'open' until it ends. */
 const isOpenReview = (review) => review.status === 'open';
 
 function appRef(companyId, collectionName, applicationId) {
     return db.collection('companies').doc(companyId).collection(collectionName).doc(applicationId);
+}
+
+/**
+ * The company's name, for the review page to say who proposed the changes: the
+ * `companyName` its emails use, or null. A courtesy, so a failed read names no
+ * one rather than closing the review.
+ */
+async function reviewCompanyName(companyId) {
+    try {
+        const snap = await db.collection('companies').doc(companyId).get();
+        const name = snap.exists ? snap.data()?.companyName : null;
+        return typeof name === 'string' && name.trim() ? name.trim() : null;
+    } catch (e) {
+        logger.warn(`[getChangeReview] company name not read for ${companyId}: ${e?.message || e}`);
+        return null;
+    }
 }
 
 function validateTarget(data) {
@@ -148,12 +177,65 @@ exports.proposeApplicationChanges = onCall({ cors: true }, async (request) => {
     return { success: true, applied, skipped };
 });
 
+/**
+ * "Email review link to driver": everything asked before a link is made — an
+ * address on the application we may use, company email, the limits — and the
+ * claim to write with it (`shared/linkDelivery.js`). Throws the refusal; nothing
+ * has been written.
+ */
+async function prepareReviewDelivery({ request, companyId, applicationId, collectionName, application }) {
+    const to = deliverableEmail(application.email);
+    if (!to) throw refusal('no-email');
+    const sender = await emailSenderFor(companyId);
+    if (!sender) throw refusal('email-not-configured');
+    await assertEmailAllowed({
+        companyId, uid: request.auth.uid, recordKey: `review_${companyId}_${collectionName}_${applicationId}`,
+    });
+    return {
+        to,
+        origin: appOriginFor(request.data?.appBaseUrl),
+        companyName: sender.companyName,
+        claim: deliveryClaim({ uid: request.auth.uid, to, now: Date.now() }),
+    };
+}
+
+/** The email, and the answer the caller gets: the masked address, never the token. */
+async function emailReview({ delivery, companyId, token, application }) {
+    const { companyName } = delivery;
+    const firstName = typeof application.firstName === 'string' ? application.firstName.trim().slice(0, 80) : '';
+    const html = linkEmailHtml({
+        heading: 'Review changes to your application',
+        greeting: `Hello ${firstName || 'there'},`,
+        paragraphs: [
+            `${companyName} has proposed changes to the application you submitted.`,
+            'Nothing on your application changes until you say so: approve, reject or correct each one.',
+        ],
+        buttonLabel: 'Review the changes',
+        url: `${delivery.origin}/review-change/${token}`,
+        footnote: `This link works for ${REVIEW_TTL_DAYS} days and is meant for you alone. If ${companyName} `
+            + 'sends you a newer link, use that one: this one then stops working.',
+    });
+    const to = await sendClaimedEmail({
+        companyId,
+        ref: db.collection('change_reviews').doc(token),
+        field: 'delivery',
+        claim: delivery.claim,
+        to: delivery.to,
+        subject: `${companyName} asks you to review changes to your application`,
+        html,
+        label: 'createChangeReview',
+    });
+    return { success: true, delivered: { channel: 'email', to }, expiresInDays: REVIEW_TTL_DAYS };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. createChangeReview (company_admin) → token link
+// 2. createChangeReview (company_admin) → token link, or the link emailed
 // ─────────────────────────────────────────────────────────────────────────────
-exports.createChangeReview = onCall({ cors: true }, async (request) => {
+// The secret decrypts the company's SMTP password for `deliver: 'email'` (emailService.js).
+exports.createChangeReview = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
     const { companyId, applicationId, collectionName } = validateTarget(request.data);
+    const deliver = readDeliver(request.data);
     await assertCompanyAdminStrict(request.auth.uid, companyId);
 
     const ref = appRef(companyId, collectionName, applicationId);
@@ -165,8 +247,11 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
     if (pendingSnap.empty) {
         throw new HttpsError('failed-precondition', 'There are no pending changes to review.');
     }
+    const delivery = deliver
+        ? await prepareReviewDelivery({ request, companyId, applicationId, collectionName, application: data })
+        : null;
 
-    const token = uuidv4();
+    const token = randomId();
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + REVIEW_TTL_MS);
     const applicantName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Driver';
@@ -179,14 +264,17 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
     // transaction, because Firestore runs transactions as if one after another:
     // of two links sent at once (a double click, a retry), the later sees the
     // earlier and revokes it.
-    await db.runTransaction(async (tx) => {
+    const outcome = await db.runTransaction(async (tx) => {
         const openSnap = await tx.get(openReviews);
-        openSnap.docs
-            .filter((d) => {
-                const r = d.data() || {};
-                return r.companyId === companyId && r.collectionName === collectionName;
-            })
-            .forEach((d) => tx.update(d.ref, { status: 'revoked', revokedAt: now }));
+        const open = openSnap.docs.filter((d) => {
+            const r = d.data() || {};
+            return r.companyId === companyId && r.collectionName === collectionName;
+        });
+        // One press, one email: a link emailed a moment ago stands, and nothing is replaced.
+        if (delivery && open.some((d) => deliveryCoolingDown(d.data()?.delivery, now.toMillis()))) {
+            return { refused: 'just-sent' };
+        }
+        open.forEach((d) => tx.update(d.ref, { status: 'revoked', revokedAt: now }));
         tx.set(db.collection('change_reviews').doc(token), {
             token,
             companyId,
@@ -197,10 +285,14 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
             createdBy: request.auth.uid,
             createdAt: now,
             expiresAt,
+            ...(delivery ? { delivery: delivery.claim } : {}),
         });
+        return { refused: null };
     });
+    if (outcome.refused) throw refusal(outcome.refused);
 
     logger.info(`[createChangeReview] token created for ${collectionName}/${applicationId} (company ${companyId})`);
+    if (delivery) return emailReview({ delivery, companyId, token, application: data });
     // Frontend builds the full URL from window.location.origin + /review-change/{token}.
     return { success: true, token, path: `/review-change/${token}` };
 });
@@ -225,11 +317,15 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
     // A completed link shows nothing: the application's changes now include ones
     // proposed, and settled, under later links.
     if (!isOpenReview(review)) {
-        return { applicantName: review.applicantName, status: review.status, changes: [] };
+        const companyName = await reviewCompanyName(review.companyId);
+        return { applicantName: review.applicantName, status: review.status, changes: [], companyName };
     }
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
-    const changesSnap = await ref.collection('pending_changes').get();
+    const [changesSnap, companyName] = await Promise.all([
+        ref.collection('pending_changes').get(),
+        reviewCompanyName(review.companyId),
+    ]);
     const changes = changesSnap.docs.map((d) => {
         const c = d.data();
         return {
@@ -246,6 +342,7 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
         applicantName: review.applicantName,
         status: review.status,
         changes,
+        companyName,
     };
 });
 
@@ -276,6 +373,25 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
     const pendingSnap = await ref.collection('pending_changes').get();
     const byKey = new Map(pendingSnap.docs.map((d) => [d.id, d.data()]));
+    // When each change was read: its resolution is written only onto the change as
+    // read (`lastUpdateTime`), so a proposal that lands between this read and the
+    // commit fails the whole batch, exactly as one that landed before it fails below.
+    const readAt = new Map(pendingSnap.docs.map((d) => [d.id, d.updateTime]));
+    // A decision is about the value the page showed (`shown`): a proposal made while
+    // the page was open replaces the pending value, and approving that one would
+    // record a value the driver never saw. Checked for every decision before anything
+    // is written, so the call records all or nothing. A page that sends no `shown`
+    // predates this and keeps the old behaviour: Production serves it until a release.
+    const sawPendingValue = (r) => {
+        if (!r || !Object.prototype.hasOwnProperty.call(r, 'shown')) return true;
+        const change = byKey.get(r.fieldKey);
+        return change?.status === 'pending' && sameAnswer(r.shown, change.proposedValue);
+    };
+    const unseen = resolutions.filter((r) => !sawPendingValue(r)).length;
+    if (unseen > 0) {
+        logger.info(`[submitChangeResolution] refused: ${unseen} decision(s) on changes that moved after the page loaded`);
+        throw new HttpsError('failed-precondition', CHANGES_UPDATED, { reason: 'changes-updated' });
+    }
     // The record as it stands NOW, not as it stood when the change was proposed.
     // A verification can complete while a review link sits unopened for days.
     const liveSnap = await ref.get();
@@ -315,16 +431,20 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
             return settled.value;
         };
 
+        const resolve = (data) => batch.update(pcRef, {
+            ...data, resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { lastUpdateTime: readAt.get(fieldKey) });
+
         if (action === 'approve') {
             const approved = settle(change.proposedValue ?? null);
             docUpdates[fieldKey] = approved;
-            batch.set(pcRef, { status: 'approved', resolvedValue: approved, resolution: 'approve', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'approved', resolvedValue: approved, resolution: 'approve' });
         } else if (action === 'reject') {
-            batch.set(pcRef, { status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject' });
         } else if (action === 'edit') {
             const driverValue = settle(r.value ?? null); // driver's edit is final
             docUpdates[fieldKey] = driverValue;
-            batch.set(pcRef, { status: 'edited', resolvedValue: driverValue, resolution: 'edit', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            resolve({ status: 'edited', resolvedValue: driverValue, resolution: 'edit' });
         } else {
             continue; // invalid action
         }
@@ -333,7 +453,16 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     if (Object.keys(docUpdates).length > 0) {
         batch.set(ref, docUpdates, { merge: true });
     }
-    await batch.commit();
+    try {
+        await batch.commit();
+    } catch (err) {
+        // A change rewritten since it was read (Firestore's FAILED_PRECONDITION): nothing was recorded.
+        if (err?.code === 9 || err?.code === 'failed-precondition') {
+            logger.info('[submitChangeResolution] refused: a change moved while the decisions were being recorded');
+            throw new HttpsError('failed-precondition', CHANGES_UPDATED, { reason: 'changes-updated' });
+        }
+        throw err;
+    }
 
     // Recompute remaining pending; clear the mark + close the review when none remain.
     const remainingSnap = await ref.collection('pending_changes').where('status', '==', 'pending').limit(1).get();

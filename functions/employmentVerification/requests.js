@@ -1,7 +1,8 @@
 /**
  * PEV — verification request creation.
- * Company admin triggers a Previous Employment Verification: mints the token,
- * stores the verification_requests doc, and emails the previous employer.
+ * Any member of the company's team (owner decision В4) triggers a Previous
+ * Employment Verification: mints the token, stores the verification_requests
+ * doc, and emails the previous employer.
  *
  * ## The request records WHICH employer, not just where it was
  *
@@ -19,13 +20,15 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
 const { sendDynamicEmail } = require("../emailService");
 const { assertCompanyAccessForRequest } = require("../shared/companyAccess");
-const { v4: uuidv4 } = require("uuid");
+const { randomId } = require('../shared/randomId');
 const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
 const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
 const { fileRequestInDq, requestPdfPath, storeRequestPdf } = require("./requestAttachment");
 const { releaseStatementFor } = require("../shared/employerReleaseAgreement");
 const { isValidEmail } = require("../shared/isValidEmail");
+const { LIVE_STATUSES, closeRequests, requestsForEmployer } = require("./requestLifecycle");
+const { attemptEntry, mirrorAttempt, recordAttempt, withAttempt } = require("./attemptLog");
 
 /**
  * The applicant's release naming this employer, from the submission record the
@@ -118,11 +121,12 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
     }
 
     // PEV-SEC-1 FIX: Verify the caller actually belongs to the specified company.
-    await assertCompanyAccessForRequest(request, companyId, 'PEV/sendVerificationRequest');
+    const checkedCompany = await assertCompanyAccessForRequest(request, companyId, 'PEV/sendVerificationRequest');
 
     try {
-        // Get company name
-        const companyDoc = await db.collection('companies').doc(companyId).get();
+        // Get company name: the company the access check read; a super admin's
+        // check may hand back none.
+        const companyDoc = checkedCompany || await db.collection('companies').doc(companyId).get();
         if (!companyDoc.exists) throw new HttpsError('not-found', 'Company not found.');
         const companyData = companyDoc.data();
         const companyName = companyData.companyName || companyData.name || 'Prospective Employer';
@@ -188,7 +192,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         });
 
         // Generate unique token
-        const token = uuidv4();
+        const token = randomId();
         const now = admin.firestore.Timestamp.now();
         const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + (30 * 24 * 60 * 60 * 1000)); // 30 days
         const deadlineDate = new Date(expiresAt.toMillis()).toISOString().split('T')[0];
@@ -199,7 +203,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // The request document: the applicant's signed release, for the email and the record.
         const row = stamped[target.index] || {};
         const resolvedEmployerName = employerName || employerNameOf(row) || 'Former Employer';
-        const requestId = uuidv4();
+        const requestId = randomId();
         const employerRelease = await employerReleaseOf(appRef, application, resolvedEmployerName);
         const requestPdf = await storeRequestPdf({
             path: requestPdfPath({
@@ -227,6 +231,8 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // Create verification request document
         const verificationData = {
             token,
+            // The request's name in records the team reads; the token never is.
+            requestId,
             companyId,
             applicationId,
             collectionName,
@@ -253,6 +259,11 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             reminderCount: 0,
             lastReminderAt: null,
             createdBy: request.auth.uid,
+            // The attempt log (./attemptLog.js). A request handed over by fax or
+            // by hand is issued now; an emailed one is logged once the email goes.
+            attempts: deliveryMethod === 'email'
+                ? []
+                : [attemptEntry('sent', { at: now, by: request.auth.uid, method: deliveryMethod })],
         };
 
         // Store in verification_requests collection (global, indexed by token)
@@ -274,10 +285,45 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             });
 
             const subject = `Previous Employment Verification Request – ${applicantName}`;
-            emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML, {
-                ...(ccEmails.length > 0 ? { cc: ccEmails } : {}),
-                ...(requestPdf ? { attachments: [requestPdf.attachment] } : {}),
+            try {
+                emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML, {
+                    ...(ccEmails.length > 0 ? { cc: ccEmails } : {}),
+                    ...(requestPdf ? { attachments: [requestPdf.attachment] } : {}),
+                });
+            } catch (sendError) {
+                // Nothing was attempted, so nothing may be reminded or marked "no
+                // response" later: `send_failed` is outside the live statuses.
+                // The code only: a mail server's reply can name the employer's address. The reason is recorded below.
+                logger.error('[PEV] The request email did not go out; the request is marked not sent.', {
+                    code: sendError?.code || sendError?.responseCode || 'error',
+                });
+                const failed = attemptEntry('send_failed', { ok: false, by: request.auth.uid, error: sendError });
+                await verificationRef.update(withAttempt({
+                    status: 'send_failed',
+                    sendFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    sendError: String(sendError?.message || sendError).slice(0, 300),
+                }, failed));
+                await mirrorAttempt(verificationData, failed);
+                return { success: false, error: 'the email to the employer could not be sent' };
+            }
+            // The email went out: a failed log write is tried once more, never by
+            // sending again (a caller retry would email the employer twice).
+            const sent = attemptEntry('sent', { by: request.auth.uid, method: 'email' });
+            if (!(await recordAttempt(verificationRef, sent))) await recordAttempt(verificationRef, sent);
+        }
+
+        // The employer's earlier live requests stop here: they would keep
+        // reminding, and their day-30 mark would overwrite this row.
+        try {
+            const earlier = (await requestsForEmployer({ companyId, collectionName, applicationId }, stamped, target.index))
+                .filter((doc) => doc.id !== token);
+            await closeRequests(earlier, LIVE_STATUSES, {
+                status: 'superseded',
+                supersededAt: now,
+                supersededBy: requestId,
             });
+        } catch (supersedeError) {
+            logger.error('[PEV] Earlier requests for this employer could not be closed.', supersedeError);
         }
 
         // Filed once the request exists and went out, so a failed send leaves no

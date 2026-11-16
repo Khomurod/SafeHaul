@@ -3,6 +3,7 @@ import Draggable from 'react-draggable';
 import { Icon, X, Scaling } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 import { startCornerResize } from './cornerResize';
+import { CompanySignatureImage } from '@features/signing/components/CompanySignatureImage';
 
 /**
  * Resizable & draggable field overlay.
@@ -40,6 +41,8 @@ const FIELD_TONE = {
     initial: { fill: 'bg-ds-status-warning-bg', border: 'border-ds-status-warning-border' },
     text: { fill: 'bg-ds-status-info-bg', border: 'border-ds-status-info-border' },
     date: { fill: 'bg-ds-status-success-bg', border: 'border-ds-status-success-border' },
+    // The company's own mark, apart from the signer's four groups, like its palette button.
+    company_signature: { fill: 'bg-ds-status-neutral-bg', border: 'border-ds-status-neutral-border' },
 };
 const FIELD_TONE_FALLBACK = { fill: 'bg-ds-status-accent-bg', border: 'border-ds-status-accent-border' };
 
@@ -89,6 +92,8 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
 
     const tone = FIELD_TONE[field.type] || FIELD_TONE_FALLBACK;
     const fieldName = field.label || 'Untitled field';
+    // "company signature", not "company_signature", in what is announced.
+    const typeName = String(field.type || '').replace(/_/g, ' ');
     const inSelection = isSelected || isMultiSelected;
 
     /**
@@ -142,7 +147,7 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                 role="group"
                 // Selection is stated in the name, not only in the border colour.
                 // `aria-selected` is not allowed on role="group", so the name carries it.
-                aria-label={`${fieldName}, ${field.type} field on page ${pageNum}${inSelection ? ', selected' : ''}`}
+                aria-label={`${fieldName}, ${typeName} field on page ${pageNum}${inSelection ? ', selected' : ''}`}
                 aria-describedby={hintId}
                 onMouseDown={() => { pointerFocusRef.current = true; }}
                 onFocus={() => {
@@ -184,13 +189,26 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                     {size.width > 40 && (
                         <input
                             className="label-input w-full cursor-text truncate border-none bg-transparent p-0 text-ds-xs font-bold uppercase text-ds-content focus:ring-0"
-                            aria-label={`Label for ${field.type} field on page ${pageNum}`}
+                            aria-label={`Label for ${typeName} field on page ${pageNum}`}
                             value={field.label}
                             onChange={(e) => onLabelChange(field.id, e.target.value)}
                             onMouseDown={(e) => e.stopPropagation()}
                         />
                     )}
                 </div>
+
+                {/* A company signature shows its image where the signer will see it. */}
+                {field.type === 'company_signature' && (
+                    <div className="pointer-events-none relative z-ds-layer-1 flex min-h-0 flex-1 items-center justify-center overflow-hidden px-ds-1 pb-ds-1">
+                        <CompanySignatureImage
+                            path={field.companySignaturePath}
+                            className="max-h-full max-w-full object-contain"
+                            placeholder={field.companySignaturePath
+                                ? null
+                                : <span className="truncate text-ds-xs text-ds-content-secondary">No image yet</span>}
+                        />
+                    </div>
+                )}
 
                 <span id={hintId} className="ds-visually-hidden">
                     Arrow keys move the field by one percent, Shift by five, and Alt with an

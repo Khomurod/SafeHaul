@@ -93,6 +93,8 @@ const {
     EXCHANGE_LIMIT, INVITE_DAYS, MINT_LIMIT,
     carriedPriorInvites, hashInvite, inviteExpiresAt, liveInviteFor,
 } = require('./inviteTokens');
+const { readDeliver, refusal } = require('../shared/linkDelivery');
+const { claimInviteDelivery, prepareInviteDelivery, sendInvite } = require('./inviteDelivery');
 
 /**
  * The prior-hash list a rotation leaves behind. Liveness only, never authorization
@@ -115,19 +117,24 @@ function storedLocks(stored) {
  *
  * The raw token is returned exactly once. Regenerating retires the link it
  * replaces — after the short grace above — which is what the recruiter is told.
+ *
+ * With `deliver: 'email'` the server emails the link to the draft's own address
+ * and returns only that address, masked: no token (`./inviteDelivery.js`). The
+ * secret decrypts the company's SMTP password (`emailService.js`).
  */
-exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
+exports.mintApplicationInvite = onCallV2({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, async (request) => {
     const companyId = docId(request.data?.companyId, 100);
     const applicantKey = applicantKeyOf(request.data?.applicantKey);
     if (!companyId || !applicantKey) {
         throw new HttpsErrorV2('invalid-argument', 'companyId and applicantKey are required.');
     }
+    const deliver = readDeliver(request.data);
 
     await assertCompanyAccessForRequest(request, companyId, 'mintApplicationInvite');
 
     // The same intake and rate-limit checks as the other four prepared-application
     // callables.
-    await assertCompanyAcceptingIntake(db, companyId);
+    const company = await assertCompanyAcceptingIntake(db, companyId);
     const allowed = await checkRateLimit(
         `company_invite_${companyId}_${request.auth.uid}`,
         MINT_LIMIT.limit, MINT_LIMIT.windowSeconds, 'closed',
@@ -135,6 +142,9 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
     if (!allowed) {
         throw new HttpsErrorV2('resource-exhausted', 'Too many links in a row. Wait a moment and try again.');
     }
+    const delivery = deliver
+        ? await prepareInviteDelivery({ request, companyId, applicantKey, company })
+        : null;
 
     const token = crypto.randomBytes(32).toString('hex');
     const ref = draft.draftsCollection(companyId).doc(applicantKey);
@@ -144,6 +154,9 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
         const doc = await transaction.get(ref);
         if (!doc.exists) return { missing: true };
         const data = doc.data() || {};
+        // Refused before anything is written, so the driver's live link stays live.
+        const claim = delivery ? claimInviteDelivery(delivery, data, now) : null;
+        if (claim?.refused) return { refused: claim.refused };
 
         transaction.set(ref, {
             inviteTokenHash: hashInvite(token),
@@ -173,14 +186,22 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
                         : prepared.PREPARED_STATUSES.SENT,
                 }
                 : {}),
+            ...(claim ? { inviteDelivery: claim.record } : {}),
             updatedAt: draft.serverTimestamp(),
             expiresAt: draft.expiresAt(),
         }, { merge: true });
-        return { missing: false, driverOwned: !prepared.companyMayReadAnswers(data) };
+        return { missing: false, driverOwned: !prepared.companyMayReadAnswers(data), claim, stored: data };
     });
 
     if (outcome.missing) {
         throw new HttpsErrorV2('not-found', 'No unfinished application was found.');
+    }
+    if (outcome.refused) throw refusal(outcome.refused);
+    if (delivery) {
+        return sendInvite({
+            delivery, companyId, ref, token, applicantKey,
+            claim: outcome.claim, stored: outcome.stored, driverOwned: outcome.driverOwned,
+        });
     }
 
     return {

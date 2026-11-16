@@ -5,6 +5,7 @@ import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Button, Checkbox, FormField, IconButton, Input, Notice, Textarea } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Modal for Super Admins to add a new phone line to the Digital Wallet.
@@ -78,11 +79,12 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
             showSuccess(`✓ Connected! ${result.data.extensionName}`);
         } catch (error) {
             console.error('Test Connection Error:', error);
+            const message = plainErrorMessage(error, 'The connection test failed.');
             setTestResult({
                 success: false,
-                message: error.message
+                message,
             });
-            showError(error.message || 'Connection test failed.');
+            showError(message);
         } finally {
             setIsTesting(false);
         }
@@ -130,7 +132,7 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
             }
         } catch (error) {
             console.error('Add Line Error:', error);
-            showError(error.message || 'Failed to add phone line.');
+            showError(plainErrorMessage(error, 'The phone line could not be added.'));
         } finally {
             setIsSubmitting(false);
         }

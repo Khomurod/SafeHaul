@@ -44,6 +44,17 @@ const meta = {
           'eight discs this replaced were **not** hidden, so a screen-reader user heard',
           'the initial read out as content.',
           '',
+          '### Tones for a person row, the frame, and an empty place',
+          '',
+          '`brand` is the disc in a list row — initials in the brand navy on its tint. A',
+          'person cell is `sm` (32px) beside the name; an assignee is `xs` (20px).',
+          '`navigation` is the application frame\'s blue, for the signed-in person in the',
+          'top bar: the frame kept its colour when actions moved to the brand navy, so',
+          'its disc does not follow `primary`. `placeholder` is an empty dashed ring',
+          'holding a person\'s place in a column (an unassigned row), so every name',
+          'beside it starts at one edge; it takes no initials and the text beside it',
+          'carries the meaning.',
+          '',
           '### A disc holding a glyph is not this',
           '',
           'Twenty-five round discs were measured in the product and only eight were',
@@ -76,15 +87,20 @@ export const Sizes = {
   ),
 };
 
-/** Every tone. `primary` fills; `inverse` is for the console-dark panel. */
+/**
+ * Every tone. `primary` fills with the action colour, `navigation` with the
+ * frame's blue, `brand` tints; `placeholder` is the empty ring; `inverse` is for
+ * the console-dark panel.
+ */
 export const Tones = {
   render: () => (
     <Stack gap="sm">
       <Card>
         <Inline gap="sm" wrap>
-          {['neutral', 'info', 'success', 'warning', 'danger', 'accent', 'primary'].map((tone) => (
-            <Avatar key={tone} tone={tone}>MG</Avatar>
-          ))}
+          {['neutral', 'info', 'success', 'warning', 'danger', 'accent', 'primary', 'brand', 'navigation'].map(
+            (tone) => <Avatar key={tone} tone={tone}>MG</Avatar>,
+          )}
+          <Avatar tone="placeholder" />
         </Inline>
       </Card>
       <div className="rounded-ds-lg bg-ds-surface-inverse p-ds-4">
@@ -145,6 +161,36 @@ export const InALine = {
             <Inline key={name} gap="sm">
               <Avatar size="sm" tone={tone}>{initials}</Avatar>
               <span className="self-center text-ds-sm text-ds-content">{name}</span>
+            </Inline>
+          ),
+        )}
+      </Stack>
+    </Card>
+  ),
+};
+
+/**
+ * A list's person column and assignee column: `brand` discs beside the names,
+ * and the empty `placeholder` ring where no one is assigned, so every assignee
+ * name starts at the same edge.
+ */
+export const PersonRowsAndAnEmptyPlace = {
+  render: () => (
+    <Card>
+      <Stack gap="sm">
+        {[['MG', 'Maria Garcia', 'RS', 'Rosa Silva'], ['TK', 'Tomas Kim', null, 'Unassigned']].map(
+          ([initials, name, ownerInitials, owner]) => (
+            <Inline key={name} gap="lg" wrap={false}>
+              <Inline gap="sm" wrap={false}>
+                <Avatar size="sm" tone="brand">{initials}</Avatar>
+                <span className="text-ds-body font-semibold text-ds-content">{name}</span>
+              </Inline>
+              <Inline gap="sm" wrap={false}>
+                {ownerInitials
+                  ? <Avatar size="xs" tone="brand">{ownerInitials}</Avatar>
+                  : <Avatar size="xs" tone="placeholder" />}
+                <span className="text-ds-body text-ds-content-secondary">{owner}</span>
+              </Inline>
             </Inline>
           ),
         )}

@@ -1,5 +1,6 @@
-// Documents Overview: real metrics from real data, the attention list, the
-// recent list, and the loading/error states. All documents are artificial.
+// Documents Overview: real metrics from real data, each opening the list it
+// counts, the attention cards that open a document, and the loading/error
+// states. All documents are artificial.
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
@@ -23,9 +24,11 @@ const baseProps = () => ({
     onRetry: vi.fn(),
     templates: [],
     templatesLoading: false,
-    onViewSentDocuments: vi.fn(),
+    onViewAwaiting: vi.fn(),
+    onViewCompleted: vi.fn(),
     onViewNeedsAttention: vi.fn(),
     onViewTemplates: vi.fn(),
+    onOpenDocument: vi.fn(),
 });
 
 const renderOverview = (overrides = {}) => {
@@ -50,10 +53,7 @@ describe('metrics', () => {
         });
 
         expect(metric('Awaiting signature')).toHaveAccessibleName('Awaiting signature: 2');
-        // "Completed" is the one metric with nowhere to drill into, so it is a
-        // plain card rather than a button.
-        const completed = screen.getByTitle('Completed').closest('.ds-metric-card');
-        expect(within(completed).getByTitle('1')).toBeInTheDocument();
+        expect(metric('Completed')).toHaveAccessibleName('Completed: 1');
         expect(metric('Needs attention')).toHaveAccessibleName('Needs attention: 1');
         expect(metric('Active templates')).toHaveAccessibleName('Active templates: 3');
     });
@@ -69,24 +69,27 @@ describe('metrics', () => {
         expect(metric('Active templates')).toHaveAccessibleName('Active templates: —');
     });
 
-    it('names its shortcuts distinctly from the page header actions', () => {
-        // The header offers "Manage Templates"; a second control differing only
-        // in case would be indistinguishable by accessible name.
+    it('offers no second way to the same views under the numbers: the numbers are the way', () => {
         renderOverview();
-        expect(screen.getByRole('button', { name: 'Browse template library' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /^Manage templates$/i })).not.toBeInTheDocument();
+        const glance = screen.getByRole('region', { name: 'At a glance' });
+        expect(within(glance).queryByRole('button', { name: 'View sent documents' })).not.toBeInTheDocument();
+        expect(within(glance).queryByRole('button', { name: 'Browse template library' })).not.toBeInTheDocument();
+        expect(within(glance).getAllByRole('button')).toHaveLength(4);
     });
 
-    it('routes the metric cards to the matching view', () => {
+    it('routes each metric card to the list it counts', () => {
         const { props } = renderOverview();
         fireEvent.click(metric('Awaiting signature'));
-        expect(props.onViewSentDocuments).toHaveBeenCalled();
+        expect(props.onViewAwaiting).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(metric('Completed'));
+        expect(props.onViewCompleted).toHaveBeenCalledTimes(1);
 
         fireEvent.click(metric('Needs attention'));
-        expect(props.onViewNeedsAttention).toHaveBeenCalled();
+        expect(props.onViewNeedsAttention).toHaveBeenCalledTimes(1);
 
         fireEvent.click(metric('Active templates'));
-        expect(props.onViewTemplates).toHaveBeenCalled();
+        expect(props.onViewTemplates).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -126,6 +129,35 @@ describe('needs attention', () => {
         fireEvent.click(screen.getByRole('button', { name: /Review all 1/ }));
         expect(props.onViewNeedsAttention).toHaveBeenCalled();
     });
+
+    it('opens a document from its Review button, named for the document (C2)', () => {
+        const failed = doc({ id: 'b', status: 'sent', emailStatus: 'failed', title: 'Failed Delivery' });
+        const { props } = renderOverview({ documents: [doc({ id: 'a' }), failed] });
+
+        const section = screen.getByRole('region', { name: 'Needs attention' });
+        // The row shows the title with what failed beside it and the recipient under it.
+        const row = within(section).getByText('Failed Delivery').closest('li');
+        expect(row).toHaveTextContent('Failed Delivery Delivery failed Artificial Person');
+        // The row itself is no longer a button; its Review is, and says which document.
+        expect(within(section).queryByRole('button', { name: /^Failed Delivery/ })).not.toBeInTheDocument();
+        const review = within(row).getByRole('button', { name: 'Review details for Failed Delivery' });
+        expect(review).toHaveTextContent('Review');
+        fireEvent.click(review);
+
+        expect(props.onOpenDocument).toHaveBeenCalledTimes(1);
+        expect(props.onOpenDocument).toHaveBeenCalledWith(failed);
+    });
+
+    it('puts Review all in the card heading row, beside Needs attention', () => {
+        renderOverview({ documents: [doc({ emailStatus: 'failed' })] });
+        const heading = screen.getByRole('heading', { level: 2, name: 'Needs attention' });
+        expect(within(heading.parentElement).getByRole('button', { name: 'Review all 1' })).toBeInTheDocument();
+    });
+
+    it('draws the Active templates number in the accent tone', () => {
+        renderOverview({ documents: [doc({ status: 'sent' })] });
+        expect(metric('Active templates')).toHaveAttribute('data-tone', 'accent');
+    });
 });
 
 describe('server totals and a separate attention list', () => {
@@ -147,8 +179,6 @@ describe('server totals and a separate attention list', () => {
         expect(within(section).getAllByRole('listitem')).toHaveLength(5);
         expect(within(section).getByText('Failed 0')).toBeInTheDocument();
         expect(within(section).getByRole('button', { name: 'Review all 19' })).toBeInTheDocument();
-        // Recent stays the newest loaded documents.
-        expect(within(screen.getByRole('region', { name: 'Recent documents' })).getAllByRole('listitem')).toHaveLength(1);
     });
 
     it('shows dashes and says the totals could not be loaded, never a zero', () => {
@@ -197,22 +227,19 @@ describe('server totals and a separate attention list', () => {
     });
 });
 
-describe('recent documents', () => {
-    it('keeps the live query order and caps the list at five', () => {
+describe('no recent documents', () => {
+    it('does not repeat the newest rows of Sent Documents', () => {
         renderOverview({
-            documents: Array.from({ length: 8 }, (_, index) =>
-                doc({ id: `r-${index}`, title: `Document ${index}` }),
-            ),
+            documents: Array.from({ length: 8 }, (_, index) => doc({ id: `r-${index}`, title: `Document ${index}` })),
         });
-        const section = screen.getByRole('region', { name: 'Recent documents' });
-        expect(within(section).getAllByRole('listitem')).toHaveLength(5);
-        expect(within(section).getByText('Document 0')).toBeInTheDocument();
-        expect(within(section).queryByText('Document 5')).not.toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: 'Recent documents' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Document 0')).not.toBeInTheDocument();
     });
 
     it('points a brand-new company at New Document', () => {
         renderOverview();
-        expect(screen.getByText(/Use New Document to send your first one/)).toBeInTheDocument();
+        const section = screen.getByRole('region', { name: 'Needs attention' });
+        expect(within(section).getByText(/No documents sent yet\. Use New Document to send your first one/)).toBeInTheDocument();
     });
 });
 

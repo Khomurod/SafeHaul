@@ -32,9 +32,9 @@ test.describe('Applications search and pipeline filters', () => {
   test('pipeline tabs render in order and filter by status vocabulary variants', async ({ page }) => {
     await openApplications(page);
 
-    // Tab order: All Applications, New, Hired, Terminated, Declined.
-    const tabs = page.locator('button', { hasText: /^(All Applications|New|Hired|Terminated|Declined)$/ });
-    await expect(tabs).toHaveText(['All Applications', 'New', 'Hired', 'Terminated', 'Declined']);
+    // Tab order: All Applications, New, In process, Hired, Terminated, Declined.
+    const tabs = page.locator('button', { hasText: /^(All Applications|New|In process|Hired|Terminated|Declined)$/ });
+    await expect(tabs).toHaveText(['All Applications', 'New', 'In process', 'Hired', 'Terminated', 'Declined']);
 
     // All: every fixture application (8), never leads.
     await expect(listCount(page, 8)).toBeVisible();
@@ -46,6 +46,13 @@ test.describe('Applications search and pipeline filters', () => {
     await expect(page.getByText('James McDonald')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toHaveCount(0);
     await expect(listCount(page, 2)).toBeVisible();
+
+    // In process: the contact attempts, Interested, In Process and the older stages between them.
+    await page.getByRole('button', { name: 'In process', exact: true }).click();
+    await expect(page.getByText('Henry Inprocess')).toBeVisible();
+    await expect(page.getByText('Maria Garcia')).toHaveCount(0);
+    await expect(page.getByText('Aisha Robinson')).toHaveCount(0);
+    await expect(listCount(page, 1)).toBeVisible();
 
     // Hired: 'Hired' + legacy 'Approved'.
     await page.getByRole('button', { name: 'Hired', exact: true }).click();
@@ -102,7 +109,7 @@ test.describe('Applications search and pipeline filters', () => {
 
     // No match: clear empty state, not an error.
     await searchFor(page, 'zzz-no-such-driver');
-    await expect(page.getByText('No records found.')).toBeVisible();
+    await expect(page.getByText('No applications match your search or filters')).toBeVisible();
 
     // Clearing the search restores the full list.
     await searchFor(page, '');
@@ -136,26 +143,26 @@ test.describe('Applications search and pipeline filters', () => {
 
     // Aisha exists but is Hired — search inside the New tab must exclude her.
     await searchFor(page, 'aisha');
-    await expect(page.getByText('No records found.')).toBeVisible();
+    await expect(page.getByText('No applications match your search or filters')).toBeVisible();
   });
 
-  test('Only mine combines with search and tabs', async ({ page }) => {
+  test('Assigned to me combines with search and tabs', async ({ page }) => {
     await openApplications(page);
 
-    await page.getByRole('switch', { name: 'Only mine' }).click();
+    await page.getByRole('switch', { name: 'Assigned to me' }).click();
     // Maria + Aisha are assigned to the e2e admin.
     await expect(listCount(page, 2)).toBeVisible();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
 
-    // Only mine + New tab -> only Maria.
+    // Assigned to me + New tab -> only Maria.
     await page.getByRole('button', { name: 'New', exact: true }).click();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(listCount(page, 1)).toBeVisible();
 
-    // Only mine + New + search for someone not assigned -> empty.
+    // Assigned to me + New + search for someone not assigned -> empty.
     await searchFor(page, 'james');
-    await expect(page.getByText('No records found.')).toBeVisible();
+    await expect(page.getByText('No applications match your search or filters')).toBeVisible();
   });
 
   test('the State filter picks a state by name and finds its applications', async ({ page }) => {

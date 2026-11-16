@@ -23,6 +23,8 @@ import {
   writeDiscardMark,
 } from './applicationDraftStorage';
 import { REMOVED_MESSAGE, isRemovedRefusal } from './draftRemoval';
+import { heldIdentityTracker } from './resumeIdentity';
+import { NO_LINK_CODES } from './referralIntake';
 
 export function useDiscardAwareResume({
   slug,
@@ -33,6 +35,9 @@ export function useDiscardAwareResume({
   setSubmissionStatus,
   showInfo,
   setFormData,
+  // The page address's referral and recruiter codes: the fresh start after a
+  // discard keeps them, so the link that opened this page still counts.
+  linkCodes = NO_LINK_CODES,
   setCurrentStep,
   setIntakeMode,
 }) {
@@ -151,9 +156,25 @@ export function useDiscardAwareResume({
     return changed.length > 0;
   }, [companyId, setFormData, resumeDraft]);
 
+  /**
+   * The identity (last name, date of birth, SSN, contact) of the last save the
+   * server confirmed, in memory only: "Finish later" names another device only for
+   * answers it holds (`serverHoldsIdentity`). Each confirmation belongs to the
+   * application it was sent for — the discard mark at the time — so a Start Over
+   * or a discard elsewhere ends it, late answers included.
+   */
+  const heldIdentityRef = useRef(null);
+  if (!heldIdentityRef.current) heldIdentityRef.current = heldIdentityTracker();
+  const serverHoldsIdentity = useCallback(
+    (answers) => heldIdentityRef.current.holds(answers, discardMarkRef.current),
+    [],
+  );
+
   /** Every save goes through here, so a refusal for unseen edits fetches them. */
   const saveProgress = useCallback(async (payload) => {
+    const epoch = discardMarkRef.current;
     const result = await saveApplicationProgress(payload);
+    heldIdentityRef.current.record(payload, result, epoch);
     if (result?.companyUpdated) await refreshCompanyEdits(payload.formData);
     if (result?.removed) noticeRemoved(payload?.resumeToken);
     return result;
@@ -247,7 +268,7 @@ export function useDiscardAwareResume({
       // holds this tab's own application, and deleting that would destroy the backup
       // of work the applicant is still typing.
       clearApplicationDraft(slug);
-      setFormData({});
+      setFormData({ ...linkCodes });
       setCurrentStep(0);
       setIntakeMode(null);
       if (reason === 'removed') showInfo(REMOVED_MESSAGE);
@@ -264,7 +285,7 @@ export function useDiscardAwareResume({
     showInfo(submitted
       ? 'That application was submitted in another tab. Your answers here will start a new one.'
       : 'The saved application was discarded in another tab. Your answers here will start a new one.');
-  }, [slug, submissionStatus, setSubmissionStatus, forgetDraftOwnership, showInfo, setFormData, setCurrentStep, setIntakeMode]);
+  }, [slug, submissionStatus, setSubmissionStatus, forgetDraftOwnership, showInfo, setFormData, linkCodes, setCurrentStep, setIntakeMode]);
 
   /**
    * A stable handle on the two discard callbacks.
@@ -302,6 +323,7 @@ export function useDiscardAwareResume({
     resumeBusy,
     resumeError,
     saveDraftToServer,
+    serverHoldsIdentity,
     // Passed through to the invite path, which used to write the shared resume-token
     // slot directly and therefore never set the ownership refs.
     adoptResumeToken,

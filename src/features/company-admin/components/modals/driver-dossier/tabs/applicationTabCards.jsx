@@ -11,16 +11,16 @@
 import React, { useState } from 'react';
 import { Icon, User, MapPin, Phone, Mail, CreditCard, Truck, AlertTriangle, CheckCircle, Eye, EyeOff, PenTool } from '@design-system/icons';
 import { formatDate } from '@shared/utils/helpers';
-import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelpers';
 import { signedDayOf } from '@shared/legal/previousEmployerRelease';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { Badge, Card, IconButton, Link, Notice } from '@/design-system/components';
 
-/** Safely convert Firestore Timestamps, ISO strings, or epoch values to a Date (or null). */
+/**
+ * A job's start or end in the app's one date style: a stored day reads
+ * "Mar 7, 2026", a stored month "Mar 2026", a timestamp its day.
+ */
 function formatTimelineDate(val) {
     if (!val) return '??';
-    const s = String(val).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return formatIsoDateUs(s);
-    if (/^\d{4}-\d{2}$/.test(s)) return formatMonthYearUs(s);
     return formatDate(val);
 }
 
@@ -36,13 +36,11 @@ function toDateOrNull(val) {
 
 function IdentityCard({ appData }) {
     const [showSSN, setShowSSN] = useState(false);
-    // DEFECT FIX: the previous code did `appData.ssn || 'Unknown'` and then masked
-    // whatever that produced, so an application with no SSN rendered the literal
-    // string 'Unknown' masked down to `***-**-nown`. A missing SSN is now fully
-    // masked and there is nothing to reveal.
+    // The shared mask (`maskSsn`). Show/Hide only for a number with four digits:
+    // a missing SSN or a value such as 'Unknown' has nothing to reveal.
     const rawSsn = String(appData.ssn || '').trim();
-    const hasSsn = rawSsn.length > 4;
-    const maskedSSN = hasSsn ? `***-**-${rawSsn.slice(-4)}` : '***-**-****';
+    const hasSsn = rawSsn.replace(/\D/g, '').length >= 4;
+    const maskedSSN = maskSsn(rawSsn) ?? '***-**-****';
 
     return (
         <DossierSummaryCard icon={User} title="Personal Information">
@@ -111,7 +109,7 @@ function DossierSummaryCard({ icon: Glyph, title, tone = 'info', children }) {
     );
 }
 
-function LicenseCard({ appData, fileUrls = {}, filesPending = false }) {
+function LicenseCard({ appData, fileUrls = {}, filesPending = false, isLead = false }) {
     const rawExp = appData.cdlExpiration || appData.cdlExpirationDate;
     const expDate = toDateOrNull(rawExp);
     const today = new Date();
@@ -151,7 +149,7 @@ function LicenseCard({ appData, fileUrls = {}, filesPending = false }) {
                 <Badge tone="neutral">{appData.cdlClass || appData.cdlType || 'A'}</Badge>
             </div>
             <div className="flex items-center justify-between gap-ds-2 border-b border-ds-border-subtle py-ds-2 last:border-0">
-                <span className="text-ds-xs font-semibold uppercase text-ds-content-secondary">Expiration</span>
+                <span className="text-ds-xs font-semibold uppercase text-ds-content-secondary">{`Expiration (from ${isLead ? 'lead' : 'application'})`}</span>
                 <div className="flex flex-wrap items-center justify-end gap-ds-2">
                     <span className="text-ds-sm font-medium text-ds-content">
                         {rawExp ? formatDate(rawExp) : '--'}

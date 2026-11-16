@@ -8,48 +8,52 @@
  * functions/shared/searchNormalization.vectors.json — see
  * src/shared/utils/searchNormalization.test.js and
  * functions/test/unit/searchNormalization.test.js. Change one copy and the
- * vector tests fail until the other matches.
+ * vector tests fail until the other matches; the body between the markers is
+ * byte-identical to the server copy, and searchNormalization.test.js fails if
+ * the two drift.
  */
 
+import { nationalDigits } from './applicantIdentity';
+
+// --- body ---------------------------------------------------------------------
+// Identical to functions/shared/searchNormalization.js. Edit both, or the parity test fails.
+
 /** Lowercase, trim, and collapse internal whitespace. */
-export function normalizeSearchText(value) {
+function normalizeSearchText(value) {
     if (value === null || value === undefined) return '';
     return String(value).toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
 /** Name fields: same as generic text normalization. */
-export function normalizeSearchName(value) {
+function normalizeSearchName(value) {
     return normalizeSearchText(value);
 }
 
 /** Email: lowercase + trim (no whitespace collapsing inside an email). */
-export function normalizeSearchEmail(value) {
+function normalizeSearchEmail(value) {
     if (value === null || value === undefined) return '';
     return String(value).toLowerCase().trim();
 }
 
 /**
  * Phone: digits only; a leading US country code "1" on an 11-digit number is
- * stripped. Mirrors the long-standing normalizePhone in src/shared/utils/helpers.js
- * so records written here stay queryable by the existing phoneNormalized reads.
+ * stripped. It is `nationalDigits`, the one reading of a phone's digits (the
+ * site's `normalizePhone` in src/shared/utils/helpers.js is too), so records
+ * written here stay queryable by the existing phoneNormalized reads.
  */
-export function normalizeSearchPhone(value) {
+function normalizeSearchPhone(value) {
     if (value === null || value === undefined) return '';
-    let digits = String(value).trim().replace(/\D/g, '');
-    if (digits.length === 11 && digits.startsWith('1')) {
-        digits = digits.substring(1);
-    }
-    return digits;
+    return nationalDigits(String(value));
 }
 
 /** Confirmation numbers are stored uppercase (SAF-2026-XXXXX); normalize to uppercase, no spaces. */
-export function normalizeSearchConfirmation(value) {
+function normalizeSearchConfirmation(value) {
     if (value === null || value === undefined) return '';
     return String(value).toUpperCase().replace(/\s+/g, '');
 }
 
 /** Application IDs are lowercase base36/hex; normalize to lowercase, no spaces. */
-export function normalizeSearchApplicationId(value) {
+function normalizeSearchApplicationId(value) {
     if (value === null || value === undefined) return '';
     return String(value).toLowerCase().replace(/\s+/g, '');
 }
@@ -62,7 +66,7 @@ export function normalizeSearchApplicationId(value) {
  * @param {{firstName?: unknown, lastName?: unknown, email?: unknown, phone?: unknown,
  *   confirmationNumber?: unknown, applicationId?: unknown}} [identity]
  */
-export function buildApplicationSearchFields({
+function buildApplicationSearchFields({
     firstName,
     lastName,
     email,
@@ -85,3 +89,15 @@ export function buildApplicationSearchFields({
         applicationIdNormalized: normalizeSearchApplicationId(applicationId),
     };
 }
+
+// --- exports -------------------------------------------------------------------
+
+export {
+    normalizeSearchText,
+    normalizeSearchName,
+    normalizeSearchEmail,
+    normalizeSearchPhone,
+    normalizeSearchConfirmation,
+    normalizeSearchApplicationId,
+    buildApplicationSearchFields,
+};

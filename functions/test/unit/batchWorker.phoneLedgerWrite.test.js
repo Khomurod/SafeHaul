@@ -1,4 +1,6 @@
 const smsDocIds = [];
+// `fails`: the ledger write is refused (the send itself went out).
+const mockLedger = { fails: false };
 const mockSendSMS = jest.fn().mockResolvedValue(true);
 const mockEnsureLoggedIn = jest.fn().mockResolvedValue(true);
 // The pause after a send, answered at once (`sendPacing.js` keeps the real three seconds).
@@ -87,7 +89,13 @@ const mockDb = {
                                 smsDocIds.push(id);
                                 return {
                                     id,
-                                    set: jest.fn().mockResolvedValue(true)
+                                    // A refusal that names the document, as Firestore's can: the id is the number.
+                                    set: jest.fn(() => (mockLedger.fails
+                                        ? Promise.reject(Object.assign(
+                                            new Error(`14 UNAVAILABLE: write to companies/co1/sms_sent_phones/${id} failed`),
+                                            { code: 14 },
+                                        ))
+                                        : Promise.resolve(true)))
                                 };
                             })
                         };
@@ -172,5 +180,57 @@ describe('batchWorker SMS ledger write canonicalization', () => {
         expect(mockSendSMS).toHaveBeenCalled();
         expect(smsDocIds).toContain('+15551234567');
         expect(mockPauseBeforeNextSend).toHaveBeenCalledTimes(1);
+    });
+});
+
+// A worker's log names the lead, never its number: a Cloud Functions log is
+// read by everyone who can read the project's logs.
+describe('batchWorker logs without the recipient', () => {
+    const req = {
+        headers: { 'x-safehaul-internal-auth': 'unit-test-secret', 'x-appengine-queuename': 'bulk-actions-queue' },
+        body: { companyId: 'co1', sessionId: 's1', workerGeneration: 1 },
+    };
+    const res = () => ({ status: jest.fn().mockReturnThis(), send: jest.fn() });
+    const logged = () => [console.log, console.warn, console.error]
+        .flatMap((spy) => spy.mock.calls.flat())
+        .map((value) => (value instanceof Error ? `${value.message} ${value.stack}` : String(value)))
+        .join('\n');
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        smsDocIds.length = 0;
+        mockLedger.fails = false;
+        mockSendSMS.mockImplementation(async () => true);
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        mockLedger.fails = false;
+        mockSendSMS.mockImplementation(async () => true);
+        jest.restoreAllMocks();
+    });
+
+    it('names the lead, not the number, when the sent-numbers ledger cannot be written', async () => {
+        mockLedger.fails = true;
+
+        await batchWorker.processBulkBatch(req, res());
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(smsDocIds).toContain('+15551234567');
+        expect(logged()).toContain('lead1');
+        expect(logged()).not.toContain('5551234567');
+    });
+
+    it('names the lead, not the number, when the provider refuses a text and names the number', async () => {
+        mockSendSMS.mockImplementation(async () => { throw new Error('Invalid destination +15551234567 (555) 123-4567'); });
+
+        await batchWorker.processBulkBatch(req, res());
+
+        expect(mockSendSMS).toHaveBeenCalled();
+        expect(logged()).toContain('lead1');
+        expect(logged()).not.toContain('5551234567');
+        expect(logged()).not.toContain('123-4567');
     });
 });

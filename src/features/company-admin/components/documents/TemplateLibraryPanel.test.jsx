@@ -1,10 +1,15 @@
-// Template library: search, sorting, the shown metadata, the five actions and
-// the schema-safety gate on Duplicate. All templates below are artificial.
+// Template library: New template, search, sorting, the shown metadata, the
+// five actions (Delete for admins only) and the schema-safety gate on
+// Duplicate. All templates below are artificial.
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TemplateLibraryPanel } from './TemplateLibraryPanel';
+
+/** A phone, where New template stays beside the heading. */
+const isMobileMock = vi.hoisted(() => vi.fn(() => false));
+vi.mock('@shared/hooks/useIsMobile', () => ({ useIsMobile: () => isMobileMock() }));
 
 const template = (overrides = {}) => ({
     id: 'tpl-1',
@@ -28,6 +33,7 @@ const baseProps = () => ({
     onDuplicate: vi.fn(),
     onConfigure: vi.fn(),
     onDelete: vi.fn(),
+    onCreate: vi.fn(),
     duplicatingTemplateId: null,
 });
 
@@ -36,9 +42,29 @@ const renderPanel = (overrides = {}) => {
     return { props, ...render(<TemplateLibraryPanel {...props} />) };
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    isMobileMock.mockImplementation(() => false);
+});
 
 describe('library controls', () => {
+    it('offers New template beside the library heading, which starts a new template', () => {
+        const { props } = renderPanel();
+        const library = screen.getByRole('region', { name: 'Template library' });
+        fireEvent.click(within(library).getByRole('button', { name: 'New template' }));
+        expect(props.onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps New template beside the heading on a phone, before the search and Sort by (C2)', () => {
+        isMobileMock.mockImplementation(() => true);
+        renderPanel();
+        const heading = screen.getByRole('heading', { level: 2, name: 'Template library' });
+        const button = screen.getByRole('button', { name: 'New template' });
+        // The heading's own row holds it: the search comes after it, not before.
+        expect(heading.parentElement.parentElement).toContainElement(button);
+        expect(button.compareDocumentPosition(screen.getByLabelText('Search templates')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it('offers search and sorting', () => {
         const { props } = renderPanel();
         fireEvent.change(screen.getByLabelText('Search templates'), { target: { value: 'offer' } });
@@ -46,6 +72,18 @@ describe('library controls', () => {
 
         fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'title' } });
         expect(props.setSort).toHaveBeenCalledWith('title');
+    });
+
+    it('names the search without a visible label and puts Sort by beside its list, in one bar (C2)', () => {
+        renderPanel();
+        const library = screen.getByRole('region', { name: 'Template library' });
+        const search = within(library).getByRole('searchbox', { name: 'Search templates' });
+        expect(search).toHaveAttribute('placeholder', 'Template title');
+        expect(within(library).queryByText('Search templates')).not.toBeInTheDocument();
+        const sort = within(library).getByRole('combobox', { name: 'Sort by' });
+        expect(within(library).getByText('Sort by').closest('label').parentElement).toContainElement(sort);
+        // No framed card around the bar.
+        expect(library).not.toHaveClass('border');
     });
 
     it('reports how many templates are visible', () => {
@@ -99,6 +137,14 @@ describe('template card', () => {
         }
     });
 
+    it('makes Delete a quiet icon button, not a solid red one on every card', () => {
+        renderPanel();
+        const remove = screen.getByRole('button', { name: 'Delete Artificial Offer Letter' });
+        expect(remove).toHaveAttribute('data-variant', 'ghost');
+        expect(remove).toHaveClass('ds-icon-button');
+        expect(remove).not.toHaveTextContent('Delete');
+    });
+
     it('makes Send the primary action', () => {
         renderPanel();
         expect(screen.getByRole('button', { name: 'Send Artificial Offer Letter' })).toHaveAttribute(
@@ -131,6 +177,14 @@ describe('template card', () => {
     it('names an untitled template distinguishably in its actions', () => {
         renderPanel({ templates: [template({ title: '' })] });
         expect(screen.getByRole('button', { name: 'Send Untitled' })).toBeInTheDocument();
+    });
+
+    it('offers no Delete where deleting is not allowed, and every other action still', () => {
+        renderPanel({ onDelete: undefined });
+        expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
+        for (const action of ['Send', 'Edit', 'Duplicate', 'Configure']) {
+            expect(screen.getByRole('button', { name: `${action} Artificial Offer Letter` })).toBeVisible();
+        }
     });
 });
 
@@ -173,10 +227,45 @@ describe('states', () => {
 
         renderPanel({ search: 'nothing matches this' });
         expect(screen.getByText('No templates match this search.')).toBeInTheDocument();
+        // Only the heading's New template: an empty search is not an empty library.
+        expect(screen.getAllByRole('button', { name: 'New template' })).toHaveLength(1);
+    });
+
+    it('offers New template in an empty library, as New Document promises', () => {
+        const { props, container } = renderPanel({ templates: [] });
+        const empty = within(container).getByText('No templates saved yet.').parentElement;
+        fireEvent.click(within(empty).getByRole('button', { name: 'New template' }));
+        expect(props.onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('has no accessibility violations when the library is empty', async () => {
+        const { container } = renderPanel({ templates: [] });
+        expect((await axe(container)).violations).toEqual([]);
     });
 
     it('has no accessibility violations', async () => {
         const { container } = renderPanel({ postSubmitTemplateIds: ['tpl-1'] });
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('template card (C2)', () => {
+    it('lays the four actions out as an even two-by-two grid, Send first', () => {
+        renderPanel();
+        const send = screen.getByRole('button', { name: 'Send Artificial Offer Letter' });
+        const grid = send.parentElement;
+        expect(grid).toHaveClass('grid', 'grid-cols-2');
+        expect(within(grid).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+            'Send Artificial Offer Letter',
+            'Edit Artificial Offer Letter',
+            'Duplicate Artificial Offer Letter',
+            'Configure Artificial Offer Letter',
+        ]);
+        expect(within(grid).getAllByRole('button').every((button) => button.getAttribute('data-full-width') === 'true')).toBe(true);
+    });
+
+    it('shows the field count in the accent tone under the title', () => {
+        renderPanel();
+        expect(screen.getByText('2 fields').closest('.ds-badge')).toHaveAttribute('data-tone', 'accent');
     });
 });

@@ -6,6 +6,7 @@ import { Icon, AlertTriangle, X } from '@design-system/icons';
 import { Button, IconButton, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * Interstitial notice shown when a company has features scheduled for
@@ -172,7 +173,7 @@ export function FeatureDeactivationWarning() {
                             {activeWarnings.map(w => (
                                 <div key={w.featureKey} className="flex flex-col border-b border-ds-border-subtle pb-ds-2 last:border-0 last:pb-0">
                                     <span className="font-bold text-ds-status-danger-fg">{w.featureKey}</span>
-                                    <span className="text-ds-sm text-ds-content-secondary">On: {w.scheduledDate.toLocaleString()}</span>
+                                    <span className="text-ds-sm text-ds-content-secondary">On: {formatDate(w.scheduledDate, true)}</span>
                                 </div>
                             ))}
                         </Stack>

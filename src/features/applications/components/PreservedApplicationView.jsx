@@ -27,6 +27,7 @@ import { Icon as DsIcon, FileText, ShieldCheck, ShieldOff, ShieldAlert } from '@
 import { Badge, Button, Card, FieldDisplay } from '@/design-system/components';
 import { EmptyState } from '@/design-system/patterns';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '../services/openApplicationFile';
 
 /** A value the driver did not supply, said in words rather than left blank. */
@@ -40,19 +41,6 @@ function formatInstant(value) {
     return date.toLocaleString(undefined, {
         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
-}
-
-/**
- * Mask a Social Security Number to its last four digits.
- *
- * The record stores the number as truth; masking is a presentation decision, and
- * on screen the answer is always no. The full number appears only in the
- * authorized original PDF, whose every access is authorized and audited.
- */
-function maskSensitive(value) {
-    const digits = String(value ?? '').replace(/\D/g, '');
-    if (!digits) return value;
-    return `***-**-${digits.slice(-4)}`;
 }
 
 /**
@@ -92,8 +80,23 @@ function OpenUploadedFile({ storagePath }) {
     );
 }
 
+const SENSITIVE_UPLOAD = 'File uploaded';
+
+/**
+ * What a sensitive answer shows: an SSN masked to its last four digits, an upload
+ * (the Social Security Card) as "File uploaded", never its file name.
+ */
+function sensitiveAnswerText(answer) {
+    if (!answer.sensitive || answer.isMissing) return answer.value;
+    if (answer.isFile) return SENSITIVE_UPLOAD;
+    return maskSsn(answer.value) ?? answer.value;
+}
+
 function AnswerRow({ answer, openUploads }) {
-    const value = answer.sensitive && !answer.isMissing ? maskSensitive(answer.value) : answer.value;
+    // The record stores the number as truth; masking is a presentation decision,
+    // and on screen the answer is always no. The full number appears only in the
+    // authorized original PDF, whose every access is authorized and audited.
+    const value = sensitiveAnswerText(answer);
     const display = (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? NOT_PROVIDED_TONE : ''}`}>
@@ -158,14 +161,45 @@ function Section({ title, children }) {
 
 /** The plain-language state of one agreement, with an icon that matches it. */
 const AGREEMENT_PRESENTATION = {
-    accepted: { Icon: ShieldCheck, tone: 'success' },
-    declined: { Icon: ShieldOff, tone: 'danger' },
-    unrecorded: { Icon: ShieldAlert, tone: 'warning' },
+    accepted: { Icon: ShieldCheck, tone: 'success', iconClass: 'text-ds-status-success-fg' },
+    declined: { Icon: ShieldOff, tone: 'danger', iconClass: 'text-ds-status-danger-fg' },
+    unrecorded: { Icon: ShieldAlert, tone: 'warning', iconClass: 'text-ds-status-warning-fg' },
 };
 
-function AgreementRow({ agreement }) {
-    const { Icon, tone } = AGREEMENT_PRESENTATION[agreement.status] || AGREEMENT_PRESENTATION.unrecorded;
+/**
+ * One agreement from `toDisplayAgreements`, as an `<li>`.
+ *
+ * `compact` is the DQ tab's list of consents on the preserved original
+ * (`OriginalApplicationConsents`), a narrow column where nothing may refuse to
+ * wrap. A `Badge` never wraps, so there the state is a line of text and the
+ * icon carries its tone. Both forms say the same words from the same presenter.
+ */
+export function AgreementRow({ agreement, compact = false }) {
+    const { Icon, tone, iconClass } = AGREEMENT_PRESENTATION[agreement.status] || AGREEMENT_PRESENTATION.unrecorded;
     const acceptedAt = formatInstant(agreement.acceptedAt);
+    const evidence = (
+        <p className="mt-ds-1 text-ds-xs text-ds-content-secondary">
+            Version {agreement.version}
+            {acceptedAt ? ` · Accepted ${acceptedAt}` : ''}
+            {/* Stated only where THIS agreement carries its own acceptance
+                evidence. The old PDF stamped one signature onto all four. */}
+            {agreement.hasSignature ? ` · Signed electronically (${agreement.signatureType})` : ''}
+            {agreement.legacyWording ? ' · Wording in force at the time' : ''}
+        </p>
+    );
+
+    if (compact) {
+        return (
+            <li className="min-w-0">
+                <p className="flex min-w-0 items-center gap-ds-2 text-ds-sm font-semibold text-ds-content">
+                    <DsIcon icon={Icon} className={`shrink-0 ${iconClass}`} />
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{agreement.title}</span>
+                </p>
+                <p className="mt-ds-1 text-ds-xs text-ds-content">{agreement.summary}</p>
+                {evidence}
+            </li>
+        );
+    }
 
     return (
         <li className="rounded-ds-md border border-ds-border-subtle p-ds-3">
@@ -181,14 +215,7 @@ function AgreementRow({ agreement }) {
                 </p>
                 <Badge tone={tone}>{agreement.summary}</Badge>
             </div>
-            <p className="mt-ds-1 text-ds-xs text-ds-content-secondary">
-                Version {agreement.version}
-                {acceptedAt ? ` · Accepted ${acceptedAt}` : ''}
-                {/* Stated only where THIS agreement carries its own acceptance
-                    evidence. The old PDF stamped one signature onto all four. */}
-                {agreement.hasSignature ? ` · Signed electronically (${agreement.signatureType})` : ''}
-                {agreement.legacyWording ? ' · Wording in force at the time' : ''}
-            </p>
+            {evidence}
         </li>
     );
 }

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { CampaignResultsTable } from './CampaignResultsTable';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -65,6 +65,25 @@ describe('CampaignResultsTable', () => {
         await waitFor(() => {
             expect(screen.getByText('No messages sent yet.')).toBeInTheDocument();
         });
+    });
+
+    // A failed read is said, with a way to try again: never "No messages sent yet."
+    it('says the log could not be loaded, and reads it again on Try again', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        getDocs.mockRejectedValueOnce(new Error('permission-denied'));
+        getDocs.mockResolvedValueOnce(asSnapshot(recipients(0, 2)));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+
+        expect(await screen.findByText('The recipient log could not be loaded.')).toBeInTheDocument();
+        expect(screen.queryByText('No messages sent yet.')).not.toBeInTheDocument();
+        expect(getDocs).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+        expect(await screen.findByRole('rowheader', { name: 'Recipient 2' })).toBeInTheDocument();
+        expect(screen.queryByText('The recipient log could not be loaded.')).not.toBeInTheDocument();
+        expect(getDocs).toHaveBeenCalledTimes(2);
+        consoleError.mockRestore();
     });
 
     it('issues the exact Firestore query once (path, order, limit, getDocs)', async () => {
@@ -267,7 +286,10 @@ describe('CampaignResultsTable', () => {
         expect(await screen.findByText('Showing the newest 200 of 450 recipients.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Load more recipients' }));
 
-        expect(await screen.findByRole('rowheader', { name: 'Recipient 201' })).toBeInTheDocument();
+        // Find the new row by its text, then check its header within that row: a
+        // role query across all 400 rows was most of this test's time.
+        const nextRow = (await screen.findByText('Recipient 201')).closest('tr');
+        expect(within(nextRow).getByRole('rowheader', { name: 'Recipient 201' })).toBeInTheDocument();
         expect(screen.getByText('Showing the newest 400 of 450 recipients.')).toBeInTheDocument();
         expect(startAfter).toHaveBeenCalledWith(firstPage.docs[199]);
         expect(getDocs).toHaveBeenCalledTimes(2);

@@ -9,7 +9,8 @@ const fs = vi.hoisted(() => ({
 }));
 const draft = vi.hoisted(() => ({ saveDraft: vi.fn(), isSaving: false }));
 const e2e = vi.hoisted(() => ({ enabled: false, param: '' }));
-const captured = vi.hoisted(() => ({ audience: null, content: null, launch: null }));
+// `countOnOpen`: the count the audience step reports when it opens.
+const captured = vi.hoisted(() => ({ audience: null, content: null, launch: null, countOnOpen: 0 }));
 
 vi.mock('firebase/firestore', () => fs);
 vi.mock('@lib/firebase', () => ({ db: {} }));
@@ -18,9 +19,12 @@ vi.mock('@lib/runtime/e2eMode', () => ({
     get isE2ETestMode() { return e2e.enabled; },
     getE2EQueryParam: () => e2e.param,
 }));
+// Like the real step, the double reports its audience as soon as it opens; a
+// click on emit-audience is the recruiter changing it.
 vi.mock('./components/AudienceBuilder', () => ({
     AudienceBuilder: (props) => {
         captured.audience = props;
+        React.useEffect(() => { props.onChange(props.filters, captured.countOnOpen); }, []); // eslint-disable-line react-hooks/exhaustive-deps
         return (
             <div data-testid="audience" data-scope={props.campaignScopeKey} data-company={props.companyId} data-filters={JSON.stringify(props.filters)}>
                 <button type="button" onClick={() => props.onChange({ mode: 'all', rawData: [1, 2, 3] }, 7)}>emit-audience</button>
@@ -55,7 +59,9 @@ beforeEach(() => {
     e2e.enabled = false;
     e2e.param = '';
     captured.audience = captured.content = captured.launch = null;
+    captured.countOnOpen = 0;
     draft.isSaving = false;
+    draft.saveDraft.mockImplementation(() => undefined);
     unsubSpy = vi.fn();
     snapCb = undefined;
     fs.onSnapshot.mockImplementation((ref, cb) => { snapCb = cb; return unsubSpy; });
@@ -146,14 +152,35 @@ describe('CampaignEditor — autosave', () => {
         act(() => { vi.advanceTimersByTime(1500); });
         expect(draft.saveDraft).not.toHaveBeenCalled();
 
-        // At 2s: saved once, with rawData stripped from filters.
+        // At 2s: saved once (after the save before it, if any), with rawData stripped from filters.
         act(() => { vi.advanceTimersByTime(500); });
+        await act(async () => { await Promise.resolve(); });
         expect(draft.saveDraft).toHaveBeenCalledTimes(1);
-        const [savedId, payload] = draft.saveDraft.mock.calls[0];
+        const [savedId, payload, options] = draft.saveDraft.mock.calls[0];
         expect(savedId).toBe('camp1');
         expect(payload.filters).toEqual({ mode: 'all' });
         expect(payload.filters.rawData).toBeUndefined();
         expect(payload.matchCount).toBe(7);
+        // An opened draft is stored already: the save updates it.
+        expect(options).toEqual({ create: false });
+    });
+
+    // The audience step reports when it opens and whenever the server counts
+    // again; neither is the recruiter's edit, so neither saves.
+    it('does not save when the audience step only recounts the same audience', async () => {
+        vi.useFakeTimers();
+        await act(async () => {
+            render(<CampaignEditor companyId="c1" campaignId="camp1" onClose={vi.fn()} />);
+        });
+        await act(async () => { await Promise.resolve(); });
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+
+        act(() => { captured.audience.onChange({}, 9, { method: 'sms', alreadyMessaged: 2 }); });
+        act(() => { captured.audience.onChange({ leadType: undefined }, 11, { method: 'sms', alreadyMessaged: 2 }); });
+        act(() => { vi.advanceTimersByTime(2500); });
+
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: /Audience/ })).toHaveTextContent('(completed)');
     });
 });
 
@@ -171,11 +198,12 @@ describe('CampaignEditor — navigation & completion', () => {
         expect(await screen.findByTestId('content')).toBeInTheDocument();
         expect(captured.content.messageConfig).toEqual({ method: 'sms', message: '' });
 
-        // Launch section — onLaunchSuccess is the onClose prop.
+        // Launch section.
         fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
         expect(await screen.findByTestId('launch')).toHaveAttribute('data-company', 'c1');
-        expect(captured.launch.onLaunchSuccess).toBe(onClose);
+        expect(captured.launch.onLaunchSuccess).toBeTypeOf('function');
         expect(captured.launch.campaign.name).toBe('Untitled Campaign');
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('marks audience complete when matchCount > 0 and content complete when a message exists', async () => {
@@ -193,6 +221,20 @@ describe('CampaignEditor — navigation & completion', () => {
         expect(screen.getByRole('button', { name: /Content/ })).toHaveTextContent('(completed)');
     });
 
+    // With the exclusion window on, the audience step reports a count that waits
+    // for Recalculate audience; Launch must see it change once recalculated,
+    // even when the filters and the number stay the same.
+    it('passes Launch whether the audience is counted for its filters', async () => {
+        await renderEditor();
+        const filters = { mode: 'all', excludeRecentDays: '30' };
+        act(() => { captured.audience.onChange(filters, 0, { method: 'sms', alreadyMessaged: 0, needsRecount: true }); });
+        act(() => { captured.audience.onChange(filters, 0, { method: 'sms', alreadyMessaged: 0, needsRecount: false }); });
+
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+        await screen.findByTestId('launch');
+        expect(captured.launch.campaign.countedFor).toEqual({ method: 'sms', alreadyMessaged: 0, needsRecount: false });
+    });
+
     it('marks the active section with aria-current', async () => {
         await renderEditor();
         expect(screen.getByRole('button', { name: /Audience/ })).toHaveAttribute('aria-current', 'step');
@@ -206,6 +248,7 @@ describe('CampaignEditor — E2E mock, shell & a11y', () => {
     it('uses the E2E mock data and skips the Firestore listener', async () => {
         e2e.enabled = true;
         e2e.param = 'mock';
+        captured.countOnOpen = 12;
         await renderEditor();
         expect(fs.onSnapshot).not.toHaveBeenCalled();
         expect(screen.getByRole('textbox', { name: 'Campaign Name' })).toHaveValue('E2E Mock Campaign');
@@ -223,6 +266,147 @@ describe('CampaignEditor — E2E mock, shell & a11y', () => {
 
     it('has no accessibility violations', async () => {
         const { container } = await renderEditor();
+        expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+// A launched campaign is a record, not a draft: its document is kept and marked
+// (`launchedAt`, `sessionId`), and the editor no longer offers Launch.
+describe('CampaignEditor — a launched campaign', () => {
+    const LAUNCHED = { name: 'Spring drive', launchedAt: { seconds: 1767225600 }, sessionId: 'session-1' };
+
+    async function openLaunch(props) {
+        const utils = await renderEditor(props);
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+        await screen.findByTestId('launch');
+        return utils;
+    }
+
+    // The server claims the draft and marks it launched (`initBulkSession`), so
+    // Launch names the draft and the editor writes no mark of its own.
+    it('names its draft to Launch, and closes after a launch without writing the draft', async () => {
+        const { onClose } = await openLaunch();
+
+        expect(captured.launch.campaignId).toBe('camp1');
+        act(() => { captured.launch.onLaunchSuccess({ sessionId: 'session-1' }); });
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+    });
+
+    // Launch sends what the editor shows: an edit the 2-second autosave has not
+    // written yet is saved first, so the draft the server claims (and keeps as
+    // the record) holds the same, and the claim's update brings nothing older.
+    it('saves what it shows before Launch asks the server, without the launch claim', async () => {
+        await openLaunch();
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {}, launchClaim: { sessionId: 'x' } })); });
+        fireEvent.click(screen.getByRole('button', { name: /Audience/ }));
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+
+        await act(async () => { await captured.launch.onBeforeLaunch(); });
+
+        expect(draft.saveDraft).toHaveBeenCalledTimes(1);
+        const [id, saved] = draft.saveDraft.mock.calls[0];
+        expect(id).toBe('camp1');
+        expect(saved).toMatchObject({ name: 'Doc Name', matchCount: 7, filters: { mode: 'all' } });
+        expect(saved).not.toHaveProperty('launchClaim');
+        expect(saved.filters).not.toHaveProperty('rawData');
+    });
+
+    it('stops the launch when the save before it fails, so nothing goes out unsaved', async () => {
+        draft.saveDraft.mockImplementation(async () => false);
+        await openLaunch();
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+        fireEvent.click(screen.getByRole('button', { name: /Audience/ }));
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+
+        await expect(captured.launch.onBeforeLaunch()).rejects.toThrow(/could not save the campaign/i);
+    });
+
+    it('saves nothing before Launch when nothing was edited', async () => {
+        await openLaunch();
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+
+        await act(async () => { await captured.launch.onBeforeLaunch(); });
+
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+    });
+
+    it('never writes the server’s launch claim back when it autosaves', async () => {
+        vi.useFakeTimers();
+        await act(async () => {
+            render(<CampaignEditor companyId="c1" campaignId="camp1" onClose={vi.fn()} />);
+        });
+        await act(async () => { await Promise.resolve(); });
+        const claim = { by: 'admin-2', sessionId: 'session-2', at: { seconds: 1 } };
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {}, launchClaim: claim })); });
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+
+        act(() => { vi.advanceTimersByTime(2500); });
+        await act(async () => { await Promise.resolve(); });
+
+        expect(draft.saveDraft).toHaveBeenCalledTimes(1);
+        expect(draft.saveDraft.mock.calls[0][0]).toBe('camp1');
+        expect(draft.saveDraft.mock.calls[0][1]).not.toHaveProperty('launchClaim');
+        expect(draft.saveDraft.mock.calls[0][1].name).toBe('Doc Name');
+    });
+
+    it('says it was launched, links its report and offers no Launch, even with Launch open in a stale tab', async () => {
+        const onViewReport = vi.fn();
+        const { onClose } = await openLaunch({ onViewReport });
+
+        await act(async () => { snapCb(snapshot(LAUNCHED)); });
+
+        expect(screen.getByText('This campaign was already launched')).toBeInTheDocument();
+        expect(screen.queryByTestId('launch')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Launch/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('textbox', { name: 'Campaign Name' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'View report' }));
+        expect(onViewReport).toHaveBeenCalledWith('session-1');
+        fireEvent.click(screen.getByRole('button', { name: 'Exit' }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts a launch whose server time is still pending as launched', async () => {
+        await renderEditor({ onViewReport: vi.fn() });
+
+        await act(async () => { snapCb(snapshot({ ...LAUNCHED, launchedAt: null })); });
+
+        expect(screen.getByText('This campaign was already launched')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Launch/ })).not.toBeInTheDocument();
+    });
+
+    it('offers no report link when the launch returned no session', async () => {
+        await renderEditor({ onViewReport: vi.fn() });
+
+        await act(async () => { snapCb(snapshot({ ...LAUNCHED, sessionId: null })); });
+
+        expect(screen.getByText('This campaign was already launched')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'View report' })).not.toBeInTheDocument();
+    });
+
+    it('stops autosaving once the draft is launched, so a stale tab does not rewrite the record', async () => {
+        vi.useFakeTimers();
+        await act(async () => {
+            render(<CampaignEditor companyId="c1" campaignId="camp1" onClose={vi.fn()} />);
+        });
+        await act(async () => { await Promise.resolve(); });
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+
+        act(() => { snapCb(snapshot(LAUNCHED)); });
+        act(() => { vi.advanceTimersByTime(2500); });
+
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+    });
+
+    it('has no accessibility violations in the launched notice', async () => {
+        const { container } = await renderEditor({ onViewReport: vi.fn() });
+        await act(async () => { snapCb(snapshot(LAUNCHED)); });
+
         expect((await axe(container)).violations).toEqual([]);
     });
 });

@@ -23,6 +23,7 @@ import {
     describeTaskType,
     formatDuration,
 } from './aiTelemetryPresentation';
+import { formatDate } from '@shared/utils/helpers';
 
 /** The fields behind Filters, each back to "any" when cleared. */
 const FILTER_FIELDS = Object.freeze({ providerId: '', from: '', to: '' });
@@ -126,7 +127,7 @@ export function AiLogsPanel({ providers = [] }) {
             rowHeader: true,
             render: (row) => (
                 <span className="text-ds-sm">
-                    {row.timestamp ? new Date(row.timestamp).toLocaleString() : 'Unknown'}
+                    {row.timestamp ? formatDate(new Date(row.timestamp), true) : 'Unknown'}
                 </span>
             ),
         },
@@ -263,7 +264,7 @@ export function AiLogsPanel({ providers = [] }) {
                 getRowId={(row) => row.id}
                 getRowLabel={(row) => (
                     `${describeTaskType(row.taskType, row.trigger)}, ${describeOutcome(row).label}, `
-                    + `${row.timestamp ? new Date(row.timestamp).toLocaleString() : 'unknown time'}`
+                    + `${row.timestamp ? formatDate(new Date(row.timestamp), true) : 'unknown time'}`
                 )}
                 onRowActivate={(row) => setSelected(row)}
                 density="compact"

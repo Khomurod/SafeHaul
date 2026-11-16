@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, FieldDisplay, Notice } from '@/design-system/components';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * FMCSA info banner + applicant details. Presentation migrated; the displayed
@@ -8,7 +9,7 @@ import { Card, FieldDisplay, Notice } from '@/design-system/components';
 export function ApplicantDetailsCard({ verificationData }) {
     const reportedDates = `${verificationData?.employmentStartDate} to ${verificationData?.employmentEndDate}`;
     const deadline = verificationData?.expiresAt
-        ? new Date(verificationData.expiresAt).toLocaleDateString()
+        ? formatDate(new Date(verificationData.expiresAt))
         : 'N/A';
 
     return (

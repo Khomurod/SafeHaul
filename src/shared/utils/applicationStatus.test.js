@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { ATS_LEGACY_STATUS_ALIASES, ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import {
+    APPLICATION_IN_PROCESS_STATUSES,
     APPLICATION_STATUS_GROUPS,
     normalizeApplicationStatus,
     getStatusesForSegment,
@@ -96,5 +98,51 @@ describe('applicationStatusLabel', () => {
         expect(applicationStatusLabel('Contact Attempt 1')).toBe('Contact Attempt 1');
         expect(applicationStatusLabel(' Background Check ')).toBe('Background Check');
         expect(applicationStatusLabel(undefined)).toBe('');
+    });
+});
+
+describe('the In process segment (Д14)', () => {
+    const IN_PROCESS = [
+        'Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3', 'Interested', 'In Process',
+        'Contacted', 'Attempted', 'In Review', 'Background Check', 'Qualified', 'Hold', 'Offer Accepted',
+    ];
+
+    it('asks for the contact attempts, Interested, In Process and the older stages between them', () => {
+        expect(getStatusesForSegment('in_process')).toEqual(IN_PROCESS);
+        expect([...APPLICATION_IN_PROCESS_STATUSES]).toEqual(IN_PROCESS);
+    });
+
+    it('leaves out New, Hired, Terminated, Declined, every spelling of them, and the closed older stages', () => {
+        const left = [...Object.values(APPLICATION_STATUS_GROUPS).flat(), 'New Lead', 'Disqualified', 'Stale', 'Offer Declined'];
+        for (const status of left) {
+            expect(getStatusesForSegment('in_process')).not.toContain(status);
+            expect(statusMatchesSegment(status, 'in_process')).toBe(false);
+        }
+    });
+
+    it('places every status the picker offers or a record may hold in exactly one segment, or none when closed', () => {
+        const closed = new Set(['Disqualified', 'Stale', 'Offer Declined']);
+        const segments = ['new', 'in_process', 'hired', 'terminated', 'declined'];
+        for (const status of [...ATS_STATUS_DROPDOWN_OPTIONS, ...ATS_LEGACY_STATUS_ALIASES, 'Contacted', 'Attempted', 'Disqualified']) {
+            const matched = segments.filter((segment) => statusMatchesSegment(status, segment));
+            expect(matched).toHaveLength(closed.has(status) ? 0 : 1);
+        }
+    });
+
+    it('matches stored values exactly, as the query does', () => {
+        expect(statusMatchesSegment('In Process', 'in_process')).toBe(true);
+        expect(statusMatchesSegment('in process', 'in_process')).toBe(false);
+        expect(statusMatchesSegment(undefined, 'in_process')).toBe(false);
+    });
+
+    it('keeps each of its stages under its own name and outside the other groups', () => {
+        for (const status of IN_PROCESS) {
+            expect(normalizeApplicationStatus(status)).toBe('other');
+            expect(applicationStatusLabel(status)).toBe(status);
+        }
+    });
+
+    it('stays inside Firestore\'s 30 alternatives with room for a State filter', () => {
+        expect(IN_PROCESS.length * 2).toBeLessThanOrEqual(30);
     });
 });

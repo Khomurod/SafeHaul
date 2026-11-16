@@ -31,6 +31,7 @@ import {
     signedFileUrl,
     SYNCED_DRIVER_UPLOAD,
     FILED_PEV_REQUEST,
+    FILED_PEV_RESULT,
     fileDriverUploads,
 } from './DossierBodies.contract.support';
 
@@ -40,12 +41,19 @@ beforeEach(resetHarness);
 
 
 describe('DQFileTab — file listing and expiration status', () => {
-    it('offers the eleven frozen DQ file types with the first as default', async () => {
+    // Twelve since "CDL" joined after "Medical Card", so a renewed licence copy
+    // can be filed with its valid-until date. None is chosen: the default was
+    // "Application for Employment", which the server files itself.
+    it('offers the twelve DQ file types with none chosen', async () => {
         renderDq();
         const select = await screen.findByLabelText('File Type');
-        expect(select).toHaveValue('Application for Employment');
-        expect([...select.options]).toHaveLength(11);
-        expect([...select.options].map((o) => o.value)).toContain('Clearinghouse Report (Annual)');
+        expect(select).toHaveValue('');
+        expect(select.options[0]).toHaveTextContent('Choose a type');
+        const types = [...select.options].slice(1).map((o) => o.value);
+        expect(types).toHaveLength(12);
+        expect(types[0]).toBe('Application for Employment');
+        expect(types).toContain('Clearinghouse Report (Annual)');
+        expect(types.slice(3, 5)).toEqual(['Medical Card', 'CDL']);
     });
 
     it('shows the frozen empty state', async () => {
@@ -53,13 +61,18 @@ describe('DQFileTab — file listing and expiration status', () => {
         expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
     });
 
+    // The words name the date and what it means ("EXPIRED (2020-01-01)" and
+    // "Active (2999-01-01)" before); the thresholds are unchanged. The checklist
+    // above says it of the medical card too, so the row is found in the list.
     it.each([
-        ['an already-past date', '2020-01-01', 'EXPIRED'],
-        ['a far-future date', '2999-01-01', 'Active'],
+        ['an already-past date', '2020-01-01', 'Expired on Jan 1, 2020'],
+        ['a far-future date', '2999-01-01', 'Valid until Jan 1, 2999'],
     ])('renders %s as text, never colour alone', async (_name, expirationDate, label) => {
         fs.getDocs.mockResolvedValue(snap([['f1', { ...DQ_FILE, expirationDate }]]));
         renderDq();
-        expect(await screen.findByText(`${label} (${expirationDate})`)).toBeInTheDocument();
+        await screen.findByRole('button', { name: 'Delete Medical Card: medcard.pdf' });
+        const list = screen.getByRole('heading', { name: 'Files' }).parentElement;
+        expect(within(list).getByText(label)).toBeInTheDocument();
     });
 
     it('announces a load failure with the frozen message', async () => {
@@ -221,22 +234,59 @@ describe('DQFileTab — upload contract', () => {
         ));
     });
 
-    it('announces the upload outcome and resets the type to the first option', async () => {
+    it('announces the upload outcome and chooses no type again', async () => {
         await uploadFixture();
         expect(await screen.findByText('Upload Complete!')).toBeInTheDocument();
-        expect(screen.getByLabelText('File Type')).toHaveValue('Application for Employment');
+        expect(screen.getByLabelText('File Type')).toHaveValue('');
     });
 
-    it('announces an upload failure with the frozen prefix', async () => {
-        storageMocks.uploadBytes.mockRejectedValueOnce(new Error('quota'));
+    // The message's 2-second reset belongs to the tab: left running, it fired
+    // after a test's environment was gone and failed the whole run.
+    it('leaves no timer running once it closes after an upload', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+        try {
+            const { unmount } = renderDq();
+            fireEvent.change(await screen.findByLabelText('File Type'), { target: { value: 'Road Test Certificate' } });
+            fireEvent.change(screen.getByLabelText('File'), {
+                target: { files: [new File(['x'], 'road test.pdf', { type: 'application/pdf' })] },
+            });
+            fireEvent.click(screen.getByRole('button', { name: /Upload File/ }));
+            await screen.findByText('Upload Complete!');
+
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('announces an upload failure in a plain sentence, without the storage error', async () => {
+        storageMocks.uploadBytes.mockRejectedValueOnce(Object.assign(
+            new Error('Firebase Storage: Quota for bucket exceeded. (storage/quota-exceeded)'),
+            { code: 'storage/quota-exceeded' },
+        ));
         await uploadFixture();
-        expect(await screen.findByText(/Upload failed: quota/)).toBeInTheDocument();
+        expect(await screen.findByText(
+            'The file could not be uploaded. Please try again. If it keeps happening, contact support.',
+        )).toBeInTheDocument();
+        expect(screen.queryByText(/quota/i)).not.toBeInTheDocument();
     });
 
     it('guards the upload when no file is chosen', async () => {
         renderDq();
         await screen.findByLabelText('File Type');
         expect(screen.getByRole('button', { name: /Upload File/ })).toBeDisabled();
+    });
+
+    it('guards the upload until a type is chosen', async () => {
+        renderDq();
+        fireEvent.change(await screen.findByLabelText('File'), {
+            target: { files: [new File(['x'], 'road test.pdf', { type: 'application/pdf' })] },
+        });
+        expect(screen.getByRole('button', { name: /Upload File/ })).toBeDisabled();
+
+        fireEvent.change(screen.getByLabelText('File Type'), { target: { value: 'Road Test Certificate' } });
+        expect(screen.getByRole('button', { name: /Upload File/ })).toBeEnabled();
     });
 });
 
@@ -402,6 +452,19 @@ describe('DQFileTab — a verification request filed by the server', () => {
         expect(fs.deleteDoc).not.toHaveBeenCalled();
         expect(storageMocks.deleteObject).not.toHaveBeenCalled();
         expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
+    });
+
+    it('opens a verification result from a link signed when it is pressed', async () => {
+        fs.getDocs.mockResolvedValue(snap([['pev_result_r1', FILED_PEV_RESULT]]));
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: /^Download PEV Result – Old Carrier: Verification-of-Employment-Response-Jane-Driver\.pdf \(opens in a new tab\)/,
+        }));
+
+        expect(window.open).toHaveBeenCalledWith('', '_blank');
+        await waitFor(() => expect(tab.location.href).toBe('https://signed.test/driver-upload.jpg'));
+        expect(signedFileUrl).toHaveBeenCalledWith(FILED_PEV_RESULT.storagePath);
     });
 });
 

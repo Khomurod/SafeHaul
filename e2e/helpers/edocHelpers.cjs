@@ -11,7 +11,7 @@ const DOCUMENTS_URL = '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock';
 /** Open the Documents workspace and wait for the header. */
 async function openDocumentsWorkspace(page, url = DOCUMENTS_URL) {
   await page.goto(url);
-  await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeVisible({ timeout: 20_000 });
 }
 
 /**

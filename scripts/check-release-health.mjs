@@ -39,11 +39,9 @@
 
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 import { readFrontendCallables } from './check-callable-contract.mjs';
-
-const require = createRequire(import.meta.url);
-const { createGithubApi, isSafeHaulRelease } = require('../functions/releaseManagement/eligibility.js');
+import { createGithubApi } from './lib/githubApi.mjs';
+import { confirmedReleases } from './lib/confirmedReleases.mjs';
 
 const TESTING_ORIGIN = 'https://truckerapp-system.web.app';
 const PRODUCTION_ORIGIN = 'https://app.safehaul.io';
@@ -179,12 +177,8 @@ async function readLiveSha(origin, fetchImpl = fetch) {
 
 /** Every SHA with a CONFIRMED release on a channel, newest first. */
 export async function readConfirmedReleases(api, environment) {
-    const deployments = await api(`/deployments?environment=${environment}&per_page=100`);
     const confirmed = [];
-    for (const deployment of Array.isArray(deployments) ? deployments : []) {
-        if (!isSafeHaulRelease(deployment)) continue;
-        const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=100`);
-        if ((Array.isArray(statuses) ? statuses[0]?.state : undefined) !== 'success') continue;
+    for await (const deployment of confirmedReleases(api, environment)) {
         if (deployment.sha) confirmed.push(deployment.sha);
     }
     return confirmed;

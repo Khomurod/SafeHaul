@@ -21,7 +21,7 @@ describe('registry and adapter coverage', () => {
         for (const provider of PROVIDERS) {
             expect(() => getAdapter(provider)).not.toThrow();
         }
-        expect(Object.keys(ADAPTERS)).toHaveLength(9);
+        expect(Object.keys(ADAPTERS)).toHaveLength(8);
     });
 
     it('declares vision support consistently with its capability list', () => {
@@ -31,13 +31,12 @@ describe('registry and adapter coverage', () => {
         }
     });
 
-    it('resolves a model for every capability each non-retired provider claims', () => {
+    it('resolves a model for every capability each provider claims', () => {
         // Some capabilities (long context, for instance) are properties of the
         // text model rather than a separate model, so the registry does not pin
         // one for each. What must hold is that resolution never returns null,
         // because the router skips a provider it cannot pick a model for.
         for (const provider of PROVIDERS) {
-            if (provider.retired) continue;
             for (const capability of provider.capabilities) {
                 expect(typeof resolveModel(provider, capability, {})).toBe('string');
             }
@@ -109,7 +108,6 @@ describe('model pins that vendors have retired', () => {
         // resolves. The router gates on the capability, so the claim has to be
         // backed by something.
         for (const provider of PROVIDERS) {
-            if (provider.retired) continue;
             for (const capability of [CAPABILITIES.VISION, CAPABILITIES.MULTI_IMAGE]) {
                 if (!provider.capabilities.includes(capability)) continue;
                 expect(resolveModel(provider, capability, {})).toBeTruthy();
@@ -124,7 +122,7 @@ describe('model pins that vendors have retired', () => {
         // 20-request free-tier cap, which is what "AI is unreliable" looked
         // like from a driver's seat.
         const multiImageProviders = PROVIDERS.filter((provider) => (
-            !provider.retired && provider.capabilities.includes(CAPABILITIES.MULTI_IMAGE)
+            provider.capabilities.includes(CAPABILITIES.MULTI_IMAGE)
         ));
 
         expect(multiImageProviders.length).toBeGreaterThan(1);

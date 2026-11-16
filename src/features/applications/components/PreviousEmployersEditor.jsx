@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Icon, Plus, Trash2 } from '@design-system/icons';
 import {
-    Badge, Button, Card, ChoiceGroup, FieldDisplay, FormField, Input, Notice, Radio, Select,
+    Badge, Button, Card, ChoiceGroup, FieldDisplay, FormField, IconButton, Input, Notice, Radio, Select,
 } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 import { EMPLOYMENT_SECTION } from '@/config/applicationSchema';
@@ -268,15 +268,16 @@ export function PreviousEmployersEditor({ employers, onChange, unfinished = fals
                                         )}
                                         {locked && <Badge tone="info">Locked by your company</Badge>}
                                     </div>
+                                    {/* The one look of a row delete; the confirmation follows. */}
                                     {!locked && (
-                                        <Button
+                                        <IconButton
                                             variant="ghost"
                                             size="sm"
-                                            aria-label={`Remove ${name} from the employment history`}
+                                            label={`Remove ${name} from the employment history`}
                                             onClick={() => requestRemoval(index)}
                                         >
-                                            <Icon icon={Trash2} size="sm" /> Remove
-                                        </Button>
+                                            <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                                        </IconButton>
                                     )}
                                 </div>
                                 {locked && (

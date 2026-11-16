@@ -238,7 +238,8 @@ describe('a document prepared in May and signed in September', () => {
               fieldValues: stored.fieldValues,
               auditTrail: { ip: '203.0.113.10', userAgent: 'jest' },
             }),
-            ref: { update: mockRequestUpdate },
+            // As stored after submission: still waiting to be sealed.
+            ref: { update: mockRequestUpdate, get: async () => ({ exists: true, data: () => ({ status: 'pending_seal' }) }) },
           },
         },
         { params: { companyId: 'co1', requestId: 'req1' } },

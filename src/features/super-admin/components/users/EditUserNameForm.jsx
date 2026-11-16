@@ -7,6 +7,7 @@ import { Icon, KeyRound, Trash2 } from '@design-system/icons';
 import { Button, Card, FieldMessage, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * User profile editor inside the Super Admin Edit User dialog.
@@ -69,7 +70,7 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
         setTimeout(() => setSaveMessage(''), 2000);
       } catch (error) {
         console.error("Error updating user:", error);
-        setSaveMessage('Error: ' + (error.message || 'Unknown error'));
+        setSaveMessage('Error: ' + plainErrorMessage(error, 'The profile could not be saved.'));
       } finally {
         setSaveLoading(false);
       }
@@ -86,7 +87,7 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
             setActionMessage({ tone: 'success', message: `Password reset email sent to ${userEmail}` });
         } catch (error) {
             console.error("Reset Password Error:", error);
-            setActionMessage({ tone: 'error', message: "Failed to send reset email: " + error.message });
+            setActionMessage({ tone: 'error', message: plainErrorMessage(error, 'The reset email could not be sent.') });
         } finally {
             setResetLoading(false);
         }
@@ -103,7 +104,7 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
             if (onSave) onSave(); // Triggers refresh in parent
         } catch (error) {
             console.error("Delete User Error:", error);
-            setActionMessage({ tone: 'error', message: "Failed to delete user: " + error.message });
+            setActionMessage({ tone: 'error', message: plainErrorMessage(error, 'The user could not be deleted.') });
         } finally {
             setDeleteLoading(false);
         }

@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import { Button, Card, Checkbox, FormField, Input, Notice } from '@/design-system/components';
 import {
-  findQuickInterestGaps, quickInterestErrorMessage, referralConsentText, sendQuickInterest,
+  findQuickInterestGaps, quickInterestContact, quickInterestErrorMessage, referralConsentText, sendQuickInterest,
 } from './referralIntake';
 
 const FIELDS = Object.freeze([
@@ -16,6 +16,8 @@ const EMPTY = Object.freeze({ firstName: '', lastName: '', phone: '', email: '',
 /**
  * The quick interest form of a referral link: four answers and consent to be
  * contacted. The server checks every answer again and creates the lead.
+ * `onSent` receives the four answers as sent, so the full application can start
+ * from them (`prefillFromQuickInterest`).
  */
 export function QuickInterestForm({ companyId, companyName, referralCode, onSent, onBack }) {
   const headingId = `quick-interest-${useId().replace(/:/g, '')}`;
@@ -39,7 +41,7 @@ export function QuickInterestForm({ companyId, companyName, referralCode, onSent
     setError(null);
     try {
       await sendQuickInterest({ companyId, referralCode, answers });
-      onSent();
+      onSent(quickInterestContact(answers));
     } catch (sendError) {
       setError(quickInterestErrorMessage(sendError));
       setBusy(false);

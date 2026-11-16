@@ -9,17 +9,18 @@
  * this record was sent the way the creation triggers send: by email unless that
  * is switched off, by text only when asked for. `correctionDelivery` in
  * `envelopePersistence.js` follows the same rule to word a correction's
- * confirmation: change both.
+ * confirmation: change both. A reminder (`signerReminder.js`: Remind and the
+ * automatic one) sends the link again where it already went, in resend mode.
  */
 const { randomUUID } = require('crypto');
 const { admin } = require('../firebaseAdmin');
-const { normalizePhone } = require('./normalizePhone');
+const { toE164Us } = require('./toE164Us');
 
 // A replaced or newly sent link has the seven days a new request gets.
 const LINK_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
 const emailOf = (data) => (typeof data?.recipientEmail === 'string' ? data.recipientEmail.trim().toLowerCase() : '');
-const phoneOf = (data) => normalizePhone(data?.recipientPhone)
+const phoneOf = (data) => toE164Us(data?.recipientPhone)
     || (typeof data?.recipientPhone === 'string' ? data.recipientPhone.replace(/\D/g, '') : '');
 const emailsLink = (data) => data.sendEmail !== false && Boolean(emailOf(data));
 const textsLink = (data) => Boolean(data.sendSms) && Boolean(phoneOf(data));
@@ -31,6 +32,23 @@ function linkSentTo(data, sentAs = data) {
         ...(emailsLink(sentAs) && { email: emailOf(sentAs) }),
         ...(textsLink(sentAs) && { phone: phoneOf(sentAs) }),
     };
+}
+
+/**
+ * Whether a change from `before` to `after` touched where a request's link goes:
+ * its email, its phone or its channels. Only such a change makes
+ * `resendSignerOnCorrection` settle the link again.
+ */
+function routeChanged(before, after) {
+    return emailOf(before) !== emailOf(after)
+        || phoneOf(before) !== phoneOf(after)
+        || (before.sendEmail !== false) !== (after.sendEmail !== false)
+        || Boolean(before.sendSms) !== Boolean(after.sendSms);
+}
+
+/** The channels request `data` sends its link by: email unless switched off, a text when asked for. */
+function deliveryChannels(data) {
+    return { email: emailsLink(data), sms: textsLink(data) };
 }
 
 /**
@@ -56,8 +74,12 @@ function linkWork(data, sentTo) {
  * the request before the change at hand, for a request saved before
  * `linkSentTo`. Only a request waiting for a signature (`sent`) changes, and a
  * link replaced or claimed for sending gets seven days again.
+ *
+ * `resend` (`{ email, sms }`, a reminder) claims those of the request's
+ * channels again even where the link already went; `send` claims only those it
+ * has not reached. `record` is written with the claim.
  */
-async function settleSigningLink(tx, ref, data, { send = false, sentAs = data } = {}) {
+async function settleSigningLink(tx, ref, data, { send = false, resend = null, sentAs = data, record = {} } = {}) {
     const tokenRef = ref.collection('secrets').doc('token');
     const secret = await tx.get(tokenRef);
     // ADV-4: a request made before the token moved to `secrets` keeps it on itself.
@@ -67,8 +89,8 @@ async function settleSigningLink(tx, ref, data, { send = false, sentAs = data } 
 
     const sentTo = linkSentTo(data, sentAs);
     const work = linkWork(data, sentTo);
-    const email = send && work.email;
-    const sms = send && work.sms;
+    const email = (send && work.email) || Boolean(resend?.email && emailsLink(data));
+    const sms = (send && work.sms) || Boolean(resend?.sms && textsLink(data));
     if (!work.replace && !email && !sms) return settled;
 
     if (work.replace) {
@@ -79,8 +101,9 @@ async function settleSigningLink(tx, ref, data, { send = false, sentAs = data } 
     tx.update(ref, {
         linkSentTo: { ...reached, ...(email && { email: emailOf(data) }), ...(sms && { phone: phoneOf(data) }) },
         expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + LINK_LIFETIME_MS),
+        ...record,
     });
     return { accessToken, email, sms, emailHeldOldLink: work.replace && sentTo.email === emailOf(data) };
 }
 
-module.exports = { emailOf, phoneOf, linkSentTo, linkWork, settleSigningLink };
+module.exports = { emailOf, phoneOf, deliveryChannels, linkSentTo, linkWork, routeChanged, settleSigningLink };

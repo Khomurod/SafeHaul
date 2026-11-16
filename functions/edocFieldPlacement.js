@@ -210,9 +210,11 @@ function validatePagesInput(pages) {
 /**
  * E-Docs must be enabled for the tenant. `features.eDocs === false` is the
  * repo-wide opt-out convention (see DocumentsManager); absence means enabled.
+ * Decided on the company the access check read; a super admin's check may hand
+ * back none, and then it is read here.
  */
-async function assertEdocsFeatureEnabled(companyId) {
-  const snap = await db.collection('companies').doc(companyId).get();
+async function assertEdocsFeatureEnabled(companyId, checkedCompany) {
+  const snap = checkedCompany || await db.collection('companies').doc(companyId).get();
   if (!snap.exists) {
     throw new HttpsError('not-found', 'Company not found.');
   }
@@ -223,7 +225,7 @@ async function assertEdocsFeatureEnabled(companyId) {
 }
 
 exports.analyzeEdocFieldPlacement = onCall(
-  { cors: true, memory: '1GiB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS, secrets: ['GROQ_API_KEY'] },
+  { cors: true, memory: '1GiB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'You must be signed in.');
@@ -241,8 +243,8 @@ exports.analyzeEdocFieldPlacement = onCall(
       throw new HttpsError('invalid-argument', 'scanId is required.');
     }
 
-    await assertCompanyAccessForRequest(request, companyId, 'analyzeEdocFieldPlacement');
-    await assertEdocsFeatureEnabled(companyId);
+    const checkedCompany = await assertCompanyAccessForRequest(request, companyId, 'analyzeEdocFieldPlacement');
+    await assertEdocsFeatureEnabled(companyId, checkedCompany);
 
     const normalizedPages = validatePagesInput(pages);
 

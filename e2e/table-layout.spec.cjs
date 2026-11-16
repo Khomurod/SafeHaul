@@ -37,7 +37,7 @@ const { uploadLeadFile } = require('./helpers/leadImport.cjs');
  * company's alert interactions (read from its `feature_alerts`) and the
  * dossier's own tables. The import-leads preview is covered: the screen picks
  * a made-up file, as a person would; so is the stats backfill preview, from a
- * dry run answered by `callables`, a finished campaign's results and report,
+ * dry run answered by `callables`, a finished campaign's results (its report),
  * from the `e2eCampaign=mock` seed, and a company's applications dialog and the
  * Unified Driver Database, from the `e2eCompanies=mock` seed.
  */
@@ -71,10 +71,10 @@ const AI_MODEL_VERSIONS = {
 };
 
 const SCREENS = [
-    { name: 'company dashboard leaderboard', url: '/company/dashboard?e2eAuth=company_admin', row: 'Jordan Recruiter' },
     { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin', row: 'James McDonald' },
     { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin', row: 'Omar Attempt' },
     { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin', row: 'Lena Leadsen' },
+    { name: 'unassigned leads', url: '/company/drivers/leads/unassigned?e2eAuth=company_admin', row: 'Omar Attempt' },
     {
         name: 'import leads preview',
         url: '/company/import-leads?e2eAuth=company_admin',
@@ -88,6 +88,14 @@ const SCREENS = [
         url: '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock&e2eEdocSent=mock',
         open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
         row: 'Ana Lucia Ferreira-Montgomery',
+    },
+    {
+        // Signed documents with a company signature: Send signed copy, Try again,
+        // and the copy's line under each status.
+        name: 'e-docs signed copies',
+        url: '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock&e2eEdocSent=signedCopy',
+        open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
+        row: 'Independent Contractor Agreement',
     },
     { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin&e2eReferrals=mock', row: 'Jean-Baptiste Okonkwo-Fairweather' },
     {
@@ -186,16 +194,9 @@ const SCREENS = [
     {
         name: 'campaign results',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: (page) => openFinishedCampaign(page, /^Details$/i),
+        open: openFinishedCampaign,
         row: 'E2E Recipient 12',
         table: 'Recipient delivery log',
-    },
-    {
-        name: 'campaign delivery report',
-        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: (page) => openFinishedCampaign(page, 'View Report'),
-        row: 'Carrier rejected the message.',
-        table: 'Per-recipient delivery results',
     },
     {
         name: 'super admin company features',
@@ -212,10 +213,10 @@ const SCREENS = [
     },
 ];
 
-/** Opens the seeded finished campaign's details or report, as a person would. */
-async function openFinishedCampaign(page, button) {
-    await page.getByRole('tab', { name: /Past Sequences/i }).click();
-    await page.getByRole('button', { name: button }).first().click();
+/** Opens the seeded finished campaign's details, its report, as a person would. */
+async function openFinishedCampaign(page) {
+    await page.getByRole('tab', { name: /Sent & live/i }).click();
+    await page.getByRole('button', { name: /^Details$/i }).first().click();
 }
 
 /**

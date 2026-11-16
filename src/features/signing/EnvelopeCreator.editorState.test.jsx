@@ -93,7 +93,7 @@ describe('recipient and delivery edits', () => {
         const { props } = setup();
         fireEvent.click(screen.getByRole('button', { name: 'set recipient name' }));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Documents' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back to E-Docs' }));
         expect(props.onClose).not.toHaveBeenCalled();
         expect(screen.getByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument();
     });
@@ -129,7 +129,7 @@ describe('save state on a failed save', () => {
 describe('unsaved-change protection', () => {
     it('leaves immediately when there is nothing to lose', () => {
         const { props } = setup();
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Documents' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back to E-Docs' }));
         expect(props.onClose).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
@@ -139,7 +139,7 @@ describe('unsaved-change protection', () => {
         await loadPdf();
         fireEvent.click(screen.getByRole('button', { name: 'add text field' }));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Documents' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back to E-Docs' }));
         expect(props.onClose).not.toHaveBeenCalled();
         expect(screen.getByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument();
     });
@@ -148,7 +148,7 @@ describe('unsaved-change protection', () => {
         const { props } = setup();
         await loadPdf();
         fireEvent.click(screen.getByRole('button', { name: 'add text field' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Documents' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back to E-Docs' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -160,7 +160,7 @@ describe('unsaved-change protection', () => {
         const { props } = setup();
         await loadPdf();
         fireEvent.click(screen.getByRole('button', { name: 'add text field' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Documents' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back to E-Docs' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
         await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));

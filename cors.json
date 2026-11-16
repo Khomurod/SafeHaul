@@ -1,13 +1,14 @@
 [
     {
         "origin": [
-            "*"
+            "https://app.safehaul.io",
+            "https://safehaul-app-production.web.app",
+            "https://safehaul-app-production.firebaseapp.com",
+            "https://truckerapp-system.web.app",
+            "https://truckerapp-system.firebaseapp.com"
         ],
         "method": [
             "GET",
-            "PUT",
-            "POST",
-            "DELETE",
             "HEAD"
         ],
         "responseHeader": [

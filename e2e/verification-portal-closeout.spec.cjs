@@ -253,7 +253,7 @@ test.describe('Verification portal validation and submission', () => {
     await expect(page.getByText(/Verification Submitted Successfully/i)).toBeVisible({ timeout: 15_000 });
     expect(submitEvents).toBeGreaterThanOrEqual(1);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    await expect(page.getByText('Verification Error')).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1, name: /This link|could not check this link/i })).toHaveCount(0);
   });
 });
 
@@ -296,10 +296,10 @@ test.describe('Verification portal responsiveness', () => {
 test.describe('Verification portal states and accessibility', () => {
   const STATES = [
     ['pending form', 'mock', /Previous Employment Verification/i],
-    ['expired', 'expired', /Link Expired/i],
-    ['invalid link', 'invalid', /Verification Error/i],
+    ['expired', 'expired', /This link has expired/i],
+    ['invalid link', 'invalid', /This link is not valid/i],
     ['already completed', 'completed', /Already Completed/i],
-    ['load failure', 'failure', /Verification Error/i],
+    ['load failure', 'failure', /We could not check this link/i],
   ];
 
   for (const [label, mode, heading] of STATES) {
@@ -310,6 +310,13 @@ test.describe('Verification portal states and accessibility', () => {
       expect(await seriousViolations(page)).toEqual([]);
     });
   }
+
+  test('names the request by its short number and never shows the link token', async ({ page }) => {
+    await gotoForm(page);
+    await expect(page.getByText('Request number: e2e00001')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText('e2e-token-1');
+    await expect(page.locator('body')).not.toContainText('Compliance Services');
+  });
 
   test('renders the success state with one h1 and no serious axe violations', async ({ page }) => {
     await gotoForm(page);

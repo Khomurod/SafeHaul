@@ -39,6 +39,23 @@ describe('restoring a draft', () => {
         expect(restored.draft.lastStep).toBe(1);
     });
 
+    it('hands back the link codes the answers carried, so a continued application keeps its recruiter', async () => {
+        // The browser keeps a recruiter's and a referral link's codes among the
+        // answers; a draft is the only thing that carries them to another session
+        // or device, and the submission sends them from there.
+        const saved = await saveFirstPage({
+            formData: { firstName: 'Dana', recruiterCode: 'link-1', referralCode: 'ABCD2345' },
+        });
+
+        const restored = await drafts.resumeApplicationDraft({
+            companyId: COMPANY,
+            applicantKey: saved.applicantKey,
+            resumeToken: saved.resumeToken,
+        }, CONTEXT);
+
+        expect(restored.draft.formData).toMatchObject({ recruiterCode: 'link-1', referralCode: 'ABCD2345' });
+    });
+
     it('never returns an SSN, an identity hash or a token hash', async () => {
         const saved = await saveFirstPage();
 

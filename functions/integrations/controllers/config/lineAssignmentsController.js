@@ -6,6 +6,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
 const { normalizePhoneForKeychain } = require('../../../utils/phoneUtils');
 const { lineTokenForInventoryItem, withStableLineIds } = require('./lineTokens');
+const { assertSmsSettingsAccess } = require('./smsSettingsAccess');
 
 // Shared options for functions that need encryption capabilities
 const encryptedCallOptions = {
@@ -29,8 +30,8 @@ exports.saveSmsLineAssignments = onCall(encryptedCallOptions, async (request) =>
         throw new HttpsError('invalid-argument', 'assignmentTokens must be an object.');
     }
 
-    const { assertCompanyAdminStrict } = require('../../../shared/companyAccess');
-    await assertCompanyAdminStrict(request.auth.uid, companyId);
+    // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+    await assertSmsSettingsAccess(request.auth, companyId);
 
     const providerDocRef = admin.firestore()
         .collection('companies').doc(companyId)

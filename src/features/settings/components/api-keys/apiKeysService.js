@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { serverMessageOf } from '@shared/utils/callableErrors';
 
 /**
  * The three callables behind Settings → API Keys (`functions/companyApi/keyCallables.js`).
@@ -43,9 +44,8 @@ const PLAIN = {
  */
 export function apiKeyErrorMessage(error, fallback) {
     const code = error?.code || '';
-    if (['functions/invalid-argument', 'functions/failed-precondition', 'functions/resource-exhausted', 'functions/not-found']
-        .includes(code) && error?.message) {
-        return error.message;
-    }
+    const said = ['functions/invalid-argument', 'functions/failed-precondition', 'functions/resource-exhausted', 'functions/not-found']
+        .includes(code) ? serverMessageOf(error) : null;
+    if (said) return said;
     return PLAIN[code] || fallback;
 }

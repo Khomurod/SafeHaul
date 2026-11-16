@@ -75,7 +75,10 @@ rule on this page only when it says so; say what the rule protects first.
   commit or rewrite someone else's branch history.
 - Runtime code and tooling may not exceed 700 physical lines; past 500 a file
   must justify its shape. Tests have no limit (`npm run check:source-size`).
-- Never commit a secret. The secret scan gates every release.
+- Never commit a secret; the secret scan gates every release. This repository is
+  public: an unfixed security weakness, the place a secret lives and customer
+  data stay out of tracked files, commit messages, pull requests and review
+  replies. Tell the owner in chat, and write here only that a fix is pending.
 - Reuse the existing pattern before adding a new one. Feature logic lives in its
   feature, hook or service.
 - Findings from review bots, other agents and automated checks are claims to
@@ -90,6 +93,7 @@ rule on this page only when it says so; say what the rule protects first.
 
 | What | Command |
 |---|---|
+| Install, before any check or work when `node_modules` is missing | `npm ci`, and `npm ci` in `functions/` |
 | Lint | `npm run lint:frontend`, and `npm run lint` in `functions/` |
 | Unit tests | `npm test` (CI runs `npm run test:coverage`), and `npm test` in `functions/` |
 | Build | `npm run build`, then `npm run check:bundle-budget` |
@@ -110,14 +114,21 @@ rule on this page only when it says so; say what the rule protects first.
 Claude Code loads these files on its own when it opens matching files. Every
 other agent must open them.
 
+Two skills hold the order of work, for every agent: follow
+`.claude/skills/implement/SKILL.md` for any change to the application, and
+`.claude/skills/check-and-report/SKILL.md` when the owner asks to check, review
+or explain and no change is asked.
+
 ## 6. Tools
 
-- On the owner's machine three MCP servers may be configured: **codebase-memory-mcp**
+- On the owner's machine two MCP servers may be configured: **codebase-memory-mcp**
   for orientation, call paths and impact (`search_graph`, `trace_path`,
-  `get_architecture`, `search_code`); **serena** for exact symbols, references and
-  renames; **Superpowers** for the working process (clarify, plan, test first,
-  review, verify). Use each for its own job, and do not ask all of them the same
-  question. Keep durable project memory in one place.
+  `get_architecture`, `search_code`), and **serena** for exact symbols, references
+  and renames. Use each for its own job, and do not ask both the same question.
+  Keep durable project memory in one place.
+- The **Superpowers** plugin may be installed there too. The two skills §5 names
+  set the order of work: a Superpowers skill applies only where they are silent,
+  and never puts more questions to the owner than §1 allows.
 - Where they are absent, as in cloud sessions, use the native tools: search,
   read, git and the test runner.
 

@@ -1,9 +1,11 @@
 /**
  * Assign Leads offers the company's team from its saved team list
  * (`companies/{id}.teamMembers`), read fresh once when the window opens: one
- * document read, not the memberships and one profile per member. What an
- * assignment writes is unchanged: the member's uid as `assignedTo`, a name as
- * `assignedToName` ("Unknown" when there is none), and both timestamps.
+ * document read, not the memberships and one profile per member. An assignment
+ * writes the member's uid as `assignedTo`, a name as `assignedToName` ("Unknown"
+ * when there is none), both timestamps, and who assigned it
+ * (`assignmentChangedBy`, `assignmentChangedAt`), so the bell tells the new owner
+ * unless they took the leads themselves.
  *
  * The browser Firestore refuses a field holding undefined, so the batch double
  * below throws as it does. Round Robin wrote the profile's bare `name`, so a
@@ -36,7 +38,7 @@ vi.mock('@/context/DataContext', () => ({ useData: () => fx.data }));
 vi.mock('@features/companies/services/companyService', () => ({
     getCompanyProfile: (...args) => fx.getCompanyProfile(...args),
 }));
-vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: { uid: 'uid-ann' } } }));
 vi.mock('@shared/utils/activityLogger', () => ({ logActivity: (...args) => fx.logActivity(...args) }));
 vi.mock('firebase/firestore', () => ({
     collection: (_db, ...path) => ({ path: path.join('/') }),
@@ -94,7 +96,7 @@ function openModal(selectedLeadIds = ['lead-1', 'lead-2']) {
 /** The recruiter picker's options once the team is listed (not the placeholder). */
 async function teamOptions() {
     await screen.findByRole('option', { name: 'Ann Baker' });
-    return within(screen.getByRole('combobox', { name: 'Select Recruiter' }))
+    return within(screen.getByRole('combobox', { name: 'Assigned to' }))
         .getAllByRole('option')
         .slice(1)
         .map((option) => [option.value, option.textContent]);
@@ -215,11 +217,18 @@ describe('LeadAssignmentModal — Manual Pick and what an assignment writes', ()
         const { onSuccess, onClose } = openModal(['lead-1', 'lead-2']);
         await teamOptions();
 
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Select Recruiter' }), 'uid-cara');
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Assigned to' }), 'uid-cara');
         await user.click(screen.getByRole('button', { name: 'Confirm Assignment' }));
 
         await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-        const payload = { assignedTo: 'uid-cara', assignedToName: 'Cara Diaz', assignedAt: '__serverTimestamp__', updatedAt: '__serverTimestamp__' };
+        const payload = {
+            assignedTo: 'uid-cara',
+            assignedToName: 'Cara Diaz',
+            assignedAt: '__serverTimestamp__',
+            updatedAt: '__serverTimestamp__',
+            assignmentChangedBy: 'uid-ann',
+            assignmentChangedAt: '__serverTimestamp__',
+        };
         expect(fx.updates).toEqual([
             { path: 'companies/co-1/leads/lead-1', data: payload },
             { path: 'companies/co-1/leads/lead-2', data: payload },
@@ -240,7 +249,7 @@ describe('LeadAssignmentModal — Manual Pick and what an assignment writes', ()
         const { onClose } = openModal(['lead-1']);
         await teamOptions();
 
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Select Recruiter' }), 'uid-dan');
+        await user.selectOptions(screen.getByRole('combobox', { name: 'Assigned to' }), 'uid-dan');
         await user.click(screen.getByRole('button', { name: 'Confirm Assignment' }));
 
         await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));

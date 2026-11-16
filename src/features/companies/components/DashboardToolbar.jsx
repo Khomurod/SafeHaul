@@ -7,9 +7,15 @@ import { ListToolbar } from '@design-system/patterns';
 import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 
 /**
- * The candidate/lead list toolbar: the list-page `ListToolbar` with this list's
- * segments, its "only mine" switch, its search, its four filters and the
- * assignment action.
+ * The candidate/lead list toolbar: the list page's row above the table card
+ * (`ListToolbar placement="page"`) with this list's scope links (`lead`, the
+ * Leads tabs) or its segments, its "Assigned to me" switch, its search, its
+ * four filters and the assignment action. A lead list's status segments are
+ * not here: they are the pills at the top of its table card, which the page
+ * draws. A list whose tab names its assignee (Assigned to me, Unassigned)
+ * leaves the Assigned to filter out (`showAssigneeFilter`), and a value it
+ * holds from another list is neither shown nor counted. On a list that can
+ * assign, Assign appears once a lead is ticked, in a place the row keeps for it.
  *
  * Presentation only — the filter keys, the driver-type option list, the
  * `setFilters` shape, the assignment action and the my-assignments toggle
@@ -33,6 +39,7 @@ const FILTER_FIELD_KEYS = ['driverType', 'state', 'assignee', 'dateFilter', 'dob
 const CLEARED_FIELDS = Object.fromEntries(FILTER_FIELD_KEYS.map((key) => [key, '']));
 
 export const DashboardToolbar = memo(function DashboardToolbar({
+    lead,
     segments,
     searchQuery,
     setSearchQuery,
@@ -47,7 +54,8 @@ export const DashboardToolbar = memo(function DashboardToolbar({
     showMyAssignmentsToggle = false,
     myAssignmentsOnly = false,
     onToggleMyAssignments,
-    myAssignmentsLabel = 'Only mine',
+    myAssignmentsLabel = 'Assigned to me',
+    showAssigneeFilter = true,
 }) {
     const [showFilters, setShowFilters] = useState(false);
 
@@ -55,7 +63,9 @@ export const DashboardToolbar = memo(function DashboardToolbar({
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
-    const activeCount = FILTER_FIELD_KEYS.filter((key) => Boolean(filters?.[key])).length;
+    const activeCount = FILTER_FIELD_KEYS
+        .filter((key) => showAssigneeFilter || key !== 'assignee')
+        .filter((key) => Boolean(filters?.[key])).length;
 
     return (
         /*
@@ -65,6 +75,8 @@ export const DashboardToolbar = memo(function DashboardToolbar({
          * sits on `sticky`.
          */
         <ListToolbar
+            placement="page"
+            lead={lead}
             segments={segments && { ariaLabel: 'Pipeline segment', ...segments }}
             toggle={showMyAssignmentsToggle
                 ? { label: myAssignmentsLabel, checked: myAssignmentsOnly, onChange: (next) => onToggleMyAssignments?.(next) }
@@ -109,18 +121,20 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                             </Select>
                         </FormField>
 
-                        <FormField id="toolbar-assignee" label="Assigned to">
-                            <Select
-                                value={filters?.assignee || ''}
-                                onChange={(e) => handleFilterChange('assignee', e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="__unassigned__">Unassigned</option>
-                                {teamMembers.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name || m.displayName || m.email}</option>
-                                ))}
-                            </Select>
-                        </FormField>
+                        {showAssigneeFilter && (
+                            <FormField id="toolbar-assignee" label="Assigned to">
+                                <Select
+                                    value={filters?.assignee || ''}
+                                    onChange={(e) => handleFilterChange('assignee', e.target.value)}
+                                >
+                                    <option value="">All</option>
+                                    <option value="__unassigned__">Unassigned</option>
+                                    {teamMembers.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name || m.displayName || m.email}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
+                        )}
 
                         <FormField id="toolbar-date" label="Filter by date">
                             <Input
@@ -132,10 +146,14 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                     </>
                 ),
             }}
+            // Shown once a lead is ticked, as C2 draws the list: nothing to
+            // assign, no button. Its place is kept (`reserveActions`), so its
+            // arrival pushes no row under the finger that ticked the lead.
+            reserveActions={Boolean(canAssign)}
             actions={canAssign && selectedCount > 0 ? (
                 <Button variant="primary" onClick={onAssignLeads}>
                     <Icon icon={Users} />
-                    Assign ({selectedCount})
+                    {`Assign (${selectedCount})`}
                 </Button>
             ) : null}
         />

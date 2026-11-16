@@ -6,7 +6,7 @@ test.describe('E-Doc recruiter send flow', () => {
   test('company admin sends template and lands in signer handoff route', async ({ page }) => {
     await page.goto('/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeVisible({ timeout: 20_000 });
     // The Documents workspace views are an ARIA tab interface, and each template's
     // actions carry the template title so they are uniquely addressable. The
     // send flow itself is unchanged — only these selectors moved.

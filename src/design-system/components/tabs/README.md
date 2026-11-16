@@ -35,22 +35,26 @@ profile modal owns the panel. Both derive their ids from `idBase` through
 `tabIds`, so the `aria-controls` / `aria-labelledby` pair cannot drift apart by
 hand.
 
-## Two shapes
+## The shapes
 
 | Shape | For |
 |---|---|
-| `underline` (default) | A page-level view switcher. Nine of the eleven call sites |
-| `variant="pill"` | A secondary strip *inside* a panel, where an underline would read as a second page-level strip. The campaign audience builder's import-method chooser |
+| `underline` (default) | A page-level view switcher in a card or a panel |
+| `variant="segmented"` | A page's views on the canvas, drawn as a white tray of 36px items with the chosen tab dark — the look of a list's segments (`ListToolbar`), so a page's tabs and a list's segments read as one kind of control. A count goes in `badge` (`badge: 6`) and reads muted after the label ("Sent Documents 6"). Icons stay under 768px (C2) unless `phoneIcons={false}` (labels too long to share a half-row with one: E-Docs' "After-application forms"); there the tabs make equal rows: two in halves, three in thirds, four in a 2 × 2 grid, six in rows of three, any other number as rows of whole labels, each 44px tall. A tray too wide for its row on a larger screen (E-Docs' four tabs beside the menu on a tablet) takes the same layout, measured on the row (`data-wrapped`), instead of wrapping three and one. Every tab keeps the width of its semibold label, so choosing one never moves the others |
+| `variant="pill"` | A secondary strip *inside* a panel: bordered pills with a full radius, the chosen one on the selected tint with an action-coloured border and text. The campaign audience builder's import-method chooser |
 | `fitted` | A strip that must span a narrow container instead of leaving a ragged gap. The notification popover |
 
-They differ in the selected treatment and nothing else — same control height,
-same icon size, same keyboard model. A primitive that could express only the
-first shape would have left the other two hand-rolled, which is exactly how a
-primitive ends up with no consumers.
+They differ in the drawing and nothing else — same keyboard model, same
+semantics. `segmented` and `pill` share `segmentedGroup.css` with `TabNav` and
+`ListToolbar`'s segments; the chosen item there is also semibold, so the choice
+never rests on colour alone, and under `forced-colors` it is outlined in
+`Highlight`. A primitive that could express only the first shape would have
+left the others hand-rolled, which is exactly how a primitive ends up with no
+consumers.
 
-`variant="pill"` with `orientation="vertical"` **throws**. Nothing wants it, and
-a silently-ignored prop combination is how a component starts lying about what it
-supports.
+`segmented` or `pill` with `orientation="vertical"` **throws**. Nothing wants it,
+and a silently-ignored prop combination is how a component starts lying about
+what it supports.
 
 ## Keyboard
 
@@ -90,8 +94,41 @@ migrating them changes no behaviour.
 - **A vertical strip ignores the horizontal arrows**, so it cannot hijack the
   scroll keys of a horizontally scrolling region around it.
 
+## `TabNav`: views that are pages
+
+When each view has its own address (a route), the strip is navigation, not a
+tab widget. `TabNav` draws the same underlined strip, from the same `Tabs.css`,
+as a named `<nav>` holding a list of links.
+
+```jsx
+<TabNav
+  ariaLabel="Record lists"
+  items={[{ id: 'all', label: 'All', href: '/records/all', onClick }, …]}
+  currentId="all"
+/>
+```
+
+| | `TabList` | `TabNav` |
+|---|---|---|
+| Role | `tablist` of `tab`s, one `tabpanel` | `navigation` holding a list of links |
+| Selection | `aria-selected` | `aria-current="page"` on the page shown |
+| `Tab` | One stop for the strip | Every link is a stop, in order |
+| Arrow keys | Move and select | None: a page change is not a cheap, reversible switch |
+| Activation | Selection follows focus | `Enter` or a click follows the link; the browser offers "open in a new tab" |
+
+- **`ariaLabel` is required**, and every item needs an `href`: a link with no
+  destination is a button.
+- **Routing is the caller's.** The design system knows no router: an item takes
+  an `href`, and an `onClick` (a router's link click handler) for an in-app move
+  without a reload. The leads list's All · Assigned to me · Unassigned is the
+  consumer.
+- `variant="segmented"` draws the segmented tray, for a scope switch in a list's
+  toolbar row (`ListToolbar`'s `lead`); `underline` is the default. Horizontal
+  only, no icons or badges: nothing asks for more yet.
+
 ## Not this component
 
 - **`SectionNavigation`** for moving between sections of a settings page. That
   is navigation, not a tab widget, and it has a different keyboard contract.
+- **`TabNav`** (above) when each view is its own page.
 - **`Disclosure`** when more than one region may be open at once.

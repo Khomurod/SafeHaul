@@ -126,7 +126,7 @@ const encryptionMock = () => ({
 });
 
 const phoneUtilsMock = () => ({
-    normalizePhone: jest.fn(phone => phone ? phone.replace(/\D/g, '') : '')
+    toE164Us: jest.fn(phone => phone ? phone.replace(/\D/g, '') : '')
 });
 
 // The pause between two sends, answered at once: a batch costs no real three

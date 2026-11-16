@@ -4,7 +4,8 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("./firebaseAdmin");
-const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
+// `joi` loads only when a call needs it, not on every cold start of this file's functions.
+const schemas = () => require('./shared/schema');
 const { assertCompanyAccess, assertCompanyAdminStrict } = require('./shared/companyAccess');
 const { assertSuperAdminAuth } = require('./shared/superAdmin');
 const { escapeHtml, plainGuestText } = require('./shared/plainText');
@@ -13,6 +14,7 @@ const { buildPublicProfileDto } = require('./shared/publicProfileDto');
 const { reconcilePublicProfilesToCompletion } = require('./shared/publicProfileSync');
 const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
 const { isPlaceholderEmail } = require('./shared/placeholderDomains');
+const { mergeWouldChange } = require('./shared/unchangedWrite');
 
 /**
  * Where the reconciler records how far it got.
@@ -38,7 +40,7 @@ exports.deleteCompany = onCall({
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
 
     // INPUT VALIDATION
-    const { error, value } = deleteCompanySchema.validate(request.data);
+    const { error, value } = schemas().deleteCompanySchema.validate(request.data);
     if (error) throw new HttpsError('invalid-argument', error.message);
     const { companyId } = value;
 
@@ -118,15 +120,16 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
 
     // INPUT VALIDATION
-    const { error, value } = sendEmailSchema.validate(request.data);
+    const { error, value } = schemas().sendEmailSchema.validate(request.data);
     if (error) throw new HttpsError('invalid-argument', error.message);
     const { companyId, recipientEmail, triggerType, placeholders } = value;
 
     // The "no answer" follow-up goes out when anyone on the company team logs a
     // call nobody answered; the other templates stay with company admins.
     const assertMaySend = triggerType === 'no_answer' ? assertCompanyAccess : assertCompanyAdminStrict;
+    let checkedCompany;
     try {
-        await assertMaySend(request.auth.uid, companyId);
+        checkedCompany = await assertMaySend(request.auth.uid, companyId);
     } catch (e) {
         throw new HttpsError('permission-denied', 'You do not have permission to send emails for this company.');
     }
@@ -177,9 +180,10 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
                     </div>
                 </div>`;
         } else if (triggerType === 'no_answer') {
-            // The company's own name and application page, read here rather than
-            // taken from the caller, and the recruiter's name as text.
-            const companySnap = await db.collection('companies').doc(companyId).get();
+            // The company's own name and application page, as the access check
+            // read it (a super admin's check may hand back none: read here)
+            // rather than taken from the caller, and the recruiter's name as text.
+            const companySnap = checkedCompany || await db.collection('companies').doc(companyId).get();
             const company = companySnap.exists ? companySnap.data() : {};
             const applyUrl = `https://app.safehaul.io/apply/${encodeURIComponent(company.appSlug || companyId)}`;
             subject = "We missed you!";
@@ -196,7 +200,8 @@ exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'
         return result;
 
     } catch (error) {
-        console.error("Automated Email Error:", error);
+        // Not the error's text: a mail server's reply can name the recipient.
+        console.error(`[sendAutomatedEmail] company ${companyId}: the email was not sent`);
         // We log but don't necessarily throw a blocking error to the UI 
         // if it's a non-critical background automation.
         return { success: false, error: error.message };
@@ -299,24 +304,39 @@ exports.reconcilePublicProfilesSchedule = onSchedule({
  * Trigger: onWrite /companies/{companyId}
  * Description: Copies ONLY safe public data to a separate collection for public read access.
  * This prevents exposing sensitive company data (revenue, internal notes, quotas) to the public.
+ * A company write that changes nothing the profile holds (its team list, a
+ * setting the profile does not carry) leaves the profile alone: rewriting it
+ * would only move `updatedAt`. A missing profile, or one that cannot be read,
+ * is written.
  */
 exports.syncPublicProfile = onDocumentWritten("companies/{companyId}", async (event) => {
     const companyId = event.params.companyId;
     const newData = event.data.after.exists ? event.data.after.data() : null;
+    const profileRef = db.collection("public_profiles").doc(companyId);
 
     // If company is deleted, delete public profile
     if (!newData) {
-        await db.collection("public_profiles").doc(companyId).delete();
+        await profileRef.delete();
         console.log(`[syncPublicProfile] Deleted public profile for ${companyId}`);
         return;
     }
 
     // The delete sentinel is what makes un-setting a gate take effect: profiles
     // are merged, and a merge leaves a nested key that is merely absent in place.
-    const publicData = buildPublicProfileDto(newData, serverTimestamp(), {
-        deleteSentinel: deleteSentinel(),
-    });
+    const sentinel = deleteSentinel();
+    const publicData = buildPublicProfileDto(newData, serverTimestamp(), { deleteSentinel: sentinel });
 
-    await db.collection("public_profiles").doc(companyId).set(publicData, { merge: true });
+    let profile = null;
+    try {
+        profile = await profileRef.get();
+    } catch (error) {
+        console.warn(`[syncPublicProfile] Could not read the public profile for ${companyId}; writing it:`, error.message);
+    }
+    if (profile?.exists && !mergeWouldChange(profile.data(), publicData, { deleteSentinel: sentinel, ignore: ['updatedAt'] })) {
+        console.log(`[syncPublicProfile] Public profile for ${companyId} already current`);
+        return;
+    }
+
+    await profileRef.set(publicData, { merge: true });
     console.log(`[syncPublicProfile] Synced public profile for ${companyId}`);
 });

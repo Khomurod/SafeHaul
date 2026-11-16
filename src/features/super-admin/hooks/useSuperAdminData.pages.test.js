@@ -60,12 +60,13 @@ vi.mock('firebase/firestore', () => ({
     getCountFromServer: async () => ({ data: () => ({ count: 0 }) }),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
-vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, auth: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showError: vi.fn() }),
 }));
 
 import { useSuperAdminData } from './useSuperAdminData';
+import { forgetCompanies, loadCompanies } from '@features/companies/services/companyService';
 
 async function mountLoaded() {
     const hook = renderHook(() => useSuperAdminData());
@@ -74,6 +75,8 @@ async function mountLoaded() {
 }
 
 beforeEach(() => {
+    // Each test reads every company afresh, not the copy an earlier test kept.
+    forgetCompanies();
     vi.clearAllMocks();
     companyCount = 25;
     userCount = 50;
@@ -96,6 +99,23 @@ describe('useSuperAdminData — every company named', () => {
         const { result } = await mountLoaded();
         expect(result.current.allCompaniesMap.size).toBe(20);
         expect(result.current.allCompaniesMap.get('co-0')).toBe('Artificial Carrier 0');
+    });
+});
+
+describe('useSuperAdminData — every company read once', () => {
+    const everyCompanyReads = () => getDocs.mock.calls.filter(([target]) => target?.__coll === 'companies').length;
+
+    it('shares its read with the console\'s other screens, and reads again after a change made here', async () => {
+        const { result } = await mountLoaded();
+        expect(everyCompanyReads()).toBe(1);
+
+        // Features, Activity and Create ask for every company as well.
+        await loadCompanies();
+        expect(everyCompanyReads()).toBe(1);
+
+        await act(async () => { await result.current.refreshData(); });
+        expect(everyCompanyReads()).toBe(2);
+        expect(result.current.allCompaniesMap.size).toBe(25);
     });
 });
 

@@ -1,5 +1,5 @@
 // E2E coverage for the public Change Review Portal design-system slice, using
-// the existing ?e2eReview=mock path. Verifies the complete decision flow,
+// the existing ?e2eReview=mock path. Verifies the complete decision flow, Approve all,
 // keyboard focus, responsive overflow at 1440/1024/412, and a scoped axe pass.
 // Artificial mock data only — no real tokens or applicant information.
 const { test, expect } = require('@playwright/test');
@@ -43,6 +43,14 @@ test.describe('Change Review Portal', () => {
     await expect(notice).toHaveCount(0);
     await page.getByRole('button', { name: /Submit my responses/i }).click();
     await expect(page.getByText('Thank you!')).toBeVisible();
+  });
+
+  test('approves every change with one press of Approve all', async ({ page }) => {
+    await gotoMock(page);
+    await expect(page.getByText('The company you applied to proposed these changes.', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Approve all 2 changes' }).click();
+    await expect(page.getByText('Thank you!')).toBeVisible();
+    await expect(page.getByText('Your responses have been recorded.')).toBeVisible();
   });
 
   test('keeps decision controls grouped, keyboard-focusable, and visibly focused (desktop)', async ({ page }, testInfo) => {

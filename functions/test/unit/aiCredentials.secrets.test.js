@@ -1,6 +1,6 @@
 /**
- * Secret naming, the credential lifecycle, non-secret settings, and the two
- * Groq legacy paths.
+ * Secret naming, the credential lifecycle, non-secret settings, and Secret
+ * Manager as the only credential source.
  *
  * Part of the `aiCredentials` suite. The Firestore double, the fake Secret
  * Manager, the fixtures and the reset are in `aiCredentials.support.js`. Each
@@ -19,7 +19,7 @@ const store = require('../../ai/credentials/store');
 const { PROVIDERS } = require('../../ai/registry/providers');
 // The mocked module, so this is the very `jest.fn()` the support file owns.
 const {
-    mockRequestedNames, mockFakeClient, requestOf, resetCredentialState,
+    mockRequestedNames, mockFakeClient, resetCredentialState,
 } = require('./aiCredentials.support');
 
 beforeEach(resetCredentialState);
@@ -34,7 +34,8 @@ describe('secret naming', () => {
         }
         expect(secretManager.buildSecretId('groq', 'apiKey')).toBe('SAFEHAUL_AI_GROQ_APIKEY');
         expect(secretManager.buildSecretId('cloudflare', 'apiToken')).toBe('SAFEHAUL_AI_CLOUDFLARE_APITOKEN');
-        expect(secretManager.buildSecretId('github-models', 'token')).toBe('SAFEHAUL_AI_GITHUB_MODELS_TOKEN');
+        // A provider removed from the registry is as unknown as one never in it.
+        expect(() => secretManager.buildSecretId('github-models', 'token')).toThrow(/Unknown AI provider/);
     });
 
     it('refuses a provider id that is not in the frozen registry', () => {
@@ -111,25 +112,25 @@ describe('non-secret provider settings', () => {
     });
 });
 
-describe('legacy Groq fallback', () => {
+describe('Secret Manager is the only credential source', () => {
     const original = process.env.GROQ_API_KEY;
     afterAll(() => {
         if (original === undefined) delete process.env.GROQ_API_KEY;
         else process.env.GROQ_API_KEY = original;
     });
 
-    it('uses the legacy binding when no managed credential exists', async () => {
-        process.env.GROQ_API_KEY = 'legacy-key';
+    it('ignores a leftover GROQ_API_KEY in the runtime environment', async () => {
+        process.env.GROQ_API_KEY = 'leftover-deploy-binding';
 
         const resolved = await store.resolveCredentials('groq', { client: mockFakeClient });
+        const revealed = await store.revealCredential('groq', 'apiKey', { client: mockFakeClient });
 
-        expect(resolved.complete).toBe(true);
-        expect(resolved.values.apiKey).toBe('legacy-key');
-        expect(resolved.source).toBe('legacy-env');
+        expect(resolved).toMatchObject({ complete: false, missing: ['apiKey'], source: null });
+        expect(JSON.stringify(resolved)).not.toContain('leftover-deploy-binding');
+        expect(revealed).toMatchObject({ value: null, source: null });
     });
 
-    it('prefers the managed credential once one exists', async () => {
-        process.env.GROQ_API_KEY = 'legacy-key';
+    it('reports the managed credential as its source', async () => {
         await secretManager.writeSecret('groq', 'apiKey', 'managed-key', { client: mockFakeClient });
 
         const resolved = await store.resolveCredentials('groq', { client: mockFakeClient });
@@ -138,58 +139,7 @@ describe('legacy Groq fallback', () => {
         expect(resolved.source).toBe('secret-manager');
     });
 
-    it('does not extend the fallback to any other provider', async () => {
-        process.env.GROQ_API_KEY = 'legacy-key';
-
-        const resolved = await store.resolveCredentials('gemini', { client: mockFakeClient });
-
-        expect(resolved.complete).toBe(false);
-        expect(resolved.source).toBeNull();
-    });
-});
-
-describe('Groq migration', () => {
-    const callables = require('../../ai/callables');
-    const original = process.env.GROQ_API_KEY;
-
-    afterAll(() => {
-        if (original === undefined) delete process.env.GROQ_API_KEY;
-        else process.env.GROQ_API_KEY = original;
-    });
-
-    it('refuses when there is no legacy binding to migrate', async () => {
-        delete process.env.GROQ_API_KEY;
-
-        await expect(callables.migrateGroqCredential(requestOf({})))
-            .rejects.toMatchObject({ code: 'failed-precondition' });
-    });
-
-    it('never returns the token to the browser', async () => {
-        process.env.GROQ_API_KEY = 'gsk-legacy-production-value';
-
-        const response = await callables.migrateGroqCredential(requestOf({}));
-
-        expect(JSON.stringify(response)).not.toContain('gsk-legacy-production-value');
-        expect(response.migrated).toBe(true);
-    });
-
-    it('leaves the legacy binding in place as a rollback path', async () => {
-        process.env.GROQ_API_KEY = 'gsk-legacy-production-value';
-
-        await callables.migrateGroqCredential(requestOf({}));
-
-        // The migration must not remove the old binding in the same
-        // unverified step; rollback depends on it still being readable.
-        expect(process.env.GROQ_API_KEY).toBe('gsk-legacy-production-value');
-    });
-
-    it('is idempotent once a managed credential exists', async () => {
-        process.env.GROQ_API_KEY = 'gsk-legacy-production-value';
-        await secretManager.writeSecret('groq', 'apiKey', 'already-managed', { client: mockFakeClient });
-
-        const response = await callables.migrateGroqCredential(requestOf({}));
-
-        expect(response.migrated).toBe(false);
-        expect(response.alreadyManaged).toBe(true);
+    it('no longer offers the one-time Groq migration', () => {
+        expect(require('../../ai/callables').migrateGroqCredential).toBeUndefined();
     });
 });

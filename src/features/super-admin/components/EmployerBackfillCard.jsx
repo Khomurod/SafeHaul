@@ -8,6 +8,7 @@ import {
     BackfillEmployersConfirmDialog,
     BackfillEmployersResultDialog,
 } from './BackfillEmployersDialogs';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Maintenance → Employer backfill: renames old employer field names in every
@@ -63,7 +64,7 @@ export function EmployerBackfillCard({ onDataUpdate }) {
             onDataUpdate?.();
         } catch (e) {
             console.error("Employer Backfill Failed:", e);
-            showError("Employer backfill failed: " + e.message);
+            showError(plainErrorMessage(e, 'The employer backfill could not run.'));
         } finally {
             setBackfillingEmployers(false);
         }

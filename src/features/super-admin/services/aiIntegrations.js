@@ -7,21 +7,16 @@ import { callableErrorText } from './callableErrorText';
  *
  * Mirrors `./environmentVault.js` deliberately: the two consoles share the same
  * backend guards, the same recent-authentication contract and the same audit
- * trail, so they share the same client shape too. Re-authentication detection
- * and the cancellation type are imported from there rather than reimplemented,
- * because two divergent copies of that logic is how one of them ends up
- * reporting a cancelled mutation as a completed one.
+ * trail, so they share the same client shape too. Cancellation detection is
+ * re-exported from there rather than reimplemented, because two divergent
+ * copies of that logic is how one of them ends up reporting a cancelled
+ * mutation as a completed one.
  *
  * A revealed credential is returned to the caller and nowhere else. Nothing in
  * this module caches, memoises or persists a value.
  */
 
-export {
-    ReauthCancelledError,
-    isReauthCancelled,
-    isReauthRequired,
-    reauthenticateWithPassword,
-} from './environmentVault';
+export { isReauthCancelled } from './environmentVault';
 
 /**
  * User-facing text for a callable failure.
@@ -29,7 +24,7 @@ export {
  * Backend messages are already credential-free and already category-only for
  * provider failures, so `failed-precondition` and `invalid-argument` are passed
  * through: those carry the registry's own explanation, such as which
- * non-secret setting is missing or that a provider has been retired.
+ * non-secret setting is missing.
  */
 export function describeAiError(error, fallback = 'That operation could not be completed.') {
     return callableErrorText(error, fallback, {
@@ -197,16 +192,6 @@ export async function diagnoseAiCredentialAccess() {
     return {
         generations: [unwrap(gen2, 'v2'), unwrap(gen1, 'v1')],
     };
-}
-
-/**
- * Copies the legacy Groq deploy binding into the managed credential store.
- * The token is moved server-side; it is never returned here.
- */
-export async function migrateGroqCredential() {
-    const call = httpsCallable(functions, 'migrateGroqCredential');
-    const result = await call({});
-    return result.data;
 }
 
 // --- Research & Media -----------------------------------------------------

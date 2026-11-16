@@ -343,7 +343,8 @@ function resetDraftState() {
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
-    mockAssertCompanyAdmin.mockResolvedValue(undefined);
+    // As the real strict check does, it hands back the company it read.
+    mockAssertCompanyAdmin.mockImplementation(async (_uid, companyId) => mockMakeDoc(`companies/${companyId}`));
 }
 
 module.exports = {

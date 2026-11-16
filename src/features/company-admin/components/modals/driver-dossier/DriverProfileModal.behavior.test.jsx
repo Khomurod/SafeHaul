@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
 
 const deleteApplicationSpy = vi.fn();
 let claims = {};
@@ -32,6 +32,17 @@ vi.mock('@features/applications/hooks/useApplicationDelete', () => ({
 
 vi.mock('@/context/DataContext', () => ({
   useData: () => ({ currentUserClaims: claims }),
+}));
+
+// The opt-out lookup is a callable; `DossierKeyFacts.test.jsx` covers it.
+vi.mock('./useDoNotText', () => ({
+  useDoNotText: () => ({ usable: true, checking: false, listed: false, markDoNotText: async () => ({ added: true }) }),
+}));
+
+// The template read is Firestore's; `useContactAttemptTexts.test.js` covers it.
+let textOutlook = () => null;
+vi.mock('./useContactAttemptTexts', () => ({
+  useContactAttemptTexts: () => textOutlook,
 }));
 
 // The tab bodies are exercised by their own contract tests; the shell's
@@ -102,6 +113,7 @@ function renderFromTrigger(props = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  textOutlook = () => null;
   claims = { roles: { 'co-1': 'company_admin' } };
   viewState = baseView();
   deleting = false;
@@ -147,6 +159,17 @@ describe('DriverProfileModal nested delete confirmation', () => {
     renderFromTrigger();
     fireEvent.click(screen.getByRole('button', { name: 'Delete application' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
+  });
+
+  it('is the standard confirmation, described by what the delete removes', () => {
+    renderFromTrigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete application' }));
+
+    const confirm = screen.getByRole('dialog', { name: 'Delete this application?' });
+    expect(confirm).toHaveAccessibleDescription(
+      'This permanently removes the application, its activity history, notes, and all uploaded documents. This cannot be undone.',
+    );
+    expect(within(confirm).getByRole('button', { name: 'Delete permanently' })).toHaveAttribute('data-variant', 'danger');
   });
 
   it('Escape in the confirmation dismisses only the confirmation', () => {
@@ -213,9 +236,21 @@ describe('DriverProfileModal nested delete confirmation', () => {
 });
 
 describe('DriverProfileModal header', () => {
-  it("shows the record's own id, which the loaded record does not hold", () => {
+  it("shows the application's confirmation number, never its document id", () => {
+    viewState = { ...baseView(), appData: { ...baseView().appData, confirmationNumber: 'SAF-2026-AB3CD' } };
     renderFromTrigger();
-    expect(screen.getByText('App ID: app-1234')).toBeInTheDocument();
+    expect(screen.getByText(/^Confirmation Number:/)).toHaveTextContent(/^Confirmation Number: SAF-2026-AB3CD$/);
+    expect(screen.queryByText(/App ID|app-1234/)).toBeNull();
+  });
+
+  it.each([
+    ['while another record loads', { loading: true, error: '' }],
+    ['after its lookup failed', { loading: false, error: 'Could not find record (ID: lead-1).' }],
+  ])('shows no number of the record shown before, %s', (_when, state) => {
+    // `useAppFetch` keeps the last record's data until the next one arrives.
+    viewState = { ...baseView(), ...state, appData: { ...baseView().appData, confirmationNumber: 'SAF-2026-AB3CD' } };
+    renderFromTrigger();
+    expect(screen.queryByText(/SAF-2026-AB3CD/)).toBeNull();
   });
 
   it('downloads through the dossier, which says when there is no file to give', () => {
@@ -227,10 +262,11 @@ describe('DriverProfileModal header', () => {
 });
 
 describe('DriverProfileModal page states', () => {
-  it('announces the loading state', () => {
+  it('announces the loading state, the standard one', () => {
     viewState = { ...baseView(), loading: true };
     renderFromTrigger();
     expect(screen.getByRole('status')).toHaveTextContent(/Loading driver dossier/);
+    expect(screen.getByRole('heading', { level: 4, name: 'Loading driver dossier…' })).toBeInTheDocument();
   });
 
   it('announces the error state as an alert', () => {
@@ -248,5 +284,64 @@ describe('DriverProfileModal page states', () => {
     renderFromTrigger();
 
     expect(screen.getByTestId('content')).toBeInTheDocument();
+  });
+});
+
+// `useAppFetch` keeps the last record's data until the next arrives, so while
+// a linked record loads (or after its read failed) the previous one's phone is
+// still at hand. Do not text lives in the Application tab's Summary (the
+// content), which is not drawn then: it would list a number that is not the
+// one being opened. Nor is it in the left column.
+describe('Do not text while a record loads', () => {
+  afterEach(cleanup);
+
+  it.each([
+    ['loading', { loading: true }],
+    ['failed', { error: 'Could not load' }],
+  ])('is not offered while the record is %s: the section is not drawn', (_label, state) => {
+    viewState = { ...baseView(), ...state };
+    renderFromTrigger();
+    expect(screen.queryByRole('button', { name: /do not text/i })).toBeNull();
+    expect(screen.queryByTestId('content')).toBeNull();
+  });
+
+  it('draws the section once the record is shown, and keeps the left column to Call, Log call and Email', () => {
+    viewState = baseView();
+    renderFromTrigger();
+    expect(screen.getByTestId('content')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /do not text/i })).toBeNull();
+    expect(screen.queryByText('Last call', { selector: 'dt' })).toBeNull();
+  });
+});
+
+describe('DriverProfileModal Contact Attempt texts (У5.3)', () => {
+  const statusPicker = () => screen.getByRole('combobox', { name: 'Status' });
+
+  it('warns in the picker, and confirms the queued text with the saved stage', () => {
+    textOutlook = (stage) => (stage === 'Contact Attempt 1' ? 'texts' : null);
+    renderFromTrigger();
+
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 1 — texts the driver' })).toHaveValue('Contact Attempt 1');
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 2' })).toBeInTheDocument();
+
+    fireEvent.change(statusPicker(), { target: { value: 'Contact Attempt 1' } });
+    expect(viewState.handleStatusUpdate).toHaveBeenCalledWith('Contact Attempt 1', { note: 'A text to the driver is queued.' });
+  });
+
+  it('says the driver may be texted while the dossier cannot know', () => {
+    textOutlook = (stage) => (stage.startsWith('Contact Attempt') ? 'may' : null);
+    renderFromTrigger();
+
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 2 — may text the driver' })).toBeInTheDocument();
+    fireEvent.change(statusPicker(), { target: { value: 'Contact Attempt 2' } });
+    expect(viewState.handleStatusUpdate).toHaveBeenCalledWith('Contact Attempt 2', { note: 'The driver may be texted.' });
+  });
+
+  it('adds nothing for a stage that texts no one', () => {
+    renderFromTrigger();
+
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 1' })).toBeInTheDocument();
+    fireEvent.change(statusPicker(), { target: { value: 'Interested' } });
+    expect(viewState.handleStatusUpdate).toHaveBeenCalledWith('Interested', { note: '' });
   });
 });

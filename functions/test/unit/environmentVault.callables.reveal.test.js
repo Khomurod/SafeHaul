@@ -21,7 +21,7 @@ const { sealPassword } = require('../../shared/smtpSettings');
 const {
     mock, superAdmin, request, auditRecords, resetVaultState, restoreVaultState,
     ENCRYPTION_KEY, CLIENT_ID_PLAINTEXT, CLIENT_SECRET_PLAINTEXT, LINE_JWT_PLAINTEXT,
-    SMTP_PASSWORD_PLAINTEXT, GROQ_KEY_PLAINTEXT,
+    SMTP_PASSWORD_PLAINTEXT, FACEBOOK_SECRET_PLAINTEXT,
 } = require('./environmentVault.callables.support');
 
 beforeEach(resetVaultState);
@@ -96,9 +96,9 @@ describe('reveal', () => {
 
     it('reveals a Cloud Functions runtime value', async () => {
         const result = await vault.revealEnvironmentValue(request(superAdmin(), {
-            entryId: 'secret-manager:GROQ_API_KEY',
+            entryId: 'secret-manager:FACEBOOK_APP_SECRET',
         }));
-        expect(result.value).toBe(GROQ_KEY_PLAINTEXT);
+        expect(result.value).toBe(FACEBOOK_SECRET_PLAINTEXT);
         expect(result.readFrom).toBe('process-env');
     });
 
@@ -167,7 +167,7 @@ describe('reveal', () => {
 
     it('rate-limits repeated reveals', async () => {
         const auth = superAdmin();
-        const entryId = 'secret-manager:GROQ_API_KEY';
+        const entryId = 'secret-manager:FACEBOOK_APP_SECRET';
         let denied = null;
         for (let i = 0; i < 40 && !denied; i += 1) {
             try {

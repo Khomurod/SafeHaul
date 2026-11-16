@@ -111,12 +111,37 @@ keep the branded loader; before that `index.html` shows the mark (all routes).
 `/sign/:companyId/:requestId` · `/verify/:token` · `/review-change/:token` ·
 `/sandbox/apply` · `/sandbox/transfer-success` · `/developers/api`
 
+**A public link that does not work** (`/sign`, `/verify`, `/review-change`, an
+application's continuation link) shows one screen, `LinkProblemScreen`
+(`src/shared/components/public-link`): the server's reason (expired, replaced by a
+newer link, already used, not valid, could not be opened, could not be checked), the
+company by name when the page knows it, what to do, and Try again only when retrying
+can help. On `/sign` an already-signed document says so instead of asking for the
+e-signature consent again, Decline explains how to sign on paper (nothing is recorded),
+and the page says "You can close this tab" (no button that cannot close it). A
+submission refused because the link stopped working (expired, replaced, already
+submitted, gone) ends on the same screen; any other failure keeps the form. Back to
+a driver's required documents from "already signed" marks that document done.
+Where a new link can help (expired, replaced, could not be opened) the screen offers
+**Ask <Company> for a new link** (`requestNewLink`, public, 10 an hour per address):
+it tells the team member who sent the link while on the team (else the team) in the
+bell, opening the application or lead it was sent from, once per record a day and only
+while the document, verification or change is still waiting; it always answers the
+same, so it reveals nothing about a link, and the company sends the new link with the
+resend it already has. Past the hourly limit the page says to try later, never that
+the company was told. The page shows no company contact detail.
+
 ### Company workspace (`/company/*`)
 
 `dashboard` · `drivers/applications` · `drivers/unfinished` ·
-`drivers/leads/company` · `drivers/leads/my` · `campaigns` · `e-docs` ·
-`import-leads` (admin) · `quick-add-lead` (admin) · `profile` · `settings`
-(admin)
+`drivers/leads` (the menu's Leads: All for a company admin, Assigned to me for
+anyone else) and its tabs `drivers/leads/company` (All) · `drivers/leads/my`
+(Assigned to me) · `drivers/leads/unassigned` (Unassigned) · `campaigns` ·
+`e-docs` · `import-leads` (admin) · `quick-add-lead` (Add lead) · `profile` ·
+`settings` (admin)
+
+The tabs, Add lead and Import leads have no menu items: the Leads page offers
+them, and their addresses work as before.
 
 `drivers/start-application` has no sidebar item and redirects to
 `drivers/unfinished` with its query string intact. Unknown `/company/*` paths
@@ -146,9 +171,10 @@ read, not stored); the AI fills only empty fields. Edit on Review, then Continue
 returns to Review; the submission pre-flight and the server still check it all.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
-Application form has four tabs: *Questions* (show / hide / require the DOT
+Application questions has four tabs: *Questions* (show / hide / require the DOT
 questions, plus custom ones), *Rules* (§5), *Agreements* (versioned legal
-wording, saved on their own) and *Integrations* (optional PSP-report and MVR
+wording, saved on their own: a list of each agreement and its version, Read
+opening its wording and history) and *Report uploads* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
 (pre-employment, past two years), kept apart from the broader one it replaced;
 a draft lacking its answer goes back there.
@@ -161,7 +187,16 @@ optional **Hours of Service statement** (last seven days, last relieved).
 **Progress survives from the first page.** Every forward step writes a local
 copy synchronously and a server draft in the background, so a closed tab, a
 dropped connection, a failed CDL scan or a page error costs nothing typed.
-Drafts live in their own server-only collection (§5).
+Drafts live in their own server-only collection (§5). **Finish later** (seven
+steps; formerly *Save as Draft*) makes the same save without moving on and says
+under the buttons how to return: open the link again on this device and browser;
+it names another device (same last name, date of birth, SSN and email or phone,
+within 30 days; a phone only with ten digits, as the server matches) only once the
+server has confirmed the copy and a save carrying those very facts, which are on the
+page (`FinishLaterNotice`, `resumeIdentity.js`): the local copy strips the SSN, so
+its sync state alone cannot vouch for one typed since.
+The notice goes as soon as an answer changes: nothing saves the change until the
+next Continue or Finish later.
 
 **Returning applicants are offered their unfinished application.** A device
 holding its resume token restores silently. On another device the first Next
@@ -178,7 +213,9 @@ medical card, PSP report, motor vehicle record; the reader prefills) or **Fill
 in manually** (documents attach unread). In one editable form the recruiter
 enters the driver's email or phone — the identity keying the draft and its
 application; either suffices, each is format-checked — corrects the reader, and
-copies a link. The driver lands in the ordinary wizard with the answers, adds
+has SafeHaul email the driver the link (**Email it to the driver**, to the
+application's own address; the screen shows where, masked, never the link) or
+copies one. The driver lands in the ordinary wizard with the answers, adds
 what only they can (SSN and signature are never in a draft), reviews and signs;
 until then it is only a draft (§5) — nothing filed, emailed or counted. Once a
 link exists (`sent`) email and phone are **read-only** (`identityLocked`;
@@ -192,7 +229,8 @@ checkboxes (the wizard reads only its exact form, e.g. `H,N`). It never offers
 the SSN or a second medical-card upload (the documents panel owns it). In
 `SchemaRenderer` edit mode, which the dossier's *Edit Application* shares,
 uploads, the signature and the applicant's certification are display-only and
-`proposeApplicationChanges` skips them.
+`proposeApplicationChanges` skips them; the dossier also locks every field off
+the server's allowlist (§5).
 
 **The document reader** extracts text in the recruiter's browser — a PDF's text
 layer, else Tesseract OCR (skipped if it cannot start within a minute), else
@@ -228,7 +266,23 @@ still hold an expired one, and the dossier's own admin upload stores a Storage
 download URL; views re-sign from `storagePath`, and the dossier and
 `useSignedUploadPreview` (a 15-minute URL from `getSignedGuestUploadUrl`, which
 authorizes it) reuse a link 10 minutes. `not-found` says the file is gone; any
-other error offers a retry, the row still attached (gates key on presence).
+other error offers a retry, the row still attached (gates key on presence). The
+dossier signs a record's uploads in one call (`getSignedApplicationFileUrls`, each
+file as `getSignedApplicationFileUrl` signs it; the single call stays for Open
+file, a fallback and the Production build).
+
+**The bucket's CORS lets the SafeHaul sites read files cross-origin.** The app
+fetches PDFs from Storage (signing room, envelope editor), which needs it.
+`cors.json` allows the Production and Testing app sites (custom and default
+domains) with GET and HEAD (owner decision, 2026-11-10); it is applied by hand
+(`npm run storage:set-cors`, or the same file through `gsutil cors set` in Cloud
+Shell), never by CI. The live bucket carries it since 2026-11-10 (read-only
+preflight check: another origin gets no CORS answer, PUT is refused). Uploads,
+deletes and metadata go through the Firebase SDK's endpoint, which answers CORS
+by its own fixed policy (read-only check), so they do not depend on this file. A new site
+that reads files needs its origin added. `localhost` is deliberately not listed:
+a local server with the real configuration cannot load a stored PDF in the
+envelope editor.
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
@@ -247,13 +301,17 @@ too, go as JPEGs at most 2400 px a side.
 ### Unfinished applications workspace
 
 `/company/drivers/unfinished` (*Unfinished applications*) lists every
-application started and not submitted, by either side, with **+ Start an
-application** first. A call to make, not an ATS record: it stays out of the
-pipeline, reads `listApplicationDrafts` alone (one document, one row), and rows
-never carry answers (`toCompanySummary`). A search and counted filters sit above
-it; a row gives its step, status, last activity and days left
-(`unfinishedWorklist.js`), as a card on a phone. **Copy link** makes and copies
-a link, **New link** replaces one sent; on answers the driver owns, its opener
+application started and not submitted, by either side; **Start an application**
+is its header's primary action, beside Refresh. A call to make, not an ATS
+record: it stays out of the pipeline, reads `listApplicationDrafts` alone (one
+document, one row), and rows never carry answers (`toCompanySummary`). Counted
+filters and a search sit on a row above it; a row gives who it is (email, the
+phone to call), its step, status (who prepared it, when its link went), last
+activity (under the status where the list is narrow) and days left
+(`unfinishedWorklist.js`), its actions in fixed places, as a card on a phone.
+**Copy link** makes and copies
+a link, **New link** replaces one sent, **Email link** has the server email it to
+the row's own address instead (a row without one says so); on answers the driver owns, its opener
 must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
 
 | Started by | Status | A recruiter may… (`unfinishedRowActions.js`) | A Company Admin also may… |
@@ -275,32 +333,174 @@ uses, none a submission marked or older than 2026-10-12; its tokens learn
 
 **Recruiter pipeline (ATS).** Applications and leads are separate collections
 under the company with the same tooling: status funnel, activity log, notes,
-documents, assignment. Leads come by quick-add, CSV / spreadsheet import, the
-Facebook Lead Ads webhook, or a referral quick form. **Driver referral links**
+documents, assignment. Leads come by Add lead, CSV / spreadsheet import, the
+Facebook Lead Ads webhook, or a referral quick form. **Leads** is one page with
+three tabs: All, Assigned to me and Unassigned (`assignedTo == ''`); its segments
+are All, New (`New`, `New Lead`, `New Application`), Attempting to Contact, In
+Process, Interested and Declined (`Declined`, `Rejected`), pills at the top of the
+table card under the tabs. Assign (admins) is on All and Unassigned, in the toolbar
+row once a lead is ticked, in a place the row keeps for it so nothing below moves; the Assigned to filter is on
+All and Applications, the Assigned to me switch on Applications. Applications and
+every Leads tab show the same columns at the same widths (initials, Driver with the
+number to call under the name, Status, Freight · State, Applied or Added, Last call,
+Assignee), so moving between tabs moves no column. An admin's Assigned to me keeps an empty column where the checkboxes are on All, so Status and Assignee do not move. On a phone each
+driver is a card, All's and Unassigned's led by their checkboxes under "Select all"
+and "Sort by". **Add lead** (any staff member) assigns a recruiter's lead to them
+(Д13; an admin's stays unassigned) and opens it in the dossier on the person's
+list; **Import leads** (admins, `importLeads`) returns there. Both link back to the
+person's list ("← Leads") above their title; the import card has no close of its
+own. **Driver referral links**
 (Referral Links page: any staff member makes one; admins see all, others
 theirs; deactivate only; `referral_links`, team-only). `/apply/<slug>?ref=`
 offers, in the intake chooser's place, the quick form (names, phone, email,
-required contact consent) or the full application. A quick-form lead
+required contact consent) or the full application. After the quick form, *Fill out
+the full application* fills page one's empty names, phone and email from what was
+sent (browser state, no server read); its contact consent is no answer in the
+application, and a stored draft's answers win. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
-team, who is notified. Name search starts at two letters, in the lists and the
+team, who is notified; a carrier-prepared application goes to its preparer (§5).
+Both link codes, `referralCode` and a recruiter's `recruiterCode`, are kept with the
+draft; whenever a saved application is restored (this device, the server copy, a
+continuation link, the identity match on another device), the codes in the address
+opened win over the saved ones (`adoptLinkCodes`), and a fresh start on the same page
+(a new application after submitting, or after a discard in another tab) keeps them.
+**A lead who applies is linked to the application** (`onApplicationSubmitted`,
+`shared/leadApplicationLink.js`): the company's lead with the same email (trimmed,
+lowercased, never a placeholder; leads keep `emailNormalized`), else the one lead with
+the same phone digits. One lead at most, never merged; the lead keeps its stage, gets
+`applicationId`/`appliedAt` and an Activity line, the application `fromLeadId`, and an
+unassigned application goes to the lead's recruiter while on the team, who is told
+once (not when it is already theirs). The dossier opens one from the other; deleting
+either removes the link, and a lead whose newest application is deleted points back
+at an earlier one it applied with.
+**The driver dossier** (one record, application or lead). An opener that knows the
+record's collection (a list, a bell notice, the linked lead or application, Add lead)
+names it, so a lead is one read; without one, applications are looked in first. Each
+section has one name, the tab's (`dossierSections.js`); a lead's first is "Lead", it is deleted as a lead and has no
+application PDF. The left column holds the name, the status, Call, Log call and Email. The
+Application tab opens on **Summary View** (then As Submitted, the frozen original, and Full
+Application); its first card, Contact, shows the phone and email as text, Applied (application)
+or Added (lead), and the last call: its result, and its time unless a campaign message moved
+`lastContactedAt`. The Summary's CDL expiry says it is from the application or lead; the DQ
+file may hold another date. Under the phone, **Do not text** (any staff member who can edit;
+asks first) adds the number to the opt-out list, and a listed number reads "Texts off".
+**Log call** between Call (the one filled button) and Email opens the list's call window
+(same rules) and the dossier reads the record, Activity and Notes again. An incomplete DQ
+file reads "Incomplete" beside its section. On a phone only Close, the name and status, and
+the tab strip (one row that scrolls sideways) stay fixed; the rest scrolls. Below 1440px
+the header's Status and Assigned to take a row under the title and its actions. Previous Employment shows its counts on one line and
+claims no compliance status. Notes marks the call window's notes as calls; Notes and
+Activity stay separate tabs.
+**The bell.** A status change on an assigned application tells its assignee only (an
+unassigned one, or one whose assignee left, the team); assigning an application or
+lead tells the new owner; an import that creates assigned leads tells each recruiter
+once how many, and opens their Assigned to me; a hired driver's DQ deadline, its assignee or the team (§8). Nobody is
+told about their own action, and read state is per person. A notice about a record opens
+it on the tab it is about, by its type, old notices too: a signed or unsealed document on
+Documents to sign, a PEV answer or no-response on Previous Employment, a DQ deadline on DQ
+File; any other on Application.
+Name search starts at two letters, in the lists and the
 template picker; email, phone, confirmation number and id search stay exact.
+**A call moves the stage only by the owner's table** (`useCallOutcome.js`): Interested →
+`Interested`; Not Interested and Wrong Number → `Declined` (archived); every other result,
+and any hired, terminated or already-declined record, keeps its stage. Every call is kept
+as the last call (`lastCallOutcome`, `lastContactedAt`). Older `Contacted`/`Attempted`/
+`Disqualified` values stay valid.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
-one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
-Signing is unlimited and not billed per envelope. The Documents workspace keeps
-the newest 100 signing requests live and loads older ones on request. When there
-are more, its numbers are server counts and a second live list holds every
-document that needs attention (indexes in `firestore.indexes.json`).
+one, voiding the old, and a channel Correct turns off loses its send status.
+Correct, Fix and Void change only a still-`sent` request (one transaction). An
+opted-out number gets no text: beside an email a note (`smsStatus: 'skipped'`), alone
+a failed send. Signed envelopes are sealed into tamper-evident PDFs, once:
+a delivery that finds the request no longer `pending_seal` changes nothing. The
+bell then tells the sender (`senderId`; one nobody sent: its application's
+recruiter, else the team) "Document signed" or "Seal failed", once per request and
+outcome, title and signer name only. A document filled from an application uses only
+listed fields (`APPLICATION_TOKEN_FIELDS` in `functions/shared/postApplicationRequest.js`,
+the browser's copy `src/config/applicationTokenFields.json` held to it by a parity test):
+never SSN, signature, consents, ids, the confirmation number or links.
+The template wizard's picker finds applicants and leads, each labelled. A document
+sent to the one picked is linked to it (`sourceApplicationId` or `sourceLeadId`,
+while the recipient's name is still that record's) and fills those fields from it;
+the email is the one typed. A sealed document linked to a record is filed once in
+its DQ file (`dq_files/signed_<requestId>`: the sealed PDF's path and checksum, never
+a copy), opens through `getSignedDocumentUrl`, and removing it only hides it. A seal
+that failed, or has not finished ten minutes after signing or the last retry, can be
+sealed again from the document's details (**Retry seal**, `retrySealDocument`): it
+seals what the signer submitted, records the attempt in `sealAttempts`, never reseals
+a signed document, and the signer's images stay until a seal succeeds.
+**A driver's signing documents** are listed in the dossier's **Documents to sign** tab
+(id `documents`): the requests linked to the record, and each required post-application
+form no request carries yet as *Not started*; *Link expired* (unsigned, `expiresAt` past)
+and *Not delivered* (unsigned, a send failed; outranks it) are derived. Each sent
+document has **Details** (E-Docs' dialog and actions, except Correct, which stays in
+E-Docs), and **Send a document** picks a template and opens E-Docs' send wizard with the
+driver chosen and linked; both only with the company's E-Docs feature on, in the company
+being worked in.
+A post-application form is one document per application and form
+(`postapp_<application>_<template>`), made by whichever comes first: the thank-you
+page (it opens the form, never emails or texts it) or a team member's **Send to
+driver** (`sendPostApplicationDocument`). That emails a usable address and texts only
+after the driver's explicit "Yes" (`sms-consent`; the opt-out list as for every
+signing text, and an opted-out number is not reported as texted); with neither it says why
+and sends nothing. A link the server builds goes only to one of the app's own sites
+(`shared/appOrigin.js`), whatever base URL a browser sent. One transaction decides:
+a new request is sent by the creation triggers, one never sent gets its flags turned
+on and the correction trigger sends it with seven more days. A link already sent is
+not sent again (Remind does), a signed form is reported, a voided one refused.
+*Link expired* (`isLinkExpired`) is never stored, so the numbers count it as awaiting.
+**Remind** (`remindSigner`, from a document's details and the dossier)
+sends an unsigned document's link again on each channel it was sent by, with seven
+more days: one per ten minutes, claimed in a transaction and recorded in `reminders`;
+an application's driver is texted only after "Yes"; the answer names any channel that
+failed, a skipped text as a note. A document shared only by copied link cannot be reminded (Correct adds a
+channel). Once a day (11:00 Central) **one automatic reminder** goes to a document
+still `sent` and created 3 to 7 days ago (`createdAt`, which Send to driver does not
+move; oldest first) whose link has not run out (`remindUnsignedSigners`), by Remind's rules
+(`shared/signerReminder.js`), counted in `reminders` as the system's
+(`lastBy: 'system:auto-reminder'`) and claimed once (`autoReminder`) before anything is
+sent; a document whose signer got a message about it in the last day waits a day, and a
+company with E-Docs off or deactivated gets none. Every 15 minutes **the required
+post-application forms go out by themselves** (`autoSendPostApplicationForms`, owner
+decision В6): for an application the driver submitted through the public form
+(`lifecycle.processedViaFunction`) 30 minutes to 2 hours ago (`submittedAt`), each
+required, enabled form goes by Send to driver's rules and transaction
+(`shared/postApplicationSend.js`), from the company (`senderId: 'system:post-application'`,
+which the bell reads as nobody, so a signed form tells the application's recruiter, else
+the team; `source: 'post_application_auto'`); a form signed, voided, being submitted or
+already sent gets nothing.
+A **company signature** (`company_signature`) is an image the team uploads to
+`secure_documents/{companyId}/originals/company-signatures/` and places on a
+template or one document (each may replace its template's); the signer sees it
+fixed (its box reads "Company signature" when the image cannot load, and never
+blocks signing), the seal draws it from that file (missing → `error_sealing`)
+and keeps it. Nothing emails a signed PDF by itself: for a signed document with
+one, a team member reviews and approves **Send signed copy**
+(`sendSignedDocumentCopy`, claimed once in `signedCopy`; only to the address the
+approval showed, refused if a correction changed it; checksum-checked; company
+SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
+the newest 100 requests live, older on request; past that, its numbers are server
+counts and a live list holds those needing attention (`firestore.indexes.json`): an
+unsigned document (`sent`, or the older `opened`) whose send failed, or a failed seal; a
+signed or voided one leaves by itself, and its details keep the old error. Each
+Overview number opens its list; a Needs attention row's **Review** opens the document: its cause in
+plain words (`deliveryFailureCause.js`) and, while `sent`, **Fix recipient and resend**
+(inline: Correct's write for the recipient alone, on the current fields and title;
+refused if it would resend nothing while a send stays failed), **Resend** (Remind) and
+**Void** (records `voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…`
+form is never resent; never Delete). Only admins see a template's Delete; the forms tab
+is *After-application forms* (`?view=forms`). The Sent Documents tab carries a count on
+every tab: on Sent what its search and filters list, elsewhere every sent document.
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
 `current_date` binding travels as an unresolved `{{current_date}}`, stamped once
 server-side by `submitPublicEnvelope` — recruiter envelopes, templates and
-post-application documents (`functions/postApplicationEdocs.js`) alike,
+post-application documents (`functions/shared/postApplicationRequest.js`) alike,
 restamping a still-*bound* field even if an older send baked in a date.
 `getPublicEnvelope` stamps the same value for display and returns its instant
 (`serverTime`) and zone: screen and sealed PDF share the server clock, read in
@@ -312,8 +512,8 @@ rewrite a hire date that is today): it seals correctly, only its preview can lag
 a day. One definition in `src/features/signing/utils/signedDate.js` and
 `functions/shared/signedDate.js`: change both.
 
-**Previous employment verification (PEV).** A company admin sends a request to a
-past employer, who answers in a token portal (reminders §8) and signs drawn or
+**Previous employment verification (PEV).** Any member of the company's team sends a
+request to a past employer, who answers in a token portal (reminders §8) and signs drawn or
 typed (`TEXT_SIGNATURE:<name>`; `signature.js` refuses others). Violation details
 are required after a violation; a rehire "No" reason, the follow-up testing plan
 and non-DOT-recordable accidents are optional, kept only after their questions.
@@ -322,21 +522,136 @@ SSN last four, no link, a signature only under the release the driver signed (as
 in VOE): the v3 statement naming this employer, from `submissionRecord` with its
 own signature, else the certification's (`previousEmployerRelease.js`; none before
 2026-01-23), dated by the driver's own day (`signatureDay`), else UTC.
-Up to 5 CC (Settings → Email) get it too.
+Up to 5 CC (Settings → Email) get it too. A request whose first email fails is
+`send_failed`, never reminded nor marked no-response; **Resend** supersedes the
+employer's earlier live request (the portal then refuses its link). **Upload
+Result** (any status short of Completed, so also a late answer) records through
+`recordManualVerificationResult`: the row reads Completed, the request is completed
+so reminders stop, the no-response mark stays in history. Every result, from the
+portal or uploaded, is filed once in the DQ file and opens through
+`getSignedPevUrl`; the row shows when the employer first opened the link. On an
+answer and at day 30 the request's sender (`createdBy`, else the team) gets one
+bell notification naming only the employer and the driver.
+Every attempt is logged on the request (`attempts`): the send or a failed first email,
+each reminder and whether it went out, the first open, the answer, an uploaded result,
+the day-30 mark, and the calls, faxes and notes a recruiter adds with **Record attempt**
+(`recordVerificationAttempt`: a day and a short note, against the employer's newest live
+request, at most 50). Each employer card lists its newest three history entries; View
+History holds them all. At day 30 the log is printed as a one-page record of attempts
+(the parties, dates, each attempt's outcome and who made it; no legal claims), stored
+beside the request PDF, linked from the no-response entry and filed once in the DQ file.
+Neither a PEV PDF nor the portal shows the portal token: the result names the
+request by its reference, and the portal and its thank-you screen show its first 8
+characters as "Request number" (`getVerificationRequest` returns `requestNumber`). The
+portal names the regulation ("Requested under FMCSA 49 CFR Part 391.23"), no
+"Compliance" brand.
+
+**DQ file: the original's consents.** The DQ row of the preserved original
+application lists, on request, each agreement the applicant answered (accepted and
+signed, declined, not recorded, or certified only within a combined acknowledgement),
+with version, time and signature type. It reads the frozen `submission/{snapshotId}`
+when first opened; a record found is kept in memory, shared with the Application tab,
+until the dossier closes (a missing one or a failed read is read again); the PDF still opens
+only through the audited `getApplicationOriginalPdfUrl`.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
-submitted application (§5).
+submitted application (§5). The review link is emailed by the server (**Email
+review link to driver**) or copied.
+
+**Company setup (dashboard).** For a company admin, read when the dashboard opens and
+kept two minutes for this sign-in and company (an answer with something not checked is
+not kept, and following one of its links forgets it): what is not set up, each linking to its page — company email not connected or
+not verified, no texting line, no contact email for PEV notices, no post-application
+form, a form whose company signature has no image or whose template was deleted (PEV
+copies are a hint). Ready, it is one line; others see nothing.
+
+**Needs attention (dashboard).** For admins and the team, read once when the dashboard
+opens (kept two minutes) through `getDashboardAttention`: signed documents whose seal
+failed, documents unsigned for more than 7 days, PEV requests still waiting for the
+employer and those marked no response, drivers with company changes to approve
+(applications and leads), unfinished applications removed within 5 days, and hired
+drivers whose DQ documents expire within 30 days or have expired (counted exactly on the
+applications status + `dqExpiresNext` index, the five earliest named, each opening the
+driver's file on its DQ File tab). Each row links to the page that shows those records where one exists
+(PEV and changes live in each driver's file). Counts only, scoped to the company; rows
+of a feature that is off are left out. A failed count says "could not be checked";
+with nothing to show it is one calm line.
+
+**This month (dashboard).** For everyone, one line read when the dashboard opens and kept
+two minutes for this sign-in and company, as are the four counts; each number a
+server count of the list its link opens: applications added this month (`createdAt`), in
+process (the In process tab) and hired this month (`hiredAt`, whatever their status now),
+on the viewer's clock. Until a whole month of hire dates exists it says "hired since Nov 6"
+(`HIRED_AT_RECORDED_FROM`). A placeholder while loading, Try again after a failure, never an
+uncounted 0; the Hired card is not repeated. The list it opens names the month, with Show
+all applications; a month of hires is one client-filtered list of at most 200.
+
+**DQ file: what's in it, valid-until dates.** The DQ tab opens with *What's in the
+file*: the application, CDL, medical card, MVR, the employers of the three years before
+the application (each answered, no answer after the attempts, waiting or not requested),
+road test and full Clearinghouse report; the PSP report and the annual items are
+optional and never counted. It says what the file holds, not whether it is compliant,
+and the sidebar's DQ marker follows it. A CDL, medical card or MVR uploaded by the team
+may carry a valid-until date, and a CDL, medical card, MVR or TWIC record may have it
+set or cleared (logged); expired, or expiring within 30 days, is judged by the UTC day.
+The driver's uploads have one place, the DQ File tab, which lists and opens them.
+A team upload has no default type; a missing or expired item's Upload chooses its type,
+and the employers row opens Previous Employment.
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
-two-way threads or drips. The Campaigns page lists the newest 50 drafts and
-campaigns (more on request) plus every live one (active, queued, scheduled,
-paused); when the list is incomplete, Total Outreach is a server sum refreshed
-shortly after a change.
+two-way threads or drips. Tabs: Drafts and **Sent & live**. *Create campaign* opens
+an unsaved campaign; its draft is created by the first save (or the save before
+Launch), so leaving without saving writes nothing. A sent or live campaign has
+one report (its card's Details): the recipient log with each failure's reason,
+counts of sent, not sent and not attempted yet, and one *Retry failed*. A campaign
+that failed part-way offers *Continue* (confirmed; Company Admin): it sends only to
+those not attempted yet, never again to anyone already tried. Campaigns lists the newest 50 drafts and campaigns
+(more on request) and every live one (Total outreach: a server sum once
+incomplete). A draft launches once: the editor saves it (a failed
+save stops the launch), then `initBulkSession` claims it (`launchClaim`) and
+refuses a second launch from another tab or person. The batch that writes the
+session also marks the draft (`launchedAt`, `sessionId`), so no session exists
+without its mark; a launch that stops before that batch gives the claim back,
+and a claim over 10 minutes old (its launch died first) is taken over. The
+rules keep these fields the server's: no client writes `launchClaim`, and a
+launched draft keeps `launchedAt` and `sessionId`. Kept, off Drafts; opened, it links its report, not Launch. Screens that name no
+draft (Production's, until a release) launch unclaimed.
+
+**How screens report.** A failure reads as one plain sentence — what failed and what
+to do — never a Firebase code, a database's own text or a stack
+(`plainErrorMessage`; the detail goes to the console). A callable's own sentence is
+shown as the server wrote it, except an `internal` or `unknown` one (the signed-copy
+send trusts its own). Someone who came by a link (signer, past employer, applicant,
+driver reviewing a change) is told about the link, never to ask an admin or sign in
+again. A success or note
+toast stays 4 s, an error or warning 10 s. The bell, Notes and Activity say "could not
+be loaded" with Retry instead of a false empty state. An empty list says "No … yet"
+with where they come from, apart from "No … match" with Clear search and filters.
+A row or card delete is a small bin icon that asks first. Settings → Email and Automated
+texts save through the save bar, which warns before leaving with
+unsaved changes (Company profile keeps Edit/Save). Automated texts writes only the
+changed templates; when they cannot be read it says so above the fields, with Retry. Email has one Save for what
+changed; Test Connection checks what is typed and, if it connects, saves the
+connection; the password field empties after a save. Team's Add person needs a
+password of at least 6 characters.
+
+**Profile.** One page for every staff member (menu, or the name and avatar in the
+top bar): name, photo, sign-in email and password, and their **personal link**
+(`/apply/<slug>?r=<code>`, `recruiterCodeFor`; drivers who apply through it are
+assigned to them, also when they finish later in another session, from a continuation
+link or on another device: the code travels in the answers), with Copy (Д16). Its name save writes `users/{uid}.name`. There
+is no Settings → My profile (an old `?section=personal` address opens Profile) and
+no Username field (a stored `username` is left, unread). Company profile shows the
+plan (`planType`) as one line; there is no Plan section.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,
-website leads, health, releases, Maintenance (writes ask first).
+website leads, health, releases, Maintenance (writes ask first). The console reads
+every company once and shares it for two minutes (names, Features, Activity, Create);
+a feature switch, a company created or edited, or a refresh after a change reads it
+again. View applications lists a company's applications 20 at a time with a server
+count and Load more; its filter looks at the rows loaded.
 
 ---
 
@@ -590,7 +905,12 @@ authorization is answered on the Violations step (`consent-mvr`); on Consent
 each other agreement has its own page, then the certification ending with the
 exact 391.21(b)(12) sentence, and the signature. An acceptance counts only at
 the version on screen and binds the submission to it. **An acceptance's IP is
-the one the server saw**, never the browser's claim. `legacy-1` bodies are a
+the one the server saw**, never a field the browser sends. Known gap: 1st-generation
+functions (this submission, application drafts, agreements, guest uploads, CDL
+and report parsing) still read Express's `req.ip`, the first X-Forwarded-For
+entry, which a caller can write, for that IP and their rate limits. The 2nd
+generation uses `trustedClientIp` (verified live); the 1st waits for its own live
+check (`docs/code-cleanup/README.md`, Ч1.1). `legacy-1` bodies are a
 **frozen forensic record — never edit them**; `clearinghouseConsent` has no
 `legacy-1`, so reconstruction cannot attribute a consent nobody gave.
 **Applications from before the MVR authorization have no acceptance for it**,
@@ -610,6 +930,16 @@ record **fails** the read (`unavailable`) instead of falling back to platform
 text: the page retries; a submission takes the failed-snapshot path.
 
 ### What the application asks and enforces
+
+**Page one refuses at the field** a required date of birth that is missing or
+unreadable and any date under 21 (required or optional): `TypedDateField`'s own
+error, announced and described by each box, as is a missing State; no toast.
+**The company's questions refuse at the question too.** From the first Continue, each
+required custom question still unanswered says so under itself ("Please answer this
+question.", "Please choose at least one.", "Please upload a file."), announced and
+describing its control; the focus goes to the first one, and each message leaves as its
+question is answered. A time half chosen says so under its lists. The final pre-flight
+still refuses a missing answer with "Please answer required question: …".
 
 **Application gates have one resolver.** `src/config/applicationGates.js` (is a
 standard DOT question required, optional or hidden?) mirrors
@@ -695,6 +1025,12 @@ the carrier's editor.
 
 ### Carrier-prepared applications and continuation links
 
+**The preparer owns what the driver submits.** `submitGuestApplication` reads
+`preparedBy.uid` from the draft (never the payload); while that person is on the
+team it writes `assignedTo`/`assignedToName` in the transaction that files the
+application, only if nobody is assigned, and tells them once. A recruiter or
+referral link in the same submission does not reassign it.
+
 **A prepared application is a draft a recruiter stops reading once the driver
 writes.** It has `origin: 'company'` (its creator; never changes) and status
 `prepared` → `sent` → `driver_in_progress`. The carrier may read back the
@@ -740,7 +1076,7 @@ already on record — what `InviteLinkPanel` tells recruiters.
 **A device holding the draft's resume token is asked nothing**
 (`reconcileServerDraftOnLoad`); another applicant's token is not enough, and
 their local copy is withheld as on `opened`. **While identity is pending nothing
-else is restored:** one shared decision (production and E2E) gates
+else is restored:** one decision, in the one start-up sequence E2E mode shares, gates
 `loadPublicApplyCompany`'s local-draft restore (a stranger's answers would be
 autosaved here) and post-apply restore (its success screen would cover the
 check), and clears the stale post-apply session; a failed link touches neither.
@@ -777,7 +1113,8 @@ one bucket on purpose** (wrong, expired, submitted, superseded, discarded: the
 server answers alike; a deleted draft's own link hears `removed`); other causes
 split only where the driver can act, **retry first for transient ones** (a
 silent fall-through would skip the claim and its locks).
-`ApplyLinkProblemScreen` sits below the success screen and above the intake
+`ApplyLinkProblemScreen` (the shared `LinkProblemScreen`, "could not be opened",
+with the page's own message) sits below the success screen and above the intake
 chooser; `resolveApplyStatusScreen` (`PublicApplyScreens.jsx`) owns that order.
 
 ### Locked employers
@@ -818,10 +1155,26 @@ carrier's link).
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
 **canonical original** until each field resolves, so exports show originals.
-The driver approves, rejects or corrects each, none preselected, through a
-token link (`/review-change/:token`, 30-day TTL, newest only);
+The driver approves, rejects or corrects each, none preselected, or approves them
+all with **Approve all** (two or more changes, offered while none is marked Reject
+or Edit; the same single `submitChangeResolution` call as Submit, recorded all or
+nothing, with every decision locked until it is answered; if changes were proposed
+while the page was open, it then says so, with Review them — the server says only
+whether any remain, not how many),
+through a
+token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
+emails it to the application's own `email`), which names the company. Each decision
+is bound to the value the page showed (`shown`), and is written only onto the change as
+it was read: if the company proposed a new value after the page opened, nothing is
+recorded, the page reloads, keeps the choices for changes that did not move and asks to
+review the rest (an older page that sends no `shown` is decided as before);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
-write `pending_changes`.
+write `pending_changes`. *Edit Application* gives a box only to the fields on the
+server's allowlist (`functions/shared/applicationEditableFields.json`, read by both
+sides): names, date of birth, SSN, contact details, address, licence, experience
+and previous employers. Everything else is display-only, and the edit bar says
+why; the result names each field the server left out (no change, or not the
+company's to change).
 
 **Previous employers are editable there.** `SchemaSection` renders `array`
 sections read-only whatever `isEditing` says (it is shared with the wizard), so
@@ -840,7 +1193,8 @@ and moves with a typo fix). Rows are stamped lazily by the change proposal and
 honoured only while that row is still the `employerName` it recorded, else the
 write-back is refused, not guessed. `verification_requests/{token}` permanently
 holds response, signature, method and PDF and is authoritative; the row is a
-mirror.
+mirror. Its `attempts` log is authoritative too; the row's history carries a short entry
+per attempt, never the error text, the token or an address.
 
 **A client never decides which employer owns a verification.**
 `shared/employerEdits.js` strips browser-sent PEV fields and re-attaches them
@@ -853,19 +1207,42 @@ PEV record.
 
 ### Statuses and tenancy
 
+**One status colour map (К2).** Every screen that shows a recruiting status (the
+company's lists and dossier, Super Admin's search, driver database and a company's
+applications, the campaign audience preview) tones it through `getStatusTone`
+(`StatusBadge`): Hired, Approved, Qualified, Offer Accepted green; Declined, Rejected,
+Terminated, Disqualified, Offer Declined red; New, New Application, New Lead blue.
+Super Admin shows the stored text. A campaign's own status uses one map,
+`campaignStatusPresentation` (`campaignConstants.js`), on the card and the report: a
+failed campaign is red.
+
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
-`Terminated`, `Declined`), plus `Interested` and legacy aliases kept selectable
-so older records stay editable. Creation defaults differ: leads get `New Lead`,
-applications `New Application`. Application lists show one name per group
-(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Rules
-validate transitions and **cannot import JS**: a rename edits them too.
+`Terminated`, `Declined`), plus `Interested`. The dossier's status picker offers
+only those, and the record's own value when it is a legacy one: one that names a
+stage takes its place under the stage's name (`New Lead` and `New Application` read
+New, `Approved` Hired, `Rejected` Declined), any other keeps its stored name.
+Legacy values stay stored and valid in the rules. Creation defaults differ: leads get `New Lead`,
+applications `New Application`. The lists, leads too, show the dossier's name
+(`dossierStatusLabel`: `New Lead` reads New, `Approved` Hired); the value stays. Their **In
+process** tab, and the dashboard's count of it, is Contact Attempt 1–3, Interested,
+In Process and the older stages between them (`APPLICATION_IN_PROCESS_STATUSES`, Д14):
+not New, Hired, Terminated, Declined or the closed `Disqualified`, `Stale`,
+`Offer Declined`. Rules validate transitions and **cannot import JS**: a rename edits
+them too.
 
 **Tenant binding is immutable.** Rules require `companyId` to match the path on
 create and never change, so no record claims another company.
 
 **A deactivated company** (`isActive: false`) takes no applications, passes no
 server staff check, drops out of its staff's tokens (§8) and closes their workspace; never a super admin's.
+
+**Server access checks read fresh on every call (К4).** `assertCompanyAccess` and
+`assertCompanyAdminStrict` read the caller's claims and the company document in parallel
+on each call and hand back the company snapshot, so a callable does not read it again.
+Nothing about roles, claims, membership or company state is kept between requests: a
+removed role or a deactivation applies to the next call. A super admin passes even when
+the company is deactivated or cannot be read.
 
 ---
 
@@ -897,10 +1274,12 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   directly; a company admin uses `createPortalUser` (an existing account keeps
   its password; no Super Admin) and `deletePortalUser` (membership only).
   Changing or deleting another person's login is Super Admin only.
-- **Menu visibility and route access share one function**,
-  `isCompanyAdminForRoute()` in `src/app/auth/roles.js`, behind both the sidebar
-  and `CompanyAdminRoute`, so a hidden nav item is never reachable by URL. Keep
-  it that way.
+- **Who may open a company page belongs to the page**: its manifest entry's
+  `adminOnly` and `featureFlag` (`companyRouteManifest.js`), not its menu item.
+  `CompanyAdminRoute` guards an `adminOnly` route with `isCompanyAdminForRoute()`
+  (`src/app/auth/roles.js`), and the sidebar and the buttons that lead to a page
+  offer it only when `canOfferCompanyRoute` allows, so removing a menu item never
+  opens its page. Keep it that way.
 - **Server-only collections** are closed to every client, super admins included:
   `rate_limits`, `processing_status`, `integrations_index`,
   `environment_audit_log`, `ai_provider_config`, `ai_routing_config`,
@@ -916,8 +1295,15 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   through `submitGuestApplication`.
 - **Documents are never public URLs.** Every file link is server-issued, single
   purpose and checked against company membership (`getSignedDocumentUrl`,
-  `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
+  `getSignedApplicationFileUrl`, `getSignedApplicationFileUrls`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
+- **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists, checks and adds a
+  number, only a Company Admin removes one, and never from the global list. Its screen is in Settings (admins);
+  the dossier's Do not text adds a number. "Texts off" checks the dossier's one number against the company list
+  only (`checkSmsOptOut`, one read).
+- **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
+  team member, `assertCompanyAccessForRequest`): the application or request must be
+  under that company, and Send to driver's template in its post-application list.
 
 **Starting an application for a driver is company-workspace access, not admin.**
 `/company/drivers/unfinished` is deliberately not `adminOnly` — a recruiter
@@ -936,10 +1322,15 @@ only**.
 **Per-tenant feature flags** live on `companies/{companyId}` as `features` and
 `featureSchedules`. Keys: `pev`, `campaignsEnabled`, `eDocs`, `importLeads`,
 `callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
-an explicit `false` disables. `features` is stripped from the public profile
+an explicit `false` disables — except `callTracking` (labelled **Facebook leads**;
+the stored key keeps its old name), which is **opt-in**: Settings → Facebook leads
+shows only where a super admin set it `true`, since Facebook capture is off. Screens and routes read a flag only
+through `isFeatureOn` (`src/shared/utils/companyFeatures.js`), which knows each key's default. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
 [`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
-`planType`, `appSlug`, `isActive` or `status`.
+`planType`, `appSlug`, `isActive` or `status`. An open company workspace follows its
+flags live (`useLiveCompany`, the same company-document listener that watches for
+deactivation): a switch shows or hides its menu entry and pages without a reload.
 
 ---
 
@@ -948,8 +1339,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | Integration | Purpose | Where credentials live |
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting, Performance) | Everything | Project config |
-| **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email; no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password encrypted (`enc:v1:`), shown only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
+| **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS; logs omit the number texted | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
+| **Per-company SMTP** (Nodemailer) | All outbound email (logs omit the recipient); no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password encrypted (`enc:v1:`), shown only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog, an applicant's own PSP/MVR read into *suggestions* where enabled (`extractApplicationReport`), and a recruiter's attached paperwork (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | Operator alerts (`watchAiAndBlog`) and release offers (`offerProductionRelease`) in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |
@@ -977,6 +1368,15 @@ projection, and `/apply/:slug` is not gated by any flag. See
   on both or one AI entry point reads a credential the other cannot. Super Admin
   → AI Integrations → **Check credential access** asks both, names the account
   in use, and reports a missing secret apart from an unreadable one.
+- **SMS settings are one rule** (`integrations/controllers/config/smsSettingsAccess.js`,
+  owner decision К1): saving and verifying the provider, adding, removing, testing and
+  verifying a line, line assignments and the test text all use `assertCompanyAdminStrict`:
+  a Company Admin by their claims or a membership, the company's owner (`ownerId`,
+  `createdBy`, `adminId`) or a super admin; a deactivated company refused, but for a super
+  admin; never a recruiter or HR user. Claims are read from the Auth record on each call,
+  never from the token, so a removed role is refused at once (К4). The Settings screens and
+  the `integrations` documents stay Company Admin only (owner decision, 2026-11-10: no
+  SMS settings screen for an owner without that role).
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
@@ -1006,10 +1406,14 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 
 | Job | Cadence | What it does |
 |---|---|---|
-| `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed |
+| `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed; reads only `featureSchedules` |
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
-| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier: the good-faith record |
+| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email, citing 49 CFR 391.23(c) and saying the record reached the DQ file only when it did): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
+| `autoSendPostApplicationForms` | every 15 min | For applications submitted through the public form 30 min–2 h ago (`submittedAt`, oldest first), sends each required, enabled post-application form by Send to driver's rules: a new request, or flags on for one the thank-you page opened and the driver did not sign; once per form through the transaction's `already-sent`, nothing written on the application. Skips companies with E-Docs off, deactivated or with no required form; no channel → skipped and logged. Stops after 4 min, and each run starts one company further on; ids-only logs |
+| `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request created 3–7 days ago (oldest first, its link not run out), once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
+| `notifyDqExpiry` | daily 07:00, America/Chicago | For each hired driver whose `dqExpiresNext` is today or within 30 days (UTC day; Needs attention's query and index), one bell notice "expires soon", and one "expired" once the date has passed, until 30 days after it (first seen past it, only "expired"; an older date stays on Needs attention); a new date gets its own. Once each (id `dq_<stage>_<applicationId>_<date>`, looked up before the DQ file is read). Names the driver, the documents holding the date and the date, opens the dossier's DQ File tab; for the assignee while on the team, else the team. No email or text. Skips deactivated companies; stops after 7 min, and the next day starts one company further on; ids-only logs |
+| `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
@@ -1029,25 +1433,72 @@ the daily count**; refusing is a recorded outcome.
 ### Firestore triggers
 
 - **Driver sync** — a new lead or signed application (an unsigned one is
-  marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
-  read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
-  for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
+  marked `validation_error`) adds its company to an existing profile's `companyIds`,
+  copying none of the driver's details (`{id}`: the Auth uid of a known email;
+  for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created. A signed application also links its lead (§4).
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
-  opening the DQ tab files any still missing (`syncDqFiles`, leads too). A
-  removed entry stays removed.
-- **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
-  lead writes roll up dashboard counters into server-write-only `internal_stats`.
-- **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
+  the DQ tab's first opening in each opening of the dossier files any still missing
+  (`syncDqFiles`, leads too). A call that fails is made again at the next visit; an
+  upload it could not write in a call that succeeded waits for the next opening. A
+  removed entry stays removed. PEV request PDFs, results and day-30 records of
+  attempts are filed by the PEV callables and job, one record each (`pev_request_<id>`,
+  `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
+  linked to an application or lead by `sealDocument` (`signed_<requestId>`), and by
+  `syncDqFiles` when the tab first opens in a dossier opening if it is missing (a failed filing, an older seal).
+  A changed `cdlExpiration`, `medCardExpiration` or `twicExpiration` moves the date of
+  the synced records of that type, never the other way. `onDqFileWritten` keeps each
+  application's and lead's `dqExpiresNext` (the earliest valid-until date among records
+  not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
+  tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
+- **Stats** — only calls in `activity_logs` roll up into `stats_daily`, which only Super
+  Admin → Analytics reads (Maintenance rebuilds it with the trigger's own counting,
+  `functions/shared/callStats.js`, counting the legacy `activities` log too, which the
+  rules keep readable and closed to writes; a rebuild overwrites each day that has a call
+  and leaves other days as they were; the company dashboard shows no call statistics); application and
+  lead writes roll up dashboard counters into server-write-only `internal_stats`, which
+  the daily job recounts. The dashboard shows them only when recounted within 36 hours
+  and none is below zero; otherwise it counts the records itself.
+- **Hire date** — the same trigger stamps `hiredAt` (the time of the write, from the
+  event) when an application's status enters `Hired`/`Approved` by any path, so a hire just
+  before midnight keeps its month; never on a save while hired; leaving keeps
+  it, coming back sets it again. Its write changes no status: no loop, no counter move (§10).
+- **Signing links** — a new request's email (`notifySigner`) and text (`notifySignerSMS`)
+  each claim the event on the request (`emailDeliveryId`, `smsDeliveryId`, with the
+  address in `linkSentTo`) before they send, so an event delivered twice sends once.
+- **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
+  new attempt while it is there, triggers PDF sealing, only while the stored request is
+  still on that attempt; then one bell notification of the outcome (§4) and, for a
+  linked record, its DQ entry. Neither failing fails the seal.
 - **Team cache** — a membership write rewrites `companies/{id}.teamMembers` (uid, role, name by `nameFromProfile`
-  else `'Unknown'`, email). Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
-- **Notifications** — status changes, lead assignment, new applications, an
-  applicant confirmation email. A call with a callback time (or "Remind me in 1
+  else `'Unknown'`, email) when the list changed. Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
+- **Notifications** — a status change on an assigned application tells its assignee
+  only (`recipientId`), else the team; an assignment tells the new owner
+  (`onApplicationAssigned`, `onLeadAssigned`), unless the owner made it or a server step
+  that told them itself stamped it (`server:notified`); an import writes one summary per
+  recruiter. Screens stamp who acted (`statusChangedBy`/`assignmentChangedBy` with their
+  times, `shared/utils/changeStamps.js`); a team notice naming its `actorId` is hidden
+  from them, and `readBy` keeps read state per person (an older `read: true` counts for
+  everyone). Also new applications and an applicant confirmation email. A call with a callback time (or "Remind me in 1
   Hour", still No Answer) reminds only its recruiter (`recipientId`). The bell
   reads the team's newest 20 and the reader's own newest 20 reminders (index in
-  `firestore.indexes.json`), and shows the newest 20 of both.
+  `firestore.indexes.json`), and shows the newest 20 of both. A seal outcome, a
+  prepared application's submission, a lead's application, a PEV answer or no-response,
+  a status change and an assignment notify once per event (`createNotification` with a
+  fixed id). A public link's "Ask … for a new link" notifies once per record a day
+  (`signing_link_requested`, `pev_link_requested`, `review_link_requested`).
 - **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
   matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
+  An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);
+  leads were never asked and are texted; no number on an opt-out list is texted. Each automatic text (sent, not
+  sent and why, failed) leaves one `Automated SMS` Activity entry, without the message or number (`shared/smsPermission.js`).
+  The entry is written before the provider is called, so a repeated delivery of the same change finds it and sends
+  nothing, even when the first run stopped before recording a result; an entry that cannot be written sends nothing.
+  The dossier's stage picker warns first: a Contact Attempt option reads "— texts the driver" when its template,
+  the consent and a usable phone are there, "— may text the driver" while it cannot tell, and the saved toast says
+  so (`contactAttemptText.js`). It does not read the opt-out lists, which stay the server's check.
+  `{application link}` becomes the company's apply page with the assignee's recruiter link
+  (`?r=`), else the plain page (`shared/applicationLink.js`); campaigns' `[Application Link]` too.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
   `application_drafts`, `application_draft_audit` and `rate_limits` at
   `expiresAt` (activity logs carry one). An unfinished application expires
@@ -1064,15 +1515,29 @@ A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
 writing. A worker sends **50 per batch**, re-checking the session: a cancel stops at once, and a batch starts no
 send after 4.5 min (the next carries on). One rule (`recentlyMessaged.js`) leaves out of count, preview
 and launch whom a same-channel campaign reached (its ledger; a call is not a
-message): **7 days** by default for uploads, none for CRM. Limit Volume
-keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
+message): **7 days** by default for uploads, none for CRM. With a window on, the
+Audience count reads every match, so it runs only on *Recalculate audience* (К5):
+after a filter, channel or list change it reads "Count not up to date" and Launch is
+blocked until recalculated. Without a window it is a cheap server count that follows
+the filters. Limit Volume keeps the newest N; the screen applies it to the counted
+audience, so typing it reads nothing. Whatever the screen showed, the launch
+re-gathers recipients and re-applies the window on the server, and the worker checks
+opt-outs before each send and never emails an import's placeholder address. The window
+is applied at launch, not again per recipient while a long campaign sends, and an
+unreadable ledger lets everyone through: at worst a repeat message, never past an opt-out. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
-closed on a bad number) and every email with a usable one; no reply fills them (§12).
+closed on a bad number) and every email with a usable one; the team fills the company's by hand (§12).
+A lead campaign built from filters leaves out leads who applied (`applicationId`;
+the count before launch may still include them; hand-picked leads stay).
+An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
+("Driver did not agree to SMS" in the report; still counted in preview).
 An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
-no sent text between them, also across batches, pause the campaign. The recipient log and the Delivery Report
+no sent text between them, also across batches, pause the campaign. Resume (paused) and Continue (failed) are one
+claim (`resumeSession.js`): only from those two states, from `currentPointer`, under a new `workerGeneration`;
+with no one left the campaign completes instead. The recipient log and the Delivery Report
 read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any
 log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 
@@ -1087,6 +1552,8 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   wizard and `extractApplicationReport` know what the company switched on; the
   server reads its own copy, never the client's. If a company setting has no
   effect on `/apply/:slug`, check the projection allowlist first.
+  `syncPublicProfile` writes only when the projection would change the profile
+  (`updatedAt` alone is no change).
 - **`application_drafts` holds two kinds of thing**, told apart by `origin`: a
   driver's unfinished application and a carrier's prepared one. The read cutoff,
   the locked-employer list and the invite token hang off that distinction;
@@ -1170,6 +1637,25 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   unsigned record `validation_error` and move the dashboard counters before anyone
   read, consented to or signed anything. The driver's own submission promotes a
   draft (§5).
+- **A hire date is never guessed.** `hiredAt` exists only where the server saw the
+  status enter hired (from 2026-11-06, Д15). Older hires stay without one: no backfill,
+  and no hire date read from `createdAt`, `updatedAt`, `statusChangedAt` or Activity.
+- **E2E test mode works only on the dev server the browser suites start.** A
+  production build ignores `VITE_E2E_TEST_MODE` and ships no fixture data or
+  harness (`src/lib/runtime/e2eMode.js`); fixture code follows the rule in its
+  doc comment (`!import.meta.env.PROD` in the reading file, pure annotations). The
+  application page starts up through one sequence in both (`loadPublicApplyCompany`):
+  E2E mode only takes the company from a fixture, so the browser suites run the real
+  restore and discard guards.
+- **A masked SSN is `***-**-` and its last four digits everywhere** (screens,
+  application and previous-employer PDFs, the company API); a value with fewer
+  than four digits reads `***-**-****`. One `maskSsn` per runtime, both tested
+  on `functions/shared/maskSsn.vectors.json`. The dossier's Full application
+  view shows the SSN whole, by the owner's decision (2026-11-10): the recruiter
+  sees the driver's full record there, as other ATS platforms show it.
+- **A screen offers to email a link only to an address the server would send
+  to:** `canEmailLinkTo` and Fix recipient use `isWellFormedEmail`, the server's
+  `isValidEmail` rule (`functions/shared/isValidEmail.vectors.json`).
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
   `onCancel`, so "start a new application" is never the cancel action: Start
   over is its own explicit destructive confirmation, and Escape at either stage
@@ -1205,7 +1691,11 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   a phrase list read clause by clause: a denial is a limitation, a news article
   counts only where it names SafeHaul (`claimScope.js`), and an overstatement
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
-  document-expiry monitoring, a job board, or any named carrier endorsement.
+  document-expiry monitoring, a job board, or any named carrier endorsement. The DQ
+  checklist and dates may be described only as listing what the file holds and
+  showing valid-until dates, and `notifyDqExpiry` only as a daily in-app notice to the
+  team about hired drivers; never as monitoring, renewal reminders, a compliance check
+  or a complete DQ file.
 - **A `web/` change runs the `frontend_unit` CI lane**
   (`src/tests/hostingConfig.test.js`, A5). Its claims check runs in an
   always-required job, blocking and install-free, and refuses nested pages (K4)
@@ -1227,10 +1717,30 @@ and [`src/design-system/README.md`](../src/design-system/README.md). The roadmap
 is authoritative for the rules, approved exceptions and open decisions; this is
 a summary.
 
+**Dates on screens read in one style (К3)** through `formatDate`
+(`src/shared/utils/helpers.js`): `Mar 7, 2026`; with a time `Mar 7, 2026, 02:30 PM`
+(minutes, no seconds); a stored month `Mar 2026`. Documents keep their own format: the
+application PDF, the preserved record and the driver's Review step (MM/DD/YYYY,
+mirrored by the server), the VOE document, signing pages and certificates, CSV exports,
+date inputs.
+
 Layering: the design system owns reusable appearance and interaction and must
 never know what a driver, lead or campaign is; feature folders own content,
 actions and domain-to-visual mapping; hooks and services own data, state and
 business logic; `src/app` owns routing and composition.
+
+**The C2 look (owner-approved for the company screens, 2026-11).** Primary
+buttons, toggles and selected states are the brand navy (the tokens are
+app-wide); links, the focus ring and the company sidebar and top bar stay blue.
+A company page is one centred canvas, 1200px of content: an eyebrow naming its
+section (none on the Dashboard), a 30px title with its actions on its line (a line of their own when they
+do not fit; on a phone a full-width row after the description, or a bar pinned to
+the bottom on the Add lead and Company profile edit forms, with toasts above it),
+16px-round cards and initials discs for people (the first letters of the first two
+names, a hyphen joining two: "Jean-Baptiste Okonkwo" is JB). Settings opens on
+its list of sections, a page of its own at every width; from 1280px a rail sits
+beside the open section. Add person and Create an API key rise from the bottom of a phone screen.
+Settings: the menu (one card per group) is what `/company/settings` with no section shows, at every width; from 1280px a 288px rail lists the sections beside an open one, each with a one-line description (narrower, Team's and API keys' tables would not fit beside it); up to 1279px each section links back with "← Settings".
 
 Reuse approved components and semantic `--ds-*` tokens. Do not add a local
 button, modal, form control, table, status treatment, arbitrary color or
@@ -1246,8 +1756,11 @@ focusable horizontal-scroll region, sticky header, first column pinned
 per-row form controls worked one record at a time — the SMS recruiter-assignment
 matrix — becomes one card per row under 768px
 (`data-mobile-presentation="cards"`), the same elements at every width, as does
-a `DataTable` of such rows (`mobilePresentation="cards"`). Source and guards:
-`src/design-system/components/data-table/README.md`.
+a `DataTable` of such rows (`mobilePresentation="cards"`). Its columns may state a
+`mobileRole`, which lays each card out as one record (avatar or icon, title, status
+in the corner, short facts inline, actions across the card), and it may carry a
+selection: each card led by its checkbox under a "Select all" and "Sort by" strip.
+Table headers are a 44px band; a row can carry a tinted line under it (`getRowDetail`, Team's membership problem), which its row header names as its description. Source and guards: `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
 dialog goes through `Modal` and takes its size and shape from the chrome
@@ -1304,7 +1817,13 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Lead Distribution Engine** (no `isPlatformLead`, `distributedAt`,
   `visitedCompanyIds`, `dailyLeadQuota`). **Job board / saved jobs** (rules
   deleted; old documents unreachable). **`/join/:companyId`** (use Create Portal User).
-- **GitHub Models** as an AI provider.
+- **GitHub Models** as an AI provider: removed from the registry. A leftover
+  `ai_provider_config/github-models` document and a saved routing order naming it
+  are ignored, not errors. Logs recorded before the removal still show its
+  turns, by its id, for as long as logs are kept.
+- **The `GROQ_API_KEY` deploy binding** and *Migrate legacy key*: no function binds
+  or reads it; Groq's key is `SAFEHAUL_AI_GROQ_APIKEY`. The secret still exists in
+  Secret Manager, unused, until the owner deletes it.
 - **Smart Segments** — triggers go at the next promotion; data stays unread.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.
@@ -1312,6 +1831,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 **Current limitations:**
 
 - **Browser errors are not collected anywhere**; users must report them.
+- **A callable that wraps any failure as `internal` now reads generic** ("… could
+  not be … Please try again"), because its text is often a raw error passed on
+  (`createPortalUser`, `testEmailConnection`, line inventory, provider config, SMS,
+  company delete, PEV requests). Its log keeps the detail. Test line connection
+  still shows the provider's own text after "Connection Failed:".
 - **Sent Documents search and filters cover the loaded documents** (newest 100,
   more on request), and say so; the server totals refresh when a loaded
   document changes or the page reopens, so a change to an older document shows
@@ -1324,18 +1848,24 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   Firestore sorts by it (newest first, or as its date header says): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
-- **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
-  asks for. Older leads with `null` (imported) or none (Quick Add, Facebook)
-  are not found there until Data cleanup's lead fields item runs (below).
+- **A month or segment from a dashboard link travels in the link's state**: the page keeps
+  it on reload, but a copied link or a new tab opens the whole list (the Hired card
+  already worked so). A month of hires lists its 200 newest, saying so.
+- **In process with a State picked finds only its name and postal code** ("Texas", "TX"):
+  twelve statuses leave room for two spellings in Firestore's 30 alternatives.
+- **An unassigned lead stores `assignedTo: ''`**, which the Unassigned tab and
+  filter ask for. Older leads with `null` (imported) or none (Quick Add, Facebook)
+  are not listed there until Data cleanup's lead fields item runs (below); a
+  search on the tab finds them.
 - **Facebook lead capture is switched off; an earlier defect may have stranded
   leads** in `companies/{uid}/leads`, which no screen reads
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
 - **"Read the documents" reads only what the current browser holds.** A
   prepared application re-opened later names its documents, readable once
-  re-attached; files are not fetched back (that needs bucket CORS, not set).
+  re-attached; files are not fetched back from Storage.
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
-  `true`, so opt-out), the driver pressed *Save as Draft* on page one before
+  `true`, so opt-out), the driver pressed *Finish later* on page one before
   typing it, or, on a draft last saved before 2026-09-10, an autosave defect
   erased the key. A driver-started one is checked on its stored last name and
   date of birth, any nine digits passing for the SSN (§5) — facts a Company
@@ -1343,10 +1873,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   plainly offered a new application. A carrier-prepared one is refused; the
   driver is told to continue on the device where they started (its resume token
   asks nothing) or start anew, so losing that device means starting over. The
-  fix is out-of-band delivery — minting emails or texts the link to the draft's
-  `contactEmail`/`contactPhone`, returning only a redacted confirmation so the
-  carrier never holds it (DocuSign's Resend model) — which needs per-company
-  email configuration.
+  link can now be emailed by the server (`deliver: 'email'`, `shared/linkDelivery.js`),
+  never shown to the recruiter, though a copy may stay in the company mailbox's Sent
+  folder; the exchange still treats it like a copied one, since a prepared draft's
+  address is one the carrier typed. Letting an emailed link stand in for the identity
+  check is an owner decision; texting the link is not built.
 - **A driver cannot dispute a locked employer that is satisfiable but wrong.** A
   PSP report is an FCRA consumer report with dispute rights, but a locked
   identity is a record to the driver (§5); no lock is unsatisfiable, yet nothing
@@ -1362,23 +1893,24 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   `deleteSandboxApplication` removes the same files
   (`shared/applicationStorage.js`) but only inside `companies/SANDBOX/`, so a
   public sandbox submission cannot reach a real company's file. Viewing is safe
-  (`getSignedApplicationFileUrl` refuses paths outside the caller's companies).
+  (`getSignedApplicationFileUrl` and `getSignedApplicationFileUrls` refuse paths outside the caller's companies).
   Only custom-question uploads are held to `guest_uploads/`; restricting the
   standard fields needs a survey of every folder a legitimate file can live in.
-- **The dossier's *Edit Application* offers fields the server will not change.**
-  Every schema section is editable, but `proposeApplicationChanges` applies only
-  its allowlist and silently returns the rest as `skipped`: an edit to, say, a
-  qualification answer disappears.
+- **Violations, accidents and previous addresses** are on the server's allowlist,
+  but *Edit Application* has no editor for them (array sections render read-only),
+  so they show display-only.
+- **Older `drivers/{id}/pending_updates` documents remain** until the owner runs
+  Data cleanup → Old driver staging copies (В7), which deletes them; nothing reads or
+  writes them.
 - **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
   it): the reader refuses it, naming what it takes: PDF, JPG, PNG, WebP.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan");
   marketing prices ($199 / $299 a month) are **not** enforced.
-- **Opt-out enforcement works; opt-out *capture* does not.** Sends check the
-  blacklist (§8), but `handleOptOut` (`functions/blacklist.js`) triggers on
-  `companies/{companyId}/inbound_messages/{msgId}`, which **nothing writes** (no
-  inbound SMS webhook): a STOP reply reaches the company's own provider, and a
-  number enters the blacklist only by a direct write (no admin screen).
+- **A STOP reply is not captured automatically:** **nothing writes** the `inbound_messages` that `handleOptOut`
+  (`blacklist.js`) watches (no inbound SMS webhook). The reply reaches the company's own provider, and the
+  team adds the number by hand in Settings → Text messages or with the dossier's Do not text
+  (`smsOptOuts.js`). Sends check the list (§8).
 - **Frontend coverage thresholds are a ratchet** (`vitest.config.js`), a few
   points under measured coverage: raise them as it improves, never lower them.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different
@@ -1390,6 +1922,70 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   accepted gap; see `docs/security-posture.md`. Client writes are named per
   folder in `src/storage.rules`: a PEV result is add-only; PEV signatures,
   request PDFs and sealed copies are server-only.
+- **PEV records before 2026-11 are not backfilled:** earlier results are not in
+  the DQ file and keep a stored download link; requests already live then keep
+  reminding until day 30 (their mark no longer overwrites a Completed row).
+- **Batch 3 limits (2026-11):** a personal bell notice is hidden, not private (the rules
+  let the team read every notification), and others' personal notices take slots in the
+  team read; until Production is promoted its screens neither stamp who acted nor keep
+  read state per person. Phone matching links the only lead with the number even when its
+  email differs; older mixed-case lead emails match only after Data cleanup → Old lead
+  fields. Remind's cooldown guards against mistakes, not a team member editing the
+  database; a reminder whose every send failed does not count. Company setup is kept two
+  minutes, so a fix made by another route shows within two minutes.
+- **Batch 8 limits (2026-11):** the DQ deadline notice is for hired applications only
+  (not leads), in the bell only (no email or text; the driver is not told); a record none
+  of whose DQ files holds its `dqExpiresNext` gets none until that date is put right; a
+  date more than 30 days past is never told (Needs attention lists it); the first run, and
+  the first after Data cleanup → DQ valid-until dates, tell at once about every hired
+  driver within 30 days either side of their date. A notice goes to the stored assignee
+  when the team roster cannot be read (as other notices do). Settings lists the newest 300
+  opted-out numbers (and says how many there are), so an older one can be removed there
+  only once newer ones are; adding one is never limited.
+- **Batch 6 limits (2026-11):** the automatic post-application send looks only 30
+  minutes to 2 hours after the first submission, so an application whose driver later
+  gets a usable email or says Yes, a resubmission, one missed during an outage longer than
+  that, and an optional form get nothing from it (Send to driver still works); a failed
+  send is not retried by it (Remind and the day-3 reminder are); a template that cannot be
+  filled is skipped and logged on each run in the window; a text can go at night, 30–120
+  minutes after the driver's own submission and only after their Yes. The no-response
+  email's DQ-file sentence follows the filing result of that run.
+- **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after a
+  document was created, so a document corrected to add a channel later, one whose link
+  ran out, a run missed four days in a row, or a form sent later through Send to driver
+  may get none (Remind still works);
+  it is never retried after a failed send, which shows on the document as a delivery
+  error, as a failed Remind does; a run stops after seven minutes and leaves the rest to
+  the next day, and one cut off between claim and send loses that reminder rather than
+  sending twice. Between daily recounts the dashboard counters can be off by a trigger
+  delivered twice or lost, or by a record added or removed while the recount ran. A record without a confirmation number (a lead, an older or
+  hand-made application) shows none in the dossier, though the applicant's email named
+  the first eight characters of its id instead.
+- **Batch 4 limits (2026-11):** the DQ checklist reads the DQ list when the tab opens or
+  after a change made there, and the employers as the dossier loaded them (reopen it after
+  another person's change or a PEV change), while the sidebar's marker follows the DQ list
+  live; `dqExpiresNext` reaches older records on a
+  DQ write, when their DQ tab first opens in a dossier opening, or through Data cleanup → DQ valid-until dates; an
+  old card left in the file keeps the record's earliest date (and the daily notice about
+  it) until it is removed; a date
+  the team set on a synced record gives way to the application's next change of that
+  answer; inquiries uploaded by hand are counted, not matched to employers. Needs
+  attention's no-response count
+  includes every request still marked so, even where a newer one for that employer was
+  answered, and its unsigned count includes sends that failed; an unfinished
+  application's removal is read from its last save, and the Unfinished page lists only
+  the 200 most recent drafts.
+- **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
+  attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
+  in the already-filed record; a day-30 record that failed to file is not made again
+  (logged). A sealed document missing from the DQ file is filed when its DQ tab first opens in a dossier opening. Send to driver does not resend a form already sent, even
+  after its link expired (Remind does); an optional post-application form is listed only once a request
+  for it exists. A retried document's certificate prints the retry time as COMPLETED AT.
+  Retry seal and the record link guard against mistakes, not a team member: the rules let
+  the team write any signing-request field.
+- **`signedCopy` stops accidental and concurrent resends, not a team member
+  editing the database:** the rules let the team write any signing-request
+  field, so clearing it directly would allow a second approved send.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
@@ -1413,11 +2009,15 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
   **seven-day cooldown**; security fixes are not delayed.
 - **One-time backfill callables are still exported** (`backfillPublicProfiles`,
-  `migrateEmailSettings`, `backfillApplicationSearchFields`, stats backfills):
-  Super Admin maintenance tools, not dead code; check before removing one.
+  stats backfills): Super Admin maintenance tools, not dead code; check before
+  removing one. Data cleanup's SMTP copies and search fields items replaced
+  `migrateEmailSettings` and `backfillApplicationSearchFields`, retired with
+  `reconcileCompanyDashboardStats` (the daily recount does its work).
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
-  application search fields, SMTP password copies outside `email_config`. Check
+  application search fields, SMTP password copies outside `email_config`, DQ
+  valid-until dates (`dqExpiresNext` on records filed before it), old driver
+  staging copies (`drivers/{id}/pending_updates`, deleted whole). Check
   counts; Run confirms, needs a recent sign-in, is audited, resumes
   (`done: false`). Several-value `driverType` lists are only counted.
 
@@ -1429,7 +2029,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 `npm test` (Vitest) · `npm run test:coverage` (ratchet gate) ·
 `npm run test:e2e` (Playwright) · `npm run test:rules` · `npm run typecheck` ·
 `npm run storybook` / `npm run test:stories`. CI also runs
-`check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
+`node scripts/check-callable-contract.mjs`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
 `check:table-layout`, `check:visual-contract`,
 `test:visual`, `test:secret-scan`, and a secret scan

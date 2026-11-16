@@ -30,10 +30,14 @@ import { isValidEmail, isValidPhone } from '@shared/utils/validation';
  * stored at all. Nothing here may add a requirement the server does not have.
  */
 
-/** The three things a recruiter can press that need something first. */
+/**
+ * The things a recruiter can press that need something first. `EMAIL` (the
+ * server emails the link) needs exactly what `LINK` does: it mints one.
+ */
 export const PREP_ACTIONS = Object.freeze({
     SAVE: 'save',
     LINK: 'link',
+    EMAIL: 'email',
     COPY: 'copy',
 });
 

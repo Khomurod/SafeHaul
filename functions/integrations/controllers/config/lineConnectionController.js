@@ -5,8 +5,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
-const { assertCompanyActive } = require('../../../shared/companyAccess');
-const { isSuperAdminClaims } = require('../../../shared/superAdmin');
+const { assertSmsSettingsAccess } = require('./smsSettingsAccess');
 const SMSAdapterFactory = require('../../factory');
 const { decrypt } = require('../../encryption');
 const RC = require('@ringcentral/sdk').SDK;
@@ -38,15 +37,9 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
     }
 
     // The test logs in with the company's stored app credentials: the same
-    // people who may add a line to the company (addPhoneLine) may test one.
-    const roles = request.auth.token.roles || {};
-    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
-    if (!isSuperAdmin && roles[companyId] !== 'company_admin') {
-        throw new HttpsError('permission-denied', 'Only Company Admins can test this company\'s lines.');
-    }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
+    // people who may add a line to the company (addPhoneLine) may test one —
+    // the one SMS settings rule (K1).
+    await assertSmsSettingsAccess(request.auth, companyId);
 
     // Start with provided credentials
     let effectiveClientId = clientId;
@@ -117,7 +110,7 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
 });
 
 /**
- * 2.6 Verify Existing Line Connection (For Company Admins)
+ * 2.6 Verify Existing Line Connection (Company Admin, owner or Super Admin)
  */
 exports.verifyLineConnection = onCall(encryptedCallOptions, async (request) => {
     if (!request.auth) {
@@ -134,24 +127,9 @@ exports.verifyLineConnection = onCall(encryptedCallOptions, async (request) => {
         throw new HttpsError('invalid-argument', 'Select a valid phone line to verify.');
     }
 
-    // Check Permissions (Aligned with companyAdmin.js)
+    // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+    await assertSmsSettingsAccess(request.auth, companyId);
     const db = admin.firestore();
-    const membershipRef = db.collection('memberships')
-        .where('userId', '==', request.auth.uid)
-        .where('companyId', '==', companyId);
-
-    const membershipSnap = await membershipRef.get();
-
-    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
-
-    const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
-
-    if (!isSuperAdmin && !isCompanyAdmin) {
-        throw new HttpsError('permission-denied', 'Only Company Admins can verify connections.');
-    }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     try {
         const adapter = await SMSAdapterFactory.getAdapter(companyId, phoneNumber);

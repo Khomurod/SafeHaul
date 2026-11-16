@@ -95,10 +95,11 @@ function LoadedListNotice({ copy, rows, source, focus }) {
  *
  * Owns the controls only, in the list-page standard's one row (`ListToolbar`):
  * the search, "Needs attention only", and Filters for status, delivery method
- * and sent date. The count is the workspace heading's (`DocumentsManager`). The
+ * and sent date, in a strip inside the table's card. The count is the Sent
+ * Documents tab's (`DocumentsManager`). The
  * live listener, the row actions (Copy Link, Correct, Void, Download) and the
  * details dialog stay in `EnvelopeHistory`, so filtering can never change what a
- * row can do.
+ * row can do. `companyName` fills a corrected document as the editor would.
  *
  * The date filter is only offered when the loaded documents actually carry
  * usable `createdAt` timestamps — offering a filter that silently matches
@@ -112,6 +113,7 @@ function LoadedListNotice({ copy, rows, source, focus }) {
  */
 export function SentDocumentsPanel({
     companyId,
+    companyName,
     documents,
     isLoading,
     loadError,
@@ -151,7 +153,9 @@ export function SentDocumentsPanel({
     const update = (patch) => setFilters((prev) => ({ ...prev, ...patch }));
 
     return (
-        <Card padding="none">
+        // Clipped to its rounded corners, as a table card is: the strip's white
+        // would otherwise square off the top ones.
+        <Card padding="none" elevation="soft" className="overflow-hidden">
             <ListToolbar
                 toggle={{
                     label: 'Needs attention only',
@@ -210,6 +214,7 @@ export function SentDocumentsPanel({
             <EnvelopeHistory
                 embedded
                 companyId={companyId}
+                companyName={companyName}
                 onCorrect={onCorrect}
                 documents={visibleDocuments}
                 // The documents that need attention have their own read once there are more than one window.

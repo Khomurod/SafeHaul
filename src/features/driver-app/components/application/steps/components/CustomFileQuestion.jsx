@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, FileInput, Notice } from '@/design-system/components';
+import { Button, FieldMessage, FileInput, Notice } from '@/design-system/components';
 import { UploadProgress } from '../../UploadProgress';
 
 /**
@@ -18,6 +18,10 @@ import { UploadProgress } from '../../UploadProgress';
  * said so is gone in seconds), and Try again sends the same file without choosing
  * it again. The picker's value is cleared as the file is taken, so choosing the
  * same file again is a change.
+ *
+ * `error` is the page's message about the question, such as a required file not
+ * given when Continue was pressed: said under the picker, announced, and
+ * describing it.
  */
 export function CustomFileQuestion({
     id,
@@ -29,9 +33,11 @@ export function CustomFileQuestion({
     loading,
     progress = 0,
     failure,
+    error,
     onFile,
     onCancel,
 }) {
+    const errorId = `${id}-answer-error`;
     return (
         <div className="grid gap-ds-2">
             <FileInput
@@ -43,12 +49,14 @@ export function CustomFileQuestion({
                 required={required}
                 accept={accept}
                 loading={loading}
+                aria-describedby={error ? errorId : undefined}
                 onChange={(e) => {
                     const file = e.target.files?.[0];
                     e.target.value = '';
                     onFile(file);
                 }}
             />
+            {error && <FieldMessage id={errorId} tone="error">{error}</FieldMessage>}
             {loading && (
                 <UploadProgress label={label} percent={progress * 100} onCancel={onCancel} announce={false} />
             )}

@@ -4,41 +4,46 @@ Per-tenant feature toggles live on **`companies/{companyId}`** as two parallel m
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off.** |
+| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off** — except `callTracking` (Facebook leads), which is off until an explicit `true`. |
 | `featureSchedules` | `Record<string, string \| null>` | ISO-8601 datetime when a feature should auto-disable |
 
 Super admins manage both on each company's own screen, its Features tab ([`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx)). Only they can: the rules refuse a company admin's write to either. Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
+
+An open company workspace follows both maps live, with no reload: [`useLiveCompany`](../src/features/company-admin/hooks/useLiveCompany.js), mounted once by the company shell, keeps the one listener on `companies/{companyId}` (the same one that closes a deactivated company) and copies a changed `features` / `featureSchedules` into the company in use (`applyCompanyChanges`), so the sidebar, page guards and the warning modal follow at once. Nothing else on the company is taken from the listener, and a snapshot whose switches match changes nothing. It runs for super admins in the workspace too; a refused or offline read changes no switch (E2E mode's fixture flags stay).
 
 ---
 
 ## Canonical feature keys
 
-Defined in `ALL_FEATURES` in [`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx):
+Defined in `COMPANY_FEATURES` in [`companyFeatures.js`](../src/shared/utils/companyFeatures.js), with each one's default; `isFeatureOn(company, key)` reads a flag by it:
 
 | Key | Label (admin UI) | Enforced in product |
 |-----|------------------|---------------------|
 | `pev` | PEV | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) blocks when `=== false` |
 | `campaignsEnabled` | Campaigns | Sidebar; [`CampaignsDashboard.jsx`](../src/features/campaigns/CampaignsDashboard.jsx) uses `!== false` (default on) |
 | `eDocs` | E-Docs | Sidebar; [`DocumentsManager.jsx`](../src/features/company-admin/views/DocumentsManager.jsx) when `=== false` |
-| `importLeads` | Import Leads | Sidebar (admin); [`ImportLeadsPage.jsx`](../src/features/company-admin/views/ImportLeadsPage.jsx) when `=== false` |
-| `callTracking` | Call Tracking | [`CompanySettings.jsx`](../src/features/settings/components/CompanySettings.jsx) "Facebook leads" section hidden when `=== false` |
+| `importLeads` | Import Leads | Leads page's Import leads button (admin); [`ImportLeadsPage.jsx`](../src/features/company-admin/views/ImportLeadsPage.jsx) when `=== false` |
+| `callTracking` | Facebook leads | [`CompanySettings.jsx`](../src/features/settings/components/CompanySettings.jsx) "Facebook leads" section shown only when `=== true` (default **off**; the stored key keeps its old name) |
 
-Routes without a `featureFlag` in [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) (dashboard, applications, leads, pipeline, quick-add, profile, settings) are **always visible** to company team regardless of `features`.
+Routes without a `featureFlag` in [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) (dashboard, applications, leads, pipeline, Add lead, profile, settings) are **always visible** to company team regardless of `features`.
 
 ---
 
 ## How enforcement works
 
-### 1. Sidebar visibility
+### 1. Sidebar and page buttons
 
-[`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx):
+A route's `featureFlag` sits on its manifest entry, not its menu item. The
+sidebar ([`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx))
+and the buttons that lead to a page (the Leads page's Import leads) offer it
+through [`canOfferCompanyRoute`](../src/app/routes/companyRouteAccess.js):
 
 ```javascript
-if (nav.featureFlag && featureFlags[nav.featureFlag] === false) return false;
+if (route.featureFlag && features?.[route.featureFlag] === false) return false;
 ```
 
-- Missing key or `undefined` → nav item **shown**
-- Explicit `false` → nav item **hidden**
+- Missing key or `undefined` → **offered**
+- Explicit `false` → **hidden**
 
 Manifest flags: `campaignsEnabled`, `eDocs`, `importLeads` ([`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js)).
 
@@ -52,9 +57,9 @@ Stricter checks on direct URL access:
 | E-Docs | `features.eDocs !== false` |
 | Campaigns | `features.campaignsEnabled !== false` |
 | PEV tab | `features.pev !== false` |
-| Call tracking settings | `features.callTracking !== false` |
+| Facebook leads settings section | `features.callTracking === true` |
 
-**Asymmetry:** most flags opt-out (`=== false` disables).
+**Asymmetry:** every flag is opt-out (`=== false` disables) except `callTracking`, which is opt-in (`=== true` enables): Facebook lead capture is switched off, so the section shows only where a super admin switched it on.
 
 ### 3. Public surfaces
 
@@ -100,7 +105,7 @@ Features are set one company at a time, on its screen; nothing writes a feature 
 [`functions/featureScheduler.js`](../functions/featureScheduler.js) — `enforceFeatureSchedules`:
 
 - **Schedule:** every 15 minutes (`us-central1`)
-- Scans **all** `companies` documents
+- Scans **all** `companies` documents, reading only their `featureSchedules`
 - For each `featureSchedules.{key}` where datetime `<= now`:
   - Sets `features.{key}` → `false`
   - Sets `featureSchedules.{key}` → `null`
@@ -172,10 +177,11 @@ After scheduler runs past June 1:
 | [`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx) | Nav filtering |
 | [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx) | Pre-shutdown UX |
 | [`DataContext.jsx`](../src/context/DataContext.jsx) | Loads `currentCompanyProfile` including flags |
+| [`useLiveCompany.js`](../src/features/company-admin/hooks/useLiveCompany.js) | Keeps the open workspace's flags live (and closes a deactivated company) |
 
 ---
 
 ## Gaps / implementation notes
 
-1. **Default-on** — flags disable only on explicit `false`; a missing key means the feature is on.
+1. **Default-on** — flags disable only on explicit `false`; a missing key means the feature is on. The one exception is `callTracking` (Facebook leads), off unless `true`.
 2. **Scale** — scheduler loads all companies each run; acceptable at current scale per code comment; would need indexing if tenant count grows large.

@@ -156,11 +156,13 @@ test.describe('guest application resume', () => {
     await page.evaluate(() => { window.__e2eFailDraftSave = true; });
 
     await page.fill('#cdl-number', 'LOCALNEWER1');
-    // "Save as Draft" rather than Continue: this step legitimately refuses to
+    // "Finish later" rather than Continue: this step legitimately refuses to
     // advance until the required documents are uploaded, and the point here is the
     // save, not the navigation.
-    await page.getByRole('button', { name: 'Save as Draft' }).click();
-    await expect(page.getByText('Progress saved.')).toBeVisible();
+    await page.getByRole('button', { name: 'Finish later' }).click();
+    await expect(page.getByText('Saved. You can finish later.')).toBeVisible();
+    // The server refused this save, so another device is not promised.
+    await expect(page.getByText(/On another phone or computer/)).toHaveCount(0);
 
     // The local write succeeded and the server one did not, so the local copy now
     // holds work the server never acknowledged.
@@ -170,7 +172,7 @@ test.describe('guest application resume', () => {
 
     // Reload against the same server fixture, which still holds the old value.
     await page.goto('/apply/e2e-company?e2eResume=offer');
-    // The furthest step either copy reached, not the one Save as Draft recorded —
+    // The furthest step either copy reached, not the one Finish later recorded —
     // the wizard's standing rule is never to move an applicant backwards, and the
     // merge means that page has data behind it.
     await expectStep(page, 'Motor Vehicle Record');
@@ -256,8 +258,8 @@ test.describe('guest application resume', () => {
     await page.context().setOffline(true);
 
     await page.fill('#cdl-number', 'OFFLINEEDIT');
-    await page.getByRole('button', { name: 'Save as Draft' }).click();
-    await expect(page.getByText('Progress saved.')).toBeVisible();
+    await page.getByRole('button', { name: 'Finish later' }).click();
+    await expect(page.getByText('Saved. You can finish later.')).toBeVisible();
 
     const offline = await page.evaluate(() => ({
       draft: JSON.parse(localStorage.getItem('draft_e2e-company')),

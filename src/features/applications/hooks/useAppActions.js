@@ -3,6 +3,7 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from '@lib/firebase';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback';
+import { assignmentChangeStamp, statusChangeStamp } from '@shared/utils/changeStamps';
 
 // What `simpleRetry` returns when `shouldRetry` stopped it before a retry.
 const STOPPED = Symbol('stopped');
@@ -32,7 +33,7 @@ export function useAppActions({
   onStatusUpdate
 }) {
   const { showSuccess, showError } = useToast();
-  // While a save of Assign To is open the picker shows the newest pick; once
+  // While a save of Assigned to is open the picker shows the newest pick; once
   // none is open it shows what the record holds. `latest` numbers the picks.
   const assignSaves = useRef({ open: 0, saved: '', latest: 0 });
 
@@ -60,7 +61,9 @@ export function useAppActions({
       const docRef = getDocRef();
       const outcome = await simpleRetry(() => updateDoc(docRef, {
         assignedTo: newUserId,
-        assignedToName: newOwnerName
+        assignedToName: newOwnerName,
+        // Who assigned it: the new owner is told unless it was them.
+        ...assignmentChangeStamp(auth.currentUser?.uid),
       }), () => pick === saves.latest);
       // A later pick was made before this one could retry: only a retry could
       // land after it (one client's writes stay in order), so this one ends here.
@@ -87,19 +90,23 @@ export function useAppActions({
     }
   };
 
-  const handleStatusUpdate = async (newStatus) => {
+  // `note` ends the confirmation: what else the change set off, such as the
+  // driver's Contact Attempt text (the dossier's `savedTextNote`).
+  const handleStatusUpdate = async (newStatus, { note = '' } = {}) => {
     try {
       const docRef = getDocRef();
       const oldStatus = currentStatus || 'Unknown';
       await simpleRetry(() => updateDoc(docRef, {
         status: newStatus,
         statusEnteredAt: serverTimestamp(),
+        // Who moved it: the bell does not tell them about it.
+        ...statusChangeStamp(auth.currentUser?.uid),
       }));
 
       await logActivity(companyId, collectionName, applicationId, "Status Changed", `Transitioned from ${oldStatus} to ${newStatus}`);
 
       setCurrentStatus(newStatus);
-      showSuccess(`Status updated to ${newStatus}`);
+      showSuccess(note ? `Status updated to ${newStatus}. ${note}` : `Status updated to ${newStatus}`);
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error("Error updating status:", error);

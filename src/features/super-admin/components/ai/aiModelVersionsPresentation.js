@@ -7,6 +7,8 @@
  * strings scattered through the card.
  */
 
+import { formatDate } from '@shared/utils/helpers';
+
 const LANE_STATUS = Object.freeze({
     ok: Object.freeze({ tone: 'success', label: 'Working' }),
     failing: Object.freeze({ tone: 'danger', label: 'Failing' }),
@@ -67,5 +69,5 @@ export function describeCheckReason(reason) {
 /** A stored ISO time as local text, or null. */
 export function formatCheckedAt(iso) {
     const date = iso ? new Date(iso) : null;
-    return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : null;
+    return date && !Number.isNaN(date.getTime()) ? formatDate(date, true) : null;
 }

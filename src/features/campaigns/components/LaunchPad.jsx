@@ -7,8 +7,16 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { MAX_RECIPIENTS_PER_LAUNCH } from '../constants/campaignConstants';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
-export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
+/**
+ * The campaign's last step. `campaignId` names its draft: the server launches a
+ * draft once and refuses a second launch from another tab, in words shown as
+ * they come (`initBulkSession`, `functions/bulkActions/helpers/launchClaim.js`).
+ * `onBeforeLaunch` (the editor's save) is awaited first, so the draft the
+ * server claims holds what is launched.
+ */
+export function LaunchPad({ companyId, campaignId = null, campaign, onBeforeLaunch, onLaunchSuccess }) {
     const { showSuccess, showError } = useToast();
     const [isLaunching, setIsLaunching] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -19,9 +27,36 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     const confirmTitleId = `launchpad-confirm-title-${rawId}`;
     const confirmDescId = `launchpad-confirm-desc-${rawId}`;
 
+    const methodLabel = campaign.messageConfig?.method === 'email' ? 'Email' : 'SMS';
+    // The audience step counts for one channel (`countedFor`): a count made for
+    // the other leaves out the wrong recipients, so it is counted again first.
+    const countedFor = campaign.countedFor || null;
+    const countedLabel = countedFor?.method === 'email' ? 'Email' : 'SMS';
+    const countedForOtherChannel = Boolean(countedFor) && countedLabel !== methodLabel;
+
+    // Validation
+    const errors = [];
+    if (countedForOtherChannel) {
+        errors.push(`The audience was counted for ${countedLabel}. Open Audience to count it for ${methodLabel}.`);
+    }
+    // Not counted for its filters yet (the window's count waits for Recalculate):
+    // the number here would not be the audience. The launch checks everyone again.
+    if (countedFor?.needsRecount) {
+        errors.push('The audience is not counted for its current filters. Open Audience and press Recalculate audience.');
+    } else if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
+    if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
+        errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
+    }
+    if (!campaign.messageConfig?.message) errors.push("Message content is empty");
+
+    const isValid = errors.length === 0;
+
     const handleLaunch = async () => {
         if (!companyId) return showError("Company ID missing");
         if (launchLockRef.current || isLaunching) return;
+        // The draft can change under an open confirmation (another tab saves new
+        // filters): only what passes the pre-flight checks now is launched.
+        if (!isValid) return;
 
         launchLockRef.current = true;
         setIsLaunching(true);
@@ -32,6 +67,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                 return;
             }
 
+            if (onBeforeLaunch) await onBeforeLaunch();
             const initBulkSession = httpsCallable(functions, 'initBulkSession');
 
             // Extract rawData if present in filters (passed from AudienceBuilder)
@@ -39,6 +75,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
 
             const payload = {
                 companyId,
+                campaignId: campaignId || null,
                 sessionName: campaign.name,
                 filters: cleanFilters,
                 rawData: rawData || null,
@@ -53,7 +90,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                     ? ` (${result.data.filteredCount} excluded — already messaged)`
                     : '';
                 showSuccess(`Campaign launched! Targeting ${result.data.targetCount} drivers${filteredMsg}. Session: ${result.data.sessionId?.slice(0, 8)}...`);
-                if (onLaunchSuccess) onLaunchSuccess();
+                if (onLaunchSuccess) onLaunchSuccess({ sessionId: result.data.sessionId });
             } else {
                 showError(result.data.message || "Launch failed");
             }
@@ -66,7 +103,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                 ? "Campaign infrastructure not ready. Please contact support."
                 : msg.includes('PROCESS_BULK_BATCH_URL')
                     ? "Campaign worker URL is not configured on the server. Please contact support."
-                    : (msg || "Failed to launch campaign");
+                    : plainErrorMessage(err, 'The campaign could not be launched.');
             showError(friendlyMsg);
         } finally {
             setIsLaunching(false);
@@ -76,25 +113,6 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     };
 
 
-    const methodLabel = campaign.messageConfig?.method === 'email' ? 'Email' : 'SMS';
-    // The audience step counts for one channel (`countedFor`): a count made for
-    // the other leaves out the wrong recipients, so it is counted again first.
-    const countedFor = campaign.countedFor || null;
-    const countedLabel = countedFor?.method === 'email' ? 'Email' : 'SMS';
-    const countedForOtherChannel = Boolean(countedFor) && countedLabel !== methodLabel;
-
-    // Validation
-    const errors = [];
-    if (countedForOtherChannel) {
-        errors.push(`The audience was counted for ${countedLabel}. Open Audience to count it for ${methodLabel}.`);
-    }
-    if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
-    if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
-        errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
-    }
-    if (!campaign.messageConfig?.message) errors.push("Message content is empty");
-
-    const isValid = errors.length === 0;
 
     // Time Estimation (Sequential: 3s per lead)
     const estimatedMinutes = Math.ceil(((campaign.matchCount || 0) * 3) / 60);
@@ -193,6 +211,11 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                             Send to <strong>{campaign.matchCount || 0}</strong> recipients via{' '}
                             <strong>{methodLabel}</strong>?
                         </p>
+                        {!isValid && (
+                            <Notice tone="danger" size="sm" announce="assertive" className="mb-ds-4">
+                                {errors[0]}
+                            </Notice>
+                        )}
                         <p className="mb-ds-4 rounded-ds-md bg-ds-surface-subtle p-ds-3 text-ds-xs text-ds-content-secondary line-clamp-4">
                             {previewMessage.slice(0, 280)}
                             {previewMessage.length > 280 ? '…' : ''}
@@ -209,6 +232,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                                 variant="primary"
                                 fullWidth
                                 loading={isLaunching}
+                                disabled={!isValid}
                                 onClick={handleLaunch}
                             >
                                 Confirm Launch

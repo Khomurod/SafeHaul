@@ -39,6 +39,7 @@ export function useEnvelopeFieldEditing({
         if (template.type === 'text') { w = 30; h = 5; }
         if (template.type === 'date') { w = 20; h = 5; }
         if (template.type === 'initial') { w = 15; h = 4; }
+        if (template.type === 'company_signature') { w = 25; h = 8; }
 
         // FEAT-1: Place field on the currently visible page instead of always page 1
         const newField = {

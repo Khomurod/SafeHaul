@@ -19,6 +19,19 @@ const appData = {
     'cdl-back': { name: 'back.jpg', url: 'https://storage.example.test/expired-back', storagePath: 'companies/co-1/applications/guest_uploads/a/back.jpg' },
 };
 
+describe('the License card’s expiry', () => {
+    // The DQ file can hold another date, from the CDL document itself.
+    it('says the date is the one the application gave', () => {
+        render(<LicenseCard appData={{ cdlExpiration: '2027-05-01' }} />);
+        expect(screen.getByText('Expiration (from application)')).toBeInTheDocument();
+    });
+
+    it("says a lead's date is the lead's", () => {
+        render(<LicenseCard appData={{ cdlExpiration: '2027-05-01' }} isLead />);
+        expect(screen.getByText('Expiration (from lead)')).toBeInTheDocument();
+    });
+});
+
 describe('the License card’s CDL photos', () => {
     it('wait for their links while the files are signed', () => {
         render(<LicenseCard appData={appData} fileUrls={{}} filesPending />);

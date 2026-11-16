@@ -29,6 +29,7 @@ import {
     Notice,
     StatusMedallion,
 } from '@/design-system/components';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 // Stable id for the reset dialog's current heading. Only one heading is
 // rendered at a time, so the id names whichever state (form or success) is
@@ -79,7 +80,7 @@ export function LoginScreen() {
       await resetPassword(resetEmail);
       setResetEmailSent(true);
     } catch (err) {
-      setResetError(err.message || 'Failed to send reset email');
+      setResetError(plainErrorMessage(err, 'The reset email could not be sent.'));
     } finally {
       setResetLoading(false);
     }
@@ -124,7 +125,7 @@ export function LoginScreen() {
 
     } catch (err) {
       console.error("Auth error:", err);
-      setError(err.message || 'Invalid email or password');
+      setError(plainErrorMessage(err, 'You could not be signed in.'));
       setLoading(false);
     }
   };

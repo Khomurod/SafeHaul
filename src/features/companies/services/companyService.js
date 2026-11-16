@@ -9,10 +9,24 @@ import {
   where
 } from "firebase/firestore";
 import { db } from '@lib/firebase';
+import { keptAnswer } from '@shared/utils/keptAnswer';
 import { FLAT_DETAIL_KEYS } from './companyDetailKeys';
 
+// Every company, as the Super Admin console's screens read it (the console's
+// names and membership picker, Features, Activity, Create): one read shared by
+// them, kept two minutes for this sign-in (`keptAnswer`). A failed read is not
+// kept; a company write made through this service, or `forgetCompanies`, makes
+// the next caller read again.
+const everyCompany = keptAnswer();
+
+/** Every company document (a query snapshot), shared as described above. */
 export async function loadCompanies() {
-  return await getDocs(collection(db, "companies"));
+  return everyCompany.read('companies', () => getDocs(collection(db, "companies")));
+}
+
+/** Forgets the kept companies, so the next `loadCompanies` reads them again. */
+export function forgetCompanies() {
+  everyCompany.forget();
 }
 
 export async function getCompanyProfile(companyId) {
@@ -37,7 +51,9 @@ export async function createNewCompany(companyData) {
     throw new Error(`The URL Slug "${companyData.appSlug}" is already taken. Please choose a unique one.`);
   }
 
-  return await addDoc(collection(db, "companies"), companyData);
+  const created = await addDoc(collection(db, "companies"), companyData);
+  forgetCompanies();
+  return created;
 }
 
 export async function updateCompany(companyId, companyData, originalSlug) {
@@ -56,7 +72,9 @@ export async function updateCompany(companyId, companyData, originalSlug) {
   }
 
   const companyRef = doc(db, "companies", companyId);
-  return await updateDoc(companyRef, companyData);
+  const updated = await updateDoc(companyRef, companyData);
+  forgetCompanies();
+  return updated;
 }
 
 export async function saveCompanySettings(companyId, settingsData) {
@@ -107,6 +125,7 @@ export async function saveCompanySettings(companyId, settingsData) {
   }
 
   await updateDoc(companyRef, payload);
+  forgetCompanies();
   // What was written, so a caller can show exactly that (cleaned, blanks left out).
   return payload;
 }

@@ -30,8 +30,7 @@
  *
  * Deliberately absent, so the gap is a decision rather than an oversight:
  *
- *  - `/` — the landing page has its own approved specification in `DESIGN.md`
- *    and is out of this campaign's scope.
+ *  - `/` — no page of its own: it sends a visitor to sign in or to their workspace.
  *  - `/interest/:slug` — a compatibility redirect with no UI of its own.
  *  - `/sandbox/*` and `/e2e/voe-preview` — harness routes, not product.
  *  - The `/company` and `/super-admin` sub-views beyond the ones listed. These
@@ -45,7 +44,8 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, SMS_OPT_OUTS, TEAM_ROSTER,
+    WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 const { APPLY_SCREEN_CODE, holdRequests } = require('../helpers/holdRequest.cjs');
@@ -68,11 +68,11 @@ const SCREENS = [
     {
         name: 'company-dashboard',
         url: '/company/dashboard?e2eAuth=company_admin',
-        // The counts and the leaderboard load on their own, after the greeting.
+        // The counts and the hiring brief load on their own, after the greeting.
         ready: (page) => [
             page.getByRole('heading', { name: 'Welcome back', exact: true }),
             page.getByRole('button', { name: 'Hired: 2' }),
-            page.getByRole('rowheader', { name: /Jordan Recruiter/ }),
+            page.getByRole('link', { name: /^\d+ in process$/ }),
         ],
     },
     {
@@ -81,11 +81,42 @@ const SCREENS = [
         // A fixture row, so the count beside the heading has arrived too.
         ready: (page) => page.getByText('Maria Garcia'),
     },
+    /*
+     * The driver dossier on a loaded, made-up record (`e2eDossier=loaded`, the
+     * same applicant whatever row opens it), opened from the list on the
+     * driver's name: on a phone the middle of a row is its call button. On a
+     * phone, Close, the name on one line and the section strip stay put above
+     * the record. Each part that loads on its own is waited on: Do not text (in
+     * the Summary's Contact card) once the opt-out check is answered here, the
+     * DQ marker once its (empty) list arrives, and the Application tab's
+     * summary, which it opens on.
+     */
+    {
+        name: 'company-dossier-loaded',
+        url: '/company/drivers/applications?e2eAuth=company_admin&e2eDossier=loaded',
+        callables: { checkSmsOptOut: { listed: false } },
+        // The name, not the middle of the cell, which now holds the phone number's button.
+        open: (page) => page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' })
+            .getByRole('rowheader').getByText('Maria Garcia', { exact: true }).click(),
+        ready: (page) => [
+            page.getByRole('dialog', { name: 'Driver dossier' })
+                .getByRole('heading', { level: 2, name: 'Maximiliano Alejandro Castellanos-Whitfield' }),
+            page.getByRole('button', { name: /^Do not text / }),
+            page.getByRole('tab', { name: /^DQ File.*incomplete/ }),
+            page.getByRole('heading', { name: 'Clean Record' }),
+        ],
+    },
     {
         name: 'company-settings',
         url: '/company/settings?e2eAuth=company_admin',
-        // Company profile beside the rail; on a phone, the menu of sections.
-        ready: (page) => page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ }),
+        // The menu of sections, at every width.
+        ready: (page) => page.getByRole('heading', { level: 1, name: 'Settings' }),
+    },
+    {
+        name: 'company-settings-profile',
+        url: '/company/settings?section=company&e2eAuth=company_admin',
+        // Company profile beside the rail; on a phone, with its way back to the menu.
+        ready: (page) => page.getByRole('heading', { level: 1, name: 'Company profile' }),
     },
     {
         name: 'company-profile',
@@ -130,11 +161,18 @@ const SCREENS = [
         callables: { listCompanyTeam: TEAM_ROSTER },
         ready: (page) => page.getByText('Maria-Annunziata Delacroix-Whitfield'),
     },
-    /* SMS before it is set up: the checklist (Firestore is unreachable here). */
+    /*
+     * SMS before it is set up: the checklist (Firestore is unreachable here), and
+     * under it the opted-out numbers, which come from a callable answered here.
+     */
     {
         name: 'company-settings-sms',
         url: '/company/settings?section=sms&e2eAuth=company_admin',
-        ready: (page) => page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ }),
+        callables: { listSmsOptOuts: SMS_OPT_OUTS },
+        ready: (page) => [
+            page.getByRole('heading', { level: 3, name: /^Connect RingCentral/ }),
+            page.getByRole('button', { name: 'Remove (555) 555-0199' }),
+        ],
     },
     {
         name: 'company-campaigns',
@@ -271,7 +309,7 @@ const SCREENS = [
     {
         name: 'super-admin-company-features',
         url: '/super-admin/companies/e2e-co-1?e2eAuth=super_admin&e2eCompanies=mock',
-        ready: (page) => page.getByRole('rowheader', { name: 'Call Tracking' }),
+        ready: (page) => page.getByRole('rowheader', { name: 'Facebook leads' }),
     },
     /*
      * A company's applications dialog, opened from the companies table on made-up
@@ -292,15 +330,15 @@ const SCREENS = [
     },
     /*
      * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
-     * and its delivery report dialog. Twelve made-up recipients, so both capped
-     * tables scroll. Details scrolls inside its own panel, below the masthead, so
+     * the campaign's one report screen. Twelve made-up recipients, so the capped
+     * table scrolls. Details scrolls inside its own panel, below the masthead, so
      * the shot brings the log into view there; the window does not move.
      */
     {
         name: 'company-campaign-results',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
         open: async (page) => {
-            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('tab', { name: /Sent & live/i }).click();
             await page.getByRole('button', { name: /^Details$/i }).first().click();
             await page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }).waitFor();
             // Only the panel that scrolls moves: `scrollIntoView` would also shift the
@@ -312,16 +350,6 @@ const SCREENS = [
             });
         },
         ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
-    },
-    {
-        name: 'company-campaign-report',
-        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
-        open: async (page) => {
-            await page.getByRole('tab', { name: /Past Sequences/i }).click();
-            await page.getByRole('button', { name: 'View Report' }).first().click();
-        },
-        ready: (page) => page.getByRole('dialog', { name: 'Delivery Report' })
-            .getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
     },
     {
         name: 'login',

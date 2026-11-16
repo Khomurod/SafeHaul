@@ -100,8 +100,18 @@ describe('ActivityHistoryTab — filtering', () => {
     it('puts the timeline in a named, focusable scroll region', async () => {
         fs.getDocs.mockResolvedValue(snap(LOGS));
         renderActivity();
-        const region = await screen.findByRole('region', { name: 'Audit Trail' });
+        const region = await screen.findByRole('region', { name: 'Activity' });
         expect(region).toHaveAttribute('tabindex', '0');
+    });
+
+    // The tab and the dossier header name it; "Audit Trail" named it a third time.
+    it('gives the tab no heading of its own', async () => {
+        fs.getDocs.mockResolvedValue(snap(LOGS));
+        renderActivity();
+        await screen.findByText('Call logged');
+        expect(screen.queryByText('Audit Trail')).toBeNull();
+        expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+        expect(screen.queryByRole('heading', { name: 'Activity' })).toBeNull();
     });
 });
 
@@ -156,6 +166,51 @@ describe('ActivityHistoryTab — older activity', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Show older activity' }));
         expect(await screen.findByText('Logged step 50')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+});
+
+// A trail that could not be read is not an empty one: the tab says so, and
+// Retry reads it again.
+describe('ActivityHistoryTab — a failed read', () => {
+    const offline = () => Object.assign(
+        new Error('Failed to get documents because the client is offline.'),
+        { code: 'unavailable' },
+    );
+    /** Each read answers the next of `answers`; a rejected one is handled here. */
+    const readsAnswer = (...answers) => {
+        answers.forEach((answer) => answer.catch(() => {}));
+        fs.getDocs.mockImplementation(() => answers.shift());
+    };
+
+    it('says the activity could not be loaded, not "No activity recorded"', async () => {
+        readsAnswer(Promise.reject(offline()));
+        renderActivity();
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Activity could not be loaded.');
+        expect(screen.getByRole('heading', { name: 'Activity could not be loaded.', level: 3 })).toBeInTheDocument();
+        expect(screen.queryByText('No activity recorded for this driver.')).not.toBeInTheDocument();
+        expect(screen.queryByText(/client is offline/)).not.toBeInTheDocument();
+    });
+
+    it('reads again on Retry and shows the trail', async () => {
+        readsAnswer(Promise.reject(offline()), Promise.resolve(snap(LOGS)));
+        renderActivity();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('Call logged')).toBeInTheDocument();
+        expect(screen.queryByText('Activity could not be loaded.')).not.toBeInTheDocument();
+        expect(fs.getDocs).toHaveBeenCalledTimes(2);
+    });
+
+    it('says the trail is empty when a Retry finds nothing', async () => {
+        readsAnswer(Promise.reject(offline()), Promise.resolve(snap([])));
+        renderActivity();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('No activity recorded for this driver.')).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 });

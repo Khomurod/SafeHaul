@@ -66,17 +66,32 @@ const VALID_KEY = '01234567890123456789012345678901'; // 32 chars
 process.env.SMS_ENCRYPTION_KEY = VALID_KEY;
 const enc = require('../../integrations/encryption');
 
-// The company's deactivation is read in shared/companyAccess.js (its own tests);
-// here the company is active unless a case says otherwise.
+// Who may manage SMS settings is one rule, the shared assertCompanyAdminStrict
+// (owner decision K1; the full matrix, owners included, runs it for real in
+// smsSettingsAccess.matrix.test.js). Here it stands in by the caller's token
+// role, and the company's deactivation (shared/companyAccess.js, its own tests)
+// is active unless a case says otherwise.
 const mockAssertCompanyActive = jest.fn();
+let mockCallerToken = {};
 jest.mock('../../shared/companyAccess', () => ({
   ...jest.requireActual('../../shared/companyAccess'),
-  assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+  assertCompanyAdminStrict: async (_uid, companyId) => {
+    if (!companyId) throw Object.assign(new Error('companyId is required.'), { code: 'invalid-argument' });
+    // The real rule reads the caller's Auth record; here the token stands in for it.
+    if (jest.requireActual('../../shared/superAdmin').isSuperAdminClaims(mockCallerToken)) return;
+    if (mockCallerToken.roles?.[companyId] !== 'company_admin') {
+      throw Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' });
+    }
+    await mockAssertCompanyActive(companyId);
+  },
 }));
 
 const { addPhoneLine, removePhoneLine } = require('../../integrations/controllers/configController');
 
-const req = (data, token = { roles: {} }) => ({ auth: { uid: 'u1', token }, data });
+const req = (data, token = { roles: {} }) => {
+  mockCallerToken = token;
+  return { auth: { uid: 'u1', token }, data };
+};
 const VALID = {
   companyId: 'co1',
   phoneNumber: '+15551234567',

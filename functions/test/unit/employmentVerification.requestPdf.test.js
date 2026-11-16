@@ -12,7 +12,7 @@ jest.mock('firebase-functions', () => require('./employmentVerification.support'
 jest.mock('../../emailService', () => require('./employmentVerification.support').emailServiceMock());
 jest.mock('../../shared/rateLimiter', () => require('./employmentVerification.support').rateLimiterMock());
 jest.mock('../../shared/companyAccess', () => require('./employmentVerification.support').companyAccessMock());
-jest.mock('uuid', () => require('./employmentVerification.support').uuidMock());
+jest.mock('../../shared/randomId', () => require('./employmentVerification.support').randomIdMock());
 jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support').firebaseAdminMock());
 
 const mockBuildRequestPdf = jest.fn();
@@ -108,7 +108,7 @@ describe('the request document', () => {
 
     it('files nothing in the DQ file when the email cannot be sent', async () => {
         mockSendDynamicEmail.mockRejectedValue(new Error('smtp down'));
-        await expect(send()).rejects.toBeTruthy();
+        await expect(send()).resolves.toMatchObject({ success: false });
         expect(dqFileDocs.size).toBe(0);
     });
 

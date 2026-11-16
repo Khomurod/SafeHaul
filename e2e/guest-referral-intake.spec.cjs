@@ -65,6 +65,16 @@ test.describe('guest referral intake', () => {
 
     await page.getByRole('button', { name: 'Fill out the full application' }).click();
     await expect(page.getByText('Fill Out Manually')).toBeVisible();
+
+    // Page one starts from what the driver just sent, and nothing more: the
+    // consent to be contacted is not the application's SMS answer.
+    await page.getByText('Fill Out Manually').click();
+    await expect(page.locator('#first-name')).toHaveValue('Sam');
+    await expect(page.locator('#last-name')).toHaveValue('Rivera');
+    await expect(page.locator('#phone')).toHaveValue('(312) 555-0142');
+    await expect(page.locator('#email')).toHaveValue('sam.rivera@example.com');
+    await expect(page.locator('#middle-name')).toHaveValue('');
+    await expect(page.locator('input[name="sms-consent"]:checked')).toHaveCount(0);
   });
 
   test('the full application starts from the usual chooser', async ({ page }) => {

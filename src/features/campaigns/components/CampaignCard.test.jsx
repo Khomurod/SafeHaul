@@ -28,6 +28,40 @@ describe('CampaignCard', () => {
         expect(bar).toHaveAttribute('aria-valuemax', '100');
     });
 
+    it('shows the share sent, the leads and the channel on one footer row of a sent card (C2)', () => {
+        render(
+            <CampaignCard
+                campaign={{
+                    id: '1', name: 'Done', status: 'completed', matchCount: 10,
+                    progress: { processedCount: 10, totalCount: 10, failedCount: 0 },
+                    messageConfig: { method: 'sms' },
+                }}
+            />,
+        );
+        expect(screen.getByText('10 / 10').parentElement).toHaveTextContent('10 / 10 · 100%');
+        expect(screen.getByText('10 leads')).toBeInTheDocument();
+        // The stored lower-case channel reads as its label, not by CSS capitals.
+        expect(screen.getByText('SMS')).toBeInTheDocument();
+        expect(screen.queryByText('sms')).not.toBeInTheDocument();
+        // A completed campaign's bar is green; one still sending keeps the default.
+        expect(screen.getByRole('progressbar', { name: 'Send progress' })).toHaveAttribute('data-tone', 'success');
+    });
+
+    it('rounds the share sent and keeps the bar in its default tone while sending', () => {
+        render(
+            <CampaignCard
+                campaign={{ id: '1', name: 'C', status: 'active', progress: { processedCount: 1, totalCount: 3 } }}
+            />,
+        );
+        expect(screen.getByText('1 / 3').parentElement).toHaveTextContent('1 / 3 · 33%');
+        expect(screen.getByRole('progressbar', { name: 'Send progress' })).toHaveAttribute('data-tone', 'info');
+    });
+
+    it('names a stored email channel Email', () => {
+        render(<CampaignCard campaign={draft({ messageConfig: { method: 'email' } })} />);
+        expect(screen.getByText('Email')).toBeInTheDocument();
+    });
+
     it('hides the failed count when there are no failures', () => {
         render(
             <CampaignCard
@@ -44,6 +78,17 @@ describe('CampaignCard', () => {
         expect(screen.queryByText('Progress')).not.toBeInTheDocument();
     });
 
+    it('dates the card in the app\'s one date style (K3)', () => {
+        render(<CampaignCard campaign={draft({ updatedAt: { toDate: () => new Date('2026-03-07T12:00:00Z') } })} />);
+        expect(screen.getByText('Mar 7, 2026')).toBeInTheDocument();
+        expect(screen.queryByText('3/7/2026')).not.toBeInTheDocument();
+    });
+
+    it('says Just now while the update time is pending', () => {
+        render(<CampaignCard campaign={draft({ updatedAt: { toDate: () => null } })} />);
+        expect(screen.getByText('Just now')).toBeInTheDocument();
+    });
+
     it('defaults method to SMS and leads to 0 when missing', () => {
         render(<CampaignCard campaign={{ id: '1', name: 'C', status: 'draft' }} />);
         expect(screen.getByText('0 leads')).toBeInTheDocument();
@@ -55,9 +100,12 @@ describe('CampaignCard', () => {
         ['draft', 'Draft', 'neutral'],
         ['completed', 'Completed', 'info'],
         ['scheduled', 'Scheduled', 'warning'],
-        ['queued', 'Queued', 'neutral'],
+        ['queued', 'Queued', 'accent'],
+        ['paused', 'Paused', 'warning'],
         ['cancelled', 'Cancelled', 'neutral'],
-        ['failed', 'Failed', 'neutral'],
+        // K2: a failed campaign reads as a failure, as it does in its report.
+        ['failed', 'Failed', 'danger'],
+        ['mystery', 'Mystery', 'neutral'],
     ])('presents %s as label "%s" with tone %s', (status, label, tone) => {
         render(<CampaignCard campaign={{ id: '1', name: 'C', status }} />);
         const badge = screen.getByText(label);
@@ -124,14 +172,14 @@ describe('CampaignCard', () => {
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
-    it('shows View Report for non-draft statuses only, and calls the handler', () => {
-        const onViewReport = vi.fn();
-        const { rerender } = render(<CampaignCard campaign={draft()} onViewReport={onViewReport} />);
-        expect(screen.queryByRole('button', { name: 'View Report' })).not.toBeInTheDocument();
+    // A sent campaign has one report screen, which Details opens: no second link to it.
+    it('offers Details, and no separate View Report, on a sent campaign', () => {
+        const onClick = vi.fn();
+        render(<CampaignCard campaign={{ id: '1', name: 'C', status: 'completed' }} onClick={onClick} />);
 
-        rerender(<CampaignCard campaign={{ id: '1', name: 'C', status: 'completed' }} onViewReport={onViewReport} />);
-        fireEvent.click(screen.getByRole('button', { name: 'View Report' }));
-        expect(onViewReport).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('button', { name: /View Report/i })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Details/ }));
+        expect(onClick).toHaveBeenCalledTimes(1);
     });
 
     it('opens the campaign from the keyboard-accessible Details button and from a card body click', () => {
@@ -151,7 +199,6 @@ describe('CampaignCard', () => {
             <CampaignCard
                 campaign={{ id: '1', name: 'Live', status: 'active', progress: { processedCount: 5, totalCount: 10, failedCount: 1 }, messageConfig: { method: 'SMS' } }}
                 onCancel={vi.fn()}
-                onViewReport={vi.fn()}
             />,
         );
         expect((await axe(container)).violations).toEqual([]);

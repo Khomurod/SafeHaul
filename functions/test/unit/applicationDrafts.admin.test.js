@@ -179,6 +179,26 @@ describe('reading any unfinished application', () => {
         expect(custom.has('q-internal')).toBe(false);
     });
 
+    it('takes the company document as the admin check read it, without reading it again', async () => {
+        seedDraft();
+        mockAssertCompanyAdmin.mockResolvedValue({ exists: true, data: () => ({ applicationRules: { asChecked: true } }) });
+
+        const { form } = await view();
+
+        // The projection holds no rules, so the company document's are shown.
+        expect(form.applicationRules).toEqual({ asChecked: true });
+    });
+
+    it("reads the company document itself when a super admin's check could not", async () => {
+        seedDraft();
+        mockStore.set(`companies/${COMPANY}`, { ...mockStore.get(`companies/${COMPANY}`), applicationRules: { asStored: true } });
+        mockAssertCompanyAdmin.mockResolvedValue(undefined);
+
+        const { form } = await view();
+
+        expect(form.applicationRules).toEqual({ asStored: true });
+    });
+
     it('never carries an SSN, an agreement, a signature or a submission time', async () => {
         // A draft cannot hold an SSN — it is stripped three times on the way in —
         // so this one is planted, to prove the read does not lean on that.

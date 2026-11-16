@@ -44,6 +44,8 @@ describe('Data cleanup card', () => {
             'Old lead fields',
             'Application search fields',
             'Old SMTP password copies',
+            'DQ valid-until dates',
+            'Old driver staging copies',
         ]);
         expect(screen.getAllByRole('button', { name: 'Run' }).every((b) => b.disabled)).toBe(true);
         expect((await axe(container)).violations).toEqual([]);

@@ -36,7 +36,7 @@ const importMocks = vi.hoisted(() => ({
 }));
 
 // What the count hook answers. A test sets the numbers the ledger found.
-const defaultTargeting = () => ({ matchCount: 10, alreadyMessaged: 0, isLoading: false, alreadyMessagedKeys: new Set() });
+const defaultTargeting = () => ({ matchCount: 10, alreadyMessaged: 0, isLoading: false, alreadyMessagedKeys: new Set(), needsRecount: false });
 let mockTargeting = defaultTargeting();
 const targetingCalls = [];
 vi.mock('../hooks/useCampaignTargeting', () => ({
@@ -316,7 +316,7 @@ describe('AudienceBuilder', () => {
             expect.objectContaining({ method: 'sms' }),
         );
 
-        // Alice is an applicant, not one of "My Leads": the server's count of 10
+        // Alice is an applicant, not one of the Leads: the server's count of 10
         // already leaves her out, and taking her off again would undercount. Her
         // un-tick still goes to the server, in case the filters match her again.
         mockCrmLeads = [{ id: 'lead3', firstName: 'Cara', lastName: 'Hauler' }];
@@ -435,7 +435,7 @@ describe('AudienceBuilder — migrated presentation', () => {
             expect.objectContaining({ method: 'sms' }),
         );
         expect(screen.getByLabelText('Source')).toHaveValue('applications');
-        expect(screen.getByLabelText('Owner')).toHaveValue('all');
+        expect(screen.getByLabelText('Assigned to')).toHaveValue('all');
         expect(screen.getByRole('button', { name: 'New Application' })).toHaveAttribute('aria-pressed', 'true');
     });
 
@@ -491,8 +491,11 @@ describe('AudienceBuilder — migrated presentation', () => {
 
         const source = screen.getByLabelText('Source');
         expect([...source.options].map(o => o.value)).toEqual(['applications', 'leads']);
+        // `leads` is every company lead, so it reads Leads; the owner picker's
+        // Me is the reader's own.
+        expect([...source.options].map(o => o.textContent)).toEqual(['Applicants', 'Leads']);
 
-        const owner = screen.getByLabelText('Owner');
+        const owner = screen.getByLabelText('Assigned to');
         expect([...owner.options].map(o => o.value)).toEqual(['all', 'my_leads', 'recruiter1', 'recruiter2']);
 
         const exclude = screen.getByLabelText('Exclude Previously Messaged');
@@ -514,7 +517,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'leads' } });
         expect(onChange.mock.calls.at(-1)[0].leadType).toBe('leads');
 
-        fireEvent.change(screen.getByLabelText('Owner'), { target: { value: 'recruiter2' } });
+        fireEvent.change(screen.getByLabelText('Assigned to'), { target: { value: 'recruiter2' } });
         expect(onChange.mock.calls.at(-1)[0].recruiterId).toBe('recruiter2');
 
         fireEvent.change(screen.getByLabelText('Limit Volume'), { target: { value: '250' } });
@@ -564,7 +567,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(targetingCalls.at(-1)[3]).toBe('email');
         expect(listProps.at(-1).method).toBe('email');
         expect(screen.getByText('3 already messaged by email')).toBeInTheDocument();
-        expect(onChange).toHaveBeenLastCalledWith(expect.anything(), 8, { method: 'email', alreadyMessaged: 3 });
+        expect(onChange).toHaveBeenLastCalledWith(expect.anything(), 8, { method: 'email', alreadyMessaged: 3, needsRecount: false });
     });
 
     it('passes the frozen VirtualLeadList props in CRM and upload modes', () => {
@@ -653,6 +656,39 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(screen.queryByText('0')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
         expect(retry).toHaveBeenCalledTimes(1);
+    });
+
+    // With the exclusion window on, the count waits for Recalculate audience
+    // (owner decision K5): the panel says so, shows no number, and the editor is
+    // told, so Launch waits too.
+    it('shows a count that is not up to date, reports none, and recounts on Recalculate', () => {
+        const recount = vi.fn();
+        mockTargeting = { ...defaultTargeting(), matchCount: 0, needsRecount: true, recount };
+        const { onChange } = renderBuilder({ filters: { excludeRecentDays: '30', excludedLeadIds: [] } });
+
+        expect(screen.getByText('Count not up to date')).toBeInTheDocument();
+        expect(screen.getByText('—')).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent('The recipient count is not up to date.');
+        expect(screen.getByRole('button', { name: 'Confirm Audience (—)' })).toBeInTheDocument();
+        expect(onChange).toHaveBeenLastCalledWith(expect.anything(), 0, { method: 'sms', alreadyMessaged: 0, needsRecount: true });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Recalculate audience' }));
+        expect(recount).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not flag an uploaded list over the limit before it is counted', () => {
+        mockCsvData = Array.from({ length: 2001 }, (_, i) => ({ normalizedPhone: `+1555${String(i).padStart(7, '0')}`, firstName: `Row${i}` }));
+        mockTargeting = { ...defaultTargeting(), matchCount: 0, needsRecount: true, recount: vi.fn() };
+        const { onChange } = renderBuilder({ filters: { leadType: 'import', excludedLeadIds: [] } });
+
+        expect(screen.queryByText('Over the 2,000-per-launch limit')).not.toBeInTheDocument();
+        expect(onChange.mock.calls.at(-1)[1]).toBe(0);
+    });
+
+    it('has no accessibility violations while the count is not up to date', async () => {
+        mockTargeting = { ...defaultTargeting(), matchCount: 0, needsRecount: true, recount: vi.fn() };
+        const { container } = renderBuilder({ filters: { excludeRecentDays: '30', excludedLeadIds: [] } });
+        expect((await axe(container)).violations).toEqual([]);
     });
 
     it('does not flag an audience of exactly 2,000', () => {

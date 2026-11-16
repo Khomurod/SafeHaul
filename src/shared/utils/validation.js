@@ -23,17 +23,3 @@ export const isValidPhone = (phone) => {
     if (cleaned.length === 11 && cleaned.startsWith('1')) return true;
     return false;
 };
-
-/**
- * D5: Single canonical phone normalizer lives in helpers.js (more robust: coerces to
- * string, trims, never drops digits). Re-exported here so existing
- * `import { normalizePhone } from '.../validation'` call sites keep working without a
- * second, drift-prone implementation.
- */
-export { normalizePhone } from './helpers';
-
-export const isValidSSN = (ssn) => {
-    // Basic format check: AAA-GG-SSSS or AAAGGSSSS
-    const cleaned = ssn.replace(/\D/g, '');
-    return cleaned.length === 9;
-};

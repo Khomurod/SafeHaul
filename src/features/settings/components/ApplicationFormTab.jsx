@@ -12,12 +12,14 @@ import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPan
 import { AgreementsPanel } from './rules/AgreementsPanel';
 import { withoutBlankOptions } from '@/config/customQuestionOptions';
 import { isCompanyAdminForRoute, isSuperAdminClaims } from '@app/auth/roles';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
+/** The tab ids stay as they were; "Report uploads" keeps the id `integrations`. */
 const TABS = [
     { id: 'questions', label: 'Questions', icon: ListChecks },
     { id: 'rules', label: 'Rules', icon: SlidersHorizontal },
     { id: 'agreements', label: 'Agreements', icon: FileSignature },
-    { id: 'integrations', label: 'Integrations', icon: Blocks },
+    { id: 'integrations', label: 'Report uploads', icon: Blocks },
 ];
 
 /** What each part of the form is called in the save bar, keyed by the field it saves. */
@@ -25,7 +27,7 @@ const PARTS = [
     ['applicationConfig', 'Questions'],
     ['customQuestions', 'Questions'],
     ['applicationRules', 'Rules'],
-    ['applicationIntegrations', 'Integrations'],
+    ['applicationIntegrations', 'Report uploads'],
 ];
 
 /**
@@ -46,9 +48,9 @@ const FIELDS = ['applicationConfig', 'customQuestions', 'applicationRules', 'app
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
- * Settings → Application form: what drivers are asked, what happens to their
- * answers, the agreements they sign, and optional imports. Questions, Rules and
- * Integrations are edited together and saved with one `SaveBar` through
+ * Settings → Application questions: what drivers are asked, what happens to their
+ * answers, the agreements they sign, and optional report uploads (PSP, MVR).
+ * Questions, Rules and Report uploads are edited together and saved with one `SaveBar` through
  * `saveCompanySettings`, which writes only the parts changed here. Agreements save
  * themselves (their own callables; publishing is Super Admin only).
  */
@@ -117,7 +119,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
             showSuccess('Company settings saved successfully.');
         } catch (error) {
             console.error('Save failed', error);
-            showError('Failed to save settings: ' + error.message);
+            showError(plainErrorMessage(error, 'The application questions could not be saved.'));
         } finally {
             setSaving(false);
         }
@@ -128,11 +130,12 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
     return (
         <Stack gap="lg">
             <PageHeader
-                title="Application form"
+                title="Application questions"
                 description="What drivers are asked, what happens to their answers, and the agreements they sign."
             />
             <TabList
-                ariaLabel="Application form sections"
+                variant="segmented"
+                ariaLabel="Application questions sections"
                 idBase="application-form"
                 tabs={TABS}
                 activeTab={activeTab}
@@ -167,7 +170,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
             </TabPanel>
             {dirty && (
                 <SaveBar
-                    summary={`${changedParts.join(', ') || 'Application form'} changed`}
+                    summary={`${changedParts.join(', ') || 'Application questions'} changed`}
                     saving={saving}
                     onSave={handleSave}
                     onDiscard={discard}

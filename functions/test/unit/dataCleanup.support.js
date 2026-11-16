@@ -211,7 +211,8 @@ function createWorld() {
         runTransaction: async (handler) => {
             const ops = [];
             const transaction = {
-                get: async (ref) => snapshot(ref.path),
+                // A document is read by its path; a collection or query, as its own `get` reads it.
+                get: async (ref) => (typeof ref.doc === 'function' ? ref.get() : snapshot(ref.path)),
                 set: (ref, data, options) => ops.push(() => applySet(ref.path, data, options)),
                 update: (ref, data) => ops.push(() => applyUpdate(ref.path, data)),
             };

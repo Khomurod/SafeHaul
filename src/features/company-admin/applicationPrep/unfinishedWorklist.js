@@ -116,11 +116,29 @@ export function describeActivity(entry, now) {
     return `${when === 'today' ? 'Today' : 'Yesterday'}, ${time}`;
 }
 
-/** "sent 3 days ago", for a carrier's link the driver has not taken up yet. */
+/** "Sent 3 days ago", a line of its own, for a carrier's link the driver has not taken up yet. */
 export function describeSent(entry, now) {
     if (startedBy(entry) !== 'company' || entry?.status !== 'sent') return null;
     const when = daysAgo(entry?.invitedAt, now);
-    return when === null ? null : `sent ${when}`;
+    return when === null ? null : `Sent ${when}`;
+}
+
+/**
+ * What a carrier's row adds to its status, each a line of its own: who
+ * prepared it, when its link went, and how many employers it locked (an
+ * orphaned lock once blocked a driver's submission unseen, so the count is
+ * shown where a carrier can check it). Empty for a driver's own row.
+ *
+ * @param {object} entry one row of `listApplicationDrafts`
+ * @param {{ preparedByName?: ?string, lockedEmployersLabel?: ?string }} row `describeUnfinishedRow`'s reading of it
+ * @returns {string[]}
+ */
+export function statusDetailsOf(entry, row, now) {
+    return [
+        row?.preparedByName && `Prepared by ${row.preparedByName}`,
+        describeSent(entry, now),
+        row?.lockedEmployersLabel,
+    ].filter(Boolean);
 }
 
 /**
@@ -193,4 +211,51 @@ export function visibleRows(rows, { filter = 'all', query = '', now, keepKey = n
     const keep = KEEPS[filter] || KEEPS.all;
     return rows.filter((entry) => (keep(entry, now) || (keepKey !== null && entry?.applicantKey === keepKey))
         && matchesSearch(entry, query));
+}
+
+/*
+ * The table's columns from 768px, in pixels, with the tight cell padding C2
+ * draws this list with (12px between columns, 16px at the edges): the initials'
+ * slot, the driver (`xl`, the longest email on one line), the design system's
+ * width steps (`md` 144, `lg` 176), the least Last activity takes ("Yesterday,
+ * 4:20 PM" on one line) and the actions' three places (`3xl`).
+ */
+const INITIALS_PX = 48;
+const DRIVER_PX = 220;
+const ACTIVITY_MIN_PX = 156;
+const ACTIONS_PX = 324;
+const STEP_PX = { md: 144, lg: 176 };
+
+/** The width every column needs, `progress` at the given step. */
+function neededFor({ progress, activity }) {
+    return INITIALS_PX + DRIVER_PX + STEP_PX[progress] + STEP_PX.lg + (activity ? ACTIVITY_MIN_PX : 0) + ACTIONS_PX;
+}
+
+/**
+ * How the worklist's table is laid out in a box `width` pixels wide (from 768px;
+ * a phone's cards are decided by the window).
+ *
+ * - `full`: every column, Last activity in its own, once the box holds it. It
+ *   takes what the others leave, and the actions keep their three places.
+ * - `fold`: Last activity is read under the status instead, so the actions stay
+ *   in view; they take what the others leave.
+ *
+ * Then, as room allows, How far they got takes `lg` ("Agreements & signature"
+ * on one line); otherwise `md`, and a long page name wraps. Status is `lg`
+ * ("Prepared by Rae Recruiter" on one line). Below the narrowest fold the table
+ * keeps those widths and scrolls inside its card. At 1440px beside the menu
+ * (a 1102px box) every column is on one line, as C2 draws it.
+ *
+ * Measured from the box rather than guessed from the window, so a scrollbar or
+ * a collapsed sidebar is counted. `width` 0 (not measured yet) answers the
+ * narrow step of the shape the window suggests (`foldByWindow`).
+ *
+ * @returns {{ shape: 'full' | 'fold', progress: 'md' | 'lg', status: 'lg' }}
+ */
+export function worklistLayoutOf(width, { foldByWindow = false } = {}) {
+    const narrow = { progress: 'md', status: 'lg' };
+    if (!(width > 0)) return { shape: foldByWindow ? 'fold' : 'full', ...narrow };
+    const activity = width >= neededFor({ progress: 'md', activity: true });
+    const progress = width >= neededFor({ progress: 'lg', activity }) ? 'lg' : 'md';
+    return { shape: activity ? 'full' : 'fold', progress, status: 'lg' };
 }

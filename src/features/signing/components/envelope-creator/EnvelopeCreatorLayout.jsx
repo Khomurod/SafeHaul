@@ -43,6 +43,7 @@ const MOBILE_SHEET_TITLES = {
 };
 
 export function EnvelopeCreatorLayout({
+    companyId,
     isCompact,
     editorMode,
     title,
@@ -224,6 +225,8 @@ export function EnvelopeCreatorLayout({
                     activeField={activeField}
                     updateActiveField={updateActiveField}
                     getIcon={getIcon}
+                    companyId={companyId}
+                    isTemplate={creatorMode === 'template'}
                 />
             }
             aiPanel={

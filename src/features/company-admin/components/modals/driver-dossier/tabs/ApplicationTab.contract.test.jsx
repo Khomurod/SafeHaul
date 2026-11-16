@@ -6,24 +6,38 @@
  *
  * Out of scope for this campaign (and therefore only smoke-checked here): the
  * full-application `SchemaSection` editing path and the propose/review-link
- * workflow, which belong to the complex-editing campaign.
+ * workflow, which belong to the complex-editing campaign. Pinned here: Edit
+ * Application edits only the fields the server changes (the shared
+ * `applicationEditableFields.json`) and says why the rest has no box.
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { APPLICATION_SCHEMA } from '@/config/applicationSchema';
+import EDITABLE_FIELD_KEYS from '../../../../../../../functions/shared/applicationEditableFields.json';
 
 let changesState;
 vi.mock('@features/applications/hooks/useApplicationChanges', () => ({
   useApplicationChanges: () => changesState,
 }));
 
+/** The props each section was last rendered with, by section id. */
+let schemaProps = {};
 vi.mock('@shared/components/schema/SchemaRenderer', () => ({
-  SchemaSection: ({ sectionId }) => <div data-testid={`schema-${sectionId}`} />,
+  SchemaSection: (props) => {
+    schemaProps[props.sectionId] = props;
+    return <div data-testid={`schema-${props.sectionId}`} />;
+  },
 }));
 
 let submissionRecordState = { record: null, loading: false, error: null };
 vi.mock('@features/applications/hooks/useSubmissionRecord', () => ({
   useSubmissionRecord: () => submissionRecordState,
+}));
+
+// The opt-out lookup is a callable; `DossierKeyFacts.test.jsx` covers it.
+vi.mock('../useDoNotText', () => ({
+  useDoNotText: () => ({ usable: true, checking: false, listed: false, markDoNotText: async () => ({ added: true }) }),
 }));
 
 import { ApplicationTab } from './ApplicationTab';
@@ -127,6 +141,7 @@ const NOT_PRESERVED = {
 
 const renderTab = (appData = APP, props = {}) => {
   resetChanges();
+  schemaProps = {};
   submissionRecordState = props.submissionRecord !== undefined
     ? props.submissionRecord
     : { record: NOT_PRESERVED, loading: false, error: null };
@@ -138,10 +153,52 @@ const renderTab = (appData = APP, props = {}) => {
       canEdit={props.canEdit ?? false}
       companyId="co-1"
       applicationId="app-1"
-      collectionName="applications"
+      collectionName={props.collectionName || 'applications'}
     />,
   );
 };
+
+describe('ApplicationTab contact summary (the left column\'s facts, moved here)', () => {
+  const CONTACT = {
+    ...APP,
+    phone: '5125551234',
+    email: 'maria@example.com',
+    createdAt: { toDate: () => new Date('2026-07-11T12:00:00Z') },
+    lastCallOutcome: 'No Answer',
+  };
+
+  it('opens with the phone, email, the day it came in and the last call, first among the cards', () => {
+    renderTab(CONTACT);
+    const valueOf = (label) => screen.getByText(label, { selector: 'dt' }).nextElementSibling;
+    expect(screen.getByRole('heading', { level: 4, name: 'Contact' })).toBeInTheDocument();
+    expect(valueOf('Phone')).toHaveTextContent('(512) 555-1234');
+    expect(valueOf('Email')).toHaveTextContent('maria@example.com');
+    expect(valueOf('Applied')).toHaveTextContent(/2026/);
+    expect(valueOf('Last call')).toHaveTextContent('No Answer');
+    // First: before Personal Information.
+    const headings = screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
+    expect(headings.indexOf('Contact')).toBeLessThan(headings.indexOf('Personal Information'));
+  });
+
+  it('offers Do not text beside the phone to someone who can edit, and not to anyone else', () => {
+    renderTab(CONTACT, { canEdit: true });
+    expect(screen.getByRole('button', { name: 'Do not text (512) 555-1234' })).toBeInTheDocument();
+    cleanup();
+    renderTab(CONTACT, { canEdit: false });
+    expect(screen.queryByRole('button', { name: /Do not text/ })).toBeNull();
+  });
+
+  it('says Added for a lead', () => {
+    renderTab(CONTACT, { collectionName: 'leads' });
+    expect(screen.getByText('Added', { selector: 'dt' })).toBeInTheDocument();
+  });
+
+  it('is the summary\'s alone: the preserved original and the full application leave it out', () => {
+    renderTab(CONTACT);
+    fireEvent.click(screen.getByRole('button', { name: /Full Application/i }));
+    expect(screen.queryByRole('heading', { level: 4, name: 'Contact' })).toBeNull();
+  });
+});
 
 describe('ApplicationTab identity summary', () => {
   it('joins the full name including a middle name', () => {
@@ -173,6 +230,14 @@ describe('ApplicationTab identity summary', () => {
   it('uses the fully-masked fallback for a short or missing SSN', () => {
     renderTab({ ...APP, ssn: '' });
     expect(screen.getByText('***-**-****')).toBeInTheDocument();
+  });
+
+  it('never masks a value without four digits down to a piece of its text', () => {
+    renderTab({ ...APP, ssn: 'Unknown' });
+    expect(screen.getByText('***-**-****')).toBeInTheDocument();
+    expect(screen.queryByText('***-**-nown')).toBeNull();
+    // Nothing to reveal, so no Show SSN.
+    expect(screen.queryByRole('button', { name: /show ssn/i })).toBeNull();
   });
 
   it('joins the address and falls back to an em dash', () => {
@@ -208,6 +273,14 @@ describe('ApplicationTab license summary', () => {
     d.setDate(d.getDate() + offsetDays);
     renderTab({ ...APP, cdlExpiration: d.toISOString() });
     expect(screen.getByText(expected)).toBeInTheDocument();
+  });
+
+  it("labels the expiry as the application's, or a lead's as the lead's", () => {
+    renderTab();
+    expect(screen.getByText('Expiration (from application)')).toBeInTheDocument();
+    cleanup();
+    renderTab(APP, { collectionName: 'leads' });
+    expect(screen.getByText('Expiration (from lead)')).toBeInTheDocument();
   });
 
   it('shows no expiry band at all when there is no expiry date', () => {
@@ -261,6 +334,19 @@ describe('ApplicationTab employment summary', () => {
   it('labels an open-ended job as Present', () => {
     renderTab({ ...APP, employers: [{ companyName: 'Now Co', startDate: '2022-03-01' }] });
     expect(screen.getByText(/Present/)).toBeInTheDocument();
+  });
+
+  it('dates the timeline in the app\'s one date style (K3), a stored month as its month', () => {
+    renderTab({
+      ...APP,
+      employers: [
+        { companyName: 'Day Co', startDate: '2026-03-07', endDate: '2026-04-30' },
+        { companyName: 'Month Co', startDate: '2024-03', endDate: '2025-11' },
+      ],
+    });
+    expect(screen.getByText('Mar 7, 2026 – Apr 30, 2026')).toBeInTheDocument();
+    expect(screen.getByText('Mar 2024 – Nov 2025')).toBeInTheDocument();
+    expect(screen.queryByText(/3\/7\/2026|03\/2024/)).not.toBeInTheDocument();
   });
 
   it('shows the contact permission as text, never colour alone', () => {
@@ -328,6 +414,13 @@ describe('ApplicationTab view toggle', () => {
     expect(screen.queryByTestId('schema-personal')).toBeNull();
   });
 
+  it('orders the views Summary, As Submitted, Full Application, each with its glyph', () => {
+    renderTab();
+    const views = within(screen.getByRole('group', { name: 'Application view' })).getAllByRole('button');
+    expect(views.map((view) => view.textContent)).toEqual(['Summary View', 'As Submitted', 'Full Application']);
+    for (const view of views) expect(view.querySelector('svg')).not.toBeNull();
+  });
+
   it('switches to the full application view', () => {
     renderTab();
     fireEvent.click(screen.getByRole('button', { name: /full application/i }));
@@ -380,6 +473,35 @@ describe('ApplicationTab pending changes', () => {
     expect(screen.getByText(`${'y'.repeat(48)}…`)).toBeInTheDocument();
   });
 
+  const PENDING = [{ id: 'c1', fieldLabel: 'Phone', originalValue: '111', proposedValue: '222', status: 'pending' }];
+
+  it('offers to email the review link to the application’s address, beside Copy', () => {
+    const emailReviewLink = vi.fn();
+    renderTab({ ...APP, email: 'maria@example.test' }, { changes: { pendingChanges: PENDING, emailReviewLink } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Email review link to driver/i }));
+    expect(emailReviewLink).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Copy driver review link/i })).toBeInTheDocument();
+  });
+
+  it('says where it was emailed, masked, and that a copied link would replace it', () => {
+    renderTab({ ...APP, email: 'maria@example.test' }, {
+      changes: { pendingChanges: PENDING, emailReviewLink: vi.fn(), emailedTo: 'm***@example.test' },
+    });
+    expect(screen.getByText(/Emailed to m\*\*\*@example\.test/)).toBeInTheDocument();
+    expect(screen.getByText(/A copied link replaces the emailed one/)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['no email', ''],
+    ['a placeholder email', 'maria@placeholder.safehaulapp.com'],
+  ])('offers no email with %s, says why, and keeps Copy', (_label, email) => {
+    renderTab({ ...APP, email }, { changes: { pendingChanges: PENDING, emailReviewLink: vi.fn() } });
+    expect(screen.queryByRole('button', { name: /Email review link to driver/i })).toBeNull();
+    expect(screen.getByText(/No email address on this application, so the review link can only be copied/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Copy driver review link/i })).toBeInTheDocument();
+  });
+
   it('hides the banner when there are no pending changes', () => {
     renderTab();
     expect(screen.queryByText(/edited by company/)).toBeNull();
@@ -399,13 +521,18 @@ describe('ApplicationTab pending changes', () => {
 describe('ApplicationTab — which record it shows', () => {
   // The defect this replaces: the provenance banner said "preserved original"
   // while every view below it rendered the live, editable application document.
-  const withPreserved = (appData = APP) => renderTab(appData, {
-    submissionRecord: { record: PRESERVED, loading: false, error: null },
-  });
+  /** A record with a preserved original, shown with "As Submitted" chosen. */
+  const withPreserved = (appData = APP) => {
+    renderTab(appData, { submissionRecord: { record: PRESERVED, loading: false, error: null } });
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
+  };
 
-  it('opens on the preserved original when one exists', () => {
-    withPreserved();
-    expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
+  it('opens on the summary even with a preserved original, which is one click away', () => {
+    renderTab(APP, { submissionRecord: { record: PRESERVED, loading: false, error: null } });
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Choose “As Submitted” for the frozen original/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
     expect(screen.getByText(/Preserved original submission/i)).toBeInTheDocument();
   });
 
@@ -464,13 +591,79 @@ describe('ApplicationTab — which record it shows', () => {
     expect(screen.queryByText('***-**-6789')).toBeNull();
   });
 
-  it('waits for the record rather than opening on live data and swapping', () => {
-    // Defaulting to the summary during the read would show the live document
-    // and then replace it with the frozen one — the one transition that must
-    // not happen quietly on this screen.
+  it('stays on the summary when the preserved record arrives: only the reader changes the view', () => {
+    resetChanges();
+    submissionRecordState = { record: null, loading: true, error: null };
+    const tab = () => <ApplicationTab appData={APP} companyId="co-1" applicationId="app-1" />;
+    const { rerender } = render(tab());
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Maria Elena Garcia')).toBeInTheDocument();
+
+    // The read resolves: the summary stays, now pointing to the original.
+    submissionRecordState = { record: PRESERVED, loading: false, error: null };
+    rerender(tab());
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Maria Elena Garcia')).toBeInTheDocument();
+    expect(screen.getByText(/Choose “As Submitted” for the frozen original/)).toBeInTheDocument();
+  });
+
+  it('says it is loading the original when "As Submitted" is chosen before the read is back', () => {
     renderTab(APP, { submissionRecord: { record: null, loading: true, error: null } });
-    expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
     expect(screen.getByText(/Loading the preserved record/i)).toBeInTheDocument();
     expect(screen.queryByText('Maria Elena Garcia')).toBeNull();
+  });
+});
+
+
+describe('ApplicationTab — Edit Application edits only what the server changes', () => {
+  const editable = new Set(EDITABLE_FIELD_KEYS);
+  const sections = APPLICATION_SCHEMA.sections.filter((section) => section.id !== 'employmentHistory');
+  const offList = (section) => (section.fields || []).map((field) => field.key).filter((key) => !editable.has(key));
+  const startEditing = () => {
+    renderTab(APP, { canEdit: true });
+    fireEvent.click(screen.getByRole('button', { name: /edit application/i }));
+  };
+  const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const heading = (section) => screen.getByRole('heading', { level: 4, name: new RegExp(`^${literal(section.title)}`) });
+
+  it('keeps every field off the shared list display-only, in every section', () => {
+    startEditing();
+    for (const section of sections) {
+      expect(schemaProps[section.id], section.id).toMatchObject({ isEditing: true, lockedKeys: offList(section) });
+    }
+    // Spelled out for the section a recruiter edits most: names, SSN, birth
+    // date and contact details stay editable; the rest of the driver's answers do not.
+    expect(schemaProps.personalInfo.lockedKeys).toEqual(['known-by-other-name', 'otherName', 'sms-consent', 'referralSource']);
+  });
+
+  it('says why a field has no box, only while editing', () => {
+    renderTab(APP, { canEdit: true });
+    expect(screen.queryByText(/Fields without a box are display only/)).toBeNull();
+
+    cleanup();
+    startEditing();
+    const reason = screen.getByText(/Fields without a box are display only/);
+    expect(reason).toHaveTextContent("the driver's own answers, documents and signature, which the company can't change");
+    // On the server's list, but this screen has no editor for them: not "can't change".
+    expect(reason).toHaveTextContent('previous addresses, violations and accidents, which this screen cannot edit yet');
+  });
+
+  it('marks a section with nothing to edit as display only, and no other', () => {
+    startEditing();
+    for (const section of APPLICATION_SCHEMA.sections) {
+      const nothingToEdit = section.id !== 'employmentHistory' && offList(section).length === (section.fields || []).length;
+      const badge = within(heading(section)).queryByText('Display only');
+      expect(Boolean(badge), section.id).toBe(nothingToEdit);
+    }
+    expect(within(heading({ title: 'Qualification Information' })).getByText('Display only')).toBeInTheDocument();
+    expect(within(heading({ title: 'Personal Information' })).queryByText('Display only')).toBeNull();
+  });
+
+  it('shows no display-only marks while not editing', () => {
+    renderTab(APP, { canEdit: true });
+    fireEvent.click(screen.getByRole('button', { name: /full application/i }));
+    expect(screen.queryByText('Display only')).toBeNull();
+    expect(schemaProps.qualifications.isEditing).toBe(false);
   });
 });

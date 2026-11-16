@@ -16,6 +16,7 @@ import {
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Multi-tenant access editor inside the Super Admin Edit User dialog.
@@ -83,7 +84,7 @@ function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
       console.error("Error updating role:", error);
       // The select is controlled by `currentRole`, which is left untouched on
       // failure, so React restores the previous value on the next render.
-      setError(`Failed to update role: ${error.message}\nEnsure you are logged in as Super Admin.`);
+      setError(plainErrorMessage(error, 'The role could not be changed.'));
     } finally {
       setLoading(false);
     }
@@ -99,7 +100,7 @@ function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
       onUpdate(); // Refresh main user list
     } catch (error) {
       console.error("Error removing membership:", error);
-      setError(`Failed to remove: ${error.message}`);
+      setError(plainErrorMessage(error, 'The membership could not be removed.'));
       setRemoveLoading(false);
     }
   };
@@ -234,7 +235,7 @@ export function UserMembershipsManager({ userId, allCompaniesMap, onDataUpdate }
       onDataUpdate(); // Refresh main user list
     } catch (error) {
       console.error("Add Membership Error:", error);
-      setAddError(error.message);
+      setAddError(plainErrorMessage(error, 'The membership could not be added.'));
     }
   };
 

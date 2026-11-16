@@ -15,6 +15,7 @@ import { db, functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { sanitizePhone } from '../utils/linePhone';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 export function useLineAssignments(companyId) {
     const { showSuccess, showError } = useToast();
@@ -241,7 +242,7 @@ export function useLineAssignments(companyId) {
                     timestamp: new Date().toISOString()
                 }
             }));
-            showError(`Line ${phoneNumber} connection failed: ${error.message}`);
+            showError(plainErrorMessage(error, `Line ${phoneNumber} could not be checked.`));
         } finally {
             setVerifyingLine(null);
         }

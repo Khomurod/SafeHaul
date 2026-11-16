@@ -385,6 +385,11 @@ describe('once it is connected', () => {
         expect(screen.getByText('2. Chat: Dana Alvarez')).toBeTruthy();
     });
 
+    it('says when the last check ran in the app\'s one date style, with its time (K3)', async () => {
+        render(<TelegramAlertsCard />);
+        expect(await screen.findByText(/^Last check: Aug 2, 2026, \d{2}:\d{2} (AM|PM)$/)).toBeTruthy();
+    });
+
     it('says who can release from the chat, or how to set that up', async () => {
         const { unmount } = render(<TelegramAlertsCard />);
         expect(await screen.findByText(/press Reconnect chat once and press Start/)).toBeTruthy();

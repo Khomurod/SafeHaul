@@ -52,7 +52,8 @@ const STATUS_TONES = [
 
 /** The tone a status reads as. Exported so a caller can tone a row to match. */
 export function getStatusTone(status) {
-    const s = (status || '').toLowerCase();
+    // Only text is matched: a number or other stored value reads as unrecognised, never throws.
+    const s = typeof status === 'string' ? status.toLowerCase() : '';
     const match = STATUS_TONES.find(([pattern]) => pattern.test(s));
     return match ? match[1] : 'neutral';
 }

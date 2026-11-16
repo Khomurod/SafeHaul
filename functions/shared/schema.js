@@ -5,15 +5,6 @@ const emailSchema = Joi.string().email().trim().lowercase().required();
 const idSchema = Joi.string().min(1).max(100).required();
 
 // Data structure schemas
-const companyUpdateSchema = Joi.object({
-    companyId: idSchema,
-    updates: Joi.object({
-        name: Joi.string().min(2).max(100),
-        dailyQuota: Joi.number().integer().min(0).max(10000),
-        isActive: Joi.boolean()
-    }).min(1).required()
-});
-
 const sendEmailSchema = Joi.object({
     companyId: idSchema,
     recipientEmail: emailSchema,
@@ -30,20 +21,9 @@ const deleteCompanySchema = Joi.object({
     companyId: idSchema
 });
 
-const initBulkSessionSchema = Joi.object({
-    companyId: idSchema,
-    filters: Joi.object().required(),
-    messageConfig: Joi.object().required(),
-    scheduledFor: Joi.string().isoDate().allow(null),
-    name: Joi.string().allow('', null),
-    rawData: Joi.array().items(Joi.object()).allow(null)
-});
-
 module.exports = {
     emailSchema,
     idSchema,
-    companyUpdateSchema,
     sendEmailSchema,
-    deleteCompanySchema,
-    initBulkSessionSchema
+    deleteCompanySchema
 };

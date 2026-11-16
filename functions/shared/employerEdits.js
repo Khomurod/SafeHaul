@@ -133,17 +133,10 @@ function describeEmployerEdit(removed) {
         + 'Any verification records for them are kept on file and are not deleted.';
 }
 
-/** True when a removal takes a row that has verification activity with it. */
-function removesVerifiedEmployer(removed) {
-    return (Array.isArray(removed) ? removed : [])
-        .some((row) => verificationStateOf(row) !== 'Not Started');
-}
-
 module.exports = {
     PEV_ROW_FIELDS,
     describeEmployerEdit,
     reconcileEmployerEdit,
-    removesVerifiedEmployer,
     stripPevFields,
     verificationStateOf,
 };

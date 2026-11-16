@@ -20,9 +20,13 @@
 // PARITY NOTE: the driver wizard needs the same answer in the browser, and
 // `src/` cannot import from `functions/`. The mirrored implementation is proven
 // identical against the shared vectors in employmentCoverage.vectors.json — the
-// same convention this repo already uses for searchNormalization.
+// same convention this repo already uses for searchNormalization — and the body
+// between the markers is byte-identical to the mirror, which its test checks.
 
 const { parseApplicationDate } = require('./applicationDates');
+
+// --- body ---------------------------------------------------------------------
+// Identical to src/shared/utils/employmentCoverage.js. Edit both, or the parity test fails.
 
 /** Months of history the application must account for. */
 const REQUIRED_COVERAGE_MONTHS = 36;
@@ -88,7 +92,7 @@ function isOngoing(value) {
  * Turn one record into an inclusive month span, or null when it cannot be placed
  * on the calendar.
  *
- * @param {object} record   Anything with start/end-ish fields.
+ * @param {Record<string, unknown>} record Anything with start/end-ish fields.
  * @param {number} nowIndex Reference month, used to close ongoing periods.
  */
 function toSpan(record, nowIndex) {
@@ -145,6 +149,7 @@ function mergeSpans(spans) {
  * @param {object} history
  * @param {Array} [history.employers]
  * @param {Array} [history.unemploymentPeriods]
+ * @param {Array} [history.unemployment]   The wizard's key for the same list.
  * @param {Array} [history.schools]
  * @param {Array} [history.military]
  * @param {object} [opts]
@@ -243,6 +248,8 @@ function computeEmploymentCoverage(history = {}, opts = {}) {
         unparseableRecords,
     };
 }
+
+// --- exports -------------------------------------------------------------------
 
 module.exports = {
     REQUIRED_COVERAGE_MONTHS,

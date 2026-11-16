@@ -12,6 +12,7 @@
 // type-correct document — so that class of save failure can never recur.
 
 import { normalizePrefillPolicy } from '@features/signing/utils/prefillEngine';
+import { COMPANY_SIGNATURE_LABEL, isCompanySignatureField } from '@features/signing/utils/companySignature';
 
 /** Coerce to a finite number, falling back to `fallback` for NaN/undefined/null/''. */
 function num(value, fallback) {
@@ -38,7 +39,7 @@ function str(value, fallback = '') {
  */
 export function serializeTemplateField(field = {}) {
     const policy = normalizePrefillPolicy(field);
-    return {
+    const stored = {
         id: str(field.id, `field_${Math.random().toString(36).slice(2, 10)}`),
         type: str(field.type, 'text'),
         label: str(field.label, 'Field'),
@@ -55,6 +56,27 @@ export function serializeTemplateField(field = {}) {
         prefillGroupKey: str(field.prefillGroupKey, ''),
         fontSize: str(field.fontSize, 'Auto'),
     };
+    return isCompanySignatureField(stored) ? companySignature(stored, field) : stored;
+}
+
+/**
+ * A company signature is the image it names and nothing the signer fills, so
+ * whatever its editor copy says it is stored fixed — never required, locked,
+ * with no value, prefill or binding — in the shape the server reads.
+ */
+function companySignature(stored, field) {
+    return {
+        ...stored,
+        label: str(field.label, COMPANY_SIGNATURE_LABEL),
+        required: false,
+        readOnly: true,
+        prefillPolicy: 'locked',
+        bindingKey: '',
+        prefillGroupKey: '',
+        defaultValue: '',
+        fontSize: 'Auto',
+        companySignaturePath: str(field.companySignaturePath, '').trim(),
+    };
 }
 
 /**
@@ -67,7 +89,7 @@ export function serializeTemplateField(field = {}) {
  * @returns {object} A field for the EnvelopeCreator canvas.
  */
 export function deserializeTemplateField(field) {
-    return {
+    const editorField = {
         id: field.id,
         type: field.type,
         label: field.label || field.type,
@@ -84,6 +106,8 @@ export function deserializeTemplateField(field) {
         defaultValue: field.defaultValue || '',
         fontSize: field.fontSize || 'Auto',
     };
+    if (isCompanySignatureField(field)) editorField.companySignaturePath = field.companySignaturePath || '';
+    return editorField;
 }
 
 /**

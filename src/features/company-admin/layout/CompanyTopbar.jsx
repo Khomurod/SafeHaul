@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
-import { Avatar, IconButton } from '@/design-system/components';
+import { Avatar, ButtonLink, IconButton } from '@/design-system/components';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { NotificationDropdown } from '../components/NotificationDropdown';
-import { getPortalUser } from '@features/auth';
+import { getPortalUser, onPortalUserForgotten } from '@features/auth';
 import { isSuperAdminClaims } from '@app/auth/roles';
+import { initialsOf } from '@shared/utils/initials';
+
+const PROFILE_PATH = '/company/profile';
 
 // Helper to get user role label
 const getUserRoleLabel = (claims, companyId) => {
@@ -23,18 +27,23 @@ export const CompanyTopbar = ({
     onOpenRecord,
 }) => {
     const { currentUser, handleLogout, currentCompanyProfile, currentUserClaims, returnToCompanyChooser } = useData();
-    // Switching company and logging out both leave the page: unsaved changes ask first.
+    // Switching company, logging out and opening E-Docs or the reader's leads
+    // from the bell all leave the page: unsaved changes ask first.
     const guard = useUnsavedChangesGuard();
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
     const companyId = currentCompanyProfile?.id;
 
     const [displayName, setDisplayName] = useState(currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User');
 
     useEffect(() => {
+        let current = true;
         const fetchUserName = async () => {
             if (!currentUser?.uid) return;
             try {
                 // Try to get name from Firestore profile which is more reliable
                 const userDoc = await getPortalUser(currentUser.uid);
+                if (!current) return;
                 if (userDoc?.name) {
                     setDisplayName(userDoc.name);
                 } else if (currentUser.displayName) {
@@ -45,6 +54,14 @@ export const CompanyTopbar = ({
             }
         };
         fetchUserName();
+        // A name saved on Profile forgets the kept copy: read it again.
+        const unsubscribe = onPortalUserForgotten((userId) => {
+            if (!userId || userId === currentUser?.uid) fetchUserName();
+        });
+        return () => {
+            current = false;
+            unsubscribe();
+        };
     }, [currentUser]);
 
     // `false` when the person is still signed in, so the unsaved-changes
@@ -59,9 +76,18 @@ export const CompanyTopbar = ({
     };
 
 
+    // The name and avatar open Profile. A plain press stays in the app and asks
+    // first while the page holds unsaved changes; a new-tab or modified press
+    // opens as the browser would.
+    const openProfile = (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (pathname === PROFILE_PATH) return;
+        guard.request(() => navigate(PROFILE_PATH));
+    };
+
     const roleLabel = getUserRoleLabel(currentUserClaims, companyId);
-    // Use displayName for initials
-    const initials = displayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'U';
+    const initials = initialsOf(displayName) || 'U';
 
     return (
         <header className="h-16 bg-ds-surface border-b border-ds-border-subtle flex items-center justify-between gap-2 px-3 sm:px-6 shadow-ds-xs">
@@ -87,25 +113,33 @@ export const CompanyTopbar = ({
             {/* Right: Actions */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {/* Notifications */}
-                <NotificationDropdown companyId={companyId} onOpenRecord={onOpenRecord} />
+                <NotificationDropdown
+                    companyId={companyId}
+                    onOpenRecord={onOpenRecord}
+                    onOpenDocuments={() => guard.request(() => navigate('/company/e-docs'))}
+                    onOpenAssignedLeads={() => guard.request(() => navigate('/company/drivers/leads/my'))}
+                />
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden sm:block" aria-hidden="true" />
 
-                {/* User Info */}
-                <div className="items-center gap-3 hidden md:flex">
-                    <div className="flex flex-col items-end hidden md:flex">
-                        <span className="text-ds-body font-semibold text-ds-content">
-                            {displayName}
+                {/* User Info: the way to Profile, named "Your profile" and what it shows */}
+                <div className="hidden md:flex">
+                    <ButtonLink href={PROFILE_PATH} variant="ghost" onClick={openProfile}>
+                        <span className="sr-only">Your profile: </span>
+                        <span className="flex flex-col items-start">
+                            <span className="text-ds-body font-semibold text-ds-content">
+                                {displayName}
+                            </span>{' '}
+                            <span className="text-ds-xs font-normal text-ds-content-muted">
+                                {roleLabel}
+                            </span>
                         </span>
-                        <span className="text-ds-xs text-ds-content-muted">
-                            {roleLabel}
-                        </span>
-                    </div>
 
-                    {/* Avatar */}
-                    <Avatar size="md" tone="primary">
-                        {initials}
-                    </Avatar>
+                        {/* The frame's blue, not the action colour (the frame is unchanged by C2). */}
+                        <Avatar size="md" tone="navigation">
+                            {initials}
+                        </Avatar>
+                    </ButtonLink>
                 </div>
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden md:block" aria-hidden="true" />

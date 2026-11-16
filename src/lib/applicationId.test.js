@@ -10,10 +10,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
     generateApplicationId,
-    generateApplicationIdSync,
     generateConfirmationNumber,
-    parseConfirmationNumber,
-    isValidApplicationId,
 } from './applicationId';
 
 describe('Application ID Generator', () => {
@@ -96,27 +93,6 @@ describe('Application ID Generator', () => {
         });
     });
 
-    describe('generateApplicationIdSync', () => {
-        it('should produce the same 20-char ID for the same inputs', () => {
-            const id1 = generateApplicationIdSync('company-1', 'test@example.com', '5551234567');
-            const id2 = generateApplicationIdSync('company-1', 'test@example.com', '5551234567');
-
-            expect(id1).toBe(id2);
-            expect(id1).toMatch(/^[a-z0-9]{20}$/);
-        });
-
-        it('should handle missing email/phone with anonymous fallback', () => {
-            const id = generateApplicationIdSync('company-1', '', '');
-            expect(id.startsWith('anon_')).toBe(true);
-        });
-
-        it('should throw if companyId is missing', () => {
-            expect(() => {
-                generateApplicationIdSync('', 'test@test.com', '12345');
-            }).toThrow('companyId is required');
-        });
-    });
-
     describe('generateConfirmationNumber', () => {
         it('should generate a valid confirmation number', () => {
             const conf = generateConfirmationNumber();
@@ -139,44 +115,6 @@ describe('Application ID Generator', () => {
 
             // At least 95% should be unique (accounting for very rare collisions)
             expect(numbers.size).toBeGreaterThanOrEqual(95);
-        });
-    });
-
-    describe('parseConfirmationNumber', () => {
-        it('should extract year from valid confirmation number', () => {
-            const year = parseConfirmationNumber('SAF-2026-ABC12');
-            expect(year).toBe(2026);
-        });
-
-        it('should return null for invalid format', () => {
-            expect(parseConfirmationNumber('INVALID')).toBeNull();
-            expect(parseConfirmationNumber('SAF-YEAR-XXXXX')).toBeNull();
-            expect(parseConfirmationNumber('')).toBeNull();
-            expect(parseConfirmationNumber(null)).toBeNull();
-        });
-    });
-
-    describe('isValidApplicationId', () => {
-        it('should validate new deterministic 20-char IDs', () => {
-            expect(isValidApplicationId('1234567890abcdef1234')).toBe(true);
-            expect(isValidApplicationId('abcdef1234567890abcd')).toBe(true);
-        });
-
-        it('should validate legacy reapplication-safe IDs (20-char prefix + suffix)', () => {
-            expect(isValidApplicationId('1234567890abcdef1234_madix9_abc123')).toBe(true);
-        });
-
-        it('should validate anonymous IDs', () => {
-            expect(isValidApplicationId('anon_abc123_xyz789')).toBe(true);
-        });
-
-        it('should reject invalid IDs', () => {
-            expect(isValidApplicationId('')).toBe(false);
-            expect(isValidApplicationId(null)).toBe(false);
-            expect(isValidApplicationId(123)).toBe(false);
-            expect(isValidApplicationId('too-short')).toBe(false);
-            expect(isValidApplicationId('has spaces in it')).toBe(false);
-            expect(isValidApplicationId('1234567_test_abc123')).toBe(false);
         });
     });
 });

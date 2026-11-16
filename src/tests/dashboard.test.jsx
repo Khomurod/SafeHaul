@@ -16,12 +16,17 @@ const dashboardState = vi.hoisted(() => ({
     refresh: vi.fn(),
 }));
 
-vi.mock('@features/companies', () => ({
-    useDashboardCounts: () => dashboardState,
+const briefState = vi.hoisted(() => ({
+    brief: { applications: 18, inProcess: 42, hired: 3 },
+    month: '2026-12',
+    isLoading: false,
+    error: null,
+    refresh: () => {},
 }));
 
-vi.mock('@features/company-admin/components/InlineLeaderboard', () => ({
-    InlineLeaderboard: () => <section aria-label="Team leaderboard">Leaderboard</section>,
+vi.mock('@features/companies', () => ({
+    useDashboardCounts: () => dashboardState,
+    useHiringBrief: () => briefState,
 }));
 
 // Mock Firebase with complete auth state management
@@ -117,9 +122,11 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
             </BrowserRouter>
         );
 
-        // Dashboard should render the company name in the welcome text
+        // Dashboard should render the company name in the welcome text. Nothing on
+        // the page is "today" any more, so the heading does not say it.
         const welcomeText = screen.getByText(/Acme Trucking LLC/i);
-        expect(welcomeText).toBeInTheDocument();
+        expect(welcomeText).toHaveTextContent("Here's what's happening at Acme Trucking LLC.");
+        expect(welcomeText).not.toHaveTextContent(/today/i);
     });
 
     it('should handle missing company profile gracefully', () => {
@@ -159,7 +166,13 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
             .toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Hired: 2' }))
             .toBeInTheDocument();
-        expect(screen.getByLabelText('Team leaderboard')).toBeInTheDocument();
+        // The team leaderboard is gone; the daily call statistics stay for Super Admin → Analytics.
+        expect(screen.queryByRole('heading', { name: /leaderboard/i })).toBeNull();
+        expect(screen.queryByRole('table', { name: /leaderboard/i })).toBeNull();
+        // In its place, this month's brief.
+        expect(screen.getByRole('region', { name: 'This month' })).toHaveTextContent(
+            'This month: 18 applications · 42 in process · 3 hired this month',
+        );
     });
 
     it('keeps metric navigation keyboard-accessible', () => {

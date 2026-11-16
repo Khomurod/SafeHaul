@@ -73,6 +73,8 @@ export const makeRenderPad = (LaunchPad) => (props = {}) => {
         <BrowserRouter>
             <LaunchPad
                 companyId={props.companyId === undefined ? 'co-1' : props.companyId}
+                campaignId={props.campaignId === undefined ? 'camp-1' : props.campaignId}
+                onBeforeLaunch={props.onBeforeLaunch}
                 campaign={props.campaign || validCampaign}
                 onLaunchSuccess={onLaunchSuccess}
             />

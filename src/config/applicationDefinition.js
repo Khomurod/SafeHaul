@@ -192,6 +192,7 @@ export function buildApplicationReview({
                 key: field.id,
                 label: field.label,
                 sensitive: Boolean(field.sensitive),
+                isFile: field.type === 'file',
                 required: field.gate ? gate.required : false,
                 repeating,
                 rows: repeating ? buildRepeatingRows(rawValue, field.columns) : [],

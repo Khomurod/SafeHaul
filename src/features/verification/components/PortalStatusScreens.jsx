@@ -1,10 +1,12 @@
 import React from 'react';
-import { Icon, Loader2, CheckCircle, AlertTriangle, Clock, ShieldCheck } from '@design-system/icons';
+import { Icon, Loader2, CheckCircle, ShieldCheck } from '@design-system/icons';
 import { Card, Notice, StatusMedallion } from '@/design-system/components';
 
 /**
  * Full-page status screens for the public PEV portal. Presentation migrated;
- * the exact token-state headings and messages are unchanged.
+ * the exact headings and messages are unchanged. A link that does not open is
+ * not one of these: the portal shows the public pages' shared
+ * `LinkProblemScreen`, as signing and change review do.
  */
 
 function StatusShell({ children, role, className = '' }) {
@@ -18,11 +20,11 @@ function StatusShell({ children, role, className = '' }) {
 }
 
 /*
- * The four screens below each show their glyph in a `StatusMedallion`, the
- * loading one included; do not hand-build the disc. An off-scale icon size is the
- * signal that a container is missing, and a glyph must go through `Icon`:
- * rendering an `icon` prop DIRECTLY throws the moment a glyph name becomes a
- * token, on this public portal, in a branch no unit test reaches.
+ * The screens below each show their glyph in a `StatusMedallion`, the loading
+ * one included; do not hand-build the disc. An off-scale icon size is the signal
+ * that a container is missing, and a glyph must go through `Icon`: rendering an
+ * `icon` prop DIRECTLY throws the moment a glyph name becomes a token, on this
+ * public portal, in a branch no unit test reaches.
  */
 const MEDALLION = 'mx-auto mb-4';
 
@@ -33,28 +35,6 @@ export function LoadingScreen() {
                 <Icon icon={Loader2} className="animate-spin" />
             </StatusMedallion>
             <h1 className="text-ds-heading-md font-bold text-ds-content">Loading verification request...</h1>
-        </StatusShell>
-    );
-}
-
-export function ErrorScreen({ error }) {
-    return (
-        <StatusShell role="alert">
-            <StatusMedallion tone="danger" className={MEDALLION}><Icon icon={AlertTriangle} /></StatusMedallion>
-            <h1 className="mb-2 text-ds-heading-md font-bold text-ds-content">Verification Error</h1>
-            <p className="text-ds-body text-ds-content-secondary">{error}</p>
-        </StatusShell>
-    );
-}
-
-export function ExpiredScreen() {
-    return (
-        <StatusShell role="alert">
-            <StatusMedallion tone="warning" className={MEDALLION}><Icon icon={Clock} /></StatusMedallion>
-            <h1 className="mb-2 text-ds-heading-md font-bold text-ds-content">Link Expired</h1>
-            <p className="text-ds-body text-ds-content-secondary">
-                This verification request has expired. Please contact the requesting company for a new link.
-            </p>
         </StatusShell>
     );
 }
@@ -71,7 +51,11 @@ export function AlreadyCompletedScreen() {
     );
 }
 
-export function CompletedScreen({ verificationData, token }) {
+/**
+ * The answer is recorded. It shows the request's short number, never the link's
+ * token: the token answers as this employer to anyone who has it.
+ */
+export function CompletedScreen({ verificationData }) {
     return (
         <StatusShell role="status" className="max-w-lg">
             <StatusMedallion tone="success" className={MEDALLION}><Icon icon={CheckCircle} /></StatusMedallion>
@@ -90,7 +74,9 @@ export function CompletedScreen({ verificationData, token }) {
             <Notice tone="success" icon={ShieldCheck}>
                 A PDF record has been generated and added to the applicant&apos;s Qualification file.
             </Notice>
-            <p className="mt-6 text-ds-xs text-ds-content-muted">Verification ID: {token}</p>
+            {verificationData?.requestNumber && (
+                <p className="mt-6 text-ds-xs text-ds-content-muted">Request number: {verificationData.requestNumber}</p>
+            )}
         </StatusShell>
     );
 }

@@ -42,7 +42,7 @@ describe('EditorTopBar', () => {
 
     it('shows where you are, what you are building and how big it is', () => {
         renderBar();
-        expect(screen.getByRole('button', { name: 'Back to Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to E-Docs' })).toBeInTheDocument();
         expect(screen.getByLabelText('Document title')).toHaveValue('Artificial Onboarding Packet');
         expect(screen.getByText('Reusable template')).toBeInTheDocument();
         expect(screen.getByText('4 pages')).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('EditorTopBar', () => {
 
     it('keeps every control named when compacted for narrow screens', () => {
         renderBar({ compact: true });
-        expect(screen.getByRole('button', { name: 'Back to Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to E-Docs' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Preview as signer' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Save Template' })).toBeInTheDocument();
     });

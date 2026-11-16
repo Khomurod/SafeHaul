@@ -86,7 +86,7 @@ vi.mock('firebase/firestore', () => ({
     getCountFromServer: (...a) => getCountFromServer(...a),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
-vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, auth: {} }));
 
 const showError = vi.fn();
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
@@ -94,6 +94,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 
 import { useSuperAdminData } from './useSuperAdminData';
+import { forgetCompanies } from '@features/companies/services/companyService';
 
 /** Mounts the hook and waits for the debounced initial load to settle. */
 async function mountLoaded() {
@@ -106,6 +107,8 @@ async function mountLoaded() {
 }
 
 beforeEach(() => {
+    // Each test reads every company afresh, not the copy an earlier test kept.
+    forgetCompanies();
     vi.clearAllMocks();
     loadMoreFetches = 0;
     failNextLoadMoreFetch = false;

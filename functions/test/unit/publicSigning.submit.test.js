@@ -740,4 +740,75 @@ describe('submitPublicEnvelope', () => {
       expect(updatesWith('pending_seal')).toHaveLength(0);
     });
   });
+
+  // --- Company signatures --------------------------------------------------
+  // The company's image is drawn from the field itself when the document is
+  // sealed, so the signer has nothing to put there: a value sent for it is
+  // refused before any image of the submission is saved.
+  describe('company signatures', () => {
+    const drawn = `data:image/png;base64,${Buffer.from('png-ink').toString('base64')}`;
+    const fields = [
+      { id: 'sig1', type: 'signature', required: true },
+      {
+        id: 'cs1',
+        type: 'company_signature',
+        label: 'Company Signature',
+        required: false,
+        readOnly: true,
+        prefillPolicy: 'locked',
+        defaultValue: '',
+        companySignaturePath: 'secure_documents/c1/originals/company-signatures/stamp.png',
+      },
+    ];
+    let saves;
+
+    beforeEach(() => {
+      saves = [];
+      firebaseAdmin.storage.bucket.mockImplementation(() => ({
+        file: jest.fn((path) => ({ save: jest.fn(async () => { saves.push(path); }) })),
+      }));
+      mockTxnEnvelope({ fields });
+    });
+
+    const submit = (fieldValues) => submitPublicEnvelope({ ...baseReq, data: { ...baseReq.data, fieldValues } });
+    const updatesWith = (status) =>
+      firebaseAdmin.docRefStub.update.mock.calls.filter(([patch]) => patch.status === status);
+
+    it.each([
+      ['a drawn image', drawn],
+      ['a Storage path', 'secure_documents/c1/originals/company-signatures/forged.png'],
+      ['any text', 'Acme Freight'],
+      ['true', true],
+    ])('refuses %s sent for it, saving no image of the submission', async (_label, value) => {
+      await expect(submit({ sig1: drawn, cs1: value })).rejects.toMatchObject({
+        code: 'invalid-argument',
+        message: 'Field cs1 is the company\'s signature and cannot be filled in by the signer.',
+      });
+      expect(saves).toEqual([]);
+      expect(updatesWith('pending_seal')).toHaveLength(0);
+      expect(updatesWith('sent')).toHaveLength(1);
+    });
+
+    it.each([
+      ['an empty string, as the signing room seeds every field', ''],
+      ['blank text', '  '],
+      ['null', null],
+    ])('accepts %s for it and stores nothing there', async (_label, value) => {
+      await expect(submit({ sig1: drawn, cs1: value })).resolves.toEqual({ success: true });
+      expect(saves).toEqual(['secure_documents/c1/signatures/r1_sig1.png']);
+      const [[sealed]] = updatesWith('pending_seal');
+      expect(sealed.fieldValues).toEqual({ sig1: 'secure_documents/c1/signatures/r1_sig1.png' });
+    });
+
+    it('needs nothing for it from the signer', async () => {
+      await expect(submit({ sig1: drawn })).resolves.toEqual({ success: true });
+      const [[sealed]] = updatesWith('pending_seal');
+      expect(sealed.fieldValues).not.toHaveProperty('cs1');
+    });
+
+    it('needs nothing from the signer even when it is marked required', async () => {
+      mockTxnEnvelope({ fields: [fields[0], { ...fields[1], required: true }] });
+      await expect(submit({ sig1: drawn, cs1: '' })).resolves.toEqual({ success: true });
+    });
+  });
 });

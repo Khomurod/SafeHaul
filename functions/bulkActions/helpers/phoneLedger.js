@@ -1,11 +1,11 @@
-const { normalizePhone } = require("../../shared/normalizePhone");
+const { toE164Us } = require("../../shared/toE164Us");
 
 /**
  * Build canonical + legacy-compatible ledger lookup keys for a phone value.
- * Canonical format is "+<digits>" as produced by shared normalizePhone().
+ * Canonical format is "+<digits>" as produced by shared toE164Us().
  */
 function derivePhoneLedgerKeys(rawPhone) {
-    const canonical = normalizePhone(String(rawPhone || ""));
+    const canonical = toE164Us(String(rawPhone || ""));
     if (!canonical) return { canonical: null, lookupKeys: [] };
 
     const keys = new Set([canonical]);

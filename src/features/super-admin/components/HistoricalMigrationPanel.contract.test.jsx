@@ -197,9 +197,15 @@ describe('when the work is done', () => {
 
     // A survey that failed is not evidence of success.
     it('stays visible, with the reason, when the survey itself fails', async () => {
-        wire({ surveyImpl: async () => { throw new Error('permission-denied'); } });
+        wire({
+            surveyImpl: async () => {
+                throw Object.assign(new Error('permission-denied'), { code: 'functions/permission-denied' });
+            },
+        });
         renderChecked();
-        expect(await screen.findByRole('alert')).toHaveTextContent(/permission-denied/);
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Could not read the historical record counts. You do not have permission to do this.',
+        );
         expect(screen.getByText(/Historical application records/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Check what is left' })).toBeEnabled();
     });
@@ -350,7 +356,9 @@ describe('when something fails', () => {
             surveyImpl: async () => ({ data: surveyData() }),
             reconstructImpl: async () => {
                 calls += 1;
-                if (calls === 1) throw new Error('deadline-exceeded');
+                if (calls === 1) {
+                    throw Object.assign(new Error('deadline-exceeded'), { code: 'functions/deadline-exceeded' });
+                }
                 return { data: migrationResult({ reconstructed: 3, pdfs: 3 }) };
             },
         });
@@ -359,7 +367,9 @@ describe('when something fails', () => {
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
 
-        expect(await screen.findByText(/deadline-exceeded/)).toBeInTheDocument();
+        expect(await screen.findByText(
+            'The migration call failed. Check your internet connection and try again.',
+        )).toBeInTheDocument();
         // The second company still ran.
         await waitFor(() => expect(reconstruct).toHaveBeenCalledTimes(2));
     });

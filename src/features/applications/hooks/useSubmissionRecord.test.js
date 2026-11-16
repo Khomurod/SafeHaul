@@ -7,14 +7,19 @@ import { renderHook, waitFor } from '@testing-library/react';
 let requestedPath = [];
 let mockDocResult = { exists: () => false, data: () => undefined };
 let mockGetDocImpl = null;
+let reads = 0;
 
 vi.mock('firebase/firestore', () => ({
     doc: (_db, ...segments) => { requestedPath = segments; return { __path: segments }; },
-    getDoc: () => (mockGetDocImpl ? mockGetDocImpl() : Promise.resolve(mockDocResult)),
+    getDoc: () => {
+        reads += 1;
+        return mockGetDocImpl ? mockGetDocImpl() : Promise.resolve(mockDocResult);
+    },
 }));
-vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: null } }));
 
 import { useSubmissionRecord } from './useSubmissionRecord';
+import { forgetSubmissionRecords } from '@features/applications/services/submissionRecordRead';
 
 /**
  * A snapshot shaped exactly like buildSubmissionSnapshot's output — `frozen: true`
@@ -48,6 +53,9 @@ function preservedSnapshot(overrides = {}) {
 describe('useSubmissionRecord', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // A dossier closes between tests: each reads its own record.
+        forgetSubmissionRecords();
+        reads = 0;
         requestedPath = [];
         mockGetDocImpl = null;
         mockDocResult = { exists: () => false, data: () => undefined };
@@ -83,11 +91,18 @@ describe('useSubmissionRecord', () => {
     });
 
     it('never claims preservation when the read fails', async () => {
-        mockGetDocImpl = () => Promise.reject(new Error('permission-denied'));
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockGetDocImpl = () => Promise.reject(Object.assign(
+            new Error('Missing or insufficient permissions.'),
+            { code: 'permission-denied' },
+        ));
         const { result } = renderHook(() => useSubmissionRecord('co1', 'app1'));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
-        expect(result.current.error).toMatch(/permission-denied/);
+        expect(result.current.error).toBe(
+            'Could not load the preserved submission record. You do not have permission to do this. If you think you should, ask your company admin.',
+        );
+        consoleError.mockRestore();
         expect(result.current.record.isPreserved).toBe(false);
         expect(result.current.record.sections).toEqual([]);
     });
@@ -113,6 +128,29 @@ describe('useSubmissionRecord', () => {
         expect(result.current.record.isReconstructed).toBe(true);
         expect(result.current.record.notice).toMatch(/reconstructed/i);
         expect(result.current.record.reconstructionNotes).toContain('Agreement acceptance was not recorded.');
+    });
+
+    it('reads nothing on a return to the tab while the dossier is open', async () => {
+        mockDocResult = { exists: () => true, data: () => preservedSnapshot() };
+        const first = renderHook(() => useSubmissionRecord('co1', 'app1'));
+        await waitFor(() => expect(first.result.current.record?.isPreserved).toBe(true));
+        first.unmount();
+
+        const { result } = renderHook(() => useSubmissionRecord('co1', 'app1'));
+        await waitFor(() => expect(result.current.record?.isPreserved).toBe(true));
+        expect(result.current.record.sections[0].answers[0]).toMatchObject({ value: 'Dana' });
+        expect(reads).toBe(1);
+    });
+
+    it('reads a record that was not there again on a return to the tab', async () => {
+        const first = renderHook(() => useSubmissionRecord('co1', 'app1'));
+        await waitFor(() => expect(first.result.current.record?.isPreserved).toBe(false));
+        first.unmount();
+
+        mockDocResult = { exists: () => true, data: () => preservedSnapshot() };
+        const { result } = renderHook(() => useSubmissionRecord('co1', 'app1'));
+        await waitFor(() => expect(result.current.record?.isPreserved).toBe(true));
+        expect(reads).toBe(2);
     });
 
     it('does not apply a stale response after the application changes', async () => {

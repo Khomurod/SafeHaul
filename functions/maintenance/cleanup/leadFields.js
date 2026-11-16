@@ -7,6 +7,10 @@
  * - `normalizedPhone`: the lead import's duplicate check looks leads up by it.
  *   A lead with a phone and no value gets the digits the import writes
  *   (`normalizeSearchPhone`, the same as the browser's `normalizePhone`).
+ * - `emailNormalized`: a submitted application finds its driver's lead by it
+ *   (`shared/leadApplicationLink.js`). A lead with an email gets the trimmed,
+ *   lowercased copy every lead creator now writes, also where an edit left the
+ *   copy behind the email.
  * - `driverType`: the dashboard filter asks for a string. A list of one becomes
  *   that string and an empty list `''`, on leads and applications. A list of
  *   several is left as it is and only counted: choosing one would lose the
@@ -17,7 +21,7 @@
  * an empty `assignedTo` notifies nobody, and the contact SMS needs a status
  * change.
  */
-const { normalizeSearchPhone } = require('../../shared/searchNormalization');
+const { normalizeSearchEmail, normalizeSearchPhone } = require('../../shared/searchNormalization');
 const { createWriter, forEachCompanyRecord } = require('./shared');
 
 /** How many record paths with several driver types the result names. */
@@ -39,10 +43,12 @@ function leadPatch(data, patch) {
         const digits = normalizeSearchPhone(data.phone);
         if (digits) patch.normalizedPhone = digits;
     }
+    const email = normalizeSearchEmail(data.email);
+    if (email && data.emailNormalized !== email) patch.emailNormalized = email;
 }
 
 async function sweep(ctx) {
-    const counts = { assignedTo: 0, normalizedPhone: 0, driverType: 0, driverTypeSeveral: 0 };
+    const counts = { assignedTo: 0, normalizedPhone: 0, emailNormalized: 0, driverType: 0, driverTypeSeveral: 0 };
     const examples = [];
     const writer = createWriter(ctx.db, ctx.apply);
 
@@ -60,7 +66,7 @@ async function sweep(ctx) {
     };
 
     let done = await forEachCompanyRecord(ctx, 'leads',
-        ['assignedTo', 'phone', 'normalizedPhone', 'driverType'], visit(true));
+        ['assignedTo', 'phone', 'normalizedPhone', 'email', 'emailNormalized', 'driverType'], visit(true));
     if (done) done = await forEachCompanyRecord(ctx, 'applications', ['driverType'], visit(false));
     await writer.flush();
     return { done, counts, ...(examples.length ? { notes: { driverTypeSeveral: examples } } : {}) };

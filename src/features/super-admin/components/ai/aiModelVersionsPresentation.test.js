@@ -44,4 +44,8 @@ describe('the model versions table\'s words', () => {
         expect(formatCheckedAt(null)).toBeNull();
         expect(formatCheckedAt('2026-10-08T08:25:00.000Z')).toEqual(expect.any(String));
     });
+
+    it('shows a check time in the app\'s one date style, with its time (K3)', () => {
+        expect(formatCheckedAt('2026-03-07T12:00:00.000Z')).toMatch(/^Mar 7, 2026, \d{2}:\d{2} (AM|PM)$/);
+    });
 });

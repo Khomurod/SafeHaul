@@ -5,6 +5,7 @@ import { db } from '@lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Badge, Button, Card, DataTable, IconButton, Input, Notice } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Super Admin companies table. A company opens its own screen (`onOpen`),
@@ -76,7 +77,8 @@ export function CompaniesView({
                 [companyId]: { ...prev[companyId], isActive: !currentStatus }
             }));
         } catch (err) {
-            setToggleError(`Failed to ${action} company: ${err.message}`);
+            console.error(`Company ${action} failed:`, err);
+            setToggleError(plainErrorMessage(err, `The company could not be ${action}d.`));
         } finally {
             setTogglingCompany(null);
         }

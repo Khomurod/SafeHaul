@@ -91,7 +91,8 @@ const callWith = (data, auth = { uid: 'user-1' }) =>
 beforeEach(() => {
   jest.clearAllMocks();
   checkRateLimit.mockResolvedValue(true);
-  assertCompanyAccessForRequest.mockResolvedValue(undefined);
+  // As the real check does, it reads the company and hands it back.
+  assertCompanyAccessForRequest.mockImplementation(() => mockCompanyDocGet());
   mockCompanyDocGet.mockResolvedValue({ exists: true, data: () => ({ features: { eDocs: true } }) });
   mockAnalyzeDocumentPages.mockResolvedValue({
     suggestions: [validSuggestion()],
@@ -151,6 +152,23 @@ describe('authentication and tenant access', () => {
     await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
       code: 'not-found',
     });
+  });
+
+  it('decides E-Docs on the company the access check read, without reading it again', async () => {
+    await callWith({ companyId: 'c1', scanId: 's1', pages: onePage() });
+    expect(mockCompanyDocGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads the company itself when a super admin\'s check could not, and still denies E-Docs off', async () => {
+    assertCompanyAccessForRequest.mockResolvedValue(undefined);
+    mockCompanyDocGet.mockResolvedValue({ exists: true, data: () => ({ features: { eDocs: false } }) });
+
+    await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'E-Docs is not enabled for this company.',
+    });
+    expect(mockCompanyDocGet).toHaveBeenCalledTimes(1);
+    expect(mockAnalyzeDocumentPages).not.toHaveBeenCalled();
   });
 });
 
@@ -366,9 +384,14 @@ describe('provider output validation', () => {
   });
 
   it('never writes to Firestore', async () => {
-    // The only db access allowed is the company feature read.
+    // The company comes from the access check; the only db access allowed here
+    // is reading it when a super admin's check could not.
     const { db } = require('../../firebaseAdmin');
     await callWith({ companyId: 'c1', scanId: 's1', pages: onePage() });
+    expect(db.collection).not.toHaveBeenCalled();
+
+    assertCompanyAccessForRequest.mockResolvedValue(undefined);
+    await callWith({ companyId: 'c1', scanId: 's2', pages: onePage() });
     expect(db.collection).toHaveBeenCalledWith('companies');
     expect(db.collection).toHaveBeenCalledTimes(1);
   });

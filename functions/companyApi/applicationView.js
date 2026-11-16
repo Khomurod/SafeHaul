@@ -23,16 +23,12 @@
 const { currentRepeatingColumns, resolveRepeatingRows } = require('../shared/submissionSnapshot');
 const { isGuestUploadPath } = require('../shared/guestUploads');
 const { hasScope } = require('./apiKeys');
+// `***-**-1234`, as the screens and the masked PDF show a Social Security Number.
+const { maskSsn } = require('../shared/maskSsn');
 
 const FILE_TYPES = new Set(['file', 'fileUpload']);
 /** A link into Storage, or a path in it: how older versions of the app kept a file. */
 const STORAGE_REFERENCE = /^(?:https?:\/\/(?:[a-z0-9-]+\.)*(?:firebasestorage|storage)\.googleapis\.com\/|gs:\/\/|companies\/[^/]+\/)/i;
-
-/** `***-**-1234`, as the screens and the masked PDF show a Social Security Number. */
-function maskSsn(value) {
-    const digits = String(value ?? '').replace(/\D/g, '');
-    return digits.length >= 4 ? `***-**-${digits.slice(-4)}` : '***-**-****';
-}
 
 const isFile = (value) => Boolean(value) && typeof value === 'object' && typeof value.storagePath === 'string';
 const fileName = (value) => String(value?.name || value?.fileName || 'Uploaded file');
@@ -244,4 +240,4 @@ function toApiApplication({ snapshot, application = {}, applicationId, version, 
     };
 }
 
-module.exports = { documentsFor, documentsOf, holdsSsn, maskSsn, toApiApplication };
+module.exports = { documentsFor, documentsOf, holdsSsn, toApiApplication };

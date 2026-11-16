@@ -1,7 +1,6 @@
 const {
   MAX_SNAPSHOT_SEQUENCE,
   isAlreadyExists,
-  readOriginalSubmissionSnapshot,
   writeSubmissionSnapshot,
 } = require('../../shared/writeSubmissionSnapshot');
 
@@ -189,24 +188,5 @@ describe('error handling', () => {
       .rejects.toThrow(/requires companyId and applicationId/);
     await expect(writeSubmissionSnapshot(args(db, { snapshot: null })))
       .rejects.toThrow(/requires a snapshot/);
-  });
-});
-
-describe('reading the original', () => {
-  it('always resolves to sequence 1, not the newest', async () => {
-    const { db } = makeDb();
-    await writeSubmissionSnapshot(args(db, { snapshot: { ...SNAP, marker: 'first' } }));
-    await writeSubmissionSnapshot(args(db, { snapshot: { ...SNAP, marker: 'second' } }));
-
-    const original = await readOriginalSubmissionSnapshot({ db, companyId: 'co-a', applicationId: 'app-1' });
-    expect(original.marker).toBe('first');
-  });
-
-  // Callers must say "no preserved record" rather than pass live data off as the
-  // submitted original.
-  it('returns null for an application that predates snapshots', async () => {
-    const { db } = makeDb();
-    expect(await readOriginalSubmissionSnapshot({ db, companyId: 'co-a', applicationId: 'legacy-app' }))
-      .toBeNull();
   });
 });

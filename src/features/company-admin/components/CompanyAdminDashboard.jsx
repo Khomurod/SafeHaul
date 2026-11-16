@@ -13,8 +13,9 @@ import {
 } from '@/design-system/layouts';
 import { useDashboardCounts } from '@features/companies';
 
-import { InlineLeaderboard } from './InlineLeaderboard';
-
+import { CompanyReadinessCard } from './CompanyReadinessCard';
+import { HiringBrief } from './HiringBrief';
+import { NeedsAttentionCard } from './NeedsAttentionCard';
 
 import { Icon, FileText, Briefcase, User, CheckCircle } from '@design-system/icons';
 
@@ -54,11 +55,11 @@ export function CompanyAdminDashboard() {
 
     return (
         <div id="company-admin-container" className="min-h-full bg-ds-canvas">
-            <PageContainer>
+            <PageContainer width="standard">
                 <Stack gap="lg">
                     <PageHeader
                         title={userName ? `Welcome back, ${userName}` : 'Welcome back'}
-                        description={`Here's what's happening at ${companyName} today.`}
+                        description={`Here's what's happening at ${companyName}.`}
                     />
 
                     <Section aria-label="Company activity summary">
@@ -81,7 +82,7 @@ export function CompanyAdminDashboard() {
                                 </Button>
                             )}
                         >
-                            Some dashboard numbers could not load: {statsFetchError}
+                            {statsFetchError}
                         </Notice>
                     )}
                         <ResponsiveGrid minItemWidth="210px">
@@ -123,9 +124,14 @@ export function CompanyAdminDashboard() {
                         </ResponsiveGrid>
                     </Section>
 
-                    <Section aria-label="Team performance">
-                        <InlineLeaderboard companyId={companyId} />
-                    </Section>
+                    {/* Everyone: what waits on someone, counted by the server once per visit (one calm line when nothing). */}
+                    <NeedsAttentionCard key={companyId} companyId={companyId} />
+
+                    {/* Admins only: what the company has not set up, read once (one calm line when ready). */}
+                    <CompanyReadinessCard companyId={companyId} />
+
+                    {/* Everyone: this month's applications, those in process and this month's hires, each opening its list. */}
+                    <HiringBrief key={companyId} companyId={companyId} />
                 </Stack>
             </PageContainer>
         </div>

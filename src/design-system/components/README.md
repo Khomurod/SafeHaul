@@ -43,6 +43,8 @@ feature.
 the current set. `link/` is worth calling out because its absence used to be
 cited as an open gap: it exports `Link`, `ButtonLink` and `IconButtonLink`, so a
 navigation that needs to look like a button has an approved anchor to use.
+`tabs/` holds the tab strip (`TabList`, `TabPanel`) and `TabNav`, the same
+strip as a `<nav>` of links for views that each have their own address.
 `status-medallion/` is the one family here with no README of its own.
 `skeleton/` holds `Skeleton`, an `aria-hidden` placeholder of a known shape whose
 caller announces; `MetricCard loading` uses it.

@@ -13,6 +13,8 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 
 const useApplicationViewSpy = vi.fn();
 const deleteApplicationSpy = vi.fn();
+const forgetDriverUploadFilingsSpy = vi.fn();
+const forgetSubmissionRecordsSpy = vi.fn();
 let claims = {};
 let viewState = {};
 let deleting = false;
@@ -24,29 +26,45 @@ vi.mock('@features/company-admin/hooks/useApplicationView', () => ({
   },
 }));
 
+vi.mock('@features/company-admin/components/tabs/dqFileSync', () => ({
+  forgetDriverUploadFilings: () => forgetDriverUploadFilingsSpy(),
+}));
+vi.mock('@features/applications/services/submissionRecordRead', () => ({
+  forgetSubmissionRecords: () => forgetSubmissionRecordsSpy(),
+}));
+
 vi.mock('@features/applications/hooks/useApplicationDelete', () => ({
   useApplicationDelete: () => ({ deleting, deleteApplication: deleteApplicationSpy }),
 }));
 
+// The template read is Firestore's; `useContactAttemptTexts.test.js` covers it.
+vi.mock('./useContactAttemptTexts', () => ({ useContactAttemptTexts: () => () => null }));
 vi.mock('@/context/DataContext', () => ({
   useData: () => ({ currentUserClaims: claims }),
 }));
 
 // The tab bodies are irrelevant here; the shell is under test.
 vi.mock('./DossierContent', () => ({
-  DossierContent: (props) => <div data-testid="content" data-active-tab={props.activeTab} />,
+  DossierContent: (props) => (
+    <div data-testid="content" data-active-tab={props.activeTab} data-record={props.driverId}>
+      <button type="button" onClick={() => props.onOpenTab('pev')}>content-open-pev</button>
+    </div>
+  ),
 }));
 vi.mock('./DossierSidebar', () => ({
-  DossierSidebar: ({ activeTab, setActiveTab }) => (
+  DossierSidebar: ({ activeTab, setActiveTab, onOpenRecord, collectionName }) => (
     <div>
       <span data-testid="sidebar-active">{activeTab}</span>
+      <span data-testid="sidebar-collection">{collectionName}</span>
       <button type="button" onClick={() => setActiveTab('documents')}>go-documents</button>
+      <button type="button" onClick={() => onOpenRecord('lead-4', 'leads')}>open-linked</button>
     </div>
   ),
 }));
 vi.mock('./DossierHeader', () => ({
-  DossierHeader: ({ onClose, onDelete, canDelete }) => (
+  DossierHeader: ({ onClose, onDelete, canDelete, collectionName }) => (
     <div>
+      <span data-testid="header-collection">{collectionName}</span>
       <button type="button" onClick={onClose}>header-close</button>
       {canDelete && <button type="button" onClick={onDelete}>header-delete</button>}
     </div>
@@ -124,6 +142,43 @@ describe('DriverProfileModal open/close contract', () => {
     expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'application');
   });
 
+  // A bell notice or a Needs attention row opens the tab it is about.
+  it('opens on the tab its opener names, which the sidebar still moves', () => {
+    renderModal({ initialTab: 'pev' });
+    expect(screen.getByTestId('sidebar-active')).toHaveTextContent('pev');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'pev');
+
+    fireEvent.click(screen.getByText('go-documents'));
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'documents');
+  });
+
+  // The DQ file's employers open Previous Employment; the button pressed is gone.
+  it('lets a tab open another, at its top, with the focus on the panel', () => {
+    renderModal();
+    const panel = screen.getByRole('tabpanel');
+    panel.scrollTop = 120;
+
+    fireEvent.click(screen.getByText('content-open-pev'));
+
+    expect(screen.getByTestId('sidebar-active')).toHaveTextContent('pev');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'pev');
+    expect(document.activeElement).toBe(panel);
+    expect(panel.scrollTop).toBe(0);
+  });
+
+  // The DQ tab files a record's uploads, and the Application and DQ tabs read
+  // its submission record, once while the dossier is open.
+  it('forgets what it filed and read once it closes, and not before', () => {
+    const { unmount } = renderModal();
+    fireEvent.click(screen.getByText('go-documents'));
+    expect(forgetDriverUploadFilingsSpy).not.toHaveBeenCalled();
+    expect(forgetSubmissionRecordsSpy).not.toHaveBeenCalled();
+
+    unmount();
+    expect(forgetDriverUploadFilingsSpy).toHaveBeenCalledTimes(1);
+    expect(forgetSubmissionRecordsSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the active-tab state values the sidebar emits', () => {
     renderModal();
     fireEvent.click(screen.getByText('go-documents'));
@@ -142,7 +197,37 @@ describe('DriverProfileModal data-hook contract', () => {
 
   it('calls useApplicationView with the company and the record', () => {
     renderModal();
-    expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123');
+    expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123', undefined, undefined);
+  });
+
+  // The list, the bell and Add lead know where the record is: a lead is one read.
+  it("hands useApplicationView the collection its opener names", () => {
+    renderModal({ collectionHint: 'leads' });
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'app-123', undefined, 'leads');
+  });
+
+  it('shows the linked lead or application in the same dossier, on its first tab, and deletes that one', async () => {
+    const { rerender } = renderModal();
+    expect(screen.getByTestId('sidebar-collection')).toHaveTextContent('applications');
+    fireEvent.click(screen.getByText('go-documents'));
+
+    fireEvent.click(screen.getByText('open-linked'));
+
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'lead-4', undefined, 'leads');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-record', 'lead-4');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'application');
+
+    viewState = { ...baseView(), collectionName: 'leads' };
+    deleteApplicationSpy.mockResolvedValue(true);
+    fireEvent.click(screen.getByText('header-delete'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    await waitFor(() => expect(deleteApplicationSpy).toHaveBeenCalledWith({
+      companyId: 'co-1', applicationId: 'lead-4', collectionName: 'leads',
+    }));
+
+    // Opening another record from the page shows that record.
+    rerender(<DriverProfileModal companyId="co-1" driverId="app-777" collectionHint="applications" isOpen onClose={vi.fn()} />);
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'app-777', undefined, 'applications');
   });
 
   // DEFECT-FIX assertion (not a frozen contract): before the design-system
@@ -219,6 +304,23 @@ describe('DriverProfileModal delete permission and payload', () => {
     expect(screen.getByText(/This permanently removes the application, its activity history, notes, and all\s+uploaded documents\. This cannot be undone\./)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument();
+  });
+
+  it('asks about a lead as a lead', () => {
+    claims = { roles: { 'co-1': 'company_admin' } };
+    viewState = { ...baseView(), collectionName: 'leads' };
+    renderModal();
+    fireEvent.click(screen.getByText('header-delete'));
+
+    expect(screen.getByRole('dialog', { name: 'Delete this lead?' })).toBeInTheDocument();
+    expect(screen.getByText(/This permanently removes the lead, its activity history, notes, and all\s+uploaded documents\. This cannot be undone\./)).toBeInTheDocument();
+    expect(screen.queryByText('Delete this application?')).toBeNull();
+  });
+
+  it('hands the header the collection the record was found in', () => {
+    viewState = { ...baseView(), collectionName: 'leads' };
+    renderModal();
+    expect(screen.getByTestId('header-collection')).toHaveTextContent('leads');
   });
 
   it('sends the exact delete payload and then calls onDeleted before onClose', async () => {

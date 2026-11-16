@@ -18,11 +18,26 @@ catalog entry only.
 | `icon` | a registry glyph, or `null` | the tone's own | `null` hides it; `undefined` takes the tone's |
 | `actions` | node | — | 9 consumers carry a button; renders **under** the message |
 | `size` | md · sm | `md` | |
+| `frame` | box · flush | `box` | `flush` is the last row of a card (C2) |
 | `announce` | off · polite · assertive | **`off`** | only 26 of 64 announce today |
 | `className` | string | — | margin and width only |
 
 `forwardRef` so a form can move focus to it; pass `tabIndex={-1}` alongside. The
 focus ring is the component's own — see below.
+
+### `frame="flush"`: the last row of a card
+
+A note under a table, a warning under a list, used to be a bordered, rounded
+box inside the card's box. `flush` drops its own frame: no side or bottom
+border, no radius at the top, only a rule in the tone's border colour across
+the top, and the card padding role (`--ds-card-padding`) at the sides so its
+words line up with the rows above. The bottom corners follow the card's inner
+curve (`--ds-card-radius` less the 1px border), so the tint never shows past a
+card that does not clip — a `FormSection` card does not, because it would cut
+off a field's popover. Put it last in a flush body (`FormSection
+padding="none"`) or in a card whose child manages its own edges. Tone, glyph,
+title, actions and `announce` are unchanged; the default `box` renders no
+`data-frame`, so no existing notice moved.
 
 ### The glyph is decorative
 
@@ -352,7 +367,7 @@ Of the 22 candidates that are not notices, **seventeen are a small tinted square
 or circle holding exactly one glyph** — a section-header mark, a modal-header
 mark, a row marker, a locked-feature badge. `applicationTabCards:310` ·
 `NewDocumentDialog:81` · `TemplateLibraryPanel:107` · `NotesTab:229` ·
-`LaunchPad:96` · `InlineLeaderboard:164` and `:202` · `PEVRequestModal:221` ·
+`LaunchPad:96` · `InlineLeaderboard:164` and `:202` (since removed) · `PEVRequestModal:221` ·
 `QuickLeadModal:154` · `VOEPreviewModal:121` and `:276` ·
 `DriverProfileModal:250` · `PEVTabParts:63` · `NotificationItem:81` ·
 `PaywallMessage:23` · `CompanyChooserModal:139` · `FeatureLockedModal:52`.

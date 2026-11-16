@@ -43,7 +43,7 @@ describe('PEVTab feature gate', () => {
     dataMock.value = { currentCompanyProfile: { features: { pev: false } } };
     renderTab();
 
-    expect(screen.getByText('PEV Module Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Previous Employment unavailable')).toBeInTheDocument();
     expect(screen.queryByText('Acme Freight')).toBeNull();
   });
 
@@ -80,9 +80,24 @@ describe('PEVTab employer presentation', () => {
       ],
     });
 
-    // Total 4, Completed 1, and 'Sent' + 'Requested' both count as pending.
-    expect(screen.getByText('Total Employers').closest('*')).toBeTruthy();
-    expect(screen.getByText('4')).toBeInTheDocument();
+    // Total 4, Completed 1, and 'Sent' + 'Requested' both count as pending: one line.
+    expect(screen.getByText('4 employers, 1 completed, 2 in progress')).toBeInTheDocument();
+  });
+
+  it('says one employer in the singular, and no counts when there are none', () => {
+    const { unmount } = renderTab({ employers: [{ companyName: 'A' }] });
+    expect(screen.getByText('1 employer, 0 completed, 0 in progress')).toBeInTheDocument();
+    unmount();
+
+    renderTab({ employers: [] });
+    expect(screen.queryByText(/in progress/)).toBeNull();
+  });
+
+  // It was a fixed card, not data, beside a "(DOT Compliance)" heading that
+  // named the tab a third time.
+  it('claims no compliance status and names the tab no further', () => {
+    renderTab();
+    expect(screen.queryByText(/Audit in Progress|Compliance Status|DOT Compliance|Verification Center/)).toBeNull();
   });
 
   it('shows the no-employer empty copy', () => {
@@ -301,6 +316,20 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(written.status).toBe('Sent');
     expect(written.history).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /Copy Link/i })).toBeNull();
+  });
+
+  it('drops the previous request\'s opened date when a new request is sent for that employer', async () => {
+    fnMocks.callable.mockResolvedValue({ data: { success: true } });
+    renderTab();
+    storedDoc.employers[1].verification.openedAt = '2026-07-02T15:00:00.000Z';
+    fireEvent.click(screen.getByRole('button', { name: 'Resend verification request to Legacy Hauling' }));
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+    // The new request has not been opened; the server records its first open.
+    expect(fsMocks.updateDoc.mock.calls[0][1].employers[1].verification).not.toHaveProperty('openedAt');
+    expect(screen.queryByText(/Employer opened the link/)).toBeNull();
   });
 
   it('offers the new link, not the stored one, when a new request is sent by hand for that employer', async () => {

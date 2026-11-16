@@ -41,11 +41,11 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
 
         // Validate SMTP settings exist (a password is in every settings the reader returns)
         if (!emailSettings || !emailSettings.user) {
-            throw new Error(
+            throw Object.assign(new Error(
                 `Missing email configuration for company ${companyId}. ` +
                 `Please configure SMTP settings in Company Settings > Email tab. ` +
                 `Required fields: smtpHost, smtpPort, smtpUser, smtpPass`
-            );
+            ), { code: 'not-configured' });
         }
 
         // Reuse the company's pooled Nodemailer transporter while its settings stay the same
@@ -65,8 +65,8 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
             mailOptions.html += `<br><br><div style="white-space: pre-line;">${emailSettings.signature}</div>`;
         }
 
-        // Send email
-        console.log(`[sendDynamicEmail] Sending email from ${companyId} to ${to}`);
+        // The company, never the recipient: everyone who can read the project's logs reads this.
+        console.log(`[sendDynamicEmail] Sending email for company ${companyId}`);
         const info = await transporter.sendMail(mailOptions);
 
         console.log(`[sendDynamicEmail] Email sent successfully. MessageID: ${info.messageId}`);
@@ -77,8 +77,13 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
         };
 
     } catch (error) {
-        console.error(`[sendDynamicEmail] Error sending email:`, error);
-        throw new Error(`Failed to send email: ${error.message}`);
+        // The code only: a mail server's reply, and Nodemailer's error built from it, can name the recipient.
+        console.error(`[sendDynamicEmail] company ${companyId}: the email was not sent (${error?.code || error?.responseCode || 'error'})`);
+        // The text is recorded where the team reads it; the codes go along, so a caller logs those instead.
+        throw Object.assign(new Error(`Failed to send email: ${error.message}`), {
+            ...(error?.code && { code: error.code }),
+            ...(error?.responseCode && { responseCode: error.responseCode }),
+        });
     }
 }
 
@@ -135,17 +140,11 @@ async function testEmailCredentials(smtpConfig) {
             return { success: false, error: `Invalid SMTP port. Allowed ports: ${ALLOWED_PORTS.join(', ')}.` };
         }
 
-        // Bounded at every stage: a save waits on this check (saveEmailSettings).
+        // The connection every send makes (`smtpTransportOptions`), bounded at every
+        // stage; its socket is given 20 s, not a send's 30, because a save waits on
+        // this check (saveEmailSettings).
         const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: port,
-            secure: port === 465,
-            auth: {
-                user: smtpUser,
-                pass: smtpPass,
-            },
-            connectionTimeout: 10000,
-            greetingTimeout: 10000,
+            ...smtpTransportOptions({ host: smtpHost, port, user: smtpUser, pass: smtpPass }),
             socketTimeout: 20000,
         });
 

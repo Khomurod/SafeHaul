@@ -42,7 +42,7 @@ test.describe('Company Settings Automated SMS compatibility slice', () => {
   // — strictly more than this ever verified, with no race. Deleted rather than
   // given a longer timeout: no timeout makes an unobservable state observable.
 
-  test('shows three labelled templates and the save action on desktop', async ({ page }, testInfo) => {
+  test('shows three labelled templates, and the save bar once one changes, on desktop', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop presentation check.');
     await page.setViewportSize({ width: 1440, height: 900 });
     await openLoadedForm(page);
@@ -58,12 +58,11 @@ test.describe('Company Settings Automated SMS compatibility slice', () => {
     await expect(two).toBeVisible();
     await expect(three).toBeVisible();
 
-    const save = region.getByRole('button', { name: 'Save templates' });
-    await expect(save).toBeVisible();
-    const saveHeight = await save.evaluate((el) => el.getBoundingClientRect().height);
-    expect(saveHeight).toBeGreaterThanOrEqual(44);
+    // Nothing is changed yet, so there is nothing to save.
+    const bar = page.getByRole('region', { name: 'Unsaved changes' });
+    await expect(bar).toHaveCount(0);
 
-    // Logical keyboard order: the three templates then the save action.
+    // Logical keyboard order: the three templates.
     await one.focus();
     await page.keyboard.press('Tab');
     await expect(two).toBeFocused();
@@ -73,6 +72,18 @@ test.describe('Company Settings Automated SMS compatibility slice', () => {
     const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const viewportWidth = await page.evaluate(() => window.innerWidth);
     expect(documentWidth).toBeLessThanOrEqual(viewportWidth);
+
+    // A change brings the save bar; Discard puts the template back.
+    const before = await two.inputValue();
+    await two.fill('Hi {driver name}, just checking in.');
+    await expect(bar).toContainText('1 change · Contact Attempt 2');
+    const save = bar.getByRole('button', { name: 'Save' });
+    await expect(save).toBeVisible();
+    const saveHeight = await save.evaluate((el) => el.getBoundingClientRect().height);
+    expect(saveHeight).toBeGreaterThanOrEqual(44);
+    await bar.getByRole('button', { name: 'Discard' }).click();
+    await expect(bar).toHaveCount(0);
+    await expect(two).toHaveValue(before);
   });
 
   test('keeps tablet layout free of document or nested horizontal overflow', async ({ page }, testInfo) => {
@@ -124,12 +135,15 @@ test.describe('Company Settings Automated SMS compatibility slice', () => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openLoadedForm(page);
+    // A change brings the save bar, whose Save is measured too.
+    await page.getByRole('textbox', { name: 'Contact Attempt 1' }).fill('Hi {driver name}, this is {user name}.');
+    await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible();
 
     const geometry = await page.evaluate(() => {
       const section = document.querySelector('[data-testid="automated-sms-settings"]');
       const textareas = [...section.querySelectorAll('.ds-form-control')];
-      const save = [...document.querySelectorAll('button')]
-        .find((button) => button.textContent.trim() === 'Save templates');
+      const save = [...section.querySelectorAll('[role="region"][aria-label="Unsaved changes"] button')]
+        .find((button) => button.textContent.trim() === 'Save');
 
       return {
         viewportWidth: window.innerWidth,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -92,6 +92,48 @@ describe('CompanyProfileTab information compatibility slice', () => {
         expect(screen.getByText('TX')).toBeInTheDocument();
         expect(screen.getByText('75001')).toBeInTheDocument();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('heads each part with what it holds, above its card', () => {
+        renderProfile();
+        for (const [title, description] of [
+            ['Company', 'Name and logo, as drivers see them.'],
+            ['Contact Info', 'How drivers reach you.'],
+            ['HQ Address', 'Your main office.'],
+        ]) {
+            const section = screen.getByRole('region', { name: title });
+            expect(within(section).getByRole('heading', { level: 2, name: title })).toBeInTheDocument();
+            expect(within(section).getByText(description)).toBeInTheDocument();
+        }
+        expect(within(screen.getByRole('region', { name: 'Company' })).getByText('SafeHaul Logistics')).toBeInTheDocument();
+    });
+
+    it('keeps Cancel and Save Changes in reach at the foot of a phone while editing, drawn once', () => {
+        renderProfile();
+        const header = screen.getByRole('heading', { level: 1, name: 'Company profile' }).closest('header');
+        expect(header).not.toHaveAttribute('data-mobile-actions');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        expect(header).toHaveAttribute('data-mobile-actions', 'sticky');
+        expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: 'Save Changes' })).toHaveLength(1);
+    });
+
+    it('shows the plan as one read-only line, which Edit Profile does not open', () => {
+        renderProfile();
+        // No plan set: Free, as the Plan section showed it.
+        expect(screen.getByText('Plan')).toBeInTheDocument();
+        expect(screen.getByText('Free Plan — to change it, contact support.')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        expect(screen.queryByText(/Free Plan/)).toBeNull();
+        expect(screen.queryByRole('textbox', { name: 'Plan' })).toBeNull();
+    });
+
+    it('shows Pro for a company a super admin put on the paid plan', () => {
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } }, applyCompanyChanges });
+        render(<CompanyProfileTab currentCompanyProfile={{ ...company, planType: 'paid' }} />);
+        expect(screen.getByText('Pro Plan — to change it, contact support.')).toBeInTheDocument();
     });
 
     it('exposes accessible editable fields with the original field keys', () => {
@@ -303,6 +345,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
     it('preserves save errors and re-enables the save action', async () => {
         serviceMocks.saveCompanySettings.mockRejectedValueOnce(new Error('offline'));
+        // Not the error's own word: a plain sentence.
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderProfile();
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
@@ -310,7 +353,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
         await waitFor(() => {
             expect(toastMocks.showError)
-                .toHaveBeenCalledWith('Failed to save settings: offline');
+                .toHaveBeenCalledWith('The company settings could not be saved. Please try again. If it keeps happening, contact support.');
         });
         expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled();
         consoleError.mockRestore();
@@ -372,7 +415,10 @@ describe('CompanyProfileTab information compatibility slice', () => {
         });
 
         it('preserves the upload failure message and keeps the previous logo', async () => {
-            serviceMocks.uploadCompanyLogo.mockRejectedValueOnce(new Error('storage/unauthorized'));
+            serviceMocks.uploadCompanyLogo.mockRejectedValueOnce(Object.assign(
+                new Error('Firebase Storage: User does not have permission to access the logo. (storage/unauthorized)'),
+                { code: 'storage/unauthorized' },
+            ));
             const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
             const { input } = enterEditAndGetInput();
 
@@ -382,7 +428,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
             await waitFor(() => {
                 expect(toastMocks.showError)
-                    .toHaveBeenCalledWith('Logo upload failed: storage/unauthorized');
+                    .toHaveBeenCalledWith('The logo could not be uploaded. You do not have permission to do this. If you think you should, ask your company admin.');
             });
             expect(serviceMocks.saveCompanySettings).not.toHaveBeenCalled();
             expect(screen.getByRole('img', { name: 'Company logo' }))

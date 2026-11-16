@@ -3,10 +3,11 @@ import { useAppFetch } from './useAppFetch';
 import { useAppActions } from './useAppActions';
 import { isCompanyWorkspaceRole, isSuperAdminClaims } from '@app/auth/roles';
 
-export function useApplicationDetails(companyId, applicationId, onStatusUpdate) {
+/** `collectionHint`: the record's collection when the opener knows it (`useAppFetch`). */
+export function useApplicationDetails(companyId, applicationId, onStatusUpdate, collectionHint) {
   const { currentUserClaims } = useData();
 
-  const fetch = useAppFetch(companyId, applicationId);
+  const fetch = useAppFetch(companyId, applicationId, collectionHint);
 
   const userRole = currentUserClaims?.roles?.[companyId];
   const canEdit = isSuperAdminClaims(currentUserClaims) || isCompanyWorkspaceRole(userRole);
@@ -28,6 +29,7 @@ export function useApplicationDetails(companyId, applicationId, onStatusUpdate) 
     loading: fetch.loading,
     error: fetch.error,
     appData: fetch.appData,
+    refreshRecord: fetch.refreshRecord,
     collectionName: fetch.collectionName,
     fileUrls: fetch.fileUrls,
     filesPending: fetch.filesPending,

@@ -1,27 +1,32 @@
 import React, { useState, useMemo, useCallback, useId } from 'react';
-import { Icon, Briefcase, CheckCircle2, ShieldCheck, Info } from '@design-system/icons';
+import { Icon, Briefcase, Info } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
 import { requestPdfWarning } from '../../utils/pevRequestPdf';
+import { writeVerificationMirror } from '../../utils/pevVerificationMirror';
 import { VOEPreviewModal } from '../modals/VOEPreviewModal';
 import { PEVRequestModal } from '../modals/PEVRequestModal';
-import { db, functions } from '@lib/firebase';
+import { functions } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
-import { Card, MetricCard } from '@/design-system/components';
+import { Card } from '@/design-system/components';
 import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 /**
  * Previous Employment Verification — initiation and tracking.
  *
- * Presentation uses the approved `Card`, `MetricCard`, `Badge`, `Button`
- * and `IconButton` primitives, the approved accessible `Modal`, and `--ds-*`
- * tokens.
+ * Presentation uses the approved `Card`, `Badge`, `Button` and `IconButton`
+ * primitives, the approved accessible `Modal`, and `--ds-*` tokens.
+ *
+ * The tab is named once, by its tab and the dossier header: it opens with the
+ * counts on one line (employers, completed, in progress), then the
+ * §391.23 note and the employers. No status is claimed that the data does not
+ * hold (a fixed "Compliance Status: Audit in Progress" card stood here).
  *
  * DELIBERATELY NOT MIGRATED in this campaign: `VOEPreviewModal`'s generated
  * document layout and its PDF/print rendering, and the external employer
@@ -34,12 +39,13 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  * `logActivity(companyId, collectionName, applicationId, 'PEV_REQUEST', entry, 'pev')`
  * argument list and the exact log-entry string; the Firestore
  * `updateDoc(companies/{companyId}/{collectionName}/{applicationId}, { employers })`
- * write and the verification/history object shapes; the optimistic
+ * write (`writeVerificationMirror`) and the verification/history object shapes; the optimistic
  * `localOverrides` merge; the `getSignedPevUrl({ storagePath })` payload and the
  * `http(s)`-opens-directly rule; every `window.open(url, '_blank',
  * 'noopener,noreferrer')` call; the clipboard write; the
  * `companies/{companyId}/{collectionName}/{applicationId}/pev_results/{Date.now()}_{name}`
- * Storage path and the `.pdf,image/*` accept list; the `'email' | 'fax' |
+ * Storage path (the file is then recorded by `recordManualVerificationResult`,
+ * which completes the employer's request) and the `.pdf,image/*` accept list; the `'email' | 'fax' |
  * 'manual'` delivery values and their `Email | Fax | Manual` labels; the
  * `'Manual Download'` recipient fallback; and every toast string.
  *
@@ -53,7 +59,7 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  *   as the list, so a legacy employer is named rather than "Not Specified": it
  *   is the one place that tells you *whose* verification trail you are reading.
  * - **The Resend action has an accessible name**, not a `title` alone.
- * - **No interface text below the 12 px floor**, the summary cards, the status
+ * - **No interface text below the 12 px floor**, the counts, the status
  *   badges and the FMCSA notes included.
  * - **The employer list is a real list**, so assistive technology announces how
  *   many employers there are.
@@ -62,6 +68,13 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  * - **Status is never colour alone**: the pill is an approved `Badge` whose tone
  *   is layered over its own text.
  */
+
+const RESULT_NOT_FILED = 'The result was recorded, but it could not be filed in the DQ file. It opens from the verification history.';
+
+/** "3 employers, 1 completed, 2 in progress". */
+function countsLine({ total, completed, pending }) {
+    return `${total} ${total === 1 ? 'employer' : 'employers'}, ${completed} completed, ${pending} in progress`;
+}
 
 export function PEVTab({ companyId, applicationId, appData, collectionName = 'applications' }) {
     const { showSuccess, showError } = useToast();
@@ -97,47 +110,16 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
     const [loadingResultUrl, setLoadingResultUrl] = useState(null); // Track which index is loading a signed URL
 
     const employers = useMemo(() => appData?.employers || [], [appData]);
-
-    /**
-     * Write a verification mirror onto one employer row, without clobbering the rest.
-     *
-     * `[...employers]` from `appData` is a snapshot of whenever the dossier last
-     * read the application, and writing the WHOLE array back would lose anything
-     * that changed on another row in between — including the stable `employerId`
-     * that `sendVerificationRequest` stamps on the rows it resolves, after which
-     * the employer's own answer would have no row it could safely be filed
-     * against.
-     *
-     * So the document is re-read here and the change applied to what is actually
-     * stored — and the row is found by `employerId` when the callable returned one,
-     * because an index is exactly the thing that moves.
-     *
-     * @param {{employerId?: string, index: number, apply: (verification: object) => void}} target
-     * @returns {Promise<object|null>} the verification as written, for the
-     *   optimistic override, or null when the row could not be found.
-     */
-    const writeVerification = useCallback(async ({ employerId, index, apply }) => {
-        const appRef = doc(db, 'companies', companyId, collectionName, applicationId);
-        const snap = await getDoc(appRef);
-        const rows = snap.exists() && Array.isArray(snap.data()?.employers)
-            ? [...snap.data().employers]
-            : [];
-        const found = employerId
-            ? rows.findIndex((row) => row?.employerId === employerId)
-            : index;
-        if (found < 0 || !rows[found]) return null;
-
-        const verification = { history: [], ...(rows[found].verification || {}) };
-        apply(verification);
-        rows[found] = { ...rows[found], verification };
-        await updateDoc(appRef, { employers: rows });
-        return verification;
-    }, [companyId, collectionName, applicationId]);
+    // The record a verification is filed on, for the mirror write and "Record attempt".
+    const record = useMemo(() => ({ companyId, collectionName, applicationId }), [companyId, collectionName, applicationId]);
+    const overrideVerification = useCallback((index, verification) => (
+        setLocalOverrides((prev) => ({ ...prev, [index]: verification }))
+    ), []);
 
     /**
      * Opens a PEV result file. Handles both:
-     *  - Cloud Storage paths (from portal submissions) → calls getSignedPevUrl for a fresh signed URL
-     *  - Full URLs (from manual uploads via getDownloadURL) → opens directly
+     *  - Cloud Storage paths (portal answers and uploaded results) → calls getSignedPevUrl for a fresh signed URL
+     *  - Full URLs (results uploaded before the server recorded them) → opens directly
      */
     const handleViewResult = useCallback(async (urlOrPath, index = null) => {
         if (!urlOrPath) return;
@@ -239,14 +221,16 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 'pev'
             );
 
-            // Written onto the stored row, not a stale snapshot — see `writeVerification`.
-            const written = await writeVerification({
+            // Written onto the stored row, not a stale snapshot — see `writeVerificationMirror`.
+            const written = await writeVerificationMirror(record, {
                 employerId: result.data.employerId,
                 index: emp.index,
                 apply: (verification) => {
                     // An older screen stored the previous request's link here; it is not this request's.
                     delete verification.verificationUrl;
                     delete verification.token;
+                    // Nor is its first open: the server records this request's.
+                    delete verification.openedAt;
                     verification.status = 'Sent';
                     verification.method = method;
                     verification.history = [...(verification.history || []), {
@@ -290,34 +274,22 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
         setUploadingResult(true);
         try {
             const storagePath = `companies/${companyId}/${collectionName}/${applicationId}/pev_results/${Date.now()}_${file.name}`;
-            const fileRefObj = ref(storage, storagePath);
-            await uploadBytes(fileRefObj, file);
-            const downloadUrl = await getDownloadURL(fileRefObj);
+            await uploadBytes(ref(storage, storagePath), file);
 
-            // Update DB, against what is stored rather than a stale snapshot.
-            const written = await writeVerification({
-                employerId: employers[index]?.employerId,
-                index,
-                apply: (verification) => {
-                    verification.status = 'Completed';
-                    verification.resultUrl = downloadUrl;
-                    verification.history = [...(verification.history || []), {
-                        action: 'Result Uploaded',
-                        fileName: file.name,
-                        url: downloadUrl,
-                        timestamp: new Date().toISOString(),
-                    }];
-                },
+            // The server records it: the row and the employer's request are completed,
+            // so its reminders stop (the team cannot write the request).
+            const employer = employers[index] || {};
+            const recordResult = httpsCallable(functions, 'recordManualVerificationResult');
+            const result = await recordResult({
+                companyId, applicationId, collectionName, storagePath, fileName: file.name,
+                employerIndex: index, employerId: employer.employerId || null,
+                employerName: employer.companyName || employer.name || '',
             });
-
-            if (written) {
-                setLocalOverrides(prev => ({
-                    ...prev,
-                    [index]: written,
-                }));
-            }
+            const written = result.data?.verification;
+            if (written) overrideVerification(index, written);
 
             showSuccess('Verification result uploaded successfully.');
+            if (result.data?.filedInDq === false) showError(RESULT_NOT_FILED);
         } catch (error) {
             console.error("Upload Error:", error);
             showError("Failed to upload verification result.");
@@ -328,13 +300,13 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
         }
     };
 
-    if (currentCompanyProfile?.features?.pev === false) {
+    if (!isFeatureOn(currentCompanyProfile, 'pev')) {
         return (
             <div className="p-ds-8">
                 <PaywallMessage
                     // `<h4>` under the dossier header's `<h3>` section title.
                     headingLevel="h4"
-                    title="PEV Module Unavailable"
+                    title="Previous Employment unavailable"
                     message="The Previous Employment Verification module is currently turned off for your company. Please contact our Sales Team to enable automated VOE."
                 />
             </div>
@@ -348,36 +320,12 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
 
     return (
         <div className="mx-auto max-w-6xl space-y-ds-6">
-            {/* Summary */}
-            <div className="grid grid-cols-1 gap-ds-4 md:grid-cols-3">
-                <MetricCard
-                    label="Total Employers"
-                    value={stats.total}
-                    tone="info"
-                    icon={<Icon icon={Briefcase} size="2xl" />}
-                />
-                <MetricCard
-                    label="Completed"
-                    value={stats.completed}
-                    tone="success"
-                    icon={<Icon icon={CheckCircle2} size="2xl" />}
-                />
-                <MetricCard
-                    label="Compliance Status"
-                    value="Audit in Progress"
-                    tone="warning"
-                    icon={<Icon icon={ShieldCheck} size="2xl" />}
-                />
-            </div>
-
-            {/* Verification Center */}
             <Card padding="lg">
-                {/* `<h4>` sits under the dossier header's `<h3>` section title. */}
-                <h4 className="mb-ds-4 border-b border-ds-border-subtle pb-ds-2 text-ds-body-lg font-bold text-ds-content">
-                    Verification Center (DOT Compliance)
-                </h4>
-
                 <div className="space-y-ds-4">
+                    {employers.length > 0 && (
+                        <p className="text-ds-sm font-medium text-ds-content">{countsLine(stats)}</p>
+                    )}
+
                     <p className="flex items-start gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3 text-ds-xs font-medium text-ds-content-secondary">
                         <Icon icon={Info} size="sm" className="mt-0.5 shrink-0 text-ds-action-primary" />
                         FMCSA 391.23(a)(2) requires investigation of employment history for the previous 3 years from the date of the application.
@@ -421,6 +369,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                                             setHistoryTargetIndex={setHistoryTargetIndex}
                                             fileRef={fileRef}
                                             showSuccess={showSuccess}
+                                            record={record}
+                                            onVerification={overrideVerification}
                                         />
                                     </li>
                                 );

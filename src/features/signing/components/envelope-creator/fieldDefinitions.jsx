@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon, Plus, Type, CheckSquare, Calendar, PenTool, Mail, User, Building2, Fingerprint } from '@design-system/icons';
+import { Icon, Plus, Type, CheckSquare, Calendar, PenTool, Mail, User, Building2, Fingerprint, FileSignature } from '@design-system/icons';
 
 /**
  * Field palette definitions for the envelope/template creator.
@@ -12,6 +12,9 @@ export const FIELD_TEMPLATES = {
     signature: { type: 'signature', required: true, label: 'Signature', readOnly: false, prefillPolicy: 'editable', defaultValue: '', fontSize: 'Auto' },
     initial: { type: 'initial', required: true, label: 'Initial', readOnly: false, prefillPolicy: 'editable', defaultValue: '', fontSize: 'Auto' },
     date_signed: { type: 'date', required: true, readOnly: true, prefillPolicy: 'locked', bindingKey: 'current_date', defaultValue: '{{current_date}}', label: 'Date Signed', fontSize: 'Auto' },
+    // The company's own image (`utils/companySignature.js`): fixed for the
+    // signer, never filled. Its image is uploaded in the properties panel.
+    company_signature: { type: 'company_signature', required: false, readOnly: true, prefillPolicy: 'locked', bindingKey: '', prefillGroupKey: '', defaultValue: '', label: 'Company Signature', fontSize: 'Auto', companySignaturePath: '' },
     // Category 2: Signer Info (Auto-mapped)
     name: { type: 'text', required: true, readOnly: false, prefillPolicy: 'editable', bindingKey: 'full_name', defaultValue: '{{full_name}}', label: 'Name', fontSize: 'Auto' },
     email_field: { type: 'text', required: true, readOnly: false, prefillPolicy: 'editable', bindingKey: 'email', defaultValue: '{{email}}', label: 'Email', fontSize: 'Auto' },
@@ -41,6 +44,8 @@ export const FIELD_CATEGORIES = [
             { templateId: 'signature', label: 'Signature', icon: PenTool, tone: 'warning' },
             { templateId: 'initial', label: 'Initial', icon: Fingerprint, tone: 'warning' },
             { templateId: 'date_signed', label: 'Date Signed', icon: Calendar, tone: 'success' },
+            // Neutral: the company's own mark, not one of the signer's four groups.
+            { templateId: 'company_signature', label: 'Company Signature', icon: FileSignature, tone: 'neutral' },
         ]
     },
     {
@@ -68,6 +73,7 @@ export const getFieldIcon = (type) => {
         case 'text': return <Icon icon={Type} size="sm" />;
         case 'checkbox': return <Icon icon={CheckSquare} size="sm" />;
         case 'date': return <Icon icon={Calendar} size="sm" />;
+        case 'company_signature': return <Icon icon={FileSignature} size="sm" />;
         default: return <Icon icon={Plus} size="sm" />;
     }
 };

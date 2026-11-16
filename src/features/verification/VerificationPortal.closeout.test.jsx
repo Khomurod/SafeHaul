@@ -355,12 +355,16 @@ describe('portal presentation', () => {
         expect(screen.getByText(/prospective employers of commercial motor vehicle/i)).toBeInTheDocument();
         expect(screen.getByText(/Previous employers must respond within/i)).toBeInTheDocument();
         expect(screen.getByText(/I certify that I am authorized to provide this/i)).toBeInTheDocument();
-        expect(screen.getByText('FMCSA 49 CFR Part 391.23 Compliance')).toBeInTheDocument();
+        // The regulation it is asked under; not a "Compliance" brand.
+        expect(screen.getByText('Requested under FMCSA 49 CFR Part 391.23')).toBeInTheDocument();
     });
 
-    it('shows the verification token in the footer', async () => {
-        await renderLoadedForm('token-abc');
-        expect(screen.getByText(/Secure verification ID:\s*token-abc/)).toBeInTheDocument();
+    it('names the request in the footer by its short number, never by the link token', async () => {
+        callables.getVerificationRequest.mockResolvedValue({ data: { ...VALID, requestNumber: '9f8e7d6c' } });
+        const { container } = await renderLoadedForm('token-abc');
+        expect(screen.getByText('Request number: 9f8e7d6c')).toBeInTheDocument();
+        expect(container.innerHTML).not.toContain('token-abc');
+        expect(screen.queryByText(/SafeHaul Compliance Services|Secure verification ID/)).not.toBeInTheDocument();
     });
 
     it('has no axe violations while the validation summary is displayed', async () => {

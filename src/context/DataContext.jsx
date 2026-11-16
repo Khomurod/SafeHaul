@@ -97,7 +97,9 @@ export function DataProvider({ children, renderLoading }) {
   }, []);
 
   useEffect(() => {
-    if (isE2ETestMode) {
+    // The mock sign-in. `!PROD` keeps it, and the demo tenant's name, out of a
+    // production build (`isE2ETestMode`).
+    if (!import.meta.env.PROD && isE2ETestMode) {
       const e2eAuthMode = getE2EQueryParam('e2eAuth', 'none');
       // `?demo=marketing` renames the fixture tenant so landing-page
       // screenshots carry a plausible carrier rather than "E2E Logistics".
@@ -110,6 +112,9 @@ export function DataProvider({ children, renderLoading }) {
         applicationConfig: {},
         // The team cache the server keeps on a company document.
         teamMembers: [{ userId: 'e2e-company_admin', name: 'E2E Admin', email: 'company_admin@safehaul.local', role: 'company_admin' }],
+        // `?e2eFacebookLeads=on`: Facebook leads switched on, as a super admin
+        // does per company; off otherwise, as for a company that never set it.
+        ...(getE2EQueryParam('e2eFacebookLeads', '') === 'on' ? { features: { callTracking: true } } : {}),
       };
 
       if (e2eAuthMode === 'none') {

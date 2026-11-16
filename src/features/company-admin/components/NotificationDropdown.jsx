@@ -1,14 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Icon, Bell, Check, Clock, User, Briefcase, FileText } from '@design-system/icons';
+import { Icon, Bell, Check, Clock, User, Briefcase, FileText, FileCheck, AlertTriangle } from '@design-system/icons';
 import { Badge, Button, IconButton } from '@/design-system/components';
+import { ErrorState } from '@design-system/patterns';
 import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
 
 // Icon mapping for notification types
 const getNotificationIcon = (type) => {
     switch (type) {
-        case 'lead_assigned': return <Icon icon={Briefcase} className="text-ds-status-info-fg" />;
+        case 'lead_assigned':
+        case 'leads_assigned':
+        case 'application_assigned': return <Icon icon={Briefcase} className="text-ds-status-info-fg" />;
         case 'status_change': return <Icon icon={FileText} className="text-ds-status-success-fg" />;
         case 'team_activity': return <Icon icon={User} className="text-ds-status-accent-fg" />;
+        case 'document_signed': return <Icon icon={FileCheck} className="text-ds-status-success-fg" />;
+        case 'document_seal_failed': return <Icon icon={AlertTriangle} className="text-ds-status-danger-fg" />;
+        // A hired driver's DQ document (`functions/notifyDqExpiry.js`).
+        case 'dq_expiring': return <Icon icon={AlertTriangle} className="text-ds-status-warning-fg" />;
+        case 'dq_expired': return <Icon icon={AlertTriangle} className="text-ds-status-danger-fg" />;
         default: return <Icon icon={Bell} className="text-ds-content-muted" />;
     }
 };
@@ -26,15 +34,50 @@ const timeAgo = (date) => {
     return `${Math.floor(diff / 86400)}d ago`;
 };
 
-// The server's notifications name the record they are about, and the dossier
-// finds an application or a lead by its id.
-const recordIdOf = (notif) =>
-    notif.relatedId && (notif.relatedType === 'application' || notif.relatedType === 'lead')
-        ? notif.relatedId
-        : null;
+// The dossier tab a notice about a record is about, by its type, so the notices
+// already sent open it too: a signed or unsealed document (`sealNotifications.js`)
+// its Documents to sign, a PEV answer or no-response (`employmentVerification/
+// notifications.js`) Previous Employment, a DQ deadline (`notifyDqExpiry.js`) the
+// DQ File. A request for a new link (`requestNewLink.js`) opens where the link is
+// sent again: a document's on Documents to sign, a PEV's on Previous Employment,
+// a change review's on Application (Email review link). Any other opens the
+// dossier on its first tab.
+const DOSSIER_TAB_BY_TYPE = Object.freeze({
+    document_signed: 'documents',
+    document_seal_failed: 'documents',
+    pev_completed: 'pev',
+    pev_no_response: 'pev',
+    dq_expiring: 'dq',
+    dq_expired: 'dq',
+    signing_link_requested: 'documents',
+    pev_link_requested: 'pev',
+    review_link_requested: 'application',
+});
 
-/** `onOpenRecord(id)` opens a record's dossier; the shell renders it. */
-export function NotificationDropdown({ companyId, onOpenRecord }) {
+// The server's notifications name the record they are about: the dossier
+// finds an application or a lead by its id, and E-Docs lists a signing request.
+// An import's summary ("15 leads assigned to you", `leads_assigned`) names no
+// record, so its type opens the reader's Assigned to me list: those already
+// sent open it too.
+const openerOf = (notif, onOpenRecord, onOpenDocuments, onOpenAssignedLeads) => {
+    if (notif.type === 'leads_assigned') return onOpenAssignedLeads || null;
+    if (!notif.relatedId) return null;
+    if (onOpenRecord && (notif.relatedType === 'application' || notif.relatedType === 'lead')) {
+        const collection = notif.relatedType === 'lead' ? 'leads' : 'applications';
+        return () => onOpenRecord(notif.relatedId, DOSSIER_TAB_BY_TYPE[notif.type], collection);
+    }
+    return onOpenDocuments && notif.relatedType === 'signing_request' ? onOpenDocuments : null;
+};
+
+/**
+ * `onOpenRecord(id, tab, collection)` opens a record's dossier, on `tab` when the
+ * notice is about one (else undefined: the first tab), looking for it first in
+ * `collection` (`'applications'` or `'leads'`, from the notice's type); the shell
+ * renders it.
+ * `onOpenDocuments()` opens E-Docs; `onOpenAssignedLeads()` the Leads list's
+ * Assigned to me tab.
+ */
+export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments, onOpenAssignedLeads }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const bellRef = useRef(null);
@@ -43,18 +86,20 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
         notifications,
         unreadCount,
         loading,
+        error,
+        retry,
         markAsRead,
         markAllAsRead
     } = useCompanyNotifications(companyId);
 
-    const openNotification = (notif, recordId) => {
+    const openNotification = (notif, open) => {
         // A failed write is logged by the hook; the record opens either way.
         if (!notif.read) markAsRead(notif.id).catch(() => {});
         // The row goes with the panel, so the dossier, which returns focus to
         // where it found it, returns it to the bell.
         bellRef.current?.focus();
         setIsOpen(false);
-        onOpenRecord(recordId);
+        open();
     };
 
     // Close dropdown on outside click
@@ -114,12 +159,28 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
 
                     {/* Notification List */}
                     <div className="max-h-96 overflow-y-auto">
+                        {/* A failed read is not "All caught up!": it says so and
+                            reads again on Retry. The reader's own reminders, if
+                            their read answered, still show below it. */}
+                        {!loading && error && (
+                            <ErrorState
+                                surface="bare"
+                                headingLevel={4}
+                                title="Notifications could not be loaded."
+                                description="Check your internet connection, then press Retry."
+                                actions={(
+                                    <Button variant="secondary" size="sm" onClick={retry}>
+                                        Retry
+                                    </Button>
+                                )}
+                            />
+                        )}
                         {loading ? (
                             <div className="p-8 text-center">
-                                <div className="animate-spin w-6 h-6 border-2 border-ds-action-primary border-t-transparent rounded-ds-full mx-auto"></div>
+                                <div className="animate-spin w-6 h-6 border-2 border-ds-navigation-accent border-t-transparent rounded-ds-full mx-auto"></div>
                                 <p className="text-ds-body text-ds-content-muted mt-2">Loading...</p>
                             </div>
-                        ) : notifications.length === 0 ? (
+                        ) : notifications.length === 0 && !error ? (
                             <div className="p-8 text-center">
                                 <div className="w-12 h-12 bg-ds-surface-subtle rounded-ds-full flex items-center justify-center mx-auto mb-3">
                                     <Icon icon={Bell} size="2xl" className="text-ds-content-muted" />
@@ -129,7 +190,7 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                             </div>
                         ) : (
                             notifications.map((notif) => {
-                                const recordId = onOpenRecord ? recordIdOf(notif) : null;
+                                const open = openerOf(notif, onOpenRecord, onOpenDocuments, onOpenAssignedLeads);
                                 const content = (
                                     <>
                                         <span className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>
@@ -143,30 +204,34 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                                             <span className="block text-ds-xs text-ds-content-muted mt-0.5 truncate">
                                                 {notif.message}
                                             </span>
+                                            {open && notif.relatedType === 'signing_request' && (
+                                                <span className="block text-ds-xs text-ds-content-link mt-0.5">Open E-Docs</span>
+                                            )}
                                             <span className="text-ds-xs text-ds-content-muted mt-1 flex items-center gap-1">
                                                 <Icon icon={Clock} size="xs" />
                                                 {timeAgo(notif.createdAt)}
                                             </span>
                                         </span>
                                         {!notif.read && (
-                                            <span aria-hidden="true" className="w-2 h-2 bg-ds-action-primary rounded-ds-full mt-2"></span>
+                                            <span aria-hidden="true" className="w-2 h-2 bg-ds-navigation-accent rounded-ds-full mt-2"></span>
                                         )}
                                     </>
                                 );
                                 return (
                                     <div
                                         key={notif.id}
-                                        className={`px-4 py-3 border-b border-ds-border-subtle transition-colors ${recordId ? 'hover:bg-ds-surface-hover' : ''} ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
+                                        className={`px-4 py-3 border-b border-ds-border-subtle transition-colors ${open ? 'hover:bg-ds-surface-hover' : ''} ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
                                     >
                                         {/* A notification about a record is the row's own
                                             button, unstyled: the row draws it. It opens the
-                                            record, from the keyboard too. One about no record
-                                            has nothing to open, so it is plain text, and
-                                            "Mark all read" clears it. */}
-                                        {recordId ? (
+                                            record (a signing request, in E-Docs), from the
+                                            keyboard too. One about no record has nothing to
+                                            open, so it is plain text, and "Mark all read"
+                                            clears it. */}
+                                        {open ? (
                                             <button
                                                 type="button"
-                                                onClick={() => openNotification(notif, recordId)}
+                                                onClick={() => openNotification(notif, open)}
                                                 className="flex w-full gap-3 text-left focus-visible:shadow-ds-focus"
                                             >
                                                 {content}

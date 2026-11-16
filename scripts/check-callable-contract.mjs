@@ -26,21 +26,41 @@ const walk = (dir) => {
       out.push(...walk(abs));
       continue;
     }
-    if (/\.(js|jsx|ts|tsx)$/.test(entry.name)) out.push(abs);
+    // A test is not the app: its sample code may name callables nothing calls.
+    if (/\.(js|jsx|ts|tsx)$/.test(entry.name) && !/\.(test|spec)\.[jt]sx?$/.test(entry.name)) out.push(abs);
   }
   return out;
 };
 
-/** Every callable name the frontend invokes, sorted. */
-export function readFrontendCallables() {
+/**
+ * The callable names one source file invokes: `httpsCallable(functions, 'name')`,
+ * and a name passed to a local wrapper that hands its first parameter to
+ * `httpsCallable` (`const call = (name, data) => httpsCallable(functions, name)…`,
+ * then `call('name', …)`).
+ */
+export function callablesIn(contents) {
   // Built per call: a global regex carries lastIndex between uses, and a shared
   // one silently skips matches on the second caller.
-  const callableRegex = /httpsCallable\(\s*functions\s*,\s*['"`]([A-Za-z0-9_]+)['"`]/g;
+  const literal = /httpsCallable\(\s*functions\s*,\s*['"`]([A-Za-z0-9_]+)['"`]/g;
+  const wrapper = /(?:const|let)\s+(\w+)\s*=\s*(?:useCallback\(\s*)?(?:async\s*)?\(\s*(\w+)\b[^)]*\)\s*=>[\s\S]{0,400}?httpsCallable\(\s*functions\s*,\s*\2\s*\)/g;
+  const found = new Set();
+  let match;
+  while ((match = literal.exec(contents)) !== null) found.add(match[1]);
+  while ((match = wrapper.exec(contents)) !== null) {
+    // The wrapper itself, never a method or a longer name that ends in its name
+    // (`handler.call('x')` is not a call of a wrapper named `call`).
+    const use = new RegExp(`(?<![\\w$.])${match[1]}\\(\\s*['"\`]([A-Za-z0-9_]+)['"\`]`, "g");
+    let call;
+    while ((call = use.exec(contents)) !== null) found.add(call[1]);
+  }
+  return found;
+}
+
+/** Every callable name the frontend invokes, sorted. */
+export function readFrontendCallables() {
   const found = new Set();
   for (const file of walk(resolve(repoRoot, "src"))) {
-    const contents = readFileSync(file, "utf8");
-    let match;
-    while ((match = callableRegex.exec(contents)) !== null) found.add(match[1]);
+    for (const name of callablesIn(readFileSync(file, "utf8"))) found.add(name);
   }
   return [...found].sort();
 }

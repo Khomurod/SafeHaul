@@ -142,7 +142,7 @@ Controls enforced in [`functions/edocFieldPlacement.js`](../functions/edocFieldP
   read (and the shared rate-limit counters).
 - **No signing tokens** — none are accepted as input or returned. `scanId` is an
   opaque client correlation id, capped at 64 characters.
-- **Server-side key only** — `GROQ_API_KEY` never reaches the browser; the model
+- **Server-side key only** — the AI provider key never reaches the browser; the model
   pin is resolved independently through the shared AI provider registry, so document analysis and
   CDL OCR can move independently.
 - **Output validation** — every suggestion is checked against the supported
@@ -160,7 +160,9 @@ Privacy:
   images are sent to the configured AI provider.
 - **We do not claim provider Zero Data Retention.** No ZDR configuration has
   been verified in this project's production account, so no such claim is made in
-  the product or in these docs.
+  the product or in these docs. The Gemini adapter asks Google not to store
+  requests (`store: false`), which is narrower than ZDR; its limits are in
+  [`docs/ai-platform.md`](ai-platform.md#google-is-asked-not-to-keep-the-request).
 
 ## Super Admin Environment & Integrations vault
 
@@ -207,9 +209,8 @@ are untouched. The vault is a separate, explicitly authorised reveal path.
 | Exhaustion fails safe | When every capable provider fails, the caller gets a categorised error. Nothing is fabricated |
 | Credential management is super-admin only | Exact `globalRole`, recent authentication for reveal and mutation, fail-closed rate limits, value-free audit records, shared with the environment vault |
 
-The Groq migration is reversible by design: the legacy `GROQ_API_KEY` binding is
-retained as a rollback path and read only when the managed credential is absent.
-The cleanup procedure is in [`docs/ai-platform.md`](./ai-platform.md).
+AI provider keys are read from Secret Manager only; no deploy-time binding is a
+fallback. See [`docs/ai-platform.md`](./ai-platform.md#groqs-key).
 
 ## News & Insights (public blog)
 

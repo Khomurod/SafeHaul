@@ -4,12 +4,17 @@
  * Load / validate / submit state for the public PEV portal.
  * Extracted verbatim from VerificationPortal.jsx — token behavior,
  * validation rules, and submission payload are unchanged.
+ *
+ * A link that does not open (or stops working while the form is open) is a
+ * `linkProblem`, `{ reason, detail? }`, for the public pages' shared
+ * `LinkProblemScreen`: the server's reason, read by `linkProblemFromError`.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { serverMessageOf } from '@shared/utils/callableErrors';
+import { LINK_PROBLEM, linkProblemFromError } from '@shared/components/public-link';
 
 /**
  * E2E-only load scenarios, reachable as `?e2eVerify=<mode>` under
@@ -26,7 +31,6 @@ import { serverMessageOf } from '@shared/utils/callableErrors';
  */
 const E2E_VERIFY_SCENARIOS = new Set(['mock', 'expired', 'invalid', 'completed', 'failure']);
 
-const INVALID_LINK = 'This verification link is invalid or has been removed.';
 const KEPT = 'Your answers are still on this page';
 
 /**
@@ -34,11 +38,11 @@ const KEPT = 'Your answers are still on this page';
  *
  * Only a refusal no retry can change ends the visit, on the screen the same
  * refusal gets when the link is opened: the answer is already on file, the
- * link expired (the server says so in its own words), or the request is gone.
- * Anything else keeps the form and its answers. "deadline-exceeded" with no
- * words of the server's is the browser giving up after 70 seconds while the
- * server, allowed 120, may still record the answer; a retry then finds it on
- * file.
+ * link expired (the server says so in its own words), or the request is gone
+ * or replaced. Anything else keeps the form and its answers. "deadline-exceeded"
+ * with no words of the server's is the browser giving up after 70 seconds while
+ * the server, allowed 120, may still record the answer; a retry then finds it
+ * on file.
  */
 function submitFailure(err) {
     const said = serverMessageOf(err);
@@ -46,10 +50,10 @@ function submitFailure(err) {
         case 'functions/already-exists':
             return { ends: 'alreadyCompleted' };
         case 'functions/not-found':
-            return { ends: 'invalid' };
+            return { ends: 'link' };
         case 'functions/deadline-exceeded':
             return said
-                ? { ends: 'expired' }
+                ? { ends: 'link' }
                 : { message: `We did not hear back in time, so your response may not have arrived. ${KEPT}: try again, and if it did arrive, this page will say so.` };
         case 'functions/invalid-argument':
         case 'functions/resource-exhausted':
@@ -64,17 +68,19 @@ function submitFailure(err) {
 export function useVerificationPortal(token) {
     const e2eVerifyMode = isE2ETestMode ? getE2EQueryParam('e2eVerify', '') : '';
     const isE2EVerifyMock = e2eVerifyMode === 'mock';
-    const isE2EVerifyScenario = E2E_VERIFY_SCENARIOS.has(e2eVerifyMode);
+    const isE2EVerifyScenario = isE2ETestMode && E2E_VERIFY_SCENARIOS.has(e2eVerifyMode);
 
     // Page state
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState(null);
+    // Why the link does not work, `{ reason, detail? }` (`LinkProblemScreen`).
+    const [linkProblem, setLinkProblem] = useState(null);
     // Why the last submission was not taken, shown on the form it leaves in place.
     const [submitError, setSubmitError] = useState(null);
     const [completed, setCompleted] = useState(false);
     const [alreadyCompleted, setAlreadyCompleted] = useState(false);
-    const [expired, setExpired] = useState(false);
+    // Bumped by Try again on a link that could not be checked: loads it again.
+    const [attempt, setAttempt] = useState(0);
 
     // Verification data from backend
     const [verificationData, setVerificationData] = useState(null);
@@ -129,6 +135,8 @@ export function useVerificationPortal(token) {
                     if (isE2EVerifyMock) {
                         setVerificationData({
                             status: 'pending',
+                            // As the server sends it: the start of the request's reference.
+                            requestNumber: 'e2e00001',
                             applicantName: 'E2E Driver',
                             employerName: 'E2E Previous Employer',
                             companyName: 'SafeHaul E2E Carrier',
@@ -159,20 +167,21 @@ export function useVerificationPortal(token) {
                 }
             } catch (err) {
                 console.error('Load verification error:', err);
-                if (err.code === 'functions/deadline-exceeded') {
-                    setExpired(true);
-                } else if (err.code === 'functions/not-found') {
-                    setError(INVALID_LINK);
-                } else {
-                    setError(err.message || 'Failed to load verification request.');
-                }
+                setLinkProblem(linkProblemFromError(err, 'This verification request could not be loaded.'));
             } finally {
                 setLoading(false);
             }
         }
         if (token) loadVerification();
-        else { setError('No verification token provided.'); setLoading(false); }
-    }, [token, isE2EVerifyMock, isE2EVerifyScenario, e2eVerifyMode]);
+        // The link was cut short: the token is what makes it a link.
+        else { setLinkProblem({ reason: LINK_PROBLEM.NOT_FOUND }); setLoading(false); }
+    }, [token, isE2EVerifyMock, isE2EVerifyScenario, e2eVerifyMode, attempt]);
+
+    const retry = useCallback(() => {
+        setLinkProblem(null);
+        setLoading(true);
+        setAttempt((n) => n + 1);
+    }, []);
 
     // Form field updater
     const updateField = (field, value) => {
@@ -251,10 +260,8 @@ export function useVerificationPortal(token) {
             if (failure.ends === 'alreadyCompleted') {
                 completedRef.current = true;
                 setAlreadyCompleted(true);
-            } else if (failure.ends === 'expired') {
-                setExpired(true);
-            } else if (failure.ends === 'invalid') {
-                setError(INVALID_LINK);
+            } else if (failure.ends === 'link') {
+                setLinkProblem(linkProblemFromError(err));
             } else {
                 setSubmitError(failure.message);
             }
@@ -268,11 +275,11 @@ export function useVerificationPortal(token) {
         isE2EVerifyMock,
         loading,
         submitting,
-        error,
+        linkProblem,
+        retry,
         submitError,
         completed,
         alreadyCompleted,
-        expired,
         verificationData,
         formData,
         formErrors,

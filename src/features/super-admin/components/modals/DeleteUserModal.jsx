@@ -4,6 +4,7 @@ import { functions } from '@lib/firebase';
 import { Icon, AlertTriangle, X } from '@design-system/icons';
 import { Button, IconButton, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Destructive confirmation for deleting a portal user.
@@ -32,7 +33,7 @@ export function DeleteUserModal({ userId, userName, onClose, onConfirm }) {
       onClose();
     } catch (err) {
       console.error("Error deleting user:", err);
-      setError(err.message);
+      setError(plainErrorMessage(err, 'The user could not be deleted.'));
       setLoading(false);
     }
   };

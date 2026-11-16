@@ -19,6 +19,13 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 
+/** The signing request a transaction reads, as the server holds it when the write lands. */
+export const stored = { current: null };
+export const transaction = {
+    get: vi.fn(async () => ({ exists: () => stored.current !== null, data: () => stored.current })),
+    update: vi.fn(),
+};
+const runInTransaction = async (_db, run) => run(transaction);
 export const fs = {
     collection: vi.fn((_db, ...segments) => ({ __path: segments.join('/') })),
     query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
@@ -27,9 +34,16 @@ export const fs = {
     onSnapshot: vi.fn(),
     doc: vi.fn((_db, ...segments) => ({ __docPath: segments.join('/') })),
     updateDoc: vi.fn(),
+    runTransaction: vi.fn(runInTransaction),
     serverTimestamp: vi.fn(() => '__serverTimestamp__'),
 };
-export const callables = { getSigningLink: vi.fn(), getSignedDocumentUrl: vi.fn() };
+export const callables = {
+    getSigningLink: vi.fn(),
+    getSignedDocumentUrl: vi.fn(),
+    sendSignedDocumentCopy: vi.fn(),
+    retrySealDocument: vi.fn(),
+    remindSigner: vi.fn(),
+};
 export const fnMocks = {
     getFunctions: vi.fn(() => ({})),
     httpsCallable: vi.fn((_fns, name) => callables[name]),
@@ -40,7 +54,11 @@ export const toast = { showSuccess: vi.fn(), showError: vi.fn() };
 
 export const firebaseFirestoreMock = () => fs;
 export const firebaseFunctionsMock = () => fnMocks;
-export const libFirebaseMock = () => ({ db: {} });
+export const libFirebaseMock = () => ({
+    db: {},
+    functions: {},
+    auth: { currentUser: { uid: 'user-1', displayName: 'Dana Admin', email: 'dana.admin@example.test' } },
+});
 export const feedbackMock = () => ({ useToast: () => toast });
 
 // --- fixtures and helpers, verbatim ----------------------------------------
@@ -87,7 +105,7 @@ export const makeRenderHistory = (EnvelopeHistory) => (props = {}) => {
     // `companyId` is only omitted when the key is explicitly absent, so a test
     // can pass `companyId: undefined` to exercise the no-subscription guard.
     const companyId = 'companyId' in props ? props.companyId : 'co-1';
-    const utils = render(<EnvelopeHistory companyId={companyId} onCorrect={onCorrect} />);
+    const utils = render(<EnvelopeHistory companyId={companyId} companyName={props.companyName} onCorrect={onCorrect} />);
     return { onCorrect, ...utils };
 };
 
@@ -103,6 +121,8 @@ export function resetHarness() {
     unsubSpy = vi.fn();
     snapshotCb = undefined;
     errorCb = undefined;
+    stored.current = { status: 'sent' };
+    fs.runTransaction.mockImplementation(runInTransaction);
     fs.onSnapshot.mockImplementation((q, onNext, onError) => {
         snapshotCb = onNext;
         errorCb = onError;
@@ -110,6 +130,11 @@ export function resetHarness() {
     });
     callables.getSigningLink.mockResolvedValue({ data: { signingLink: SIGNING_LINK } });
     callables.getSignedDocumentUrl.mockResolvedValue({ data: { url: DOC_URL } });
+    callables.sendSignedDocumentCopy.mockResolvedValue({
+        data: { success: true, sentTo: 'pat@example.test', sentAt: '2026-11-04T15:00:00.000Z' },
+    });
+    callables.retrySealDocument.mockResolvedValue({ data: { success: true, status: 'pending_seal', attempt: 1 } });
+    callables.remindSigner.mockResolvedValue({ data: { success: true, requestId: 'req-1', channels: { email: true, sms: false } } });
     Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: vi.fn().mockResolvedValue() },

@@ -50,11 +50,13 @@ export const DATA_CLEANUP_ITEMS = Object.freeze([
         id: 'leadFields',
         title: 'Old lead fields',
         description: 'Unassigned leads get the empty value the Unassigned filter looks for, leads with a phone '
-            + 'get the digits the import’s duplicate check uses, and a driver type stored as a one-item list '
+            + 'get the digits the import’s duplicate check uses, leads with an email get the lowercase copy '
+            + 'an application is matched to its lead by, and a driver type stored as a one-item list '
             + 'becomes plain text. A record with several driver types is only counted.',
         counts: {
             assignedTo: 'Unassigned leads to mark',
             normalizedPhone: 'Leads without the import’s phone digits',
+            emailNormalized: 'Leads without the lowercase email copy',
             driverType: 'Driver types stored as a list',
             driverTypeSeveral: 'Left alone: several driver types',
         },
@@ -84,5 +86,28 @@ export const DATA_CLEANUP_ITEMS = Object.freeze([
             unverifiable: 'Left alone: could not verify',
         },
         leftAlone: ['unverifiable'],
+    },
+    {
+        id: 'dqExpiry',
+        title: 'DQ valid-until dates',
+        description: 'Writes on each application and lead the earliest valid-until date in its DQ file, which the '
+            + 'dashboard’s Needs attention reads, where it is missing or out of date. A DQ file changed since this '
+            + 'release already has it. The DQ records themselves are not changed.',
+        counts: {
+            applications: 'Applications to update',
+            leads: 'Leads to update',
+        },
+        leftAlone: [],
+    },
+    {
+        id: 'pendingUpdates',
+        title: 'Old driver staging copies',
+        description: 'Deletes the copies of a driver’s details that older versions stored under each driver '
+            + 'for every application and lead. Nothing reads them and nobody can open them. The driver '
+            + 'profiles, applications and leads are not changed.',
+        counts: {
+            pendingUpdates: 'Staging copies to delete',
+        },
+        leftAlone: [],
     },
 ]);

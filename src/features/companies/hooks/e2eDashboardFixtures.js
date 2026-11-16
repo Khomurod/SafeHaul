@@ -6,7 +6,9 @@
  * (dashboardSearch.js) the production query path uses.
  */
 
-const ts = (iso) => {
+// Marked free of side effects, so a production build, which never reads the
+// records, drops them.
+const ts = /* #__NO_SIDE_EFFECTS__ */ (iso) => {
     const seconds = Math.floor(new Date(iso).getTime() / 1000);
     return { seconds, toDate: () => new Date(seconds * 1000) };
 };
@@ -56,6 +58,8 @@ export const E2E_DASHBOARD_APPLICATIONS = [
         assignedTo: 'e2e-company_admin',
         submittedAt: ts('2026-06-20T09:15:00Z'),
         createdAt: ts('2026-06-20T09:15:00Z'),
+        // Hired after the server began recording hire dates; Derek was hired before.
+        hiredAt: ts('2026-11-10T15:00:00Z'),
     },
     {
         id: 'e2eapp0000000000004d',

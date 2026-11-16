@@ -170,7 +170,6 @@ export async function submitPublicApplication({
           );
           // The draft stays, as when a real submission is queued: it is what a
           // refusal of the replay comes back to.
-          sessionStorage.removeItem('pending_application_recruiter');
           setSubmissionStatus('queued');
           showSuccess('Your application is saved on this device and will be sent when the connection is back. Keep this page open.');
         } catch (queueError) {
@@ -197,7 +196,6 @@ export async function submitPublicApplication({
       // clears the draft *this* application was written from, and leaves another
       // tab's application alone if that is what occupies the slot.
       finishDraftLifecycle();
-      sessionStorage.removeItem('pending_application_recruiter');
       setSubmissionStatus('success');
       return;
     }
@@ -219,15 +217,12 @@ export async function submitPublicApplication({
       // 2. Generate confirmation number
       const confirmationNumber = generateConfirmationNumber();
 
-
-      const recruiterCode = sessionStorage.getItem('pending_application_recruiter');
-
       // Note: No client-side sanitizeData() needed here — httpsCallable handles JSON serialization,
       // and the Cloud Function (submitGuestApplication) does its own sanitization server-side.
       // AF6 FIX: Removed redundant `personalInfo` wrapper — all fields are spread from formData
       // at the top level, matching the authenticated submission structure exactly.
       const applicationData = buildGuestApplicationData({
-        formData, company, applicationId, confirmationNumber, submissionAttemptId, recruiterCode, sandbox, slug,
+        formData, company, applicationId, confirmationNumber, submissionAttemptId, sandbox, slug,
       });
 
       // Which of a Company Admin's edits these answers have taken, so the server can
@@ -325,7 +320,6 @@ export async function submitPublicApplication({
 
           // Scoped clear, mark and token together — see `finishDraftLifecycle`.
           finishDraftLifecycle();
-          sessionStorage.removeItem('pending_application_recruiter');
 
           const finalConfirm = serverData.confirmationNumber || confirmationNumber;
           const finalApplicationId = serverData.applicationId || applicationId;

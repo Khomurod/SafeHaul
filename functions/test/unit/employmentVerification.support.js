@@ -36,11 +36,62 @@ const savedStoragePaths = [];
 const dqFileDocs = new Map();
 /** `<company>/<collection>/<record>/submission/<id>` -> a stored submission record. */
 const submissionDocs = new Map();
+/** `<company>/<id>` -> a bell notification. */
+const notificationDocs = new Map();
+/** Storage objects a client uploaded (the server's own saves are `savedStoragePaths`). */
+const uploadedObjects = new Set();
+
+/** Firestore's ALREADY_EXISTS, as `create()` throws it. */
+function alreadyExists() {
+  const error = new Error('6 ALREADY_EXISTS: Document already exists');
+  error.code = 6;
+  return error;
+}
+
+/** The documents a query over `verification_requests` answers: equality and `in` filters. */
+function verificationQuery(filters = []) {
+  const matches = (data) => filters.every(([field, op, value]) => (
+    op === 'in' ? value.includes(data[field]) : data[field] === value
+  ));
+  return {
+    where: jest.fn((field, op, value) => verificationQuery([...filters, [field, op, value]])),
+    get: jest.fn(async () => {
+      const docs = [...verificationDocs]
+        .filter(([, data]) => matches(data))
+        .map(([token, data]) => ({ id: token, data: () => data, ref: verificationDocRef(token) }));
+      return { empty: docs.length === 0, docs };
+    }),
+  };
+}
 
 const createTs = (ms = Date.now()) => ({
   toMillis: () => ms,
   toDate: () => new Date(ms),
 });
+
+/**
+ * An update as Firestore applies it: `arrayUnion` (`{ __arrayUnion: items }`)
+ * appends each item the array does not already hold, by value; everything else
+ * replaces the field. A timestamp compares by its instant.
+ */
+function applyUpdate(current, updates) {
+  const valueKey = (item) => JSON.stringify(item, (_key, value) => (
+    typeof value?.toMillis === 'function' ? { __ms: value.toMillis() } : value
+  ));
+  const next = { ...current };
+  for (const [field, value] of Object.entries(updates)) {
+    if (!value?.__arrayUnion) {
+      next[field] = value;
+      continue;
+    }
+    const array = Array.isArray(current[field]) ? [...current[field]] : [];
+    for (const item of value.__arrayUnion) {
+      if (!array.some((held) => valueKey(held) === valueKey(item))) array.push(item);
+    }
+    next[field] = array;
+  }
+  return next;
+}
 
 function appKey(companyId, collectionName, applicationId) {
   return `${companyId}/${collectionName}/${applicationId}`;
@@ -65,8 +116,12 @@ function verificationDocRef(token) {
         completionFailure = false;
         throw new Error('firestore unavailable');
       }
+      if (attemptLogFailures > 0 && Object.keys(updates).length === 1 && 'attempts' in updates) {
+        attemptLogFailures -= 1;
+        throw new Error('firestore unavailable');
+      }
       const current = verificationDocs.get(token) || {};
-      verificationDocs.set(token, { ...current, ...updates });
+      verificationDocs.set(token, applyUpdate(current, updates));
     }),
     collection: jest.fn((subcollection) => {
       if (subcollection !== 'responses') {
@@ -123,6 +178,10 @@ const failNextSubmissionRead = () => { submissionReadFailure = true; };
 let completionFailure = false;
 const failNextCompletion = () => { completionFailure = true; };
 
+/** The next `count` writes that only append to a request's attempt log fail. */
+let attemptLogFailures = 0;
+const failNextAttemptLogs = (count = 1) => { attemptLogFailures = count; };
+
 /** A write from outside any transaction, as a competing request would make it. */
 const writeApplicationOutOfBand = (key, data) => {
   applicationDocs.set(key, data);
@@ -134,7 +193,7 @@ const mockDb = {
     if (name === 'verification_requests') {
       return {
         doc: jest.fn((token) => verificationDocRef(token)),
-        where: jest.fn(() => ({ get: jest.fn(async () => ({ empty: true, docs: [] })) })),
+        where: jest.fn((field, op, value) => verificationQuery([[field, op, value]])),
       };
     }
 
@@ -145,7 +204,15 @@ const mockDb = {
             exists: companyDocs.has(companyId),
             data: () => companyDocs.get(companyId),
           })),
-          collection: jest.fn((subcollection) => ({
+          collection: jest.fn((subcollection) => (subcollection === 'notifications' ? {
+            doc: jest.fn((id) => ({
+              id,
+              create: jest.fn(async (data) => {
+                if (notificationDocs.has(`${companyId}/${id}`)) throw alreadyExists();
+                notificationDocs.set(`${companyId}/${id}`, { ...data });
+              }),
+            })),
+          } : {
             doc: jest.fn((applicationId) => {
               const key = appKey(companyId, subcollection, applicationId);
               return {
@@ -174,6 +241,12 @@ const mockDb = {
                     set: jest.fn(async (data) => {
                       if (name === 'dq_files' && dqFilingFailure) { dqFilingFailure = false; throw new Error('dq_files unavailable'); }
                       if (name === 'dq_files') dqFileDocs.set(`${key}/${id}`, { ...data });
+                    }),
+                    create: jest.fn(async (data) => {
+                      if (name === 'dq_files' && dqFilingFailure) { dqFilingFailure = false; throw new Error('dq_files unavailable'); }
+                      if (name !== 'dq_files') return;
+                      if (dqFileDocs.has(`${key}/${id}`)) throw alreadyExists();
+                      dqFileDocs.set(`${key}/${id}`, { ...data });
                     }),
                   })),
                 })),
@@ -288,7 +361,7 @@ const companyAccessMock = () => ({
   assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccessForRequest(...args),
 });
 
-const uuidMock = () => ({ v4: jest.fn(() => 'pev-token-123456') });
+const randomIdMock = () => ({ randomId: jest.fn(() => 'pev-token-123456') });
 
 /** PDF generation is not what these suites are about, and it is not free. */
 const pdfLibMock = () => ({
@@ -314,6 +387,7 @@ const firebaseAdminMock = () => ({
       },
       FieldValue: {
         serverTimestamp: jest.fn(() => ({ __serverTimestamp: true })),
+        arrayUnion: jest.fn((...items) => ({ __arrayUnion: items })),
       },
     },
   },
@@ -331,6 +405,7 @@ const firebaseAdminMock = () => ({
           savedStoragePaths.push(path);
         }),
         download: jest.fn(async () => [Buffer.from('')]),
+        exists: jest.fn(async () => [savedStoragePaths.includes(path) || uploadedObjects.has(path)]),
       })),
     })),
   },
@@ -347,14 +422,21 @@ function resetPevState() {
   interference = null;
   storageFailure = null;
   completionFailure = false;
+  attemptLogFailures = 0;
   savedStoragePaths.length = 0;
   dqFileDocs.clear();
   dqFilingFailure = false;
   submissionDocs.clear();
   submissionReadFailure = false;
+  notificationDocs.clear();
+  uploadedObjects.clear();
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
-  mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
+  // As the real check does, it hands back the company it read.
+  mockAssertCompanyAccessForRequest.mockImplementation(async (_request, companyId) => ({
+    exists: companyDocs.has(companyId),
+    data: () => companyDocs.get(companyId),
+  }));
 
   companyDocs.set('co-1', {
     companyName: 'SafeHaul Carrier',
@@ -372,6 +454,8 @@ module.exports = {
   savedStoragePaths,
   dqFileDocs,
   submissionDocs,
+  notificationDocs,
+  uploadedObjects,
   failNextSubmissionRead,
   verificationDocs,
   mockAssertCompanyAccessForRequest,
@@ -385,11 +469,12 @@ module.exports = {
   pdfLibMock,
   rateLimiterMock,
   schedulerMock,
-  uuidMock,
+  randomIdMock,
   resetPevState,
   failNextStorageSave,
   failNextDqFiling,
   failNextCompletion,
+  failNextAttemptLogs,
   setTransactionInterference,
   writeApplicationOutOfBand,
 };

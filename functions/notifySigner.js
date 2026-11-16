@@ -7,12 +7,17 @@ const functions = require('firebase-functions/v1');
 const { sendDynamicEmail } = require('./emailService');
 const { escapeHtml } = require('./shared/plainText');
 const { emailOf } = require('./shared/signingLink');
+const { trustedAppBaseUrl } = require('./shared/appOrigin');
+const { claimDelivery } = require('./shared/deliveryClaim');
 
-/** The link a signer opens, on the domain the request was sent from. */
+/**
+ * The link a signer opens, on the site the request was sent from: the base URL
+ * the sender's browser stored, only when it is one of the app's own sites
+ * (`shared/appOrigin.js`), since the link carries the token; else the
+ * configured base, as for a request made before the base was stored.
+ */
 function signingLinkFor(companyId, requestId, data, accessToken) {
-    // DOMAIN FIX: Use the sender's origin domain stored at creation time,
-    // falling back to env var, then hardcoded default for pre-migration docs.
-    const baseUrl = data.appBaseUrl || process.env.APP_BASE_URL || 'https://app.safehaul.io';
+    const baseUrl = trustedAppBaseUrl(data.appBaseUrl);
     return `${baseUrl}/sign/${companyId}/${requestId}?token=${accessToken}`;
 }
 
@@ -28,9 +33,12 @@ async function readSigningToken(ref, data) {
  * Emails a signing request's link to its signer and records on the request how
  * that went. `replacesEarlierLink` says the link sent before no longer works;
  * `recordSentTo` records the address in `linkSentTo` first (`shared/signingLink.js`),
- * for a sender that has not claimed it already.
+ * for a sender that has not claimed it already. `claim` decides first whether
+ * this run sends at all (the creation trigger's one send per event); a failure
+ * of it is recorded as a failed send. `reminder` words it as one
+ * (`shared/signerReminder.js`).
  */
-async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false }) {
+async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false, reminder = false, claim = async () => true }) {
     // 1. Validate required fields before proceeding
     if (!data.recipientEmail || !accessToken) {
         console.warn(`[Notify] Skipped: Missing recipientEmail or accessToken for request ${requestId}`);
@@ -43,9 +51,12 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
     const replaced = replacesEarlierLink
         ? '<p style="color: #4b5563;">This link replaces the one sent to you earlier, which no longer works.</p>'
         : '';
+    const reminded = reminder
+        ? '<p style="color: #4b5563;">This is a reminder: the document below is still waiting for your signature.</p>'
+        : '';
 
     // 3. Build professional HTML email body (kept from original)
-    const subject = `Action Required: Please Sign "${data.title || 'Document'}"`;
+    const subject = `${reminder ? 'Reminder' : 'Action Required'}: Please Sign "${data.title || 'Document'}"`;
     const html = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 8px;">
                 <div style="background: white; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -54,6 +65,7 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
                     </div>
                     <p style="color: #374151; font-size: 16px;">Hello <strong>${escapeHtml(data.recipientName || 'there')}</strong>,</p>
                     <p style="color: #4b5563;">You have a document that requires your signature. Please click the button below to review and sign it securely.</p>
+                    ${reminded}
                     ${replaced}
                     <div style="text-align: center; margin: 32px 0;">
                         <a href="${escapeHtml(signingLink)}"
@@ -77,9 +89,14 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
 
     // 4. Send via unified email service (uses company's own SMTP settings)
     try {
+        if (!(await claim())) {
+            console.log(`[Notify] Skipped: request ${requestId} is already emailed for this event`);
+            return;
+        }
         if (recordSentTo) await ref.update({ 'linkSentTo.email': emailOf(data) });
         await sendDynamicEmail(companyId, data.recipientEmail, subject, html);
-        console.log(`[Notify] Signing email sent to ${data.recipientEmail} for request ${requestId}`);
+        // Ids only: a mail address in a log is read by everyone who reads the project's logs.
+        console.log(`[Notify] Signing email sent for request ${requestId}`);
 
         // 5. Update Firestore with sent timestamp
         await ref.update({
@@ -88,7 +105,7 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
         });
 
     } catch (err) {
-        console.error(`[Notify] Failed to send signing email for ${requestId}:`, err.message);
+        console.error(`[Notify] Failed to send signing email for ${requestId}: ${err?.code || err?.responseCode || 'error'}`);
         await ref.update({
             emailSentAt: new Date().toISOString(),
             emailStatus: 'failed',
@@ -111,7 +128,19 @@ exports.notifySigner = functions.runWith({ secrets: ['SMS_ENCRYPTION_KEY'] }).fi
         }
 
         const accessToken = await readSigningToken(snap.ref, data);
-        await emailSigningLink({ companyId, requestId, ref: snap.ref, data, accessToken, recordSentTo: true });
+        const eventId = typeof context.eventId === 'string' && context.eventId ? context.eventId : null;
+        await emailSigningLink({
+            companyId,
+            requestId,
+            ref: snap.ref,
+            data,
+            accessToken,
+            // Firestore delivers an event at least once: the first run claims it,
+            // with the address in `linkSentTo`, before the email is sent.
+            ...(eventId
+                ? { claim: () => claimDelivery(snap.ref, 'emailDeliveryId', eventId, { 'linkSentTo.email': emailOf(data) }) }
+                : { recordSentTo: true }),
+        });
         return null;
     });
 

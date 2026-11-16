@@ -12,6 +12,7 @@ import {
     describeTaskType,
     formatDuration,
 } from './aiTelemetryPresentation';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * One AI transaction, expanded into the provider-by-provider timeline.
@@ -61,7 +62,7 @@ export function AiTransactionModal({ entry, onClose }) {
                         {describeTaskType(entry.taskType, entry.trigger)}
                     </h2>
                     <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
-                        {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 'Time unknown'}
+                        {entry.timestamp ? formatDate(new Date(entry.timestamp), true) : 'Time unknown'}
                         {' · '}
                         {formatDuration(entry.latencyMs)}
                     </p>

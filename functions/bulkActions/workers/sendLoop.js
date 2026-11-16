@@ -1,7 +1,8 @@
 // functions/bulkActions/workers/sendLoop.js
 //
 // The sequential send loop: one lead at a time — mid-batch cancel check,
-// idempotency check, data fetch, blacklist check, the send itself, the
+// idempotency check, data fetch, blacklist check, an applicant's SMS consent
+// (`shared/smsPermission.js`), the send itself, the
 // atomic log+pointer transaction, the lead timestamp, and the SMS/email
 // dedup ledgers, with the 3-second pacing (`sendPacing.js`). Extracted
 // verbatim from `batchWorker.js` except the seam: the batch counters are
@@ -12,11 +13,13 @@
 
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
-const { normalizePhone } = require("../../utils/phoneUtils");
+const { agreedToSms } = require("../../shared/smsPermission");
+const { toE164Us } = require("../../utils/phoneUtils");
 const { pauseBeforeNextSend, SEND_WINDOW_MS } = require("./sendPacing");
 const BaseAdapter = require("../../integrations/adapters/BaseAdapter");
 const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
 const { emailLedgerKey } = require("../helpers/recentlyMessaged");
+const { isPlaceholderEmail } = require("../../shared/placeholderDomains");
 
 // This many texts the SMS provider never answered, with no sent text between
 // them, stop the campaign: the provider is not answering.
@@ -38,6 +41,7 @@ async function runSendLoop({
     config,
     companyName,
     recruiterName,
+    applicationLinkFor = null,
     senderId,
     adapter,
     emailTransporter,
@@ -45,11 +49,13 @@ async function runSendLoop({
     // A function replacer, so a "$&" in a name is text and not a replacement pattern.
     // The lead's name can come from a public form: it goes out as plain text without
     // its links, as in the other emails a company sends (`shared/plainText.js`), by
-    // the cleaner for the channel it goes out on.
-    const fillPlaceholders = (text, leadData, plainName) => text
+    // the cleaner for the channel it goes out on. The application link is the
+    // company's own address, so it goes out as it is.
+    const fillPlaceholders = (text, leadData, plainName, applicationLink) => text
         .replace(/\[Driver Name\]/g, () => plainName(leadData.firstName, 40) || 'Driver')
         .replace(/\[Company Name\]/g, () => companyName)
-        .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter');
+        .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter')
+        .replace(/\[Application Link\]/g, () => applicationLink || '');
 
     let batchSuccessCount = 0;
     let batchFailCount = 0;
@@ -95,6 +101,7 @@ async function runSendLoop({
                 // Declare variables in loop scope
                 let leadData = {};
                 let leadDocRef = null;
+                let fromApplications = false;
 
                 try {
                     // Idempotency Check
@@ -123,6 +130,7 @@ async function runSendLoop({
                         if (leadSourceType === 'leads') {
                             leadDocRef = db.collection('companies').doc(companyId).collection('leads').doc(leadId);
                         } else {
+                            fromApplications = true;
                             leadDocRef = db.collection('companies').doc(companyId).collection('applications').doc(leadId);
                         }
                         const lSnap = await leadDocRef.get();
@@ -134,24 +142,31 @@ async function runSendLoop({
                     if (!errorMsg) {
                         recipientName = `${leadData.firstName || 'Driver'} ${leadData.lastName || ''}`.trim();
                         const phone = leadData.phone || leadData.phoneNumber;
+                        // Only when the message has [Application Link] (an uploaded
+                        // row has no assignee: the plain apply page).
+                        const applicationLink = applicationLinkFor ? await applicationLinkFor(leadData.assignedTo) : '';
 
                         // 2. Blacklist Check. An opt-out is kept under a phone
                         // number. For SMS the number is the address, so a missing
                         // or unusable one is refused here; an email to someone
                         // without a usable number has no opt-out to look up.
-                        const blacklisted = (config.method === 'sms' || normalizePhone(phone))
+                        const blacklisted = (config.method === 'sms' || toE164Us(phone))
                             ? await isBlacklisted(companyId, phone)
                             : false;
 
                         if (blacklisted) {
                             errorMsg = "Number is blacklisted (Opt-out)";
                             success = false;
+                        } else if (config.method === 'sms' && fromApplications && !agreedToSms(leadData)) {
+                            // An applicant is texted only after an explicit "Yes"
+                            // to the application's SMS question (`smsPermission.js`).
+                            errorMsg = "Driver did not agree to SMS";
                         } else if (config.method === 'sms') {
                             if (!adapter) throw new Error("SMS Configuration Invalid");
                             recipientIdentity = phone || "No Phone";
 
                             if (recipientIdentity !== "No Phone") {
-                                const finalMsg = fillPlaceholders(config.message, leadData, plainGuestSmsText);
+                                const finalMsg = fillPlaceholders(config.message, leadData, plainGuestSmsText, applicationLink);
 
                                 if (typeof adapter.sendSMSWithReceipt === 'function') {
                                     receipt = await adapter.sendSMSWithReceipt(recipientIdentity, finalMsg, senderId);
@@ -164,16 +179,18 @@ async function runSendLoop({
                             }
                         } else if (config.method === 'email') {
                             if (!emailTransporter) throw new Error("Email Settings Invalid");
-                            recipientIdentity = leadData.email || "No Email";
+                            // An import without an email made up a placeholder address: nobody
+                            // reads it, and the bounce counts against the company's mail server.
+                            recipientIdentity = isPlaceholderEmail(leadData.email) ? "No Email" : leadData.email;
 
                             if (recipientIdentity !== "No Email") {
-                                const finalBody = fillPlaceholders(config.message, leadData, plainGuestText);
+                                const finalBody = fillPlaceholders(config.message, leadData, plainGuestText, applicationLink);
 
                                 await emailTransporter.sendMail({
                                     from: `"${companyName}" <${emailTransporter.transporter.options.auth.user}>`,
                                     to: recipientIdentity,
                                     // The composer offers the placeholders in the subject too.
-                                    subject: config.subject ? fillPlaceholders(config.subject, leadData, plainGuestText) : `Update from ${companyName}`,
+                                    subject: config.subject ? fillPlaceholders(config.subject, leadData, plainGuestText, applicationLink) : `Update from ${companyName}`,
                                     text: finalBody,
                                     html: `<p>${escapeHtml(finalBody).replace(/\n/g, '<br>')}</p>`
                                 });
@@ -185,7 +202,9 @@ async function runSendLoop({
                     }
 
                 } catch (err) {
-                    console.error(`Error processing lead ${leadId}:`, err);
+                    // The code only: a provider's or mail server's error can name the recipient.
+                    // The reason itself is kept on the recipient's log below.
+                    console.error(`[BatchWorker] Lead ${leadId} was not sent (${err?.code || err?.name || 'error'})`);
                     errorMsg = err.message || "Unknown error";
                     success = false;
                     sendUnconfirmed = err?.code === BaseAdapter.SEND_UNCONFIRMED;
@@ -273,7 +292,7 @@ async function runSendLoop({
                 // mirrors the SMS ledger so `sessionController` can skip recently
                 // contacted addresses in BOTH channels.
                 if (success && config.method === 'sms') {
-                    const normPhone = normalizePhone(recipientIdentity);
+                    const normPhone = toE164Us(recipientIdentity);
                     if (normPhone) {
                         db.collection('companies').doc(companyId)
                             .collection('sms_sent_phones').doc(normPhone)
@@ -282,7 +301,8 @@ async function runSendLoop({
                                 sessionId: sessionId
                             }, { merge: true })
                             .catch(e => {
-                                console.error(`[BatchWorker] Failed to update sms_sent_phones for ${normPhone}:`, e.message);
+                                // The code only: a Firestore error can name the document, whose id is the number.
+                                console.error(`[BatchWorker] Failed to update sms_sent_phones for lead ${leadId} (${e?.code || 'error'})`);
                             });
                     }
                 } else if (success && config.method === 'email') {
@@ -299,7 +319,7 @@ async function runSendLoop({
                                 sessionId: sessionId
                             }, { merge: true })
                             .catch(e => {
-                                console.error(`[BatchWorker] Failed to update email_sent_addresses for ${normEmail}:`, e.message);
+                                console.error(`[BatchWorker] Failed to update email_sent_addresses for lead ${leadId} (${e?.code || 'error'})`);
                             });
                     }
                 }

@@ -1,14 +1,15 @@
 /**
  * The company shell opens the record the top bar asks for (a notification in
- * its bell) in the driver dossier, over whichever page is showing, and closes
- * it with the dossier's own Close or when the page changes.
+ * its bell, on the tab it names), or a navigation names (Add lead, once the lead
+ * is saved), in the driver dossier, over whichever page is showing, and closes it with the
+ * dossier's own Close or when the page changes.
  *
  * All ids below are artificial.
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const fx = vi.hoisted(() => ({ deactivated: false, logout: vi.fn() }));
@@ -16,17 +17,28 @@ const fx = vi.hoisted(() => ({ deactivated: false, logout: vi.fn() }));
 vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentCompanyProfile: { id: 'co-1', companyName: 'Acme Freight' }, handleLogout: fx.logout }),
 }));
-vi.mock('../hooks/useCompanyDeactivated', () => ({ useCompanyDeactivated: () => fx.deactivated }));
+vi.mock('../hooks/useLiveCompany', () => ({ useLiveCompany: () => fx.deactivated }));
 vi.mock('./CompanySidebar', () => ({ CompanySidebar: () => null }));
 vi.mock('../components/FeatureDeactivationWarning', () => ({ FeatureDeactivationWarning: () => null }));
 vi.mock('./CompanyTopbar', () => ({
     CompanyTopbar: ({ onOpenRecord }) => (
-        <button type="button" onClick={() => onOpenRecord?.('app-7')}>Open a notification</button>
+        <>
+            <button type="button" onClick={() => onOpenRecord?.('app-7')}>Open a notification</button>
+            <button type="button" onClick={() => onOpenRecord?.('app-7', 'pev')}>Open a PEV notification</button>
+            <button type="button" onClick={() => onOpenRecord?.('lead-3', undefined, 'leads')}>Open a lead notification</button>
+        </>
     ),
 }));
 vi.mock('../components/modals/driver-dossier/DriverProfileModal', () => ({
-    DriverProfileModal: ({ companyId, driverId, onClose }) => (
-        <div role="dialog" aria-label="Driver dossier" data-company={companyId} data-record={driverId}>
+    DriverProfileModal: ({ companyId, driverId, initialTab, collectionHint, onClose }) => (
+        <div
+            role="dialog"
+            aria-label="Driver dossier"
+            data-company={companyId}
+            data-record={driverId}
+            data-tab={initialTab}
+            data-collection={collectionHint}
+        >
             <button type="button" onClick={onClose}>Close dossier</button>
         </div>
     ),
@@ -36,7 +48,23 @@ import { CompanyAppShell } from './CompanyAppShell';
 
 function Dashboard() {
     const navigate = useNavigate();
-    return <button type="button" onClick={() => navigate('/company/other')}>Go elsewhere</button>;
+    return (
+        <>
+            <button type="button" onClick={() => navigate('/company/other')}>Go elsewhere</button>
+            <button
+                type="button"
+                onClick={() => navigate('/company/leads', { state: { openRecordId: 'lead-9', openRecordCollection: 'leads', segment: 'new' } })}
+            >
+                Save a lead
+            </button>
+        </>
+    );
+}
+
+/** The leads list the saved lead is shown over, and the state it was opened with. */
+function Leads() {
+    const { state } = useLocation();
+    return <output data-testid="leads-state">{JSON.stringify(state)}</output>;
 }
 
 function renderShell() {
@@ -46,6 +74,7 @@ function renderShell() {
                 <Route path="/company" element={<CompanyAppShell />}>
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="other" element={<p>Other page</p>} />
+                    <Route path="leads" element={<Leads />} />
                 </Route>
             </Routes>
         </MemoryRouter>,
@@ -62,6 +91,31 @@ describe('the record a notification names', () => {
         const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
         expect(dossier).toHaveAttribute('data-record', 'app-7');
         expect(dossier).toHaveAttribute('data-company', 'co-1');
+        // A notice about no tab in particular opens the dossier on its first.
+        expect(dossier).not.toHaveAttribute('data-tab');
+        expect(dossier).not.toHaveAttribute('data-collection');
+    });
+
+    it('looks for the record first where the notification says it is', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Open a lead notification' }));
+
+        await screen.findByRole('button', { name: 'Close dossier' });
+        const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
+        expect(dossier).toHaveAttribute('data-record', 'lead-3');
+        expect(dossier).toHaveAttribute('data-collection', 'leads');
+    });
+
+    it('opens on the tab the notification is about', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Open a PEV notification' }));
+
+        await screen.findByRole('button', { name: 'Close dossier' });
+        const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
+        expect(dossier).toHaveAttribute('data-record', 'app-7');
+        expect(dossier).toHaveAttribute('data-tab', 'pev');
     });
 
     it("closes with the dossier's own Close", async () => {
@@ -83,6 +137,30 @@ describe('the record a notification names', () => {
 
         expect(await screen.findByText('Other page')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Driver dossier' })).not.toBeInTheDocument();
+    });
+});
+
+describe('the record a page sends the person on to', () => {
+    it('opens over the page it lands on', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save a lead' }));
+
+        await screen.findByRole('button', { name: 'Close dossier' });
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveAttribute('data-record', 'lead-9');
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveAttribute('data-collection', 'leads');
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).not.toHaveAttribute('data-tab');
+    });
+
+    it('opens once: the navigation forgets it and keeps the rest of its state', async () => {
+        renderShell();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save a lead' }));
+        await screen.findByRole('button', { name: 'Close dossier' });
+
+        // A reload or a Back to this entry finds no record to open.
+        expect(screen.getByTestId('leads-state')).toHaveTextContent('{"segment":"new"}');
+        expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toBeInTheDocument();
     });
 });
 

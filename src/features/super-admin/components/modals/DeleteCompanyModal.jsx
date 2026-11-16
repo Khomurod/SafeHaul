@@ -4,6 +4,7 @@ import { functions } from '@lib/firebase';
 import { Icon, AlertTriangle, X } from '@design-system/icons';
 import { Button, IconButton, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Destructive confirmation for deleting a company.
@@ -41,7 +42,7 @@ export function DeleteCompanyModal({ companyId, companyName, onClose, onConfirm 
       onClose();
     } catch (err) {
       console.error("Error deleting company:", err);
-      setError(err.message);
+      setError(plainErrorMessage(err, 'The company could not be deleted.'));
       setLoading(false);
     }
   };

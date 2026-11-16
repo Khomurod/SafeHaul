@@ -39,6 +39,9 @@ export function ContentComposer({ messageConfig, onChange }) {
         { label: 'Driver Name', value: '[Driver Name]' },
         { label: 'My Company', value: '[Company Name]' },
         { label: 'Recruiter Name', value: '[Recruiter Name]' },
+        // The company's apply page with the recipient's recruiter's link
+        // (functions/shared/applicationLink.js).
+        { label: 'Application Link', value: '[Application Link]' },
     ];
 
     const isEmail = messageConfig.method === 'email';

@@ -375,6 +375,7 @@ export default function EnvelopeCreator({
     // confirmation — lives in EnvelopeCreatorLayout.
     return (
         <EnvelopeCreatorLayout
+            companyId={companyId}
             isCompact={isCompact}
             editorMode={editorMode}
             title={title}

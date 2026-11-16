@@ -7,13 +7,12 @@ import {
     companyEditsToTake,
     companyFieldsAfter,
     companyRevisionIn,
-    restoredWithRevision,
-    saveOnTheWire,
     takeCompanyAnswers,
     takeCompanyEdits,
     withCompanyNotice,
     withoutCompanyKeys,
 } from './companyEditsSync';
+import { restoredWithRevision, saveOnTheWire } from './companyEditsWire';
 
 /** A revision is the edit's time in milliseconds. */
 const R = 1791300000000;

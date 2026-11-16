@@ -4,7 +4,8 @@ const AxeBuilder = require('@axe-core/playwright').default;
 /**
  * Real-browser evidence for the migrated lead-intake surfaces:
  * `/company/import-leads` (ImportLeadsPage + CompanyBulkUpload +
- * BulkUploadLayout) and `/company/quick-add-lead` (QuickAddLeadPage).
+ * BulkUploadLayout) and `/company/quick-add-lead` (QuickAddLeadPage, titled
+ * Add lead), both offered in the Leads page's header rather than the menu.
  *
  * Under `VITE_E2E_TEST_MODE=1` Firestore is unreachable, so everything up to and
  * including the confirm/save attempt is exercised; the committed write itself is
@@ -16,6 +17,7 @@ const AxeBuilder = require('@axe-core/playwright').default;
 
 const IMPORT_URL = '/company/import-leads?e2eAuth=company_admin';
 const QUICK_ADD_URL = '/company/quick-add-lead?e2eAuth=company_admin';
+const COMPANY_LEADS_URL = '/company/drivers/leads/company?e2eAuth=company_admin';
 
 const CSV = [
     'First Name,Last Name,Email,Phone,City,State,Experience,Job Type',
@@ -86,6 +88,22 @@ async function axeViolations(page) {
 test.describe('Import Leads', () => {
     test.describe.configure({ timeout: 120_000 });
 
+    test("opens from the Leads page's header, and its back link returns there", async ({ page }) => {
+        await page.goto(COMPANY_LEADS_URL);
+        await page.getByRole('link', { name: 'Import leads' }).click();
+
+        await expect(page).toHaveURL(/\/company\/import-leads/);
+        await expect(page.getByRole('heading', { level: 1, name: 'Import Leads' })).toBeVisible();
+        // Still its own page, not a dialog over the list.
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        // The card has no close control of its own: the header's "← Leads" is the way out.
+        await expect(page.getByRole('button', { name: 'Close import' })).toHaveCount(0);
+
+        // Scoped to the page: the menu has a "Leads" link too.
+        await page.getByRole('main').getByRole('link', { name: 'Leads', exact: true }).click();
+        await expect(page).toHaveURL(/\/company\/drivers\/leads\/company/);
+    });
+
     test('renders the page shell embedded, not behind a modal overlay', async ({ page }) => {
         await openImport(page);
 
@@ -128,8 +146,8 @@ test.describe('Import Leads', () => {
         await expect(url).toBeVisible();
         await expect(page.locator('input[type="file"]')).toHaveCount(0);
 
-        // `exact: true`: a substring match against "Import" also matches the
-        // dialog's "Close import" control.
+        // `exact: true`: "Import" alone, not any other control whose name
+        // contains the word.
         const importButton = page.getByRole('button', { name: 'Import', exact: true });
         await expect(importButton).toBeDisabled();
         await url.fill('https://example.test/not-a-sheet');
@@ -325,12 +343,20 @@ test.describe('Import Leads', () => {
     });
 });
 
-test.describe('Quick Add Lead', () => {
+test.describe('Add lead', () => {
     test.describe.configure({ timeout: 120_000 });
+
+    test("opens from the Leads page's header", async ({ page }) => {
+        await page.goto(COMPANY_LEADS_URL);
+        await page.getByRole('link', { name: 'Add lead' }).click();
+
+        await expect(page).toHaveURL(/\/company\/quick-add-lead/);
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
+    });
 
     test('labels every field and marks the required ones', async ({ page }) => {
         await page.goto(QUICK_ADD_URL);
-        await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
 
         for (const label of [
             'First Name', 'Last Name', 'Phone', 'Email', 'City', 'State',
@@ -412,15 +438,22 @@ test.describe('Quick Add Lead', () => {
         await expect(page).toHaveURL(/quick-add-lead/);
     });
 
-    test('cancels back to the dashboard', async ({ page }) => {
+    test('cancels back to the leads list', async ({ page }) => {
         await page.goto(QUICK_ADD_URL);
         await page.getByRole('button', { name: 'Cancel' }).click();
-        await expect(page).toHaveURL(/\/company\/dashboard/);
+        await expect(page).toHaveURL(/\/company\/drivers\/leads\/company/);
+    });
+
+    test("goes back to the leads list from the header's back link", async ({ page }) => {
+        await page.goto(QUICK_ADD_URL);
+        // Scoped to the page: the menu has a "Leads" link too.
+        await page.getByRole('main').getByRole('link', { name: 'Leads', exact: true }).click();
+        await expect(page).toHaveURL(/\/company\/drivers\/leads\/company/);
     });
 
     test('has no axe violations in the default and error states', async ({ page }) => {
         await page.goto(QUICK_ADD_URL);
-        await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
         expect(await axeViolations(page), 'default').toEqual([]);
 
         await page.getByRole('button', { name: 'Save Lead' }).click();
@@ -437,7 +470,7 @@ test.describe('Quick Add Lead', () => {
             test.skip(testInfo.project.name.startsWith('mobile'), 'Explicit viewport sweep runs on the desktop lane.');
             await page.setViewportSize({ width, height });
             await page.goto(QUICK_ADD_URL);
-            await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+            await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
 
             await expectNoHorizontalOverflow(page, `${label} quick add`);
             expect(await undersizedText(page), `${label}: text below 12px`).toEqual([]);
@@ -448,13 +481,56 @@ test.describe('Quick Add Lead', () => {
         });
     }
 
+    test('keeps Cancel and Save Lead beside the title on a tablet', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name.startsWith('mobile'), 'Explicit viewport runs on the desktop lane.');
+        await page.setViewportSize({ width: 768, height: 1024 });
+        await page.goto(QUICK_ADD_URL);
+        const title = page.getByRole('heading', { level: 1, name: 'Add lead' });
+        await expect(title).toBeVisible();
+
+        const titleBox = await title.boundingBox();
+        for (const name of ['Cancel', 'Save Lead']) {
+            const box = await page.getByRole('button', { name }).boundingBox();
+            expect(box.height, `${name} keeps its label on one line`).toBeLessThanOrEqual(46);
+            expect(Math.abs((box.y + box.height / 2) - (titleBox.y + titleBox.height / 2)), `${name} sits on the title's row`)
+                .toBeLessThan(12);
+        }
+        await expectNoHorizontalOverflow(page, '768 quick add');
+    });
+
     test('stays usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
         test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
         await page.goto(QUICK_ADD_URL);
-        await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
 
         await expectNoHorizontalOverflow(page, 'mobile quick add');
         expect(await undersizedText(page), 'mobile: text below 12px').toEqual([]);
         expect(await axeViolations(page), 'mobile quick add axe').toEqual([]);
+    });
+
+    test('pins Cancel and Save Lead to the bottom of a phone screen @mobile', async ({ page }, testInfo) => {
+        test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
+        await page.goto(QUICK_ADD_URL);
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
+
+        // One of each: the bar is the header's own buttons, not copies.
+        const save = page.getByRole('button', { name: 'Save Lead' });
+        await expect(save).toHaveCount(1);
+        await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(1);
+
+        const viewport = page.viewportSize();
+        const saveBox = await save.boundingBox();
+        expect(saveBox.y + saveBox.height, 'Save Lead sits at the bottom of the screen').toBeGreaterThan(viewport.height - 80);
+        expect(saveBox.y + saveBox.height).toBeLessThanOrEqual(viewport.height);
+
+        // A field reached from the keyboard is scrolled clear of the bar.
+        const notes = page.getByLabel(/^Notes/);
+        await notes.focus();
+        const notesBox = await notes.boundingBox();
+        expect(notesBox.y + notesBox.height, 'Notes is not hidden behind the bar').toBeLessThanOrEqual(saveBox.y);
+
+        // Still this form's submit button.
+        await save.click();
+        await expect(page.getByText('First Name is required.')).toBeVisible();
     });
 });

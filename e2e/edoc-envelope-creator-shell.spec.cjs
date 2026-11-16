@@ -20,7 +20,7 @@ test.describe('E-Doc envelope creator shell slice', () => {
 
     await expect(page.getByLabel('Document title')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Send Document' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Back to Documents' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to E-Docs' })).toBeVisible();
   });
 
   test('opens in template mode with the frozen save label', async ({ page }) => {
@@ -61,8 +61,8 @@ test.describe('E-Doc envelope creator shell slice', () => {
     await openCreator(page, 'request');
     await expect(page.getByLabel('Document title')).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Back to Documents' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+    await page.getByRole('button', { name: 'Back to E-Docs' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeVisible();
   });
 
   test('asks before discarding unsaved work, and keeps it when told to', async ({ page }) => {
@@ -72,7 +72,7 @@ test.describe('E-Doc envelope creator shell slice', () => {
     await title.fill('Artificial Agreement');
     await title.blur();
 
-    await page.getByRole('button', { name: 'Back to Documents' }).click();
+    await page.getByRole('button', { name: 'Back to E-Docs' }).click();
     const dialog = page.getByRole('dialog', { name: 'Leave without saving?' });
     await expect(dialog).toBeVisible();
 
@@ -87,7 +87,7 @@ test.describe('E-Doc envelope creator shell slice', () => {
     await openCreator(page, 'request');
     await expect(page.getByLabel('Document title')).toBeVisible({ timeout: 15_000 });
 
-    const back = page.getByRole('button', { name: 'Back to Documents' });
+    const back = page.getByRole('button', { name: 'Back to E-Docs' });
     await back.focus();
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');

@@ -281,6 +281,7 @@ describe('EnvelopeSidebar — field palette', () => {
             'Add Signature field',
             'Add Initial field',
             'Add Date Signed field',
+            'Add Company Signature field',
             'Add Name field',
             'Add Email field',
             'Add Company field',
@@ -292,6 +293,7 @@ describe('EnvelopeSidebar — field palette', () => {
     it.each([
         ['Add Signature field', 'signature'],
         ['Add Date Signed field', 'date_signed'],
+        ['Add Company Signature field', 'company_signature'],
         ['Add Email field', 'email_field'],
         ['Add Checkbox field', 'checkbox'],
     ])('%s calls addField with the exact template id', (name, templateId) => {
@@ -314,6 +316,9 @@ describe('EnvelopeSidebar — field palette', () => {
             .toHaveAttribute('data-tone', 'info');
         expect(screen.getByRole('button', { name: 'Add Checkbox field' }))
             .toHaveAttribute('data-tone', 'accent');
+        // The company's own mark, apart from the signer's four groups.
+        expect(screen.getByRole('button', { name: 'Add Company Signature field' }))
+            .toHaveAttribute('data-tone', 'neutral');
         expect(container.innerHTML).not.toMatch(/bg-ds-status-\w+-bg/);
     });
 });
@@ -423,11 +428,11 @@ describe('EnvelopeSidebar — presentation and accessibility', () => {
          */
         renderSidebar({ file: { name: 'artificial.pdf' } });
         const palette = screen.getAllByRole('button', { name: /^Add .* field$/ });
-        expect(palette).toHaveLength(8);
+        expect(palette).toHaveLength(9);
         for (const button of palette) {
             expect(button).toHaveClass('ds-button');
             expect(button).toHaveAttribute('data-variant', 'secondary');
-            expect(button).toHaveAttribute('data-tone', expect.stringMatching(/^(warning|success|info|accent)$/));
+            expect(button).toHaveAttribute('data-tone', expect.stringMatching(/^(warning|success|info|accent|neutral)$/));
             expect(button).toHaveAttribute('data-full-width', 'true');
             expect(button).toHaveAttribute('data-justify', 'start');
         }

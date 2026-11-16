@@ -11,6 +11,11 @@ jest.mock('../../shared/companyAccess', () => ({
   assertCompanyAdminStrict: (...a) => mockAssertCompanyAdminStrict(...a),
 }));
 
+const mockUnlink = jest.fn();
+jest.mock('../../shared/leadApplicationLink', () => ({
+  unlinkDeletedRecord: (...a) => mockUnlink(...a),
+}));
+
 const mockGet = jest.fn();
 const mockRecursiveDelete = jest.fn();
 const mockFileDelete = jest.fn();
@@ -42,6 +47,7 @@ describe('deleteApplication', () => {
     mockFileDelete.mockResolvedValue();
     mockDeleteFiles.mockResolvedValue();
     mockAssertCompanyAdminStrict.mockResolvedValue(undefined);
+    mockUnlink.mockResolvedValue(undefined);
     mockGet.mockResolvedValue({ exists: true, data: () => ({ 'cdl-front': { storagePath: 'companies/co1/applications/guest_uploads/x.jpg' } }) });
     mockRef.get = (...a) => mockGet(...a);
   });
@@ -98,6 +104,25 @@ describe('deleteApplication', () => {
     await deleteApplication(req({ companyId: 'co1', applicationId: 'app1' }));
     expect(mockFileDelete).toHaveBeenCalledTimes(2);
     expect(mockFileDelete).toHaveBeenCalledWith(resume);
+  });
+
+  it("removes the linked lead's half of the link once the record is gone", async () => {
+    const data = { fromLeadId: 'lead1' };
+    mockGet.mockResolvedValue({ exists: true, data: () => data });
+    mockUnlink.mockImplementation(async () => {
+      expect(mockRecursiveDelete).toHaveBeenCalled();
+    });
+
+    await deleteApplication(req({ companyId: 'co1', applicationId: 'app1' }));
+
+    expect(mockUnlink).toHaveBeenCalledWith({ companyId: 'co1', collectionName: 'applications', recordId: 'app1', data });
+  });
+
+  it('still answers that the record is deleted when the unlink fails', async () => {
+    mockUnlink.mockRejectedValueOnce(new Error('unlink boom'));
+
+    await expect(deleteApplication(req({ companyId: 'co1', applicationId: 'app1', collectionName: 'leads' })))
+      .resolves.toMatchObject({ success: true, collectionName: 'leads' });
   });
 
   it('still deletes the doc if storage cleanup throws', async () => {

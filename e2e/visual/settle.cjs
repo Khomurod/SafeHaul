@@ -23,8 +23,8 @@
  * The instant every baseline is captured at.
  *
  * Without this, any screen that renders "now" re-baselines itself every day —
- * the company dashboard's leaderboard date range is stamped with today's date,
- * so its baseline would have failed the morning after it was recorded. That is
+ * the company dashboard's hiring brief counts the current month, so its
+ * baseline would have failed the month after it was recorded. That is
  * the fastest possible way to teach a team to ignore a visual lane.
  *
  * `setFixedTime` rather than `clock.install()`: it fixes `Date.now()` and

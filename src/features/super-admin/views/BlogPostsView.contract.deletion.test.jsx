@@ -35,7 +35,7 @@ describe('deletion', () => {
     it('asks for confirmation and names the article', async () => {
         await renderView();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
 
         const dialog = await screen.findByRole('dialog');
         expect(within(dialog).getByText(/Delete this article\?/)).toBeTruthy();
@@ -44,7 +44,7 @@ describe('deletion', () => {
 
     it('does nothing when the confirmation is dismissed', async () => {
         await renderView();
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
 
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep article' }));
@@ -55,7 +55,7 @@ describe('deletion', () => {
 
     it('deletes the confirmed article by id', async () => {
         await renderView();
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
 
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete article' }));
@@ -69,7 +69,7 @@ describe('deletion', () => {
         await renderView();
         expect(callables.listBlogPosts).toHaveBeenCalledTimes(1);
 
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete article' }));
 
@@ -79,7 +79,7 @@ describe('deletion', () => {
     it('moves focus to the heading, because the row that opened the dialog is gone', async () => {
         await renderView();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete article' }));
 
@@ -98,7 +98,7 @@ describe('deletion', () => {
         });
         await renderView();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete article' }));
 
@@ -128,7 +128,7 @@ describe('recent authentication', () => {
         reauthenticateWithCredential.mockResolvedValue({});
         await renderView();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete article' }));
 
@@ -143,7 +143,7 @@ describe('recent authentication', () => {
         stubCallables({ deleteBlogPost: staleOnce() });
         await renderView();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /^Delete$/ })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /^Delete / })[0]);
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete article' }));
 

@@ -160,6 +160,23 @@ describe('useBulkImport — preserved contracts', () => {
         expect(result.current.processingSheet).toBe(false);
     });
 
+    it('names the sharing setting and the connection when the sheet cannot be reached at all', async () => {
+        // A private sheet redirects to Google's sign-in page, which the browser refuses to read.
+        vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        const { result } = renderHook(() => useBulkImport({ onError }));
+        act(() => result.current.setSheetUrl(SHEET_URL));
+        await act(async () => { await result.current.handleSheetImport(); });
+
+        expect(onError).toHaveBeenCalledWith(
+            "Error importing sheet: The sheet could not be downloaded. Make sure it has 'Anyone with the link' access "
+            + 'in Google Sheets sharing settings and that you are online, then try again.',
+        );
+        expect(result.current.processingSheet).toBe(false);
+        consoleError.mockRestore();
+    });
+
     it('moves to the preview step with the worker rows on a successful parse', async () => {
         const rows = [{ firstName: 'Artificial', lastName: 'Applicant' }];
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -200,9 +217,11 @@ describe('useBulkImport — preserved contracts', () => {
             });
         });
 
+        // The parser's own words stay in the console; the person reads what to do.
         await waitFor(() => expect(onError).toHaveBeenCalledWith(
-            'Error reading file: artificial parse error',
+            'Error reading file: The file could not be read. Check that it is a CSV or Excel file laid out like the template, then try again.',
         ));
+        expect(onError).not.toHaveBeenCalledWith(expect.stringContaining('artificial parse error'));
         expect(alertMock).not.toHaveBeenCalled();
         expect(result.current.step).toBe('upload');
     });

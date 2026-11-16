@@ -3,8 +3,9 @@ import { Icon, ArrowLeft, Save } from '@design-system/icons';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { useCampaignDraft } from './hooks/useCampaignDraft';
+import { isLaunchedDraft } from './constants/campaignConstants';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, FormField, Input, SectionNavigation } from '@/design-system/components';
+import { Button, FormField, Input, Notice, SectionNavigation } from '@/design-system/components';
 /*
  * The rail's glyphs come from the registry rather than `lucide-react`, because
  * `SectionNavigation` renders `item.icon` through `Icon` and the registry hands
@@ -24,7 +25,38 @@ const SECTIONS = [
     { id: 'launch', label: 'Launch', icon: Rocket },
 ];
 
-export function CampaignEditor({ companyId, campaignId, onClose }) {
+/**
+ * The campaign as its draft stores it: `rawData`, a large array, lives only in
+ * React state, and the launch claim is the server's (`initBulkSession`), so a
+ * tab never writes it back.
+ */
+function draftToSave(campaignData) {
+    const { filters, ...rest } = campaignData;
+    delete rest.launchClaim;
+    const { rawData, ...cleanFilters } = filters || {};
+    return { ...rest, filters: cleanFilters };
+}
+
+/**
+ * The audience as the recruiter chose it, to tell an edit from a recount: key
+ * order does not count, and the uploaded rows (React state only) count by
+ * identity once there are any.
+ */
+function audienceOf(filters) {
+    const { rawData, ...chosen } = filters || {};
+    const sorted = (value) => (value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, sorted(value[key])]))
+        : value);
+    return { key: JSON.stringify(sorted(chosen)), rows: rawData?.length ? rawData : null };
+}
+
+/**
+ * `isNew`: a campaign "Create campaign" opened, with no draft yet. Its first
+ * save (the autosave after an edit, or the save before Launch) creates the
+ * draft under `campaignId` and later saves update it; leaving before then
+ * writes nothing.
+ */
+export function CampaignEditor({ companyId, campaignId, isNew = false, onClose, onViewReport }) {
     const [activeSection, setActiveSection] = useState('audience');
     const [campaignData, setCampaignData] = useState({
         name: 'Untitled Campaign',
@@ -35,10 +67,20 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
 
     const { saveDraft, isSaving } = useCampaignDraft(companyId);
+    const isLaunched = isLaunchedDraft(campaignData);
 
     // #9 FIX: Track whether user has made actual changes — prevents auto-save on mount with defaults
     const [isDirty, setIsDirty] = useState(false);
-    const isInitializedRef = React.useRef(false);
+    // A new campaign starts from the defaults: there is no snapshot to wait for.
+    const isInitializedRef = React.useRef(isNew);
+    // Whether the draft is stored: the ref decides what a save writes, the state shows it.
+    const storedRef = React.useRef(!isNew);
+    // Saves run one after another, so a save made while the first is on its
+    // way (an autosave and the save before Launch) updates the draft the first
+    // created rather than creating it again with later times.
+    const saveChainRef = React.useRef(Promise.resolve());
+    const [isStored, setIsStored] = useState(!isNew);
+    const reportedAudienceRef = React.useRef(null);
 
     // 1. Sync Logic (Read)
     useEffect(() => {
@@ -73,21 +115,52 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
         return () => unsub();
     }, [companyId, campaignId, isE2ECampaignMock]);
 
+    // The first save creates the draft, every later one updates it. The id is
+    // fixed when the editor opens, so saves that overlap still make one draft.
+    const persist = useCallback((data) => {
+        const run = saveChainRef.current.then(async () => {
+            const saved = await saveDraft(campaignId, draftToSave(data), { create: !storedRef.current });
+            if (saved) {
+                storedRef.current = true;
+                setIsStored(true);
+            }
+            return saved;
+        });
+        // A failed save does not stop the next one from running.
+        saveChainRef.current = run.catch(() => {});
+        return run;
+    }, [campaignId, saveDraft]);
+
     // 2. Auto-Save Logic (Write)
     // We debounce the save to avoid thrashing Firestore
     // #9 FIX: Only save when user has actually made changes (isDirty)
+    // A launched draft is a record: a stale tab's edits are not saved over it.
     useEffect(() => {
-        if (!isDirty || !isInitializedRef.current) return;
+        if (!isDirty || !isInitializedRef.current || isLaunched) return;
         const timer = setTimeout(() => {
-            if (campaignId) {
-                // Strip rawData before saving — it's a large array that only lives in React state
-                const { filters, ...rest } = campaignData;
-                const { rawData, ...cleanFilters } = filters || {};
-                saveDraft(campaignId, { ...rest, filters: cleanFilters });
-            }
+            if (campaignId) persist(campaignData);
         }, 2000); // 2 second auto-save delay
         return () => clearTimeout(timer);
-    }, [campaignData, campaignId, saveDraft, isDirty]);
+    }, [campaignData, campaignId, persist, isDirty, isLaunched]);
+
+    // Launch sends what the editor shows, so an edit autosave has not written
+    // yet is saved first: the draft the server claims, and keeps as the
+    // record, holds the same, and the claim's update brings back nothing older.
+    // A campaign never saved is saved, edited or not: the server claims a draft.
+    // A failed save stops the launch, so nothing goes out that the draft lacks.
+    const saveBeforeLaunch = useCallback(async () => {
+        if (!campaignId || !isInitializedRef.current || isLaunched) return;
+        if (!isDirty && storedRef.current) return;
+        if (await persist(campaignData) === false) {
+            throw new Error('We could not save the campaign. Check your connection and try again.');
+        }
+    }, [campaignData, campaignId, persist, isDirty, isLaunched]);
+
+    // The server marked the draft launched (`launchedAt`, `sessionId`) before it
+    // answered, so it leaves Drafts and cannot be launched again.
+    const handleLaunchSuccess = () => {
+        onClose();
+    };
 
     const updateData = (section, data) => {
         setIsDirty(true);
@@ -99,17 +172,24 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
 
     // `countedFor` names the channel the count was made for, and how many it
     // left out as already messaged by that channel; the launch checks it.
+    // The audience step also reports on its own (when it opens, and when the
+    // server recounts): only a report whose audience differs from the last one
+    // is the recruiter's edit, so opening a campaign saves nothing.
     const handleAudienceChange = useCallback((newFilters, count, countedFor = null) => {
+        const audience = audienceOf(newFilters);
+        const last = reportedAudienceRef.current;
+        reportedAudienceRef.current = audience;
         setCampaignData(prev => {
             // Guard against no-op updates to avoid render loops from effect-driven callbacks.
             if (prev.filters === newFilters && (prev.matchCount || 0) === (count || 0)
                 && prev.countedFor?.method === countedFor?.method
-                && prev.countedFor?.alreadyMessaged === countedFor?.alreadyMessaged) {
+                && prev.countedFor?.alreadyMessaged === countedFor?.alreadyMessaged
+                && prev.countedFor?.needsRecount === countedFor?.needsRecount) {
                 return prev;
             }
             return { ...prev, filters: newFilters, matchCount: count, countedFor };
         });
-        setIsDirty(true);
+        if (last && (last.key !== audience.key || last.rows !== audience.rows)) setIsDirty(true);
     }, []);
 
     const isSectionComplete = (sectionId) => {
@@ -117,6 +197,34 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
         if (sectionId === 'content') return !!campaignData.messageConfig?.message;
         return false;
     };
+
+    // Opened after its launch (a stale tab, or the moment before the editor
+    // closes): the notice replaces the editor, so there is no Launch to press.
+    if (isLaunched) {
+        const sessionId = campaignData.sessionId;
+        return (
+            <div className="min-h-full bg-ds-surface-subtle p-ds-6">
+                <div className="mx-auto flex max-w-2xl flex-col items-start gap-ds-4">
+                    <Button variant="ghost" size="sm" onClick={onClose}>
+                        <Icon icon={ArrowLeft} /> Exit
+                    </Button>
+                    <Notice
+                        tone="info"
+                        title="This campaign was already launched"
+                        titleAs="h2"
+                        className="w-full"
+                        actions={sessionId && onViewReport ? (
+                            <Button variant="secondary" size="sm" onClick={() => onViewReport(sessionId)}>
+                                View report
+                            </Button>
+                        ) : undefined}
+                    >
+                        It can&apos;t be launched again. To message people again, create a new campaign.
+                    </Notice>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-ds-surface-subtle md:flex-row">
@@ -165,7 +273,7 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
 
                 <div className="mt-auto border-t border-ds-border-subtle p-ds-4">
                     <div className="flex items-center justify-between text-ds-xs font-bold text-ds-content-muted">
-                        <span role="status" aria-live="polite">{isSaving ? 'Saving...' : 'Auto-Saved'}</span>
+                        <span role="status" aria-live="polite">{isSaving ? 'Saving...' : (isStored ? 'Auto-Saved' : 'Not saved yet')}</span>
                         <Icon icon={Save} size="sm" className={isSaving ? 'animate-pulse text-ds-action-primary' : ''} />
                     </div>
                 </div>
@@ -194,8 +302,10 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
                     {activeSection === 'launch' && (
                         <LaunchPad
                             companyId={companyId}
+                            campaignId={campaignId}
                             campaign={campaignData}
-                            onLaunchSuccess={onClose}
+                            onBeforeLaunch={saveBeforeLaunch}
+                            onLaunchSuccess={handleLaunchSuccess}
                         />
                     )}
                 </React.Suspense>

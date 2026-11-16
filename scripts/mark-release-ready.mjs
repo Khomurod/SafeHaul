@@ -26,6 +26,8 @@
  * Reads DEPLOYMENT_ID and the standard GitHub Actions environment.
  */
 
+import { createGithubApi } from './lib/githubApi.mjs';
+
 const {
     DEPLOYMENT_ID: deploymentId,
     GITHUB_TOKEN: token,
@@ -49,30 +51,18 @@ if (!/^\d+$/.test(String(deploymentId))) {
     process.exit(1);
 }
 
-const response = await fetch(
-    `https://api.github.com/repos/${repository}/deployments/${deploymentId}/statuses`,
-    {
+try {
+    await createGithubApi({ token, repository })(`/deployments/${deploymentId}/statuses`, {
         method: 'POST',
-        headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${token}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        body: {
             state: 'success',
             description: 'Frontend and shared backend released; promotable to Production.',
             log_url: runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : undefined,
             environment_url: 'https://truckerapp-system.web.app',
-        }),
-    },
-);
-
-if (!response.ok) {
-    const body = await response.text();
-    console.error(
-        `Could not confirm deployment #${deploymentId}: ${response.status} ${body.slice(0, 400)}`,
-    );
+        },
+    });
+} catch (error) {
+    console.error(`Could not confirm deployment #${deploymentId}: ${error.message}`);
     process.exit(1);
 }
 

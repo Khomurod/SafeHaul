@@ -49,7 +49,8 @@ export function mockUsers() {
 }
 
 /**
- * A company's applications as `loadApplications` returns them. Only the first
+ * A company's applications as `loadApplicationsPage` lists them, all in one
+ * page (`useCompanyApplicationPages` shows them without reading). Only the first
  * company has any: each name, contact and date shape the dialog resolves, and
  * the longest strings it shows. The others have none.
  */

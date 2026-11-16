@@ -1,0 +1,39 @@
+{
+  "//": "Shared vectors for whether an email address is one the server will send to (functions/shared/isValidEmail.js). The browser's check for a press that reaches the server's sender (isWellFormedEmail in src/shared/utils/validation.js) runs the same list in src/shared/utils/emailValidation.parity.test.js; the server's own suite runs it in functions/test/unit/isValidEmail.test.js.",
+  "accepted": [
+    "dispatch@acme.com",
+    "Dispatch.Team+hr@Acme-Trucking.co.uk",
+    "o'brien@haul.ca",
+    "dana@example.test",
+    "first_last@example.com",
+    "a@b.co",
+    "user@mail.sub.example.com",
+    "1234567890@numbers.example",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@acme.com",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  ],
+  "refused": [
+    "a@aol..com",
+    "josé@x.com",
+    "a@x_y.com",
+    "a@x.com.",
+    "jrouse247@aol,com",
+    "NONE",
+    "dana@",
+    "@example.com",
+    "dana@example",
+    "dana @example.com",
+    " dana@example.com",
+    "dana@example.com ",
+    "dana@-example.com",
+    "dana@example-.com",
+    "dana@.example.com",
+    "a@b@example.com",
+    "antdero@cox.net/harveysseafood@cox.net",
+    "dana@例え.jp",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@acme.com",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "",
+    null
+  ]
+}

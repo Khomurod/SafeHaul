@@ -191,6 +191,7 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onSaveDraft={onPartialSubmit}
+                answers={formData}
                 onContinue={handleContinue}
             />
         </div>

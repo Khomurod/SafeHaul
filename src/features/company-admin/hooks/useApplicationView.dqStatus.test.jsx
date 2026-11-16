@@ -1,7 +1,9 @@
 /**
  * The dossier's DQ status: the value the sidebar's DQ File marker reads
  * (`DossierSidebar` flags `dqStatus === 'incomplete'`), from the entries the DQ
- * File tab lists, kept live.
+ * File tab lists, kept live. It is the DQ tab's checklist (`dqChecklist.js`):
+ * incomplete while an item that is not optional is missing or expired. The PSP
+ * report and the annual items are optional there, so they no longer decide it.
  *
  * All identifiers below are artificial.
  */
@@ -40,16 +42,15 @@ vi.mock('@shared/components/feedback', () => ({ useToast: () => ({ showError: vi
 
 import { useApplicationView } from './useApplicationView';
 
-/** One entry of each type the DQ File tab offers that the status requires. */
+/** One entry of each item of the checklist that is not optional; the MVR first. */
 const ALL_REQUIRED = [
     'MVR (Annual)',
+    'Application for Employment',
+    'CDL',
     'Medical Card',
     'Road Test Certificate',
-    'PSP Report',
     'Clearinghouse Report (Full)',
-    'Clearinghouse Report (Annual)',
-    'Certificate of Violations (Annual)',
-].map((fileType, i) => ({ id: `dq-${i}`, fileType, fileName: `file-${i}.pdf` }));
+].map((fileType, i) => ({ id: `dq-${i}`, fileType, fileName: `file-${i}.pdf`, ...(fileType === 'Medical Card' ? { expirationDate: '2999-01-01' } : {}) }));
 
 const snapshotOf = (entries) => ({
     docs: entries.map(({ id, ...data }) => ({ id, data: () => data })),
@@ -81,6 +82,48 @@ describe("useApplicationView's DQ status", () => {
         deliver(ALL_REQUIRED);
 
         expect(result.current.dqStatus).toBe('complete');
+    });
+
+    it('needs no PSP report and no annual item: the checklist marks them optional', () => {
+        const { result } = mount();
+        deliver(ALL_REQUIRED);
+
+        expect(result.current.dqStatus).toBe('complete');
+        expect(ALL_REQUIRED.map((entry) => entry.fileType)).not.toContain('PSP Report');
+    });
+
+    it('turns incomplete on the day after the medical card runs out, without a new entry', () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
+            const { result, rerender } = mount();
+            deliver(ALL_REQUIRED.map((entry) => (entry.fileType === 'Medical Card' ? { ...entry, expirationDate: '2026-11-04' } : entry)));
+            expect(result.current.dqStatus).toBe('complete');
+
+            vi.setSystemTime(new Date('2026-11-05T00:30:00Z'));
+            rerender();
+            expect(result.current.dqStatus).toBe('incomplete');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('is incomplete while the medical card on file has expired', () => {
+        const { result } = mount();
+        deliver(ALL_REQUIRED.map((entry) => (entry.fileType === 'Medical Card' ? { ...entry, expirationDate: '2020-01-01' } : entry)));
+
+        expect(result.current.dqStatus).toBe('incomplete');
+    });
+
+    it('is incomplete while an employer of the last three years has not answered', () => {
+        fs.record = {
+            appData: { firstName: 'Ann', employers: [{ companyName: 'Prairie Line Freight', endDate: '', verification: { status: 'Sent' } }] },
+            collectionName: 'applications',
+        };
+        const { result } = mount();
+        deliver(ALL_REQUIRED);
+
+        expect(result.current.dqStatus).toBe('incomplete');
     });
 
     it('does not count an entry the DQ File tab no longer lists', () => {

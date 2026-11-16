@@ -49,10 +49,7 @@ function asV1Error(error) {
 }
 
 exports.diagnoseAiCredentialAccessV1 = functions
-    // The legacy Groq binding must be readable here for the same reason it is on
-    // the 2nd generation callables: the report says whether this runtime carries
-    // it, and a binding is declared per function.
-    .runWith({ memory: '256MB', timeoutSeconds: 60, secrets: ['GROQ_API_KEY'] })
+    .runWith({ memory: '256MB', timeoutSeconds: 60 })
     .https.onCall(async (data, context) => {
         // The guards need only `auth.uid` and `auth.token`, which a 1st
         // generation `context` carries under the same names.

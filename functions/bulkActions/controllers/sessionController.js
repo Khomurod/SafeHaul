@@ -6,7 +6,9 @@ const { checkRateLimit } = require("../../shared/rateLimiter");
 const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gatherTargets");
 const { persistImportTargets } = require("./session/importTargets");
 const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
-const { readSessionTargetIds, writeNewSession } = require("../helpers/sessionTargets");
+const { writeNewSession } = require("../helpers/sessionTargets");
+const { DRAFT_GONE, claimDraftLaunch, launchedMark, releaseDraftLaunch } = require("../helpers/launchClaim");
+const { claimResume } = require("./session/resumeSession");
 
 /**
  * 1. Initialize Bulk Session
@@ -18,7 +20,7 @@ exports.initBulkSession = onCall({
 }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated');
 
-    const { companyId, filters, config, sessionName, targetIds } = request.data;
+    const { companyId, campaignId, config } = request.data;
     if (!companyId || !config || !config.message) {
         throw new HttpsError('invalid-argument', 'Missing required fields.');
     }
@@ -34,6 +36,28 @@ exports.initBulkSession = onCall({
         throw new HttpsError('resource-exhausted', 'Too many bulk sessions created recently. Please wait before starting another.');
     }
 
+    // One launch per draft (`helpers/launchClaim.js`): claimed before anyone is
+    // gathered, marked launched in the batch that writes the session, and given
+    // back by a launch that stops before that batch.
+    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
+    const sessionId = sessionRef.id;
+    const draftRef = await claimDraftLaunch({ companyId, campaignId, uid: request.auth.uid, sessionId });
+    let launched = false;
+    try {
+        const result = await launchSession({ request, sessionRef, sessionId, draftRef });
+        launched = result.success === true;
+        return result;
+    } finally {
+        if (!launched) await releaseDraftLaunch(draftRef, sessionId);
+    }
+});
+
+/**
+ * Gathers the recipients, writes the session (and, in the same batch, the
+ * draft's launched mark) and starts its worker.
+ */
+async function launchSession({ request, sessionRef, sessionId, draftRef }) {
+    const { companyId, filters, config, sessionName, targetIds } = request.data;
     const leadSourceType = filters.leadType || 'applications'; // 'global', 'leads', 'applications' (default)
 
     // A. ID Gathering Phase
@@ -64,10 +88,7 @@ exports.initBulkSession = onCall({
         return { success: false, message: "No leads found matching criteria." };
     }
 
-    // B. Create Session Doc
-    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
-    const sessionId = sessionRef.id;
-
+    // B. Create Session Doc (its reference was made before the draft was claimed)
     // Handle Import Persistence NOW if applicable
     let importFilteredCount = 0;
     if (leadSourceType === 'import' && request.data.rawData) {
@@ -115,7 +136,11 @@ exports.initBulkSession = onCall({
             failedCount: 0
         },
         lastUpdateAt: admin.firestore.FieldValue.serverTimestamp()
-    }, finalTargetIds);
+    }, finalTargetIds, draftRef ? { ref: draftRef, data: launchedMark(sessionId) } : null).catch((error) => {
+        // The draft was deleted while it launched: nothing was written or sent.
+        if (draftRef && error?.code === 5) throw new HttpsError('not-found', DRAFT_GONE);
+        throw error;
+    });
 
     // C. Import Targets (Optional - if we need specific data snapshot)
     // If 'import' type, we assume targetIds came with data?
@@ -134,7 +159,7 @@ exports.initBulkSession = onCall({
     }
 
     return { success: true, sessionId: sessionId, targetCount: finalTargetIds.length, filteredCount: importFilteredCount };
-});
+}
 
 
 /**
@@ -146,49 +171,35 @@ const updateSessionStatus = async (request, status) => {
     await assertCompanyAdmin(request.auth.uid, companyId);
 
     const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(sessionId);
-
-    // AUDIT FIX #4: Increment workerGeneration on resume to invalidate stale workers
-    const updatePayload = {
+    await sessionRef.update({
         status: status,
         updatedBy: request.auth.uid,
         lastUpdateAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    if (status === 'active') {
-        updatePayload.workerGeneration = admin.firestore.FieldValue.increment(1);
-    }
-    await sessionRef.update(updatePayload);
+    });
+    return { success: true };
+};
 
-    // If resuming, kick off worker again.
-    // P2 HARDENING: Defensive reads — older/failed sessions may be missing
-    // `progress` or `targetIds`. Crashing here means a recruiter clicks Resume
-    // and sees an opaque INTERNAL error with no recovery path.
-    if (status === 'active') {
-        const snap = await sessionRef.get();
-        if (!snap.exists) {
-            throw new HttpsError('not-found', 'Session not found.');
-        }
-        const sessionData = snap.data() || {};
-        const pointer = sessionData.progress?.currentPointer ?? 0;
-        const total = (await readSessionTargetIds(sessionRef, sessionData)).length;
-        if (total === 0) {
-            // Already-empty target list — mark as completed instead of busy-looping a worker.
-            await sessionRef.update({
-                status: 'completed',
-                completedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            return { success: true, message: 'No remaining targets — session marked complete.' };
-        }
-        if (pointer < total) {
-            await enqueueWorker(companyId, sessionId, 1, sessionData.workerGeneration);
-        }
-    }
+/**
+ * Resume a paused campaign, or continue one that stopped with an error part-way
+ * (`session/resumeSession.js`): the worker carries on from where it stopped, so
+ * no one already tried is messaged again.
+ */
+const resumeSession = async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated');
+    const { companyId, sessionId } = request.data;
+    await assertCompanyAdmin(request.auth.uid, companyId);
+
+    const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(sessionId);
+    const claim = await claimResume(sessionRef, request.auth.uid);
+    if (claim.completed) return { success: true, message: claim.message };
+    await enqueueWorker(companyId, sessionId, 1, claim.generation);
     return { success: true };
 };
 
 exports.pauseBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'paused'));
 exports.resumeBulkSession = onCall(
     { cors: true, secrets: ['BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL'] },
-    (req) => updateSessionStatus(req, 'active'),
+    resumeSession,
 );
 exports.cancelBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'cancelled'));
 

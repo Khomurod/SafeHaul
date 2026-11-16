@@ -5,8 +5,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
-const { assertCompanyActive } = require('../../../shared/companyAccess');
-const { isSuperAdminClaims } = require('../../../shared/superAdmin');
+const { assertSmsSettingsAccess } = require('./smsSettingsAccess');
 const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
 const { normalizePhoneForKeychain } = require('../../../utils/phoneUtils');
@@ -19,7 +18,7 @@ const encryptedCallOptions = {
 };
 
 /**
- * 5. Add Phone Line (Super Admin - Digital Wallet)
+ * 5. Add Phone Line (Company Admin, owner or Super Admin - Digital Wallet)
  */
 exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be authenticated.');
@@ -31,18 +30,8 @@ exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
         throw new HttpsError('invalid-argument', 'Missing required fields: companyId, phoneNumber, jwt.');
     }
 
-    // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    const roles = request.auth.token.roles || {};
-    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
-    const isCompanyAdmin = roles[companyId] === 'company_admin';
-
-    if (!isSuperAdmin && !isCompanyAdmin) {
-        console.warn(`[PermissionDenied] User: ${request.auth.uid}, Target: ${companyId}`);
-        throw new HttpsError('permission-denied', 'You do not have permission to add phone lines to this company.');
-    }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
+    // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+    await assertSmsSettingsAccess(request.auth, companyId);
 
     const db = admin.firestore();
     const providerDocRef = db.collection('companies').doc(companyId).collection('integrations').doc('sms_provider');
@@ -194,7 +183,7 @@ exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
 });
 
 /**
- * 6. Remove Phone Line (Super Admin - Digital Wallet)
+ * 6. Remove Phone Line (Company Admin, owner or Super Admin - Digital Wallet)
  */
 exports.removePhoneLine = onCall(encryptedCallOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be authenticated.');
@@ -205,18 +194,8 @@ exports.removePhoneLine = onCall(encryptedCallOptions, async (request) => {
         throw new HttpsError('invalid-argument', 'Missing required fields: companyId, phoneNumber.');
     }
 
-    // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    const roles = request.auth.token.roles || {};
-    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
-    const isCompanyAdmin = roles[companyId] === 'company_admin';
-
-    if (!isSuperAdmin && !isCompanyAdmin) {
-        console.warn(`[PermissionDenied] User: ${request.auth.uid}, Target: ${companyId}`);
-        throw new HttpsError('permission-denied', 'You do not have permission to remove phone lines from this company.');
-    }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
+    // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+    await assertSmsSettingsAccess(request.auth, companyId);
 
     const db = admin.firestore();
     const { normalizePhoneForKeychain } = require('../../../utils/phoneUtils');

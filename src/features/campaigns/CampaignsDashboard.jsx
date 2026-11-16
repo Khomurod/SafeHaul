@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon, Plus, Rocket, History, LayoutGrid, Users, Zap, Loader2 } from '@design-system/icons';
-import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { isCancellableSessionStatus } from './constants/campaignConstants';
@@ -8,16 +8,19 @@ import { CampaignCard } from './components/CampaignCard';
 import { CampaignListMore } from './components/CampaignListMore';
 import { CampaignEditor } from './CampaignEditor';
 import { CampaignDetails } from './components/CampaignDetails';
-import DetailedReportModal from './components/DetailedReportModal';
 import { useCampaignLists } from './hooks/useCampaignLists';
+import { useCampaignSessionById } from './hooks/useCampaignSessionById';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
-import { ConfirmDialog } from '@design-system/patterns';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
+import { ConfirmDialog, LoadingState } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, MetricCard, Notice, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
 
 // The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
 // icons are presentation only. The strip itself is the design system's
@@ -25,7 +28,7 @@ import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/des
 // every other page-level view switcher.
 const CAMPAIGN_TABS = [
     { id: 'drafts', label: 'Drafts', icon: LayoutGrid },
-    { id: 'history', label: 'Past Sequences', icon: History },
+    { id: 'history', label: 'Sent & live', icon: History },
 ];
 
 // One `useLoadMoreFocus` per tab, so a tab switch keeps each list's focus state.
@@ -39,11 +42,12 @@ const focusOptions = (list, resetKey) => ({
 
 export function CampaignsDashboard({ companyId }) {
     const { currentCompanyProfile } = useData();
-    const isCampaignsEnabled = currentCompanyProfile?.features?.campaignsEnabled !== false;
+    const isCampaignsEnabled = isFeatureOn(currentCompanyProfile, 'campaignsEnabled');
     const [activeTab, setActiveTab] = useState('drafts'); // 'drafts' | 'history'
-    const [selectedCampaignId, setSelectedCampaignId] = useState(null);
+    // The campaign open in the editor: `{ id, isNew }`, `isNew` until its first save creates the draft.
+    const [openCampaign, setOpenCampaign] = useState(null);
+    // A sent or live campaign's one report screen (`CampaignDetails`), by session id.
     const [viewingSessionId, setViewingSessionId] = useState(null);
-    const [selectedReportSessionId, setSelectedReportSessionId] = useState(null);
     // Replace the two blocking `window.confirm` guards. Each holds the target
     // captured at the moment its dialog opened, so a tab switch or a live
     // `onSnapshot` update cannot retarget an open confirmation.
@@ -52,9 +56,25 @@ export function CampaignsDashboard({ companyId }) {
     const [pendingDelete, setPendingDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const { showSuccess, showError } = useToast();
+    const isMobile = useIsMobile();
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
     // The newest 50 of each list (more on request) and every live campaign; the two numbers stay exact.
     const { drafts, sessions, liveCount, totalOutreach } = useCampaignLists({ companyId, enabled: isCampaignsEnabled });
+    // The report open, from the loaded list or, for a session it has not loaded, by id.
+    const listedSession = viewingSessionId ? sessions.items.find((session) => session.id === viewingSessionId) : null;
+    const lookup = useCampaignSessionById(isE2ECampaignMock ? null : companyId, listedSession ? null : viewingSessionId);
+    const viewingSession = listedSession ?? lookup.session;
+    // A report that is gone, or cannot be read, says so and leaves nothing pending.
+    useEffect(() => {
+        if (lookup.status !== 'missing' && lookup.status !== 'failed') return;
+        if (lookup.status === 'failed') console.error('Campaign report not read:', lookup.error);
+        setViewingSessionId(null);
+        showError(lookup.status === 'missing'
+            ? 'This campaign report no longer exists.'
+            : plainErrorMessage(lookup.error, 'The campaign report could not be opened.'));
+        // `showError` is the toast's stable callback; only a new outcome reports.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lookup.status, lookup.key]);
     const draftsFocus = useLoadMoreFocus(focusOptions(drafts, companyId));
     const sessionsFocus = useLoadMoreFocus(focusOptions(sessions, companyId));
 
@@ -70,34 +90,23 @@ export function CampaignsDashboard({ companyId }) {
     }
 
     // The active tab decides which frozen list feeds the card grid, and the
-    // spinner follows that list: Past Sequences waits for its history and live
+    // spinner follows that list: Sent & live waits for its history and live
     // listeners rather than showing "No Campaigns Found" first. A failure shows
     // at once, even while the other listener is still pending.
     const activeList = activeTab === 'drafts' ? drafts : sessions;
     const visibleCampaigns = activeList.items;
     const loading = activeList.isLoading && !activeList.error;
 
-    // 2. Create New Campaign Draft
-    const handleNewCampaign = async () => {
+    // A new campaign opens unsaved: the editor's first save creates its draft
+    // under this id, so leaving it before then leaves no empty draft behind.
+    const handleNewCampaign = () => {
         if (!companyId) return;
         if (isE2ECampaignMock) {
-            setSelectedCampaignId('camp_e2e_mock');
+            setOpenCampaign({ id: 'camp_e2e_mock', isNew: false });
             return;
         }
-        const newId = `camp_${Date.now()}`;
-        try {
-            await setDoc(doc(db, 'companies', companyId, 'campaign_drafts', newId), {
-                name: 'Untitled Campaign',
-                status: 'draft',
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                filters: {},
-                messageConfig: { method: 'sms', message: '' }
-            });
-            setSelectedCampaignId(newId);
-        } catch (err) {
-            showError("Failed to create campaign: " + err.message);
-        }
+        // A Firestore auto-id: two tabs opening a campaign at once get two drafts.
+        setOpenCampaign({ id: doc(collection(db, 'companies', companyId, 'campaign_drafts')).id, isNew: true });
     };
 
     /**
@@ -134,7 +143,8 @@ export function CampaignsDashboard({ companyId }) {
             showSuccess('Campaign cancelled. No further messages will be sent.');
             setPendingCancel(null);
         } catch (err) {
-            showError('Failed to cancel campaign: ' + err.message);
+            console.error('Campaign not cancelled:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be cancelled.'));
         } finally {
             setCancelling(false);
         }
@@ -169,26 +179,44 @@ export function CampaignsDashboard({ companyId }) {
             }
             setPendingDelete(null);
         } catch (err) {
-            showError("Failed to delete campaign: " + err.message);
+            console.error('Campaign not deleted:', err);
+            showError(plainErrorMessage(err, 'The campaign could not be deleted.'));
         } finally {
             setDeleting(false);
         }
     };
 
-    if (selectedCampaignId) {
+    if (openCampaign) {
         return (
             <CampaignEditor
+                // One editor per draft: its state (a launch included) never carries over to another.
+                key={openCampaign.id}
                 companyId={companyId}
-                campaignId={selectedCampaignId}
-                onClose={() => setSelectedCampaignId(null)}
+                campaignId={openCampaign.id}
+                isNew={openCampaign.isNew}
+                onClose={() => setOpenCampaign(null)}
+                // A launched draft's report: the same screen its card opens on Sent & live.
+                onViewReport={(sessionId) => {
+                    setOpenCampaign(null);
+                    setActiveTab('history');
+                    setViewingSessionId(sessionId);
+                }}
             />
         );
     }
 
     // The details follow the live session, not the copy the card was clicked
-    // with, so progress and status update while they are open; a deleted
-    // session takes them back to the list.
-    const viewingSession = viewingSessionId ? sessions.items.find((session) => session.id === viewingSessionId) : null;
+    // with, so progress and status update while they are open. A session the
+    // list has not loaded (an older one, opened from its draft) is read by id.
+    if (viewingSessionId && !viewingSession && lookup.status === 'loading') {
+        return (
+            <div className="min-h-full bg-ds-canvas">
+                <PageContainer width="standard">
+                    <LoadingState title="Opening the report…" />
+                </PageContainer>
+            </div>
+        );
+    }
     if (viewingSession) {
         return (
             <CampaignDetails
@@ -200,33 +228,37 @@ export function CampaignsDashboard({ companyId }) {
 
     return (
         <div className="min-h-full bg-ds-canvas">
-            <PageContainer>
+            <PageContainer width="standard">
                 <Stack gap="lg">
                     <PageHeader
+                        eyebrow="Outreach"
                         title="Campaigns"
-                        description="Design and deploy bulk engagement sequences to reactivate your driver database."
+                        description="Text or email a group of your leads at once."
                         actions={
                             <Button variant="primary" onClick={handleNewCampaign}>
                                 <Icon icon={Plus} size="lg" />
-                                Create Campaign
+                                Create campaign
                             </Button>
                         }
                     />
 
                     <Section aria-label="Campaign performance summary">
-                        <ResponsiveGrid minItemWidth="240px">
+                        {/* Two tiles side by side on a phone; one each under 2 × 240px. */}
+                        <ResponsiveGrid minItemWidth={isMobile ? '150px' : '240px'}>
                             <MetricCard
                                 id="campaigns-stat-live"
-                                label="Live Campaigns"
+                                label="Live campaigns"
                                 value={liveCount ?? '—'}
-                                icon={<Icon icon={Zap} size="xl" />}
+                                description="Sending right now"
+                                icon={<Icon icon={Zap} />}
                                 tone="info"
                             />
                             <MetricCard
                                 id="campaigns-stat-outreach"
-                                label="Total Outreach"
+                                label="Total outreach"
                                 value={totalOutreach ?? '—'}
-                                icon={<Icon icon={Users} size="xl" />}
+                                description="Messages across all campaigns"
+                                icon={<Icon icon={Users} />}
                                 tone="success"
                             />
                         </ResponsiveGrid>
@@ -236,12 +268,13 @@ export function CampaignsDashboard({ companyId }) {
                         <TabList
                             ariaLabel="Campaign views"
                             idBase="campaigns"
+                            variant="segmented"
                             tabs={CAMPAIGN_TABS}
                             activeTab={activeTab}
                             onChange={setActiveTab}
                         />
 
-                        <TabPanel idBase="campaigns" tabId={activeTab} className="mt-ds-6">
+                        <TabPanel idBase="campaigns" tabId={activeTab} className="mt-ds-4">
                             {loading ? (
                                 <div
                                     role="status"
@@ -260,8 +293,8 @@ export function CampaignsDashboard({ companyId }) {
                                 >
                                     {activeList.error}
                                 </Notice>
-                            ) : visibleCampaigns.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-lg border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
+                            ) : visibleCampaigns.length === 0 && !activeList.hasMore ? (
+                                <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-card border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
                                     <span
                                         aria-hidden="true"
                                         className="flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted"
@@ -269,29 +302,31 @@ export function CampaignsDashboard({ companyId }) {
                                         <Icon icon={Rocket} size="3xl" />
                                     </span>
                                     <h2 className="text-ds-heading-md font-bold text-ds-content">
-                                        No {activeTab === 'drafts' ? 'Drafts' : 'Campaigns'} Found
+                                        {activeTab === 'drafts' ? 'No drafts yet' : 'Nothing sent yet'}
                                     </h2>
                                     <p className="max-w-sm text-ds-sm text-ds-content-muted">
-                                        Ready to reactivate your driver database? Create your first automated messaging sequence.
+                                        Create a campaign to text or email a group of your leads.
                                     </p>
                                     <Button variant="primary" onClick={handleNewCampaign}>
-                                        Define Initial Campaign
+                                        Create your first campaign
                                     </Button>
                                 </div>
                             ) : (
                                 <>
-                                    <ResponsiveGrid minItemWidth="280px">
+                                    {/* Columns of at least 340px that never stretch a lone
+                                        card across the page: three on the 1200px canvas,
+                                        one on a tablet or a phone. */}
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] gap-ds-5">
                                         {visibleCampaigns.map(campaign => (
                                             <CampaignCard
                                                 key={campaign.id}
                                                 campaign={campaign}
-                                                onClick={() => activeTab === 'drafts' ? setSelectedCampaignId(campaign.id) : setViewingSessionId(campaign.id)}
+                                                onClick={() => activeTab === 'drafts' ? setOpenCampaign({ id: campaign.id, isNew: false }) : setViewingSessionId(campaign.id)}
                                                 onDelete={requestDeleteCampaign}
                                                 onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
-                                                onViewReport={() => setSelectedReportSessionId(campaign.id)}
                                             />
                                         ))}
-                                    </ResponsiveGrid>
+                                    </div>
                                     <CampaignListMore
                                         tab={activeTab}
                                         list={activeList}
@@ -303,13 +338,6 @@ export function CampaignsDashboard({ companyId }) {
                     </Section>
                 </Stack>
             </PageContainer>
-
-            <DetailedReportModal
-                companyId={companyId}
-                sessionId={selectedReportSessionId}
-                isOpen={!!selectedReportSessionId}
-                onClose={() => setSelectedReportSessionId(null)}
-            />
 
             {/* Replaces `window.confirm("Cancel \"{name}\"? …")`. */}
             <ConfirmDialog

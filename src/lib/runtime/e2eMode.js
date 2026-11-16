@@ -1,4 +1,15 @@
-export const isE2ETestMode = import.meta.env.VITE_E2E_TEST_MODE === '1';
+/**
+ * True only on a dev server started with `VITE_E2E_TEST_MODE=1`, as the browser
+ * suites run it. A production build is refused even with the variable set.
+ *
+ * The bundler sees this as `false` only after it has split the build into
+ * files, so a branch on it still ships what it alone uses from another file (a
+ * lazy import, a shared module's export), and a flag made from it and handed to
+ * another function or component is never seen as `false` at all. Such a branch
+ * also tests `!import.meta.env.PROD` in its own file, which the bundler reads
+ * before it splits.
+ */
+export const isE2ETestMode = !import.meta.env.PROD && import.meta.env.VITE_E2E_TEST_MODE === '1';
 
 export function getE2EQueryParam(name, fallback = '') {
   if (typeof window === 'undefined') {

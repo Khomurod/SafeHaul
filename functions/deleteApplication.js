@@ -3,7 +3,8 @@
  * ====================
  * Company-admin hard delete of a driver application (or company lead), with
  * cascade: removes all subcollections (activity_logs, dq_files, general_documents,
- * internal_notes, …) and best-effort cleanup of the uploaded files in Storage.
+ * internal_notes, …), best-effort cleanup of the uploaded files in Storage, and
+ * the link from the lead or application it is linked to.
  *
  * Security:
  *  - Requires authentication
@@ -19,6 +20,7 @@ const { db, storage } = require("./firebaseAdmin");
 const { logger } = require("firebase-functions");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
 const { collectStoragePaths, deleteApplicationFiles } = require("./shared/applicationStorage");
+const { unlinkDeletedRecord } = require("./shared/leadApplicationLink");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 
@@ -64,6 +66,14 @@ exports.deleteApplication = onCall({ cors: true }, async (request) => {
 
     // Cascade delete the document and all of its subcollections.
     await db.recursiveDelete(ref);
+
+    // A lead and the application it became name each other; the other record
+    // no longer names this one (shared/leadApplicationLink.js).
+    try {
+        await unlinkDeletedRecord({ companyId, collectionName, recordId: applicationId, data });
+    } catch (err) {
+        logger.warn(`[deleteApplication] Could not unlink the record linked to ${applicationId}: ${err?.message || err}`);
+    }
 
     logger.info(`[deleteApplication] ${collectionName}/${applicationId} deleted for company ${companyId} by ${request.auth.uid}`);
     return { success: true, applicationId, collectionName };

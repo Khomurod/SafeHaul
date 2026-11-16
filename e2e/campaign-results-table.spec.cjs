@@ -15,7 +15,7 @@ const PAGED_URL = `${URL}&e2eCampaignLogs=paged`;
 async function openResults(page, url = URL) {
   await page.goto(url);
   await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('tab', { name: /Past Sequences/i }).click();
+  await page.getByRole('tab', { name: /Sent & live/i }).click();
   await expect(page.getByText('E2E Completed Session')).toBeVisible();
   await page.getByRole('button', { name: /^Details$/i }).first().click();
   await expect(page.getByRole('table', { name: 'Recipient delivery log' })).toBeVisible({ timeout: 20_000 });

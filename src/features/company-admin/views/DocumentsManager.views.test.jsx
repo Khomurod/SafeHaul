@@ -4,7 +4,7 @@
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `DocumentsManager.support.jsx`; the registrations below delegate to it.
 import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +45,44 @@ describe('DocumentsManager views', () => {
         expect(tabs().overview).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByTestId('documents-overview')).toBeInTheDocument();
         expect(screen.queryByTestId('sent-documents')).not.toBeInTheDocument();
+    });
+
+    // A link from elsewhere in the app (the dashboard's Company setup) opens the view it names.
+    it.each([
+        ['sent', 'sent-documents'],
+        ['templates', 'template-library'],
+        ['forms', 'application-forms'],
+    ])('opens on the %s view when the address names it', (tabKey, testId) => {
+        useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
+        render(
+            <MemoryRouter initialEntries={[`/company/e-docs?view=${tabKey}`]}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        );
+        expect(tabs()[tabKey]).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+    });
+
+    it('calls the forms sent after an application After-application forms, at the same address', () => {
+        useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
+        render(
+            <MemoryRouter initialEntries={['/company/e-docs?view=forms']}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        );
+        expect(tabs().forms).toHaveAccessibleName('After-application forms');
+        expect(tabs().forms).toHaveAttribute('aria-selected', 'true');
+        expect(screen.queryByRole('tab', { name: 'Application Forms' })).not.toBeInTheDocument();
+    });
+
+    it('opens on Overview when the address names a view it does not have', () => {
+        useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
+        render(
+            <MemoryRouter initialEntries={['/company/e-docs?view=settings']}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        );
+        expect(tabs().overview).toHaveAttribute('aria-selected', 'true');
     });
 
     it.each([
@@ -189,7 +227,7 @@ describe('DocumentsManager views', () => {
 describe('DocumentsManager gating', () => {
     it('locks the workspace when E-Docs is disabled for the company', () => {
         renderManager({ currentCompanyProfile: { ...company, features: { eDocs: false } } });
-        expect(screen.queryByRole('heading', { level: 1, name: 'Documents' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'E-Docs' })).not.toBeInTheDocument();
     });
 
     /*
@@ -203,7 +241,7 @@ describe('DocumentsManager gating', () => {
      */
     it('survives E-Docs being switched off while the screen is open', () => {
         const { rerender } = renderManager();
-        expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'E-Docs' })).toBeInTheDocument();
 
         useDataMock.mockReturnValue({
             currentCompanyProfile: { ...company, features: { eDocs: false } },
@@ -216,6 +254,6 @@ describe('DocumentsManager gating', () => {
         )).not.toThrow();
 
         expect(screen.getByRole('heading', { level: 2, name: 'E-Docs' })).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { level: 1, name: 'Documents' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'E-Docs' })).not.toBeInTheDocument();
     });
 });

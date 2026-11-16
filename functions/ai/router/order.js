@@ -34,7 +34,7 @@ const ORDER_DOC = 'order';
 
 /**
  * Ceiling on how many ids are read out of the stored document. It is far above
- * the registry's nine, so it never truncates a legitimate order; it exists so a
+ * the registry's eight, so it never truncates a legitimate order; it exists so a
  * corrupt or hostile document cannot hand the router an unbounded array.
  */
 const MAX_STORED_IDS = 50;

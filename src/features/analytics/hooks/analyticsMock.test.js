@@ -7,15 +7,17 @@ vi.mock('@lib/runtime/e2eMode', () => ({
     getE2EQueryParam: () => e2e.param,
 }));
 const getDocs = vi.fn(async () => ({ docs: [] }));
-vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, auth: {} }));
 vi.mock('firebase/firestore', () => ({
     collection: vi.fn(), query: vi.fn(), where: vi.fn(), getDocs: (...args) => getDocs(...args),
 }));
 
 import { useAnalytics } from './useAnalytics';
 import { mockAnalyticsStats } from './analyticsMock';
+import { forgetCompanies } from '@features/companies/services/companyService';
 
 afterEach(() => {
+    forgetCompanies();
     e2e.on = false;
     e2e.param = '';
     vi.clearAllMocks();

@@ -68,7 +68,15 @@ describe('CompanySidebar', () => {
         expect(screen.queryByRole('link', { name: 'E-Docs' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Import Leads' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
-        expect(screen.getByText('Team Member')).toBeInTheDocument();
+        expect(screen.getByText('Recruiter')).toBeInTheDocument();
+    });
+
+    it('has no Add lead or Import Leads item: the Leads page offers both', () => {
+        renderSidebar({ role: 'company_admin' });
+
+        const menu = screen.getByRole('navigation', { name: 'Company sections' });
+        expect(within(menu).queryByRole('link', { name: /import leads/i })).not.toBeInTheDocument();
+        expect(within(menu).queryByRole('link', { name: /quick add|add lead/i })).not.toBeInTheDocument();
     });
 
     it("leads a company admin into Settings once, through the account section's item", () => {
@@ -108,6 +116,87 @@ describe('CompanySidebar', () => {
         expect(screen.getByRole('link', { name: 'Settings' })).toBe(settings);
         expect(settings).toHaveAttribute('aria-current', 'page');
         expect(settings).toHaveFocus();
+    });
+
+    it('offers one Leads item, for everyone, where Company Leads and My Leads were', () => {
+        for (const role of ['company_admin', 'recruiter']) {
+            const { unmount } = renderSidebar({ role });
+            expect(screen.getByRole('link', { name: 'Leads' })).toHaveAttribute('href', '/company/drivers/leads');
+            expect(screen.queryByRole('link', { name: 'Company Leads' })).toBeNull();
+            expect(screen.queryByRole('link', { name: 'My Leads' })).toBeNull();
+            unmount();
+        }
+    });
+
+    it.each([
+        '/company/drivers/leads/company',
+        '/company/drivers/leads/my',
+        '/company/drivers/leads/unassigned',
+    ])('reads Leads as current on %s, its group heading it in the text colour', (path) => {
+        renderSidebar({ path });
+
+        expect(screen.getByRole('link', { name: 'Leads' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: 'Applications' })).not.toHaveAttribute('aria-current');
+        // C2: only the current item is blue, a pill inset from the edges with no bar.
+        expect(screen.getByRole('link', { name: 'Leads' })).toHaveClass('bg-ds-status-info-bg', 'rounded-ds-md');
+        expect(screen.getByRole('link', { name: 'Leads' })).not.toHaveClass('border-l-2');
+        const group = screen.getByRole('button', { name: 'Driver Applications & Leads' });
+        expect(group.querySelector('svg')).toHaveClass('text-ds-content-muted');
+    });
+
+    it.each(['/company/quick-add-lead', '/company/import-leads'])(
+        'shows Leads as where you are on %s, a page its header opens, without announcing it as the page',
+        (path) => {
+            renderSidebar({ path });
+            const leads = screen.getByRole('link', { name: 'Leads' });
+            expect(leads).toHaveClass('bg-ds-status-info-bg');
+            expect(leads).not.toHaveAttribute('aria-current');
+            expect(screen.getByRole('link', { name: 'Applications' })).not.toHaveClass('bg-ds-status-info-bg');
+        },
+    );
+
+    it('turns the folded group blue while one of its items is current, and no other', () => {
+        const { unmount } = renderSidebar({ path: '/company/drivers/leads/my', expanded: false });
+        const glyph = () => screen.getByRole('button', { name: 'Driver Applications & Leads' }).querySelector('svg');
+        expect(glyph()).toHaveClass('text-ds-navigation-accent');
+        unmount();
+
+        renderSidebar({ path: '/company/settings', expanded: false });
+        expect(glyph()).toHaveClass('text-ds-content-muted');
+    });
+
+    it('shows each folded item\'s name beside it on hover, on the page body where the menu cannot clip it', () => {
+        const { unmount } = renderSidebar({ path: '/company/dashboard', expanded: false });
+        const tooltip = () => document.body.querySelector('.ds-tooltip');
+
+        const settings = screen.getByRole('link', { name: 'Settings' });
+        fireEvent.mouseEnter(settings);
+        expect(tooltip()).toHaveTextContent('Settings');
+        expect(tooltip().parentElement).toBe(document.body);
+        expect(tooltip()).toHaveAttribute('aria-hidden', 'true');
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(tooltip()).toBeNull();
+
+        fireEvent.mouseEnter(screen.getByRole('button', { name: 'Driver Applications & Leads' }));
+        expect(tooltip()).toHaveTextContent('Driver Applications & Leads');
+        unmount();
+        expect(tooltip()).toBeNull();
+
+        // Open, the words are on screen: no label.
+        renderSidebar({ path: '/company/dashboard', expanded: true });
+        fireEvent.mouseEnter(screen.getByRole('link', { name: 'Settings' }));
+        expect(tooltip()).toBeNull();
+    });
+
+    it('names the folded group by its label, and opening it unfolds the menu', async () => {
+        const { container, onExpandedChange } = renderSidebar({ path: '/company/dashboard', expanded: false });
+        const group = screen.getByRole('button', { name: 'Driver Applications & Leads' });
+        expect(group).toHaveAttribute('aria-expanded', 'false');
+
+        fireEvent.click(group);
+        expect(onExpandedChange).toHaveBeenCalledWith(true);
+        // Folded, every control still has a name.
+        expect((await axe(container)).violations).toEqual([]);
     });
 
     it('has no structural accessibility violations', async () => {

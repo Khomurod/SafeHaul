@@ -25,6 +25,7 @@ import { SelectableCard } from '@/design-system/components';
 | `tone` | `default`, `info`, `success`, `warning`, `danger` | colours the **border** only |
 | `surface` | `default`, `inverse` | `inverse` is the console-dark panel |
 | `padding` | `none`, `xs`, `sm` (default), `md` | |
+| `frame` | `card` (default), `row` | `row` = one row of a grouped list inside a `Card`; see below |
 | `onSelect` | handler | button only |
 
 ## Three states, and only one at a time
@@ -53,6 +54,12 @@ asked for. `check:visual-contract` measures both so they cannot drift apart
 quietly — nothing puts the two stories side by side, so a screenshot never
 would.
 
+The selected fill is `--ds-color-surface-selected`, the brand tint every
+selected surface wears (C2) — not the info status tint, because being chosen is
+not a status. `ChoiceGroup appearance="card"` draws a chosen option the same
+way, so a role picked in a form and a record picked in a list read as one
+answer. In forced colours the border is `Highlight`.
+
 The selected weight is an **inset ring**, not a thicker border. A 2px border on
 selection and 1px otherwise moves the content by a pixel every time the choice
 moves, and in a virtualised list that is a visible twitch. Borrowed from
@@ -70,6 +77,38 @@ way `PageThumbnailRail` constrains its `<ul>`. The catalog's `CurrentOfASet`
 story does the same, after the first version of it tried the other way and the
 committed screenshot showed four full-width cards where four thumbnails were
 meant to be.
+
+## `frame="row"`: the rows of one card
+
+A grouped list of ways in — the C2 settings menu: one card per group, a line
+between rows, every row still a button — is the rows of ONE box, not a stack of
+boxes. The card draws the box and the list draws the dividers:
+
+```jsx
+<Card as="div" padding="none" elevation="soft">
+  <ul className="divide-y divide-ds-border-subtle">
+    {items.map((item) => (
+      <li key={item.id}>
+        <SelectableCard frame="row" onSelect={() => open(item.id)}>…</SelectableCard>
+      </li>
+    ))}
+  </ul>
+</Card>
+```
+
+A row has **no border and no radius** of its own and shows the card's surface.
+Hover fills it (`surface-hover`) — there is no edge to colour — and the focus
+ring is **inset** (`outline-offset: -2px`), so neither a neighbouring row nor
+the card's edge covers it. The first and last row of the list round their outer
+corners to the card's inner radius (`--ds-card-radius` less the card's 1px
+border), so the fill and the ring follow the card's corner instead of poking
+through it; that is why a row is a list item's only child. Selected or current:
+the tint and a 2px inset navy ring (the card's 1px border plus 1px ring, as one
+line); in forced colours a `Highlight` outline. `tone` and `surface="inverse"`
+only colour or swap the box a row does not have, so both throw with it.
+
+This is the supported way to get a borderless row — not a class that overrides
+the card's border or radius from a call site (the rule above still holds).
 
 ## `as="div"` is the non-interactive twin, and it refuses state
 

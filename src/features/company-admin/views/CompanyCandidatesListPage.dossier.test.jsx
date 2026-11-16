@@ -20,6 +20,7 @@ const fixture = vi.hoisted(() => {
         dossierCode,
         releaseDossierCode,
         records: [{ id: 'app-1', firstName: 'Ann', lastName: 'Driver', status: 'New Application' }],
+        activeTab: 'applications',
         filters: {},
         teamMembers: [],
         noop: () => {},
@@ -29,7 +30,7 @@ const fixture = vi.hoisted(() => {
 vi.mock('@features/companies', () => ({
     DashboardToolbar: () => null,
     useCompanyDashboard: () => ({
-        activeTab: 'applications', setActiveTab: fixture.noop, pipelineSegment: 'all', setPipelineSegment: fixture.noop,
+        activeTab: fixture.activeTab, setActiveTab: fixture.noop, pipelineSegment: 'all', setPipelineSegment: fixture.noop,
         searchQuery: '', setSearchQuery: fixture.noop, filters: fixture.filters, setFilters: fixture.noop,
         paginatedData: fixture.records, loading: false, currentPage: 1, totalPages: 1, totalCount: 1,
         nextPage: fixture.noop, prevPage: fixture.noop, refreshData: fixture.noop, teamMembers: fixture.teamMembers, undatedCount: 0,
@@ -47,7 +48,9 @@ vi.mock('@lib/runtime/whenIdle', () => ({ whenIdle: () => {} }));
 vi.mock('../components/modals/driver-dossier/DriverProfileModal', async () => {
     fixture.loaded = true;
     await fixture.dossierCode;
-    return { DriverProfileModal: ({ driverId }) => <p>Dossier of {driverId}</p> };
+    return {
+        DriverProfileModal: ({ driverId, collectionHint }) => <p>Dossier of {driverId} in {collectionHint}</p>,
+    };
 });
 
 import { CompanyCandidatesListPage } from './CompanyCandidatesListPage';
@@ -67,7 +70,22 @@ describe('the driver dossier on a candidate list', () => {
 
         expect(screen.getByRole('dialog', { name: 'Driver dossier' })).toHaveTextContent('Loading driver dossier…');
         fixture.releaseDossierCode();
-        expect(await screen.findByText('Dossier of app-1')).toBeInTheDocument();
+        expect(await screen.findByText('Dossier of app-1 in applications')).toBeInTheDocument();
         expect(fixture.loaded).toBe(true);
+    });
+
+    // The dossier looks first in the collection the list read the row from.
+    it('opens a row of a leads list as a lead', async () => {
+        fixture.activeTab = 'company_leads';
+        fixture.releaseDossierCode();
+        render(
+            <MemoryRouter>
+                <CompanyCandidatesListPage scope="company_leads" />
+            </MemoryRouter>,
+        );
+
+        await userEvent.click(screen.getByRole('row', { name: 'Open driver dossier for Ann Driver' }));
+
+        expect(await screen.findByText('Dossier of app-1 in leads')).toBeInTheDocument();
     });
 });

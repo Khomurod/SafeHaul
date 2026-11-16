@@ -92,6 +92,16 @@ describe('PEV request PDF', () => {
         expect(text).toContain('03/2021 to 05/2024');
     });
 
+    it('prints an SSN with fewer than four digits fully masked, and a missing one as not on file', async () => {
+        await build({ ssn: 'Unknown', signature: DRAWN, signatureDate: '2026-09-01T15:00:00Z' });
+        expect(printed()).toMatch(/SSN \(LAST FOUR\) \*\*\*-\*\*-\*\*\*\* POSITION/);
+        expect(printed()).not.toContain('nown');
+
+        drawn.length = 0;
+        await build({ ssn: '  ', signature: DRAWN, signatureDate: '2026-09-01T15:00:00Z' });
+        expect(printed()).toMatch(/SSN \(LAST FOUR\) Not on file POSITION/);
+    });
+
     it('prints a typed signature as the adopted name', async () => {
         const { release } = await build({ signature: 'TEXT_SIGNATURE:Jane Testdriver', signatureDate: '2026-09-01T15:00:00Z' });
         expect(release).toBe('signed');

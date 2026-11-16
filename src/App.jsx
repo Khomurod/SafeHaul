@@ -25,9 +25,11 @@ import { isE2ETestMode } from '@lib/runtime/e2eMode';
  * proven in a real browser and which is unreachable through the driver dossier
  * under `VITE_E2E_TEST_MODE=1`. See `src/app/e2e/VOEPreviewHarness.jsx`.
  *
- * Lazy, and only routed in test mode: a production build has no route to it.
+ * Lazy, and only routed in test mode: a production build has no route to it,
+ * and `!import.meta.env.PROD` keeps the harness file out of it as well
+ * (`isE2ETestMode` says why).
  */
-const VOEPreviewHarness = isE2ETestMode
+const VOEPreviewHarness = !import.meta.env.PROD && isE2ETestMode
   ? lazy(() => import('@app/e2e/VOEPreviewHarness'))
   : null;
 
@@ -40,7 +42,8 @@ function withFeatureBoundary(featureName, element) {
 }
 
 // --- MAIN ROUTER ---
-function AppRoutes() {
+// Exported for the routing tests (`companyRouteGuards.test.jsx`).
+export function AppRoutes() {
   const { currentCompanyProfile } = useData();
   const CompanyWorkspaceLayout = featureScreens[COMPANY_WORKSPACE_ROUTE.screen];
 
@@ -50,9 +53,6 @@ function AppRoutes() {
         {/* --- PUBLIC ROUTES (No Login Required) --- */}
         {/* P3-12 FIX: Redirect authenticated users away from login */}
         <Route path="/login" element={<AuthGuardedLogin />} />
-        {/* /join/:companyId route REMOVED — the underlying joinCompanyTeam
-            Cloud Function was disabled, so this link only produced permission
-            errors. Use the Super Admin "Create Portal User" flow instead. */}
 
         {/* Public feature routes */}
         {PUBLIC_FEATURE_ROUTE_MANIFEST.map((routeDef) => {
@@ -127,7 +127,8 @@ function AppRoutes() {
                 )
               : <Screen {...(routeDef.props || {})} />;
 
-            // UI-006: admin-only pages get a route guard that mirrors the sidebar.
+            // UI-006: a page the manifest marks `adminOnly` gets the route guard,
+            // whether or not it has a menu item.
             const content = routeDef.adminOnly
               ? <CompanyAdminRoute>{screenContent}</CompanyAdminRoute>
               : screenContent;

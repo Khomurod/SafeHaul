@@ -10,7 +10,7 @@
  */
 
 const {
-    supportsAllCapabilities, resolveModels, isRetired, missingRequiredConfig, credentialReadiness,
+    supportsAllCapabilities, resolveModels, missingRequiredConfig, credentialReadiness,
 } = require('../registry/providers');
 const { CAPABILITIES, laneForCapability } = require('../registry/capabilities');
 const store = require('../credentials/store');
@@ -20,7 +20,6 @@ const { orderForWalk } = require('./versionPolicy');
  * "nothing happened" is never the explanation an operator gets.
  */
 const SKIP_REASONS = Object.freeze({
-    RETIRED: 'retired',
     INCAPABLE: 'incapable',
     DISABLED: 'disabled',
     UNCONFIGURED: 'unconfigured',
@@ -34,7 +33,7 @@ const SKIP_REASONS = Object.freeze({
      * deliberately re-throws rather than treating as "no credential".
      *
      * It is a *skip*, not a failure of the task. One vendor's IAM problem is
-     * one vendor's problem; the other eight keys are unaffected. Before this
+     * one vendor's problem; the other providers' keys are unaffected. Before this
      * existed the exception escaped `runAiTask` uncaught, no telemetry was
      * written, and no further provider was tried — so a single missing IAM
      * binding read as a total, silent AI outage.
@@ -68,8 +67,6 @@ const SKIP_REASONS = Object.freeze({
  *   model?: string, models?: string[], versionCount?: number }>}
  */
 async function evaluateProvider(provider, { capabilities, primaryCapability, configs, now, deps, imageCount = 0 }) {
-    if (isRetired(provider)) return { eligible: false, reason: SKIP_REASONS.RETIRED };
-
     if (!supportsAllCapabilities(provider, capabilities)) {
         return { eligible: false, reason: SKIP_REASONS.INCAPABLE };
     }
@@ -128,7 +125,7 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
  * That is the right call there and the wrong outcome here. The exception used
  * to escape `runAiTask` entirely: no telemetry row, no categorised error, and —
  * worst — no attempt at any of the remaining providers. One provider's IAM
- * binding could switch off all nine, which is precisely what the fallback order
+ * binding could switch off all of them, which is precisely what the fallback order
  * exists to prevent, and it is the same defect already fixed once for
  * `unauthorized` and `internal` in ./errors.js.
  *

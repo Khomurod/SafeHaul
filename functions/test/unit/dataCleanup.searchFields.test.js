@@ -1,7 +1,6 @@
 /**
- * Data cleanup → application search fields, by the rule of
- * `backfillApplicationSearchFields`: written where missing or out of date,
- * never on leads.
+ * Data cleanup → application search fields, by the rule a submission writes:
+ * written where missing or out of date, never on leads.
  *
  * Every name, address and number below is artificial.
  */

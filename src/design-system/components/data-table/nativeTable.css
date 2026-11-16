@@ -44,10 +44,8 @@
   padding: 0 var(--ds-table-cell-padding-inline);
   color: var(--ds-table-header-fg);
   font-size: var(--ds-font-size-xs);
-  font-weight: var(--ds-font-weight-bold);
-  letter-spacing: 0.05em;
+  font-weight: var(--ds-font-weight-medium);
   text-align: start;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -77,7 +75,7 @@
   text-align: start;
 }
 
-/* 16px instead of 20px under 768px, as `DataTable` does. */
+/* 16px under 768px whatever the cell padding role says, as `DataTable` does. */
 @media (max-width: 767px) {
   .ds-native-table > thead > tr > th,
   .ds-native-table > tbody > tr > td,

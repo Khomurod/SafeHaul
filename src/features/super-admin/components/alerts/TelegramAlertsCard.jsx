@@ -16,6 +16,7 @@ import {
     savePlatformAlertToken,
     sendPlatformAlertTest,
 } from '../../services/platformAlerts';
+import { formatDate } from '@shared/utils/helpers';
 
 /**
  * Super Admin → System Health → Telegram alerts.
@@ -38,7 +39,7 @@ const CHECKS = Object.freeze([
 
 function when(iso) {
     const date = iso ? new Date(iso) : null;
-    return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : null;
+    return date && !Number.isNaN(date.getTime()) ? formatDate(date, true) : null;
 }
 
 /** One step: its words, and its buttons beside them, or below them on a phone (as Maintenance Actions). */

@@ -1,193 +1,155 @@
 ---
 name: implement
 description: >-
-  The standard workflow for implementing any meaningful change to this
-  application — a feature, bug fix, adjustment, behavior change, removal,
-  refactor with user-visible effect, integration change, or permission/workflow
-  change. Use it whenever the user asks for something to be built, fixed,
-  changed, or removed, including when they describe the desired outcome in
-  business language and leave the technical approach open. It enforces one
-  repeatable process: understand → investigate → implement → test →
-  self-review → verify again → update documentation → report.
+  SafeHaul's workflow for any change to the application — a feature, bug fix,
+  adjustment, removal, or a change to behavior, an integration, permissions or a
+  workflow. Use it whenever the owner asks for something to be built, fixed,
+  changed or removed, including when they describe the outcome in plain Russian
+  and leave the technical approach open. One process: tell the owner →
+  understand → investigate → implement → test → self-review → update the
+  documents → pull request and report.
 
-  Not for: answering questions, explaining existing code, exploratory research,
-  or writing throwaway scripts with no effect on the application.
+  Not for: a request to check, review, audit or explain with no change asked
+  (use `check-and-report`), or a throwaway script with no effect on the
+  application.
 ---
 
-# /implement — standard implementation workflow
+# /implement — how a change is made in SafeHaul
 
-Invoked as `/implement <requested change>`, where the request may be written in
-plain business language:
+The owner states the outcome in plain language, usually Russian. You choose the
+technical solution; do not ask them to prescribe one.
 
 ```
-/implement Route Monitor is not automatically completing routes when the driver
-reaches the destination. Fix it without affecting off-route warnings.
+/implement Водитель должен видеть, какие документы он уже загрузил, чтобы не
+загружать одно и то же дважды. Не меняй то, как компания видит анкету.
 ```
 
-**The user states the desired outcome. You determine the technical solution.**
-Do not ask the user to prescribe an implementation when the intended result is
-already clear.
+«Не меняй…» is a requirement, not an aside.
 
-This skill defines *the process*, not the application. Repository-specific rules
-and application knowledge live elsewhere and always win over anything you assume:
+This skill is the order of work. The rules themselves live in `AGENTS.md`, in
+the `.claude/rules/` file for the area (`AGENTS.md` §5 names it) and in
+`docs/APP_BRIEF.md`. Read them during the task instead of trusting your memory
+of them; where this skill and they differ, they win.
 
-| Source | Owns |
+## 1. Tell the owner first
+
+Before any edit, write to the owner in at most three plain Russian lines: what
+will change for users, and what you will not touch. No file names, no jargon.
+
+- If a simpler way reaches the same result, or the request as asked would make
+  things worse, say so in these lines and recommend the better way.
+- Ask only when two readings would lead to materially different work. Otherwise
+  choose, state the assumption in these lines, and continue.
+- Promoting to Production, deleting data, and changing permissions, Firebase
+  rules or billing happen only when the request asks for exactly that. If the
+  task seems to need one of them, stop and ask.
+
+## 2. Understand
+
+- Read the App Brief sections the request touches: workflows, business rules,
+  permissions, integrations, background jobs, where changes ripple, decisions
+  that must be preserved, known limitations.
+- State to yourself in one or two sentences the final behavior the owner wants,
+  and the surrounding behavior that must stay as it is.
+- Decide when users will get the change:
+
+| The change touches | Users get it |
 |---|---|
-| `CLAUDE.md` (+ files it imports, e.g. `AGENTS.md`) | How to work in this repository; permanent project rules |
-| The **App Brief** (`docs/APP_BRIEF.md`) | What the app is, how it behaves, business rules, preserved decisions |
-| This skill | The universal implementation process |
+| Screens only (`src/`) | On the Testing site at merge; on Production when the owner releases |
+| `functions/`, Firestore or Storage rules, indexes | On both sites at merge, with no trial period |
 
-Read those files during the task rather than relying on memory of them.
+For the second row, keep the screens of the current Production release working:
+they call the new backend from the moment of the merge. Say this in the three
+lines and again in **Кратко**.
 
----
+## 3. Investigate
 
-## 1. Understand
-
-Before editing anything:
-
-- Read `CLAUDE.md`, the instruction files it imports, and the `.claude/rules/`
-  file for the area you touch.
-- Read the parts of the App Brief that touch the request — behavior, business
-  rules, permissions, integrations, background jobs, ripple risks, preserved
-  decisions, known limitations.
-- Read any other repository instructions that apply to this kind of change (for
-  UI work, the design-system policy and its documents; for pipeline work, the
-  release-pipeline rules; and so on).
-- State to yourself, in one or two sentences, **the final behavior the user
-  wants**.
-- Identify the **explicit exceptions and the surrounding behavior that must not
-  change** ("without affecting off-route warnings" is a requirement, not an
-  aside).
-
-Ask the user only when different readings would produce materially different
-work. Otherwise make the routine judgment call, note the assumption, and
-proceed.
-
-## 2. Investigate
-
-Before implementing:
-
-- Read the actual current code for the behavior in question. Trace how it really
-  runs — entry points, the data it reads, the conditions that gate it, where the
-  effect is supposed to happen.
-- For a defect, **find the real root cause**. The user's account of *why* it is
-  broken is a symptom report, not a diagnosis; verify it and discard it if the
-  code says otherwise.
+- Read the current code for the behavior and trace how it really runs: where it
+  starts, what data it reads, which conditions gate it, where the effect lands.
+- For a defect, the owner's account of why it is broken is a symptom report.
+  Find the cause in the code, and reproduce it in a failing test before you fix
+  it.
 - Check what else depends on the code you are about to change, and what shares
-  its state, data, or triggers. For risky or cross-cutting changes, do enough
-  impact analysis to know what could break — the App Brief's ripple-risk notes
-  are a starting point, not the whole answer.
-- Find the existing pattern for this kind of work and reuse it — components,
-  hooks, services, helpers, conventions. Do not invent a parallel mechanism when
-  one already exists.
-- Use the repository's designated tools for each job (see `CLAUDE.md` /
-  `AGENTS.md` for the tool-responsibility policy). Do not fan the same question
-  out to every tool.
+  its data, state or triggers. The brief's section on where changes ripple is a
+  starting point, not the whole answer.
+- Find the existing pattern for this kind of work and reuse it. Use the tools
+  `AGENTS.md` §6 assigns to each job.
 
-## 3. Implement
+## 4. Implement
 
-Implement the requested result **completely**.
-
-- Fix the underlying cause, not the visible symptom. No masking, no special-case
-  patch over a general defect.
-- Preserve unrelated existing functionality. Do not silently change behavior the
-  request did not ask you to change.
-- Respect the existing architecture, conventions, permissions, business rules,
-  integrations, data model, and repository invariants. If the change genuinely
-  requires breaking one of them, say so explicitly rather than doing it quietly.
-- Keep it as simple as the problem allows. No speculative abstraction, no
-  unrelated cleanup riding along in the same diff.
-- If implementation reveals a materially better way to reach the requested
-  outcome, **serve the outcome**, not an assumed implementation — and say what
+- Deliver the whole requested result, and fix the cause instead of the symptom.
+- Leave unrelated behavior alone. Note adjacent problems you find in the report;
+  do not fix them in this change.
+- Keep it as small as the problem allows: no speculative abstraction, no
+  cleanup riding along.
+- If the change has to break a business rule, a permission, an integration
+  contract or a preserved decision, say so to the owner before you do it.
+- If you find a materially better way to reach the outcome, take it and say what
   you did differently and why.
-- Stay inside the scope the request implies. Note adjacent problems you find;
-  do not fix them uninvited.
 
-## 4. Test
+## 5. Test
 
-- Run the existing tests that cover the changed behavior and its neighbors.
-- Add or update tests so the new or fixed behavior is protected against
-  regression, and so the preserved behavior stays preserved.
-- Run the repository's applicable checks — build, lint, type-check, static
-  analysis, security/secret scanning, rules tests, and any project-specific
-  validators. Discover them from the repository (its scripts, CI configuration,
-  and the App Brief's testing section) rather than assuming; follow the
-  repository's own test-runner safety rules exactly.
-- **Never report a check as passing unless you actually ran it and it actually
-  passed.** A skipped, unavailable, timed-out, or externally killed run is not a
-  pass — say which it was. Inspect the real exit status and log before calling
-  anything a failure, too.
-- If a check fails because of your change, **investigate and fix it**. Reporting
-  the failure is not the deliverable. If a failure predates your change, verify
-  that on the unmodified baseline before saying so.
+- Read `.claude/rules/testing.md` before you run anything locally.
+- Add or update tests so the new behavior is protected and the behavior that had
+  to stay is pinned.
+- Run every check in `AGENTS.md` §4 that the change can affect: lint, unit
+  tests, build, the browser tests for the flows touched (desktop and phone), the
+  rules tests when rules changed, and the guards for the files you touched.
+- A failure your change caused is yours to investigate and fix. Before you call
+  a failure old, show it on unmodified `main`.
+- Name every check you did not run or could not run, and why. A check you did
+  not see pass is not a pass.
 
-## 5. Self-review
+## 6. Self-review
 
-Review your own diff as if it were another developer's pull request. Work
-through these deliberately:
+Read your own diff end to end as if another developer wrote it:
 
-- Did I implement **everything** requested, or only the easy part?
-- Did I misunderstand any part of the desired behavior?
-- Which edge cases did I skip — empty, missing, stale, duplicate, concurrent,
-  offline, permission-denied, partial data?
-- Did I change any unrelated behavior?
-- Did I duplicate logic that already exists, or make something more complicated
-  than it needs to be?
-- Did I violate a business rule, permission rule, integration contract,
-  design-system rule, or documented project invariant?
-- What is the regression risk, and what depends on what I touched?
-- Are the tests actually sufficient for the behavior that changed?
-- Is there leftover debug output, commented-out code, dead code, stray files, or
-  temporary scaffolding?
-- Does every changed line trace to the request? Remove any that do not.
+- Is everything requested done, or only the easy part?
+- Which cases are missing: empty, absent, stale, duplicate, simultaneous,
+  offline, permission denied, half-saved data, a phone screen?
+- Did any unrelated behavior change? Does every changed line trace to the
+  request?
+- Does it copy logic that already exists, or break a business rule, a
+  permission, tenant isolation or a design-system rule?
+- Do the tests fail without the change?
+- Is anything left behind: debug output, commented-out code, stray files?
 
-**Fix what you find.** Self-review that only produces a list of problems has not
-done its job. Escalate to the user only what genuinely cannot be resolved inside
-this task.
+Fix what you find, then run the affected tests and checks again and read the
+final diff once more. Bring to the owner only what cannot be settled inside this
+task.
 
-## 6. Verify again
+Your own reading is not enough when the change touches `functions/`, Firestore
+or Storage rules, or permissions, or changes more than 100 files. Get a second
+reading from a fresh context that sees the diff and the request but not your
+reasoning: your agent's own review command (`/code-review` and
+`/security-review` in Claude Code). Its findings are claims to check
+(`AGENTS.md` §3): fix the valid ones, and say why the rest do not apply.
 
-After fixing anything self-review turned up:
+## 7. Documents
 
-- Re-run the affected tests and checks.
-- Read the final diff again, end to end.
-- Confirm the implementation matches the behavior the user asked for, including
-  the exceptions they named.
+- Update `docs/APP_BRIEF.md` in the same pull request wherever the change made
+  it untrue. Keep implementation detail out of it.
+- Update `docs/OWNER_GUIDE.md` and `docs/RELEASE_CHECKLIST.md` when the change
+  alters what the owner clicks, sees or checks.
+- Correct any other current document the change made false. History goes to
+  `docs/archive/`.
 
-Do not declare completion while a known implementation problem remains
-unresolved — unless it truly cannot be resolved within this task, in which case
-report it plainly instead of burying it.
+## 8. Pull request and report
 
-## 7. Documentation and the App Brief
-
-Before the task is complete:
-
-- Re-read the App Brief and decide whether your change made any part of it
-  untrue.
-- Update it in the **same task**: add important new behavior, business rules,
-  integrations, dependencies, scheduled jobs, permissions, intentional
-  exceptions, or preserved decisions; correct or remove whatever became false.
-- Check whether the change also invalidated another current document (a runbook,
-  a roadmap, a data-model or contract doc) and update that too.
-- Keep minor implementation detail out of the brief. It exists to prevent
-  misunderstanding, not to mirror the code.
-- If documentation and the verified application disagree, **the application is
-  the source of truth** — correct the document.
-
-A task is not complete while the application behaves one way and the App Brief
-says another.
-
-## 8. Final report
-
-Keep it short. Cover:
-
-1. **What changed** — the substance, not a file-by-file tour.
-2. **Whether the requested result is fully implemented** — plainly yes, or
-   exactly what is missing.
-3. **Which tests and checks ran, and whether they passed** — naming anything
-   skipped or unavailable as such.
-4. **What self-review found and corrected**, if anything meaningful.
-5. **Any genuine remaining limitation, risk, or uncertainty.**
-
-Skip low-level implementation detail unless the user asks for it. Do not hedge
-on work that is done and verified, and do not claim work that is not.
+- One task, one small pull request, laid out as
+  `.github/pull_request_template.md`. Tick only the checks you ran.
+- It opens with **Кратко**: three or four plain Russian lines on what changed
+  for users, what was checked, the risks, and what the owner must do.
+- On a pull request that changes code, comment `@coderabbitai review`. The
+  review bot reads a pull request only when asked, and skips one over 100
+  files. Check its findings the same way before you call the work done.
+- Then report to the owner in chat, in plain Russian, in a few short lines:
+  1. what changed for users;
+  2. whether everything asked is done, or exactly what is missing;
+  3. what was checked, and what could not be checked;
+  4. the risk, including whether the change works on both sites right after the
+     merge;
+  5. what the owner must do next, as a numbered list when there is more than
+     one thing.
+- Keep file, function and branch names out of the chat report. Do not hedge on
+  work that is done and verified, and do not claim work that is not.

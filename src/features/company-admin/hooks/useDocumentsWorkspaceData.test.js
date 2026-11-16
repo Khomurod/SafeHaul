@@ -103,8 +103,9 @@ describe('useDocumentsWorkspaceData — every document loaded', () => {
         expect(fs.getCountFromServer).not.toHaveBeenCalled();
         expect(result.current.summary).toEqual(summarizeDocuments(documents));
         expect(result.current.list).toMatchObject({ complete: true, hasMore: false, total: 12 });
-        expect(result.current.attention).toMatchObject({ complete: true, isLoading: false, error: null, total: 3 });
-        expect(result.current.attention.documents.map((d) => d.id)).toEqual(['req-0', 'req-4', 'req-8']);
+        // req-0 is signed: its failed email needs nobody any more.
+        expect(result.current.attention).toMatchObject({ complete: true, isLoading: false, error: null, total: 2 });
+        expect(result.current.attention.documents.map((d) => d.id)).toEqual(['req-4', 'req-8']);
         expect(result.current.countsError).toBe(null);
     });
 

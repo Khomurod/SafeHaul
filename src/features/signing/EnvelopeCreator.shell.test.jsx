@@ -121,7 +121,7 @@ describe('EnvelopeCreator shell — primary actions', () => {
 
     it('leaves immediately through the exact onClose callback when nothing is unsaved', () => {
         const { props } = setup();
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Documents' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back to E-Docs' }));
         expect(props.onClose).toHaveBeenCalledTimes(1);
     });
 

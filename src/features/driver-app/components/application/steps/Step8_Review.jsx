@@ -3,6 +3,7 @@ import { Icon, Edit2, FileCheck } from '@design-system/icons';
 import { Button, Card, FieldDisplay, Notice } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { buildApplicationReview } from '@/config/applicationDefinition';
+import { maskSsn } from '@shared/utils/maskSsn';
 import { StepNavigation } from './components/StepNavigation';
 
 /**
@@ -51,13 +52,6 @@ const STEP_BY_SECTION = {
     documents: 2,
 };
 
-/** Last four digits only. Never the whole number, on any screen. */
-function maskSsn(value) {
-    const digits = String(value ?? '').replace(/\D/g, '');
-    if (!digits) return value;
-    return `***-**-${digits.slice(-4)}`;
-}
-
 const MISSING = 'italic text-ds-content-muted';
 
 function ReviewSection({ title, onEdit, children }) {
@@ -77,7 +71,10 @@ function ReviewSection({ title, onEdit, children }) {
 }
 
 function AnswerRow({ answer }) {
-    const value = answer.sensitive && !answer.isMissing ? maskSsn(answer.value) : answer.value;
+    // Last four digits only. Never the whole number, on any screen; a sensitive
+    // upload (the Social Security Card) shows that it was uploaded, not its name.
+    let value = answer.value;
+    if (answer.sensitive && !answer.isMissing) value = answer.isFile ? 'File uploaded' : (maskSsn(answer.value) ?? answer.value);
     return (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? MISSING : ''}`}>

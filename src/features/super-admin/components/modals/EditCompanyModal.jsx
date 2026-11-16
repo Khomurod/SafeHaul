@@ -14,6 +14,7 @@ import {
 import { Modal } from '@design-system/patterns';
 import { ApplicationRulesPanel } from '@features/settings/components/rules/ApplicationRulesPanel';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Super Admin company editor.
@@ -131,7 +132,7 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
       setTimeout(onClose, 1500);
     } catch (error) {
       console.error("Error updating company:", error);
-      setMessage(error.message);
+      setMessage(plainErrorMessage(error, 'The company could not be saved.'));
       setMessageType('error');
     } finally {
       setLoading(false);

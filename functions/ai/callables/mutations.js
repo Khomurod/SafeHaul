@@ -4,7 +4,7 @@
  *
  * Part of the AI Integrations callable surface. `onCall`, `HttpsError` and the
  * shared options and guards come from `./options` — see the note there about
- * why the `firebase-functions/v2` import lives beside the `secrets:` literal.
+ * why the `firebase-functions/v2` import lives beside the options.
  */
 
 const {
@@ -93,7 +93,7 @@ exports.deleteAiCredential = onCall(callableOptions, async (request) => {
     await guardPrivileged(request, 'mutate', ACTIONS.DELETE, { providerId, field: fieldName });
 
     try {
-        const provider = requireRegisteredProvider(providerId, 'read');
+        const provider = requireRegisteredProvider(providerId);
         const field = requireCredentialField(provider, fieldName);
 
         // Typed confirmation, matching the vault's delete dialog. The server
@@ -180,12 +180,7 @@ exports.setAiProviderPriority = onCall(callableOptions, async (request) => {
         const providerIds = [];
         const seen = new Set();
         for (const candidate of submitted) {
-            // `read` rather than the default action: the retired GitHub Models
-            // row keeps its place in the order so the list stays complete and
-            // legible. Ordering it changes nothing — the router skips it as
-            // `retired` regardless — whereas refusing the whole write because
-            // the list contains it would make the screen impossible to save.
-            const provider = requireRegisteredProvider(String(candidate || ''), 'read');
+            const provider = requireRegisteredProvider(String(candidate || ''));
             if (seen.has(provider.id)) {
                 throw new HttpsError('invalid-argument', 'That order lists the same provider twice.');
             }

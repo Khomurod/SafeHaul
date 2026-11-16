@@ -74,7 +74,7 @@ jest.mock('nodemailer', () => ({ createTransport: jest.fn() }));
 jest.mock('../../blacklist', () => ({ isBlacklisted: jest.fn() }));
 jest.mock('../../integrations/factory', () => ({ getAdapter: jest.fn() }));
 jest.mock('../../integrations/encryption', () => ({ decrypt: jest.fn() }));
-jest.mock('../../utils/phoneUtils', () => ({ normalizePhone: jest.fn((p) => p) }));
+jest.mock('../../utils/phoneUtils', () => ({ toE164Us: jest.fn((p) => p) }));
 
 const { cancelBulkSession } = require('../../bulkActions/controllers/sessionController');
 const { processBulkBatch } = require('../../bulkActions/workers/batchWorker');

@@ -2,7 +2,8 @@
 //
 // Showing text people typed inside HTML we send: escaped, and, for text a
 // stranger typed into an email a company's mail server sends, cut short and
-// with nothing a mail client would turn into a link.
+// with nothing a mail client would turn into a link. And `trimTo`, the bound
+// every reader of a browser's or a model's text puts on a string.
 
 /** Escapes the five characters that matter in HTML text and attributes. */
 function escapeHtml(value) {
@@ -68,4 +69,9 @@ function plainGuestSmsText(value, maxChars) {
     return withoutLinks(value, maxChars).replace(DOMAIN_DOT, '. ');
 }
 
-module.exports = { escapeHtml, clipText, plainGuestText, plainGuestSmsText };
+/** A string value trimmed and cut to at most `max` characters; anything else is ''. */
+function trimTo(value, max) {
+    return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+module.exports = { escapeHtml, clipText, plainGuestText, plainGuestSmsText, trimTo };

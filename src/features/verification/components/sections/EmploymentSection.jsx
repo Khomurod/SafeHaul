@@ -1,8 +1,9 @@
 import React from 'react';
 import { FormField, FormSection, Input, Select, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { RadioGroup } from '../RadioGroup';
 import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
+import { ChoiceQuestion } from './ChoiceQuestion';
+import { NO_RECORD_OPTIONS, YES_NO_OPTIONS } from './choiceOptions';
 
 /** Section 1: Employment Confirmation. After "No" to rehire the employer may
  *  say why; the explanation is optional. */
@@ -12,17 +13,14 @@ export function EmploymentSection({ formData, formErrors, updateField }) {
             title="Section 1: Employment Confirmation"
             description="Confirm the applicant's employment details"
         >
-            <RadioGroup
+            <ChoiceQuestion
                 name="wasEmployed"
                 legend="Was this individual employed by your company?"
+                options={NO_RECORD_OPTIONS}
                 required
-                value={formData.wasEmployed}
-                onChange={(v) => updateField('wasEmployed', v)}
-                options={[
-                    { value: true, label: 'Yes' },
-                    { value: false, label: 'No / No Record Found' },
-                ]}
-                error={formErrors.wasEmployed}
+                formData={formData}
+                formErrors={formErrors}
+                updateField={updateField}
             />
 
             {formData.wasEmployed && (
@@ -96,15 +94,13 @@ export function EmploymentSection({ formData, formErrors, updateField }) {
                         </Select>
                     </FormField>
 
-                    <RadioGroup
+                    <ChoiceQuestion
                         name="eligibleForRehire"
                         legend="Eligible for Rehire?"
-                        value={formData.eligibleForRehire}
-                        onChange={(v) => updateField('eligibleForRehire', v)}
-                        options={[
-                            { value: true, label: 'Yes' },
-                            { value: false, label: 'No' },
-                        ]}
+                        options={YES_NO_OPTIONS}
+                        formData={formData}
+                        formErrors={formErrors}
+                        updateField={updateField}
                     />
                     {formData.eligibleForRehire === false && (
                         <FormField id="verify-rehire-explanation" label="Please explain (optional)">

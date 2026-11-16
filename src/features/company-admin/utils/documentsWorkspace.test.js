@@ -7,17 +7,20 @@ import {
     filterDocuments,
     formatTimestamp,
     deliveryFailure,
+    deliveryNote,
     hasDeliveryFailure,
     hasSealingFailure,
     isAwaitingSignature,
     isCompleted,
     isDefaultFilters,
+    isLinkExpired,
     isTemplateDuplicable,
     needsAttention,
-    recentDocuments,
+    openDeliveryFailure,
     searchTemplates,
     sentHeaderCount,
     sortTemplates,
+    statusLabel,
     summarizeDocuments,
     supportsDateFilter,
 } from './documentsWorkspace';
@@ -69,6 +72,122 @@ describe('status predicates', () => {
     });
 });
 
+describe('statusLabel', () => {
+    it('calls a document still with its signer Awaiting signature, as the filter and the dossier do', () => {
+        expect(statusLabel('sent')).toBe('Awaiting signature');
+        expect(statusLabel('signed')).toBe('Signed');
+        expect(statusLabel('error_sealing')).toBe('Seal failed');
+    });
+
+    it('names the statuses the filter does not offer too, as the history badge does', () => {
+        expect(statusLabel('opened')).toBe('Awaiting signature');
+        expect(statusLabel('processing')).toBe('Processing');
+        expect(statusLabel('pending_seal')).toBe('Sealing');
+    });
+
+    it('keeps a value nothing names as stored', () => {
+        expect(statusLabel('archived_by_admin')).toBe('archived_by_admin');
+        expect(statusLabel('all')).toBe('all');
+        expect(statusLabel('expired')).toBe('expired');
+    });
+});
+
+describe('a failed send counts only while the document is still with its signer', () => {
+    it.each(['sent', 'opened'])('a %s document whose send failed needs attention', (status) => {
+        const failed = doc({ status, emailStatus: 'failed', emailError: 'SMTP 550' });
+        expect(needsAttention(failed)).toBe(true);
+        expect(hasDeliveryFailure(failed)).toBe(true);
+        expect(openDeliveryFailure(failed)).toEqual({ channel: 'Email', error: 'SMTP 550' });
+    });
+
+    it.each(['voided', 'signed', 'sealed', 'completed', 'pending_seal', 'processing'])(
+        'a %s document whose send failed does not, and still says what happened',
+        (status) => {
+            const failed = doc({ status, emailStatus: 'failed', emailError: 'SMTP 550', smsStatus: 'failed' });
+            expect(needsAttention(failed)).toBe(false);
+            expect(hasDeliveryFailure(failed)).toBe(false);
+            expect(openDeliveryFailure(failed)).toBeNull();
+            expect(deliveryFailure(failed)).toEqual({ channel: 'Email', error: 'SMTP 550' });
+        },
+    );
+
+    it('a failed seal needs attention as a seal, whatever its delivery', () => {
+        const sealFailed = doc({ status: 'error_sealing', emailStatus: 'failed' });
+        expect(needsAttention(sealFailed)).toBe(true);
+        expect(hasDeliveryFailure(sealFailed)).toBe(false);
+    });
+
+    it('counts a document still sealing as awaiting, whatever its delivery, and an opened one as awaiting', () => {
+        expect(isAwaitingSignature(doc({ status: 'pending_seal', smsStatus: 'failed' }))).toBe(true);
+        expect(isAwaitingSignature(doc({ status: 'opened' }))).toBe(true);
+        expect(isAwaitingSignature(doc({ status: 'opened', smsStatus: 'failed' }))).toBe(false);
+    });
+
+    it('leaves a voided or signed document whose send failed out of the counts of failures', () => {
+        const summary = summarizeDocuments([
+            doc({ id: 'open', status: 'sent', emailStatus: 'failed' }),
+            doc({ id: 'void', status: 'voided', emailStatus: 'failed' }),
+            doc({ id: 'signed', status: 'signed', smsStatus: 'failed' }),
+        ]);
+        expect(summary).toMatchObject({ deliveryFailures: 1, needsAttention: 1, voided: 1, completed: 1 });
+        expect(attentionDocuments([
+            doc({ id: 'void', status: 'voided', emailStatus: 'failed' }),
+            doc({ id: 'open', status: 'sent', emailStatus: 'failed' }),
+        ]).map((d) => d.id)).toEqual(['open']);
+    });
+});
+
+describe('a text skipped for an opted-out number', () => {
+    const skipped = doc({
+        status: 'sent', deliveryMethod: 'both', emailStatus: 'sent',
+        smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.',
+    });
+
+    it('is no failure, and no reason for attention', () => {
+        expect(deliveryFailure(skipped)).toBeNull();
+        expect(hasDeliveryFailure(skipped)).toBe(false);
+        expect(needsAttention(skipped)).toBe(false);
+        expect(isAwaitingSignature(skipped)).toBe(true);
+    });
+
+    it('is a note that says why', () => {
+        expect(deliveryNote(skipped)).toEqual({ channel: 'SMS', note: 'Not texted: this number opted out of texts.' });
+        expect(deliveryNote(doc({ smsStatus: 'skipped' }))).toEqual({ channel: 'SMS', note: 'SMS not sent.' });
+        expect(deliveryNote(doc({ smsStatus: 'failed', smsError: 'line unavailable' }))).toBeNull();
+        expect(deliveryNote(doc({ smsStatus: 'sent' }))).toBeNull();
+    });
+});
+
+describe('a link that ran out', () => {
+    const NOW = Date.UTC(2026, 10, 4, 12);
+    const day = (days) => ({ toMillis: () => NOW + days * 24 * 60 * 60 * 1000 });
+
+    it('is an unsigned document whose expiresAt has passed, derived and never stored', () => {
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: day(-0.01) }), NOW)).toBe(true);
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: { seconds: (NOW - 1000) / 1000 } }), NOW)).toBe(true);
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: day(1) }), NOW)).toBe(false);
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: null }), NOW)).toBe(false);
+        expect(isLinkExpired(doc({ status: 'sent' }), NOW)).toBe(false);
+    });
+
+    it.each(['signed', 'pending_seal', 'error_sealing', 'voided', 'processing'])('is never a %s document', (status) => {
+        expect(isLinkExpired(doc({ status, expiresAt: day(-3) }), NOW)).toBe(false);
+    });
+
+    it('is found by the Link expired filter, and stays among those awaiting a signature', () => {
+        const documents = [
+            doc({ id: 'live', expiresAt: day(2) }),
+            doc({ id: 'expired', expiresAt: day(-2) }),
+            doc({ id: 'signed', status: 'signed', expiresAt: day(-2) }),
+        ];
+        expect(filterDocuments(documents, { ...DEFAULT_FILTERS, status: 'expired' }, NOW).map((d) => d.id)).toEqual(['expired']);
+        expect(filterDocuments(documents, { ...DEFAULT_FILTERS, status: 'sent' }, NOW).map((d) => d.id)).toEqual(['live', 'expired']);
+        // The server's counts cannot tell an expired link without an index, so
+        // the browser's numbers count it as awaiting too, and the two agree.
+        expect(summarizeDocuments(documents)).toMatchObject({ awaitingSignature: 2, needsAttention: 0 });
+    });
+});
+
 describe('summarizeDocuments', () => {
     it('counts only what the stored data supports', () => {
         const summary = summarizeDocuments([
@@ -95,12 +214,7 @@ describe('summarizeDocuments', () => {
     });
 });
 
-describe('recent and attention lists', () => {
-    it('keeps the query order and caps the list', () => {
-        const documents = Array.from({ length: 9 }, (_, index) => doc({ id: `r-${index}` }));
-        expect(recentDocuments(documents).map((d) => d.id)).toEqual(['r-0', 'r-1', 'r-2', 'r-3', 'r-4']);
-    });
-
+describe('attention list', () => {
     it('lists only documents that actually failed', () => {
         const documents = [doc({ id: 'ok' }), doc({ id: 'bad', emailStatus: 'failed' })];
         expect(attentionDocuments(documents).map((d) => d.id)).toEqual(['bad']);
@@ -205,6 +319,8 @@ describe('template library helpers', () => {
         expect(isTemplateDuplicable(template({ storagePath: '' }))).toBe(false);
         expect(isTemplateDuplicable(template({ fields: [] }))).toBe(false);
         expect(isTemplateDuplicable(template({ fields: [{ type: 'radio_group' }] }))).toBe(false);
+        // The copy keeps the company signature's image path, as it keeps the PDF's.
+        expect(isTemplateDuplicable(template({ fields: [{ type: 'signature' }, { type: 'company_signature' }] }))).toBe(true);
         expect(isTemplateDuplicable(template({ fields: [null] }))).toBe(false);
         expect(isTemplateDuplicable(null)).toBe(false);
     });
@@ -216,6 +332,11 @@ describe('formatTimestamp', () => {
         expect(formatTimestamp(null)).toBe('—');
         expect(formatTimestamp(undefined)).toBe('—');
         expect(formatTimestamp({})).toBe('—');
+    });
+
+    it('shows the day in the app\'s one date style (K3)', () => {
+        expect(formatTimestamp({ seconds: Date.UTC(2026, 2, 7, 12) / 1000 })).toBe('Mar 7, 2026');
+        expect(formatTimestamp(new Date(Date.UTC(2026, 2, 7, 12)))).toBe('Mar 7, 2026');
     });
 });
 

@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUnsavedChangesGuard } from '@/design-system/patterns';
-import { Button, IconButton } from '@/design-system/components';
-import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
+import { Button, IconButton, Tooltip } from '@/design-system/components';
+import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import {
@@ -10,6 +10,7 @@ import {
   COMPANY_NAV_GROUPS,
   COMPANY_NAV_LAYOUT,
 } from '@app/routes/companyRouteManifest';
+import { canOfferCompanyRoute } from '@app/routes/companyRouteAccess';
 
 const ICON_MAP = Object.freeze({
   LayoutDashboard,
@@ -19,8 +20,6 @@ const ICON_MAP = Object.freeze({
   Search,
   FileText,
   Megaphone,
-  Upload,
-  PlusCircle,
   Settings,
   GitBranch,
   Hourglass,
@@ -38,6 +37,16 @@ function stripEdgeDividers(entries) {
     cleaned.pop();
   }
   return cleaned;
+}
+
+/**
+ * Whether the menu shows an item as where you are: its address or one under it,
+ * as `NavLink` decides, or a page it opens (`nav.alsoCurrentOn`), which then
+ * looks current without being announced as the page.
+ */
+function isCurrentAt(item, pathname) {
+  const under = (path) => pathname === path || pathname.startsWith(`${path}/`);
+  return under(item.path) || item.alsoCurrentOn.some(under);
 }
 
 /**
@@ -70,60 +79,60 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
     }
     onNavigate?.();
   };
+  // Folded, an item is its glyph alone: it names itself, and its name shows
+  // beside it on hover and keyboard focus (`Tooltip`).
   return (
-    <NavLink
-      to={item.path}
-      onClick={follow}
-      /*
-        `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
-        product's focus ring.
+    <Tooltip label={item.label} disabled={isExpanded}>
+      <NavLink
+        to={item.path}
+        onClick={follow}
+        aria-label={isExpanded ? undefined : item.label}
+        /*
+          `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
+          product's focus ring.
 
-        Without it these twelve links would render the browser's own
-        `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
-        colour is blue, on the most-tabbed element there is. A keyboard walk in
-        `e2e/a11y.spec.cjs` checks it, because axe cannot see the difference
-        between one focus ring and another.
-      */
-      className={({ isActive }) => `
-        min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
-        focus-visible:outline-none focus-visible:shadow-ds-focus
-        ${isActive
-          ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-action-primary'
-          : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
-        ${isChild ? 'pl-9 text-ds-body' : ''}
-        ${!isExpanded && !isChild ? 'justify-center' : ''}
-      `}
-    >
-      {({ isActive }) => (
-        <>
-          {/*
-            `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
-            rather than a bare name — which is why the codemod could neither
-            rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
-            name to match. Rendering a token throws, so it goes through `Icon`.
-          */}
-          <Icon
-            icon={item.icon}
-            size="xl"
-            className={isActive
-              ? 'text-ds-action-primary'
-              : 'text-ds-content-muted group-hover:text-ds-content'}
-          />
+          Without it these twelve links would render the browser's own
+          `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
+          colour is blue, on the most-tabbed element there is. A keyboard walk in
+          `e2e/a11y.spec.cjs` checks it, because axe cannot see the difference
+          between one focus ring and another.
+        */
+        // The current item is a pill inset 8px from the sidebar's edges (C2).
+        className={({ isActive }) => `
+          min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
+          focus-visible:outline-none focus-visible:shadow-ds-focus
+          ${isActive || isCurrentAt(item, pathname)
+            ? 'bg-ds-status-info-bg text-ds-status-info-fg'
+            : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle'}
+          ${isChild ? 'pl-9 text-ds-body' : ''}
+          ${!isExpanded && !isChild ? 'justify-center' : ''}
+        `}
+      >
+        {({ isActive }) => (
+          <>
+            {/*
+              `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
+              rather than a bare name — which is why the codemod could neither
+              rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
+              name to match. Rendering a token throws, so it goes through `Icon`.
+            */}
+            <Icon
+              icon={item.icon}
+              size="lg"
+              className={isActive || isCurrentAt(item, pathname)
+                ? 'text-ds-navigation-accent'
+                : 'text-ds-content-muted group-hover:text-ds-content'}
+            />
 
-          {isExpanded && (
-            <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-              {item.label}
-            </span>
-          )}
-
-          {!isExpanded && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-ds-surface text-ds-content text-ds-xs rounded-ds-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none z-ds-dropdown whitespace-nowrap border border-ds-border-subtle shadow-ds-lg">
-              {item.label}
-            </div>
-          )}
-        </>
-      )}
-    </NavLink>
+            {isExpanded && (
+              <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+                {item.label}
+              </span>
+            )}
+          </>
+        )}
+      </NavLink>
+    </Tooltip>
   );
 }
 
@@ -163,19 +172,18 @@ export const CompanySidebar = ({
   // menu and direct-URL access can never disagree.
   const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
 
-  const isRouteVisible = useCallback((route) => {
-    const nav = route?.nav;
-    if (!nav) return false;
-    if (nav.adminOnly && !isCompanyAdmin) return false;
-    if (nav.featureFlag && featureFlags[nav.featureFlag] === false) return false;
-    return true;
-  }, [featureFlags, isCompanyAdmin]);
+  // A route with no `nav` has no item; the rest show when the page's own
+  // `adminOnly` and `featureFlag` allow it, as its route guard does.
+  const isRouteVisible = useCallback((route) => (
+    Boolean(route?.nav) && canOfferCompanyRoute(route, { isCompanyAdmin, features: featureFlags })
+  ), [featureFlags, isCompanyAdmin]);
 
   const toMenuItem = useCallback((route) => ({
     id: route.id,
     label: route.nav.label,
     icon: ICON_MAP[route.nav.icon] || FileText,
     path: `/company/${route.path}`,
+    alsoCurrentOn: (route.nav.alsoCurrentOn || []).map((path) => `/company/${path}`),
   }), []);
 
   const menuEntries = useMemo(() => {
@@ -221,21 +229,22 @@ export const CompanySidebar = ({
   return (
     <div className="h-full bg-ds-surface flex flex-col" data-testid="company-sidebar">
       {/* Top Header */}
-      <div className="min-h-16 flex items-center px-4 border-b border-ds-border-subtle">
+      <div className="min-h-16 flex items-center px-4">
         <div className="flex items-center gap-3 w-full overflow-hidden">
-          <div className="flex-shrink-0 w-8 h-8 bg-ds-action-primary rounded-ds-md flex items-center justify-center text-ds-content-inverse font-bold" aria-hidden="true">
+          <div className="flex-shrink-0 w-8 h-8 bg-ds-navigation-accent rounded-ds-md flex items-center justify-center text-ds-content-inverse font-bold" aria-hidden="true">
             {(currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'C').charAt(0)}
           </div>
 
           {isExpanded && (
             <div className="flex flex-col min-w-0">
-              <span className="text-ds-content font-medium truncate">
+              <span className="text-ds-body font-bold text-ds-content truncate">
                 {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Company'}
               </span>
-              {/* Who you are in this company. Settings is the account section's
-                  own item, so the header does not link to it a second time. */}
+              {/* Who you are in this company, by the role's name (as Settings →
+                  Team names it). Settings is the account section's own item, so
+                  the header does not link to it a second time. */}
               <span className="text-ds-xs text-ds-content-muted truncate">
-                {isCompanyAdmin ? 'Company Admin' : 'Team Member'}
+                {isCompanyAdmin ? 'Company Admin' : 'Recruiter'}
               </span>
             </div>
           )}
@@ -252,48 +261,56 @@ export const CompanySidebar = ({
 
       {/* Navigation */}
       <nav
-        className="flex-1 py-4 overflow-y-auto overflow-x-hidden space-y-1 custom-scrollbar"
+        className="flex-1 px-2 py-4 overflow-y-auto overflow-x-hidden space-y-1 custom-scrollbar"
         aria-label="Company sections"
       >
         {menuEntries.map((entry, idx) => {
           if (entry.type === 'divider') {
-            return <div key={`divider-${idx}`} className="my-2 border-t border-ds-border-subtle" aria-hidden="true" />;
+            // A divider spans the whole sidebar, past the items' 8px inset.
+            return <div key={`divider-${idx}`} className="-mx-2 my-2 border-t border-ds-border-subtle" aria-hidden="true" />;
           }
 
           if (entry.type === 'group') {
             const group = entry.group;
             const isGroupActive = expandedGroups[group.id];
-            const hasActiveChild = entry.children.some(child => location.pathname === child.path);
+            // Leads stays current on each of its tabs, and on Add lead and Import leads.
+            const hasActiveChild = entry.children.some((child) => isCurrentAt(child, location.pathname));
             const GroupIcon = ICON_MAP[group.icon] || Users;
 
             return (
               <div key={group.id} className="mb-2">
-                <Button
-                  variant="ghost"
-                  fullWidth
-                  justify="start"
-                  onClick={() => toggleGroup(group.id)}
-                  className={`
-                            rounded-none px-3
-                            ${!isExpanded ? 'justify-center' : ''}
-                            ${hasActiveChild ? 'text-ds-status-info-fg' : ''}
-                        `}
-                  aria-expanded={isExpanded ? isGroupActive : false}
-                >
-                  {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
-                  <Icon
-                    icon={GroupIcon}
-                    size="xl"
-                    className={hasActiveChild ? 'text-ds-action-primary' : 'text-ds-content-muted'}
-                  />
-                  {isExpanded && (
-                    <>
-                      <span className="flex-1 text-left font-medium text-ds-body">{group.label}</span>
-                      <Icon icon={ChevronRight}
-                        className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'} />
-                    </>
-                  )}
-                </Button>
+                <Tooltip label={group.label} disabled={isExpanded}>
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    justify="start"
+                    onClick={() => toggleGroup(group.id)}
+                    className={`
+                              px-3
+                              ${!isExpanded ? 'justify-center' : ''}
+                          `}
+                    aria-expanded={isExpanded ? isGroupActive : false}
+                    // Folded, the glyph is all it shows: its name is the group's.
+                    aria-label={isExpanded ? undefined : group.label}
+                  >
+                    {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
+                    {/* The group heads its items in the text colour and only the
+                        current item is blue (C2); folded, the group's glyph is
+                        all there is to say where you are, so it turns blue. */}
+                    <Icon
+                      icon={GroupIcon}
+                      size="lg"
+                      className={hasActiveChild && !isExpanded ? 'text-ds-navigation-accent' : 'text-ds-content-muted'}
+                    />
+                    {isExpanded && (
+                      <>
+                        <span className="flex-1 text-left font-semibold text-ds-body text-ds-content">{group.label}</span>
+                        <Icon icon={ChevronRight}
+                          className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'} />
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
 
                 {/* Children */}
                 {isExpanded && isGroupActive && (

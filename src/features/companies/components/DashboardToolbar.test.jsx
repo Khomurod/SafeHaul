@@ -103,13 +103,13 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
     });
 
-    it('shows the "only mine" switch with its words, and reports the value it moves to', () => {
+    it('shows the "Assigned to me" switch with its words, and reports the value it moves to', () => {
         const onToggleMyAssignments = vi.fn();
         renderToolbar({ showMyAssignmentsToggle: true, myAssignmentsOnly: false, onToggleMyAssignments });
 
-        fireEvent.click(screen.getByText('Only mine'));
+        fireEvent.click(screen.getByText('Assigned to me'));
 
-        expect(screen.getByRole('switch', { name: 'Only mine' })).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'Assigned to me' })).toBeInTheDocument();
         expect(onToggleMyAssignments).toHaveBeenCalledWith(true);
     });
 
@@ -125,23 +125,52 @@ describe('DashboardToolbar on the list-page toolbar', () => {
         expect(onChange).toHaveBeenCalledWith('new');
     });
 
-    it('offers Assign only to someone who can assign, once rows are selected', () => {
-        const onAssignLeads = vi.fn();
-        const { rerender } = renderToolbar({ canAssign: true, selectedCount: 0, onAssignLeads });
-        expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+    it('leaves the Assigned to filter out of a list that names its assignee, and does not count one it holds', () => {
+        renderToolbar({ showAssigneeFilter: false, filters: { assignee: 'u2', state: 'Texas' } });
 
-        rerender(
+        fireEvent.click(screen.getByRole('button', { name: 'Filters 1 applied' }));
+
+        expect(screen.queryByLabelText('Assigned to')).toBeNull();
+        expect(screen.getByLabelText('State')).toBeInTheDocument();
+        expect(screen.getByLabelText('Freight type')).toBeInTheDocument();
+        expect(screen.getByLabelText('Filter by date')).toBeInTheDocument();
+    });
+
+    it('offers the Assigned to filter, Unassigned among it, by default', () => {
+        renderToolbar({ filters: { assignee: '__unassigned__' } });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filters 1 applied' }));
+
+        expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('__unassigned__');
+    });
+
+    it('shows Assign to someone who can assign once rows are ticked, in a place the row keeps for it', () => {
+        const onAssignLeads = vi.fn();
+        const { container, rerender } = renderToolbar({ canAssign: false, selectedCount: 2, onAssignLeads });
+        expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+        expect(container.querySelector('.ds-list-toolbar')).not.toHaveAttribute('data-reserve-actions');
+
+        // Nothing ticked: no button, as C2 draws the list, but its place is kept
+        // so ticking a lead adds no row above the list.
+        const toolbar = (selectedCount) => (
             <DashboardToolbar
                 searchQuery=""
                 setSearchQuery={noop}
                 filters={{}}
                 setFilters={noop}
                 canAssign
-                selectedCount={3}
+                selectedCount={selectedCount}
                 onAssignLeads={onAssignLeads}
-            />,
+            />
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Assign (3)' }));
+        rerender(toolbar(0));
+        expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+        expect(container.querySelector('.ds-list-toolbar')).toHaveAttribute('data-reserve-actions', 'true');
+
+        rerender(toolbar(3));
+        const ready = screen.getByRole('button', { name: 'Assign (3)' });
+        expect(ready).toBeEnabled();
+        fireEvent.click(ready);
         expect(onAssignLeads).toHaveBeenCalledTimes(1);
     });
 });

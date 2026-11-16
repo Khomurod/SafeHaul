@@ -1,9 +1,12 @@
 import React from 'react';
 import { Icon, Briefcase, FileText, CheckCircle2, AlertTriangle, Clock, ShieldCheck, Send, ExternalLink, Plus, RefreshCcw, X } from '@design-system/icons';
-import { getFieldValue } from '@shared/utils/helpers';
+import { formatDate, getFieldValue } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '@features/applications/services/openApplicationFile';
+import { attemptWhen } from '../../utils/pevAttempts';
+import { PEVAttemptList } from './PEVAttemptList';
+import { PEVRecordAttempt } from './PEVRecordAttempt';
 
 /**
  * The PEV tab's presentational pieces, extracted verbatim from `PEVTab.jsx`:
@@ -52,6 +55,8 @@ export function PEVEmployerCard({
     setHistoryTargetIndex,
     fileRef,
     showSuccess,
+    record,
+    onVerification,
 }) {
         const employerName = getFieldValue(emp.companyName || emp.name);
     return (
@@ -69,7 +74,8 @@ export function PEVEmployerCard({
                             </span>
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-ds-2">
-                                    <h5 className="font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">{employerName}</h5>
+                                    {/* `<h4>` under the dossier header's `<h3>` section title. */}
+                                    <h4 className="font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">{employerName}</h4>
                                     <Badge tone={statusTone(vStatus.status)} icon={statusIcon(vStatus.status)}>
                                         {vStatus.status}
                                     </Badge>
@@ -86,12 +92,18 @@ export function PEVEmployerCard({
                                             <Icon icon={Send} size="xs" /> Sent via {vStatus.method}
                                         </span>
                                     )}
+                                    {vStatus.openedAt && (
+                                        <span className="flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-secondary">
+                                            <Icon icon={ExternalLink} size="xs" /> Employer opened the link ({formatDate(new Date(vStatus.openedAt))})
+                                        </span>
+                                    )}
                                     {vStatus.respondentName && (
                                         <span className="flex items-center gap-ds-1 text-ds-xs font-semibold text-ds-status-success-fg">
                                             <Icon icon={CheckCircle2} size="xs" /> Responded by: {vStatus.respondentName}
                                         </span>
                                     )}
                                 </div>
+                                <PEVAttemptList history={vStatus.history} />
                             </div>
                         </div>
 
@@ -130,7 +142,8 @@ export function PEVEmployerCard({
                                             <Icon icon={ExternalLink} size="sm" /> Copy Link
                                         </Button>
                                     )}
-                                    {vStatus.status === 'Sent' && (
+                                    {/* Any status short of Completed, "no response" too: a late answer still counts. */}
+                                    {vStatus.status !== 'Completed' && (
                                         <Button
                                             variant="secondary"
                                             size="sm"
@@ -144,6 +157,16 @@ export function PEVEmployerCard({
                                             {uploadingResult && uploadTargetIndex === index ? null : <Icon icon={Plus} size="sm" />}
                                             Upload Result
                                         </Button>
+                                    )}
+                                    {/* A request exists and is not answered: a call, fax or note joins its record. */}
+                                    {vStatus.status !== 'Completed' && (
+                                        <PEVRecordAttempt
+                                            record={record}
+                                            emp={emp}
+                                            index={index}
+                                            onVerification={onVerification}
+                                            showSuccess={showSuccess}
+                                        />
                                     )}
                                     <Button
                                         variant="secondary"
@@ -227,8 +250,12 @@ export function PEVHistoryModal({
                             <div className="min-w-0">
                                 <p className="font-bold text-ds-content">{log.action}</p>
                                 <p className="text-ds-xs text-ds-content-secondary">
-                                    {new Date(log.timestamp).toLocaleString()}
+                                    {attemptWhen(log)}
+                                    {log.recordedBy ? ` · recorded by ${log.recordedBy}` : ''}
                                 </p>
+                                {log.note && (
+                                    <p className="mt-ds-1 text-ds-xs text-ds-content [overflow-wrap:anywhere]">{log.note}</p>
+                                )}
                                 {log.recipient && (
                                     <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
                                         Sent to: {log.recipient} ({log.method})
@@ -242,6 +269,12 @@ export function PEVHistoryModal({
                                 {log.requestPdfPath && (
                                     <Button variant="ghost" size="sm" onClick={() => openRequestPdf(log.requestPdfPath)}>
                                         View Request PDF
+                                    </Button>
+                                )}
+                                {/* Day 30's record of attempts, beside the request PDF (`pev_requests/`). */}
+                                {log.attemptRecordPath && (
+                                    <Button variant="ghost" size="sm" onClick={() => openRequestPdf(log.attemptRecordPath)}>
+                                        View Attempt Record
                                     </Button>
                                 )}
                                 {log.url && (

@@ -25,6 +25,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { REPORT_FILE } from './check-release-health.mjs';
+import { createGithubApi } from './lib/githubApi.mjs';
 
 const LABEL = 'release-health';
 const TITLE = 'Release health check found a problem';
@@ -35,22 +36,7 @@ const {
     RUN_URL: runUrl = '',
 } = process.env;
 
-async function api(path, { method = 'GET', body } = {}) {
-    const response = await fetch(`https://api.github.com/repos/${repository}${path}`, {
-        method,
-        headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${token}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-            ...(body ? { 'Content-Type': 'application/json' } : {}),
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-    if (!response.ok) {
-        throw new Error(`${method} ${path} -> ${response.status} ${(await response.text()).slice(0, 300)}`);
-    }
-    return response.json();
-}
+const api = createGithubApi({ token, repository });
 
 /** The open health issue, if there is one. Identified by label. */
 async function findOpenIssue() {

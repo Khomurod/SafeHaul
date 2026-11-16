@@ -15,7 +15,7 @@ paths:
 - **A test** is `*.test.*` or `*.spec.*`, anything in a directory named test,
   tests, __tests__ or e2e, and the tooling's own `scripts/**/test-*.mjs`.
 - **Measured:** the JS/TS family plus `.css`, `.scss`, `.html`, `.rules`, `.vue`,
-  `.svelte`. Unmeasured with a reason each (`UNMEASURED_FORMATS`): `.json`, `.md`,
+  `.svelte`, `.sh`. Unmeasured with a reason each (`UNMEASURED_FORMATS`): `.json`, `.md`,
   `.mdx`, `.yml`/`.yaml`. Every other tracked format is named in
   `NOT_SOURCE_FORMATS` (test A7), so a new format cannot arrive unclassified.
   Dotfiles count as their own format.

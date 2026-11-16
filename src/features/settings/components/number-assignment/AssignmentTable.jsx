@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, DataTable } from '@/design-system/components';
+import { DataTable, FormSection } from '@/design-system/components';
 import { assignmentColumns } from './assignmentColumns';
 
 /**
@@ -14,14 +14,18 @@ import { assignmentColumns } from './assignmentColumns';
  * so each row stacks with every value under its column's label instead of
  * scrolling sideways. The table states its roles itself, because
  * `display: block` can drop the implicit ones.
+ *
+ * Its heading and description sit above the table's card, as every section
+ * of the page does.
  */
 export function AssignmentTable({ users, loading = false, onRetry, ...rowProps }) {
     return (
-        <Card padding="none" className="overflow-hidden">
-            <div className="border-b border-ds-border-subtle px-ds-4 py-ds-3">
-                <h2 className="font-semibold text-ds-content">Who texts from which line</h2>
-                <p className="text-ds-sm text-ds-content-muted">A member without a line of their own texts from the default line.</p>
-            </div>
+        <FormSection
+            layout="stacked"
+            padding="none"
+            title="Who texts from which line"
+            description="A member without a line of their own texts from the default line."
+        >
             <DataTable
                 embedded
                 ariaLabel="Who texts from which line"
@@ -36,7 +40,7 @@ export function AssignmentTable({ users, loading = false, onRetry, ...rowProps }
                 error={onRetry ? { title: "Couldn't load your team", message: "We couldn't load your team. Try again.", onRetry } : undefined}
                 empty={{ title: 'No team members found.' }}
             />
-        </Card>
+        </FormSection>
     );
 }
 

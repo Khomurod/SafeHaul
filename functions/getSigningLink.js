@@ -6,6 +6,7 @@
  * can't read, this function provides an authenticated way for team members
  * to retrieve the full link from the History view.
  */
+const { trustedAppBaseUrl } = require('./shared/appOrigin');
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db } = require("./firebaseAdmin");
 const { assertCompanyAccessForRequest } = require("./shared/companyAccess");
@@ -50,8 +51,9 @@ exports.getSigningLink = onCall({ cors: true }, async (request) => {
     }
 
     // 4. Build and return the full link
-    // DOMAIN FIX: Use the sender's origin domain stored at creation time
-    const baseUrl = reqData.appBaseUrl || process.env.APP_BASE_URL || 'https://app.safehaul.io';
+    // The site the request was sent from, when it is one of the app's own
+    // (`shared/appOrigin.js`), as every signing link is built.
+    const baseUrl = trustedAppBaseUrl(reqData.appBaseUrl);
     const signingLink = `${baseUrl}/sign/${companyId}/${requestId}?token=${accessToken}`;
 
     return { signingLink };

@@ -5,8 +5,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
-const { assertCompanyActive } = require('../../../shared/companyAccess');
-const { isSuperAdminClaims } = require('../../../shared/superAdmin');
+const { assertSmsSettingsAccess } = require('./smsSettingsAccess');
 const SMSAdapterFactory = require('../../factory');
 const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
@@ -21,10 +20,9 @@ const encryptedCallOptions = {
 };
 
 /**
- * 1. Save Configuration (Super Admin)
+ * 1. Save Configuration (Company Admin, owner or Super Admin)
  */
 exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => {
-    // RBAC Check: Must be Super Admin (or equivalent high-privilege role)
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be logged in.');
     }
@@ -34,23 +32,8 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
         throw new HttpsError('invalid-argument', 'Missing required fields.');
     }
 
-    // RBAC Security Check
-    const membershipRef = admin.firestore().collection('memberships')
-        .where('userId', '==', request.auth.uid)
-        .where('companyId', '==', companyId);
-
-    const membershipSnap = await membershipRef.get();
-
-    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
-
-    const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
-
-    if (!isSuperAdmin && !isCompanyAdmin) {
-        throw new HttpsError('permission-denied', 'Only Company Admins can save integration configs.');
-    }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
+    // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+    await assertSmsSettingsAccess(request.auth, companyId);
 
     // CRITICAL: Fetch existing config to preserve credentials if __PRESERVE__ marker is sent
     const docRef = admin.firestore()
@@ -229,24 +212,8 @@ exports.verifySmsConfig = onCall(encryptedCallOptions, async (request) => {
         throw new HttpsError('invalid-argument', 'Missing companyId.');
     }
 
-    // Check Permissions (Aligned with companyAdmin.js)
-    const db = admin.firestore();
-    const membershipRef = db.collection('memberships')
-        .where('userId', '==', request.auth.uid)
-        .where('companyId', '==', companyId);
-
-    const membershipSnap = await membershipRef.get();
-
-    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
-
-    const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
-
-    if (!isSuperAdmin && !isCompanyAdmin) {
-        throw new HttpsError('permission-denied', 'Only Company Admins can verify SMS configs.');
-    }
-
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
+    // The one SMS settings rule (K1): Company Admin or owner, company active; or super admin.
+    await assertSmsSettingsAccess(request.auth, companyId);
 
     try {
         const adapter = await SMSAdapterFactory.getAdapter(companyId);

@@ -69,7 +69,7 @@ async function integrationEnabled(companyId, kind, companyData) {
 }
 
 exports.extractApplicationReport = functions
-    .runWith({ memory: '512MB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS, secrets: ['GROQ_API_KEY'] })
+    .runWith({ memory: '512MB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS })
     .https.onCall(async (data, context) => {
         const { companyId, kind, pages } = data || {};
 

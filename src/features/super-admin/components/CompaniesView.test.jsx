@@ -286,12 +286,20 @@ describe('CompaniesView — blocking dialogs replaced (defect)', () => {
     });
 
     it('announces a toggle failure instead of alert()', async () => {
-        updateDoc.mockRejectedValueOnce(new Error('permission denied'));
+        updateDoc.mockRejectedValueOnce(Object.assign(
+            new Error('Missing or insufficient permissions.'),
+            { code: 'permission-denied' },
+        ));
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         renderView();
         fireEvent.click(screen.getByRole('button', { name: /Active — Artificial Freight Co/ }));
         fireEvent.click(await screen.findByRole('button', { name: 'Deactivate' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Failed to deactivate company: permission denied');
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'The company could not be deactivated. You do not have permission to do this.',
+        );
+        expect(screen.getByRole('alert')).not.toHaveTextContent(/insufficient permissions/);
+        consoleError.mockRestore();
     });
 });
 

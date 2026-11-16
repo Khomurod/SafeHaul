@@ -1,7 +1,9 @@
 // Who a campaign message reaches when somebody has opted out. An opt-out is
 // stored under a phone number (a STOP reply, `blacklist.js`), and the send loop
 // asks the real `isBlacklisted` before every message. Every other bulk-send
-// suite stands that check in with "never blacklisted". All data is artificial.
+// suite stands that check in with "never blacklisted". An applicant is texted
+// only after an explicit "Yes" to the application's SMS question; a lead, never
+// asked, is texted as before. All data is artificial.
 
 process.env.BULK_WORKER_SECRET = 'unit-test-secret';
 
@@ -23,6 +25,7 @@ jest.mock('../../firebaseAdmin', () => {
   const companyCollections = {
     bulk_sessions: { doc: () => session },
     leads: { doc: () => ({ get: async () => mockSnap(mockState.lead), update: async () => {} }) },
+    applications: { doc: () => ({ get: async () => mockSnap(mockState.lead), update: async () => {} }) },
     system_settings: { doc: () => ({ get: async () => mockSnap({ smtpUser: 'hiring@example.com', smtpPass: 'artificial' }) }) },
     blacklist: { doc: (phone) => ({ get: async () => mockSnap(mockState.companyBlacklist[phone]) }) },
   };
@@ -70,12 +73,12 @@ jest.mock('nodemailer', () => ({
 
 const { processBulkBatch } = require('../../bulkActions/workers/batchWorker');
 
-async function runBatch(method, lead) {
+async function runBatch(method, lead, leadSourceType = 'leads') {
   mockState.lead = lead;
   mockState.session = {
     status: 'active',
     config: { method, message: 'Hi [Driver Name].' },
-    leadSourceType: 'leads',
+    leadSourceType,
     createdBy: 'recruiter-1',
     targetIds: ['lead-1'],
     progress: { currentPointer: 0, processedCount: 0, totalCount: 1 },
@@ -161,5 +164,38 @@ describe('an SMS campaign', () => {
       expect(log.status).toBe('failed');
     }
     expect(mockSendSMS).not.toHaveBeenCalled();
+  });
+});
+
+describe('a campaign to applicants', () => {
+  it('texts an applicant who said "Yes" to SMS', async () => {
+    const log = await runBatch('sms', { firstName: 'Alice', phone: '(555) 123-4567', 'sms-consent': 'yes' }, 'applications');
+
+    expect(mockSendSMS).toHaveBeenCalledWith('(555) 123-4567', 'Hi Alice.', 'recruiter-1');
+    expect(log.status).toBe('delivered');
+  });
+
+  it('does not text an applicant who said "No" or did not answer, and its report says why', async () => {
+    for (const answer of [{ 'sms-consent': 'no' }, {}]) {
+      mockState.logs = [];
+      const log = await runBatch('sms', { firstName: 'Alice', phone: '(555) 123-4567', ...answer }, 'applications');
+
+      expect(log).toEqual(expect.objectContaining({ status: 'failed', error: 'Driver did not agree to SMS', isSuccess: false }));
+    }
+    expect(mockSendSMS).not.toHaveBeenCalled();
+  });
+
+  it('still emails an applicant who said "No" to SMS', async () => {
+    const log = await runBatch('email', { firstName: 'Alice', email: 'alice@example.com', 'sms-consent': 'no' }, 'applications');
+
+    expect(mockSendMail).toHaveBeenCalledTimes(1);
+    expect(log.status).toBe('delivered');
+  });
+
+  it('texts a lead, which was never asked about SMS', async () => {
+    const log = await runBatch('sms', { firstName: 'Alice', phone: '(555) 123-4567' }, 'leads');
+
+    expect(mockSendSMS).toHaveBeenCalledTimes(1);
+    expect(log.status).toBe('delivered');
   });
 });

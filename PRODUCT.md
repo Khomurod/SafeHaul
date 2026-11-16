@@ -1,7 +1,5 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
 web
@@ -80,10 +78,11 @@ analytics; multi-company management; activity and audit records.
 
 **Partial:** bulk SMS and email campaigns — the carrier connects their own
 messaging provider and is billed by that provider directly. No two-way threads,
-no automated multi-step sequences.
+no automated multi-step sequences. Daily DQ deadline notices — in the app, to the
+team, for hired drivers whose DQ file records a valid-until date.
 
-**Must never be claimed:** free forever; document-expiry monitoring or renewal
-reminders; MVR / PSP / FMCSA Clearinghouse checks; a job board; complete GDPR
+**Must never be claimed:** free forever; complete document-expiry monitoring or
+renewal reminders; MVR / PSP / FMCSA Clearinghouse checks; a job board; complete GDPR
 export; automated instant replies or drip sequences; lead distribution between
 companies; Telegram intake; any guarantee of FMCSA or DOT compliance; legal
 advice; **any named carrier endorsing SafeHaul**.

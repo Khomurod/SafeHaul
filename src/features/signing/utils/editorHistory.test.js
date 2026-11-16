@@ -12,9 +12,7 @@ import {
     isUndoShortcut,
     pushHistory,
     redoHistory,
-    redoLabel,
     undoHistory,
-    undoLabel,
 } from './editorHistory';
 
 const field = (id, overrides = {}) => ({
@@ -52,7 +50,6 @@ describe('pushHistory', () => {
         expect(currentFields(next)).toEqual([field('a')]);
         expect(canUndo(next)).toBe(true);
         expect(canRedo(next)).toBe(false);
-        expect(undoLabel(next)).toBe('Add Text');
     });
 
     it('leaves the original history untouched', () => {
@@ -163,7 +160,6 @@ describe('undo and redo', () => {
 
         history = undoHistory(history);
         expect(currentFields(history).map((f) => f.id)).toEqual(['a']);
-        expect(redoLabel(history)).toBe('Add b');
 
         history = undoHistory(history);
         expect(currentFields(history)).toEqual([]);
@@ -180,8 +176,6 @@ describe('undo and redo', () => {
         const start = createHistory([field('a')]);
         expect(undoHistory(start)).toBe(start);
         expect(redoHistory(start)).toBe(start);
-        expect(undoLabel(start)).toBe('');
-        expect(redoLabel(start)).toBe('');
     });
 
     it('survives being called on a missing history', () => {

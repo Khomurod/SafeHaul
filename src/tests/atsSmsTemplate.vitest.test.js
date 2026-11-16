@@ -13,4 +13,12 @@ describe('ATS SMS template parser (vitest)', () => {
       }),
     ).toBe('Hi Sam — Alex');
   });
+
+  it('fills the application link the settings page offers', () => {
+    expect(
+      parseAtsSmsTemplate('Apply: {application link}', {
+        applicationLink: 'https://app.safehaul.io/apply/artificial-freight?r=RIL2345',
+      }),
+    ).toBe('Apply: https://app.safehaul.io/apply/artificial-freight?r=RIL2345');
+  });
 });

@@ -8,6 +8,12 @@ vi.mock('./sms/SmsSettingsPage', () => ({
         <div data-testid="sms-page">sms:{companyId}:{companyName}</div>
     ),
 }));
+// The opted-out numbers are covered by sms/SmsOptOutSection.test.jsx.
+vi.mock('./sms/SmsOptOutSection', () => ({
+    SmsOptOutSection: ({ companyId, canRemove }) => (
+        <div data-testid="sms-opt-outs">opt-outs:{companyId}:{canRemove ? 'can remove' : 'cannot remove'}</div>
+    ),
+}));
 
 import { SmsSettingsTab } from './SmsSettingsTab';
 
@@ -22,9 +28,20 @@ describe('SmsSettingsTab (company-admin SMS configuration)', () => {
         expect(screen.getByTestId('sms-page')).toHaveTextContent('sms:co1:Acme');
     });
 
+    it('shows the company’s opted-out numbers, with Remove for a Company Admin only', () => {
+        const { rerender } = render(
+            <SmsSettingsTab currentCompanyProfile={{ id: 'co1', companyName: 'Acme' }} isCompanyAdmin />,
+        );
+        expect(screen.getByTestId('sms-opt-outs')).toHaveTextContent('opt-outs:co1:can remove');
+
+        rerender(<SmsSettingsTab currentCompanyProfile={{ id: 'co1', companyName: 'Acme' }} isCompanyAdmin={false} />);
+        expect(screen.getByTestId('sms-opt-outs')).toHaveTextContent('opt-outs:co1:cannot remove');
+    });
+
     it('shows a guard message and no page without a company id', () => {
         render(<SmsSettingsTab currentCompanyProfile={{}} />);
         expect(screen.queryByTestId('sms-page')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('sms-opt-outs')).not.toBeInTheDocument();
         expect(screen.getByText(/Select a company/i)).toBeInTheDocument();
     });
 });

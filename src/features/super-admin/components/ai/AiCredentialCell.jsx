@@ -26,7 +26,6 @@ export function AiCredentialCell({
     revealedValue,
     unavailableReason,
     secondsRemaining,
-    canReveal,
     onToggle,
 }) {
     const slot = credentialSlotId(providerId, field.name);
@@ -69,7 +68,7 @@ export function AiCredentialCell({
                 variant="ghost"
                 size="sm"
                 aria-pressed={isRevealed}
-                disabled={isPending || !canReveal || !field.configured}
+                disabled={isPending || !field.configured}
                 onClick={() => onToggle(providerId, field.name)}
             >
                 {isPending

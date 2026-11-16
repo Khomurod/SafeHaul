@@ -40,6 +40,16 @@ function makeCampaign(overrides = {}) {
     };
 }
 
+/** Stopped part-way by a provider refusal: 250 of 406 tried, 156 not yet. */
+function stoppedCampaign(overrides = {}) {
+    return makeCampaign({
+        status: 'failed',
+        error: 'SMS adapter initialization failed: Request rate exceeded',
+        progress: { processedCount: 250, totalCount: 406, successCount: 19, failedCount: 231 },
+        ...overrides,
+    });
+}
+
 function renderDetails(campaign = makeCampaign(), onClose = vi.fn()) {
     return { onClose, ...render(<CampaignDetails campaign={campaign} onClose={onClose} />) };
 }
@@ -107,12 +117,21 @@ describe('CampaignDetails — rendering', () => {
         expect(screen.getByText('Audience').closest('.ds-card')).toHaveTextContent('100');
         expect(screen.getByText('Sent').closest('.ds-card')).toHaveTextContent('45');
         expect(screen.getByText('Not sent or unconfirmed').closest('.ds-card')).toHaveTextContent('5');
+        // Neither sent nor failed: no send has reached them yet.
+        expect(screen.getByText('Not attempted yet').closest('.ds-card')).toHaveTextContent('50');
+    });
+
+    it('counts the recipients a stopped campaign never reached', () => {
+        renderDetails(stoppedCampaign());
+        expect(screen.getByText('Audience').closest('.ds-card')).toHaveTextContent('406');
+        expect(screen.getByText('Not attempted yet').closest('.ds-card')).toHaveTextContent('156');
     });
 
     it('falls back to matchCount / zeros when there is no progress', () => {
         renderDetails(makeCampaign({ progress: undefined, matchCount: 42, status: 'draft' }));
         expect(screen.getByText('Audience').closest('.ds-card')).toHaveTextContent('42');
         expect(screen.getByText('Sent').closest('.ds-card')).toHaveTextContent('0');
+        expect(screen.getByText('Not attempted yet').closest('.ds-card')).toHaveTextContent('0');
         expect(screen.queryByText(/leads processed/)).not.toBeInTheDocument();
     });
 
@@ -120,6 +139,28 @@ describe('CampaignDetails — rendering', () => {
         renderDetails(makeCampaign({ status: 'failed', error: 'Provider rejected the batch', progress: { processedCount: 10, totalCount: 10, successCount: 5, failedCount: 5 } }));
         expect(screen.getByText('Why this campaign failed')).toBeInTheDocument();
         expect(screen.getByText('Provider rejected the batch')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['failed', 'Failed', 'danger'],
+        ['active', 'Active', 'success'],
+        ['queued', 'Queued', 'accent'],
+        ['paused', 'Paused', 'warning'],
+    ])('tones the %s status badge as the campaign card does', (status, label, tone) => {
+        // K2: one status map for the card and the report; a failed campaign reads as a failure.
+        renderDetails(makeCampaign({ status }));
+        expect(screen.getByText(label).closest('.ds-badge')).toHaveAttribute('data-tone', tone);
+    });
+
+    it('dates the campaign in the app\'s one date style, with its time (K3)', () => {
+        renderDetails(makeCampaign({
+            createdAt: { toDate: () => new Date('2026-03-07T12:00:00Z') },
+            updatedAt: { toDate: () => new Date('2026-03-08T12:00:00Z') },
+        }));
+        const created = screen.getByText('Created At', { selector: 'dt' }).closest('div');
+        expect(created).toHaveTextContent(/Mar 7, 2026, \d{2}:\d{2} (AM|PM)/);
+        expect(screen.getByText('Updated At', { selector: 'dt' }).closest('div')).toHaveTextContent(/Mar 8, 2026, /);
+        expect(screen.queryByText(/3\/7\/2026/)).not.toBeInTheDocument();
     });
 
     it('falls back to the default message copy', () => {
@@ -135,7 +176,7 @@ describe('CampaignDetails — action visibility', () => {
         expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Details & Cancel' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Retry Failed' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Retry failed' })).not.toBeInTheDocument();
     });
 
     it('shows Resume + Cancel for a paused campaign (no Pause)', () => {
@@ -145,11 +186,31 @@ describe('CampaignDetails — action visibility', () => {
         expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
     });
 
-    it('shows Retry Failed only on a non-active campaign with failures', () => {
+    it('shows Retry failed only on a non-active campaign with failures', () => {
         renderDetails(makeCampaign({ status: 'completed', progress: { processedCount: 10, totalCount: 10, successCount: 8, failedCount: 2 } }));
-        expect(screen.getByRole('button', { name: 'Retry Failed' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Details & Cancel' })).not.toBeInTheDocument();
+    });
+
+    it('offers Continue, beside Retry failed, for a campaign that stopped with recipients not attempted yet', () => {
+        renderDetails(stoppedCampaign());
+        expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Details & Cancel' })).not.toBeInTheDocument();
+    });
+
+    it('offers no Continue once everyone was attempted, or for a campaign that did not fail', () => {
+        const { unmount } = renderDetails(stoppedCampaign({ progress: { processedCount: 406, totalCount: 406, successCount: 300, failedCount: 106 } }));
+        expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
+        unmount();
+
+        for (const status of ['active', 'queued', 'scheduled', 'paused', 'completed', 'cancelled']) {
+            const view = renderDetails(stoppedCampaign({ status }));
+            expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
+            view.unmount();
+        }
     });
 
     it('shows no lifecycle actions for a completed campaign without failures', () => {
@@ -157,7 +218,102 @@ describe('CampaignDetails — action visibility', () => {
         expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Details & Cancel' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Retry Failed' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Retry failed' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+});
+
+describe('CampaignDetails — Continue', () => {
+    const openContinue = async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+        return screen.findByRole('dialog', { name: 'Continue this campaign?' });
+    };
+
+    it('says who gets the message and who does not before anything is sent', async () => {
+        renderDetails(stoppedCampaign());
+        const dialog = await openContinue();
+
+        expect(dialog).toHaveTextContent('the 156 recipients not attempted yet get the message');
+        expect(dialog).toHaveTextContent('The 250 recipients already attempted are not messaged again.');
+        expect(callables.resumeBulkSession).not.toHaveBeenCalled();
+    });
+
+    it('continues from where it stopped, with the exact payload, and closes', async () => {
+        const { onClose } = renderDetails(stoppedCampaign());
+        const dialog = await openContinue();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Send to 156 recipients' }));
+
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Campaign continued.'));
+        expect(httpsCallableMock).toHaveBeenCalledWith({}, 'resumeBulkSession');
+        expect(callables.resumeBulkSession).toHaveBeenCalledTimes(1);
+        expect(callables.resumeBulkSession).toHaveBeenCalledWith({ companyId: 'company123', sessionId: '123' });
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('sends nothing when the confirmation is declined', async () => {
+        const { onClose } = renderDetails(stoppedCampaign());
+        const dialog = await openContinue();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Not now' }));
+
+        expect(screen.queryByRole('dialog', { name: 'Continue this campaign?' })).not.toBeInTheDocument();
+        expect(callables.resumeBulkSession).not.toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('starts once even when it is confirmed twice in the same tick', async () => {
+        let release;
+        callables.resumeBulkSession.mockImplementation(() => new Promise((resolve) => {
+            release = () => resolve({ data: { success: true } });
+        }));
+        renderDetails(stoppedCampaign());
+        const dialog = await openContinue();
+        const confirm = within(dialog).getByRole('button', { name: 'Send to 156 recipients' });
+
+        fireEvent.click(confirm);
+        fireEvent.click(confirm);
+        expect(callables.resumeBulkSession).toHaveBeenCalledTimes(1);
+
+        release();
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+    });
+
+    it("says what the server found when no one was left: the campaign is completed", async () => {
+        callables.resumeBulkSession.mockResolvedValue({
+            data: { success: true, message: 'Every recipient was already tried — campaign marked complete.' },
+        });
+        const { onClose } = renderDetails(stoppedCampaign());
+        const dialog = await openContinue();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Send to 156 recipients' }));
+
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith(
+            'Every recipient was already tried — campaign marked complete.',
+        ));
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('keeps the dialog open and says why when the server refuses', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        callables.resumeBulkSession.mockRejectedValue(Object.assign(
+            new Error('This campaign is active; only a paused or stopped campaign can continue.'),
+            { code: 'functions/failed-precondition' },
+        ));
+        const { onClose } = renderDetails(stoppedCampaign());
+        const dialog = await openContinue();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Send to 156 recipients' }));
+
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+            'This campaign is active; only a paused or stopped campaign can continue.',
+        ));
+        expect(screen.getByRole('dialog', { name: 'Continue this campaign?' })).toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
+        consoleError.mockRestore();
+    });
+
+    it('names one recipient in the singular', async () => {
+        renderDetails(stoppedCampaign({ progress: { processedCount: 1, totalCount: 2, successCount: 0, failedCount: 1 } }));
+        const dialog = await openContinue();
+        expect(dialog).toHaveTextContent('the 1 recipient not attempted yet get the message');
+        expect(within(dialog).getByRole('button', { name: 'Send to 1 recipient' })).toBeInTheDocument();
     });
 });
 
@@ -222,7 +378,7 @@ describe('CampaignDetails — callables & outcomes', () => {
         callables.retryFailedAttempts.mockResolvedValue({ data: { success: true, targetCount: 9 } });
         const { onClose } = renderDetails(failedCampaign());
 
-        fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Start retry campaign' }));
 
@@ -233,12 +389,41 @@ describe('CampaignDetails — callables & outcomes', () => {
 
     it('does not retry when the confirmation is cancelled', async () => {
         renderDetails(failedCampaign());
-        fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
-        // Retry Failed never texts a driver whose text may already have arrived.
+        // The cost is spelled out: a whole new campaign, permanent errors included.
+        expect(dialog).toHaveTextContent(/creates a new campaign/i);
+        expect(dialog).toHaveTextContent(/permanent errors/i);
+        // Retry failed never texts a driver whose text may already have arrived.
         expect(dialog).toHaveTextContent('Texts the SMS provider never answered are left out, as they may already have been delivered.');
         fireEvent.click(within(dialog).getByRole('button', { name: "Don't retry" }));
         expect(callables.retryFailedAttempts).not.toHaveBeenCalled();
+    });
+
+    it('does not retry when the confirmation is dismissed with Escape', async () => {
+        renderDetails(failedCampaign());
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
+        fireEvent.keyDown(dialog, { key: 'Escape' });
+        expect(callables.retryFailedAttempts).not.toHaveBeenCalled();
+    });
+
+    it('starts the retry once even when it is confirmed twice in the same tick', async () => {
+        let release;
+        callables.retryFailedAttempts.mockImplementation(() => new Promise((resolve) => {
+            release = () => resolve({ data: { success: true, targetCount: 3 } });
+        }));
+        renderDetails(failedCampaign());
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
+        const confirm = within(dialog).getByRole('button', { name: 'Start retry campaign' });
+
+        fireEvent.click(confirm);
+        fireEvent.click(confirm);
+        expect(callables.retryFailedAttempts).toHaveBeenCalledTimes(1);
+
+        release();
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
     });
 
     it('surfaces retry failure branches (success:false and thrown)', async () => {
@@ -246,7 +431,7 @@ describe('CampaignDetails — callables & outcomes', () => {
         callables.retryFailedAttempts.mockResolvedValueOnce({ data: { success: false } });
         renderDetails(failedCampaign());
 
-        fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
         const confirm = within(dialog).getByRole('button', { name: 'Start retry campaign' });
 
@@ -258,6 +443,21 @@ describe('CampaignDetails — callables & outcomes', () => {
         // The dialog stays open on failure, so the retry is reachable again.
         fireEvent.click(confirm);
         await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('callable exploded'));
+        consoleError.mockRestore();
+    });
+
+    it("reports a pause the server failed inside in a plain sentence, never the server's raw text", async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        callables.pauseBulkSession.mockRejectedValueOnce(Object.assign(
+            new Error('7 PERMISSION_DENIED: Missing or insufficient permissions.'),
+            { code: 'functions/internal' },
+        ));
+        renderDetails();
+        fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+            'The campaign could not be paused. Please try again. If it keeps happening, contact support.',
+        ));
         consoleError.mockRestore();
     });
 

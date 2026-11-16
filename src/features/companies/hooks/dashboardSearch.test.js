@@ -6,7 +6,13 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     leadStatusMatchesSegment,
+    leadStatusesForSegment,
+    listAssignees,
+    LEAD_TABS,
+    isLeadsTab,
     stateFilterValues,
+    stateValuesForSegment,
+    addedWindow,
     dateFilterRange,
     sortByAddedDate,
     searchableTerm,
@@ -221,6 +227,71 @@ describe('applyClientSideFilters', () => {
         expect(leadStatusMatchesSegment('New Lead', 'attempting')).toBe(false);
         expect(leadStatusMatchesSegment('In Process', 'in_process')).toBe(true);
     });
+
+    it("lead New and Declined hold what the dossier calls New and Declined", () => {
+        expect(leadStatusesForSegment('new')).toEqual(['New', 'New Application', 'New Lead']);
+        expect(leadStatusesForSegment('declined')).toEqual(['Declined', 'Rejected']);
+        expect(leadStatusMatchesSegment('New Lead', 'new')).toBe(true);
+        expect(leadStatusMatchesSegment('Rejected', 'declined')).toBe(true);
+        expect(leadStatusMatchesSegment('Contact Attempt 1', 'new')).toBe(false);
+        expect(leadStatusesForSegment('all')).toBeNull();
+    });
+
+    describe('on the leads tabs', () => {
+        // Artificial leads.
+        const leads = [
+            { id: 'mine', status: 'New Lead', assignedTo: 'u1' },
+            { id: 'theirs', status: 'New', assignedTo: 'u2' },
+            { id: 'free', status: 'Declined', assignedTo: '' },
+            { id: 'old-import', status: 'Rejected', assignedTo: null },
+        ];
+        const ids = (activeTab, extra = {}) => applyClientSideFilters(leads, {
+            activeTab, pipelineSegment: 'all', currentUid: 'u1', ...extra,
+        }).map((r) => r.id);
+
+        it('lists everyone on All, Assigned to me the reader and Unassigned nobody, as the queries do', () => {
+            expect(ids('company_leads')).toEqual(['mine', 'theirs', 'free', 'old-import']);
+            expect(ids('my_leads')).toEqual(['mine']);
+            // Search finds an older lead stored with `null`, as the Unassigned filter's mirror always has.
+            expect(ids('unassigned_leads')).toEqual(['free', 'old-import']);
+        });
+
+        it('leaves out an Assigned to pick or Only mine on the tabs that name their assignee', () => {
+            const carried = { filters: { assignee: 'u2', myAssignmentsOnly: true } };
+            expect(ids('my_leads', carried)).toEqual(['mine']);
+            expect(ids('unassigned_leads', carried)).toEqual(['free', 'old-import']);
+            expect(ids('company_leads', carried)).toEqual(['theirs']);
+        });
+
+        it('narrows each tab by the new segments', () => {
+            expect(ids('unassigned_leads', { pipelineSegment: 'declined' })).toEqual(['free', 'old-import']);
+            expect(ids('company_leads', { pipelineSegment: 'new' })).toEqual(['mine', 'theirs']);
+        });
+    });
+});
+
+describe('listAssignees', () => {
+    it('names the tab its leads lists are, and no other', () => {
+        expect(LEAD_TABS).toEqual(['company_leads', 'my_leads', 'unassigned_leads']);
+        expect(LEAD_TABS.every(isLeadsTab)).toBe(true);
+        expect(isLeadsTab('applications')).toBe(false);
+    });
+
+    it('gives a tab that names its assignee only that one', () => {
+        const filters = { assignee: 'u2', myAssignmentsOnly: true };
+        expect(listAssignees({ activeTab: 'my_leads', filters, currentUid: 'u1' })).toEqual(['u1']);
+        expect(listAssignees({ activeTab: 'unassigned_leads', filters, currentUid: 'u1' })).toEqual(['__unassigned__']);
+    });
+
+    it('gives the other lists the Assigned to pick, and Applications Only mine too, once each', () => {
+        expect(listAssignees({ activeTab: 'company_leads', filters: { assignee: 'u2', myAssignmentsOnly: true }, currentUid: 'u1' }))
+            .toEqual(['u2']);
+        expect(listAssignees({ activeTab: 'applications', filters: { assignee: 'u2', myAssignmentsOnly: true }, currentUid: 'u1' }))
+            .toEqual(['u1', 'u2']);
+        expect(listAssignees({ activeTab: 'applications', filters: { assignee: 'u1', myAssignmentsOnly: true }, currentUid: 'u1' }))
+            .toEqual(['u1']);
+        expect(listAssignees({ activeTab: 'applications', filters: {}, currentUid: 'u1' })).toEqual([]);
+    });
 });
 
 describe('stateFilterValues', () => {
@@ -251,6 +322,77 @@ describe('stateFilterValues', () => {
         expect(stateFilterValues('Atlantis')).toEqual(['Atlantis']);
         expect(stateFilterValues('   ')).toEqual([]);
         expect(stateFilterValues(undefined)).toEqual([]);
+    });
+});
+
+describe('the State spellings beside a segment', () => {
+    it('keeps the name and the postal code first when it must keep fewer', () => {
+        expect(stateFilterValues('Texas', 2)).toEqual(['Texas', 'TX']);
+        expect(stateFilterValues('Texas', 3)).toEqual(['Texas', 'TX', 'TEXAS']);
+        expect(stateFilterValues('Nuevo León', 2)).toEqual(['Nuevo León', 'NUEVO LEÓN']);
+    });
+
+    it('keeps all seven beside every segment but In process, where twelve statuses leave room for two', () => {
+        const texas = stateFilterValues('Texas');
+        for (const pipelineSegment of ['all', 'new', 'hired', 'terminated', 'declined']) {
+            expect(stateValuesForSegment('Texas', { activeTab: 'applications', pipelineSegment })).toEqual(texas);
+        }
+        for (const activeTab of ['company_leads', 'my_leads', 'unassigned_leads']) {
+            for (const pipelineSegment of ['all', 'new', 'attempting', 'in_process', 'interested', 'declined']) {
+                expect(stateValuesForSegment('Texas', { activeTab, pipelineSegment })).toEqual(texas);
+            }
+        }
+        expect(stateValuesForSegment('Texas', { activeTab: 'applications', pipelineSegment: 'in_process' })).toEqual(['Texas', 'TX']);
+    });
+
+    it('mirrors the In process query on the client: its stages, and the two State spellings', () => {
+        const records = [
+            { id: 'attempt', status: 'Contact Attempt 2', state: 'Texas' },
+            { id: 'legacy', status: 'Background Check', state: 'TX' },
+            { id: 'lower', status: 'In Process', state: 'texas' },
+            { id: 'new', status: 'New Application', state: 'Texas' },
+            { id: 'hired', status: 'Hired', state: 'Texas' },
+            { id: 'closed', status: 'Stale', state: 'Texas' },
+        ];
+        const ids = (filters) => applyClientSideFilters(records, { activeTab: 'applications', pipelineSegment: 'in_process', filters })
+            .map((record) => record.id);
+
+        expect(ids({})).toEqual(['attempt', 'legacy', 'lower']);
+        expect(ids({ state: 'Texas' })).toEqual(['attempt', 'legacy']);
+    });
+});
+
+describe('a month the list was opened on, mirrored on the client', () => {
+    const ts = (iso) => ({ toDate: () => new Date(iso) });
+    // Artificial records; dates in UTC, months on the test's own clock.
+    const local = (y, m, d) => new Date(y, m - 1, d, 12).toISOString();
+    const records = [
+        { id: 'added-november', status: 'New Application', createdAt: ts(local(2026, 11, 3)) },
+        { id: 'added-october', status: 'Hired', createdAt: ts(local(2026, 10, 3)), hiredAt: ts(local(2026, 11, 9)) },
+        { id: 'hired-before-recording', status: 'Hired', createdAt: ts(local(2026, 9, 3)) },
+        { id: 'hired-then-left', status: 'Terminated', hiredAt: ts(local(2026, 11, 20)) },
+        { id: 'hired-early-november', status: 'Hired', createdAt: ts(local(2026, 11, 2)), hiredAt: ts(local(2026, 11, 2)) },
+    ];
+    const ids = (pipelineSegment, filters) => applyClientSideFilters(records, { activeTab: 'applications', pipelineSegment, filters })
+        .map((record) => record.id);
+
+    it('keeps the applications added in the month', () => {
+        expect(ids('all', { period: { field: 'createdAt', month: '2026-11' } })).toEqual(['added-november', 'hired-early-november']);
+    });
+
+    it('keeps the month\'s hires since recording began, whatever their status now, dated or not', () => {
+        expect(ids('all', { period: { field: 'hiredAt', month: '2026-11' } })).toEqual(['added-october', 'hired-then-left']);
+        expect(ids('hired', { period: { field: 'hiredAt', month: '2026-11' } })).toEqual(['added-october']);
+    });
+
+    it('shares the days of a picked day and the month, or none', () => {
+        const period = { field: 'createdAt', month: '2026-11' };
+        const day = (dateFilter) => addedWindow({ period, dateFilter });
+
+        expect(day('2026-11-03')).toEqual(dateFilterRange('2026-11-03'));
+        expect(day('2026-10-03').start >= day('2026-10-03').end).toBe(true);
+        expect(ids('all', { period, dateFilter: '2026-10-03' })).toEqual([]);
+        expect(addedWindow({ period: { field: 'hiredAt', month: '2026-11' } })).toBeNull();
     });
 });
 

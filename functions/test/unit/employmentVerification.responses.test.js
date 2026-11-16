@@ -12,7 +12,7 @@ jest.mock('firebase-functions', () => require('./employmentVerification.support'
 jest.mock('../../emailService', () => require('./employmentVerification.support').emailServiceMock());
 jest.mock('../../shared/rateLimiter', () => require('./employmentVerification.support').rateLimiterMock());
 jest.mock('../../shared/companyAccess', () => require('./employmentVerification.support').companyAccessMock());
-jest.mock('uuid', () => require('./employmentVerification.support').uuidMock());
+jest.mock('../../shared/randomId', () => require('./employmentVerification.support').randomIdMock());
 jest.mock('pdf-lib', () => require('./employmentVerification.support').pdfLibMock());
 jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support').firebaseAdminMock());
 
@@ -62,6 +62,33 @@ describe('employmentVerification callables', () => {
         companyName: 'SafeHaul Carrier',
       });
       expect(verificationDocs.get('pending-token')).toMatchObject({ status: 'opened' });
+    });
+
+    it("shows the employer a short request number from the request's reference, never from the token", async () => {
+      const token = 'a1b2c3d4-0000-4000-8000-000000000000';
+      verificationDocs.set(token, {
+        status: 'sent',
+        requestId: '9f8e7d6c-1111-4111-8111-111111111111',
+        applicantName: 'Jane Driver',
+        expiresAt: createTs(Date.now() + 60000),
+      });
+
+      const result = await getVerificationRequest({ data: { token } });
+
+      // The start of the reference the result PDF prints as "Request Reference".
+      expect(result.requestNumber).toBe('9f8e7d6c');
+      expect(JSON.stringify(result)).not.toContain(token.slice(0, 8));
+    });
+
+    it('names a request sent before references were kept by a hash of its token, not the token', async () => {
+      const token = 'legacy-token-0000';
+      verificationDocs.set(token, { status: 'sent', applicantName: 'Jane Driver', expiresAt: createTs(Date.now() + 60000) });
+
+      const result = await getVerificationRequest({ data: { token } });
+
+      const hashed = require('crypto').createHash('sha256').update(token).digest('hex').slice(0, 8);
+      expect(result.requestNumber).toBe(hashed);
+      expect(JSON.stringify(result)).not.toContain(token);
     });
   });
 
@@ -206,6 +233,20 @@ describe('employmentVerification callables', () => {
       expect(stored.signaturePath).toBeUndefined();
       expect(savedStoragePaths).toEqual([]);
       expect(verificationDocs.get('pev-token-3')).toMatchObject({ status: 'completed' });
+    });
+
+    it("records the address Google's front end saw, not the first X-Forwarded-For entry", async () => {
+      seedSubmittableRequest('pev-token-16', 'app-16');
+      // The respondent writes that first entry, and Express's `req.ip` is it.
+      await submitVerificationResponse({
+        data: {
+          token: 'pev-token-16',
+          response: { wasEmployed: true, respondentName: 'HR Lead', respondentTitle: 'HR Manager', respondentPhone: '555-222-3333' },
+        },
+        rawRequest: { ip: '6.6.6.6', headers: { 'user-agent': 'jest', 'x-forwarded-for': '6.6.6.6, 203.0.113.5' } },
+      });
+
+      expect(responseDocs.get('pev-token-16/submission').ipAddress).toBe('203.0.113.5');
     });
 
     it('stores a drawn signature as a PNG in Storage and records the path and the method', async () => {

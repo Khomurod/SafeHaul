@@ -5,6 +5,7 @@
 
 import { GATE_DEFAULT_REQUIRED, resolveApplicationGate } from '@/config/applicationGates';
 import { getE2EQueryParam } from '@lib/runtime/e2eMode';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Resolve a company application gate.
@@ -86,7 +87,7 @@ export const buildPostApplyDocErrorMessage = (error) => {
   if (code.includes('unavailable') || code.includes('deadline-exceeded') || code.includes('internal')) {
     return 'We hit a network problem while opening the document. Please try again.';
   }
-  return error?.message || 'Could not open this form. Please try again.';
+  return plainErrorMessage(error, 'Could not open this form.', { viaLink: true });
 };
 
 /**

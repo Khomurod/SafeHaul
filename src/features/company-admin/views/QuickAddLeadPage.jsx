@@ -7,19 +7,22 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Icon, Save, X } from '@design-system/icons';
 import { ATS_STATUS_NEW } from '@shared/constants/atsStatus';
 import { normalizePhone } from '@shared/utils/helpers';
+import { normalizeSearchEmail } from '@shared/utils/searchNormalization';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 import {
     Button, Card, FormField, FormSection, Input, Select, Textarea,
 } from '@/design-system/components';
-import {
-    PageContainer, PageHeader, ResponsiveGrid, Stack,
-} from '@/design-system/layouts';
+import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { COMPANY_NAV_GROUPS } from '@app/routes/companyRouteManifest';
+import { leadsBackLink, leadsListPath } from './leadsListPath';
 
 /**
- * Manual single-lead entry.
+ * Add lead: manual single-lead entry, open to every staff member and reached
+ * from the Leads page's header (`LeadsHeaderActions`).
  *
  * Feature-owned: the field set, the required rule, the Firestore write to
- * `companies/{companyId}/leads`, and every user-facing string. All layout and
- * controls come from the design system.
+ * `companies/{companyId}/leads`, who the lead is assigned to, and every
+ * user-facing string. All layout and controls come from the design system.
  *
  * Rules this page keeps:
  *
@@ -35,26 +38,61 @@ import {
  *  3. **Duplicate submission is blocked by a ref guard.** `isSaving` is React
  *     state, so two fast activations inside one render could both pass it.
  *  4. **Fields carry autocomplete tokens**, so browser autofill can help.
- *  5. Tokens and `ResponsiveGrid`, which reflows to the narrowest supported
- *     width — no hard-coded palette classes or fixed 2-column grid.
+ *  5. One field grid, sized by the page's width rather than the window's
+ *     (`FIELD_GRID`): four columns from 1024px of page, two below it, never
+ *     three; on a phone one column, with City | State and Years | CDL paired.
+ *     The DOM and Tab order are the field order at every width.
+ *  6. Cancel and Save Lead are the header's actions, on the title's row from
+ *     768px; on a phone they are the bar pinned to the
+ *     bottom of the screen (`mobileActions="sticky"`) — the same two buttons,
+ *     never copies.
  *
  * Frozen: the nine form keys and their initial values (`cdlClass: 'A'`), the
  * First Name / Last Name / Phone required rule, the CDL options, the exact
  * payload (`companyId`, derived `name`, `createdAt`, `updatedAt`,
- * `ATS_STATUS_NEW`, `source: 'manual_entry'`, `createdBy`), all four messages,
- * and every navigation destination.
+ * `ATS_STATUS_NEW`, `source: 'manual_entry'`, `createdBy`), and all four
+ * messages.
+ *
+ * Saving and Cancel return to the person's leads list (`leadsListPath`); once
+ * saved, the new lead's dossier opens over it (the company shell opens the
+ * `openRecordId` the navigation names, a lead: `openRecordCollection`).
  */
+/** The section of the menu this page belongs to, above its title. */
+const EYEBROW = COMPANY_NAV_GROUPS.applications.label;
+
+/*
+ * Two columns, four where the page is at least 1024px wide (a container query
+ * on the wrapper the page draws, so a collapsed menu counts). On a phone a
+ * field takes the whole row unless it is one of a pair (City | State,
+ * Years | CDL Class), which keep the two columns.
+ */
+const FIELD_GRID = 'grid min-w-0 grid-cols-2 gap-x-ds-3 gap-y-ds-4 md:gap-ds-5 [@container_(min-width:1024px)]:grid-cols-4';
+const PHONE_FULL_ROW = 'col-span-2 md:col-span-1';
+
 const REQUIRED_FIELDS = [
     { name: 'firstName', label: 'First Name' },
     { name: 'lastName', label: 'Last Name' },
     { name: 'phone', label: 'Phone' },
 ];
 
+/**
+ * Who a new lead is assigned to. A company admin's stays unassigned (`''`, as
+ * the lists' Unassigned filter asks for), for the admin to hand out; anyone
+ * else's is theirs (decision Д13), so it is in their My Leads at once. Named as
+ * their account is, as the lead import names the person importing.
+ */
+function assigneeOf(isCompanyAdmin, user) {
+    if (isCompanyAdmin || !user?.uid) return { assignedTo: '', assignedToName: '' };
+    return { assignedTo: user.uid, assignedToName: user.displayName || user.email || '' };
+}
+
 export const QuickAddLeadPage = () => {
-    const { currentCompanyProfile, currentUser } = useData();
+    const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
     const { showSuccess, showError } = useToast();
     const navigate = useNavigate();
     const companyId = currentCompanyProfile?.id;
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
+    const listPath = leadsListPath(isCompanyAdmin);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -122,17 +160,17 @@ export const QuickAddLeadPage = () => {
                 status: ATS_STATUS_NEW,
                 source: 'manual_entry',
                 createdBy: currentUser?.uid || 'unknown',
-                // As the lead import writes them: unassigned as the lists'
-                // Unassigned filter matches it, and the phone key the import
-                // finds a duplicate by.
-                assignedTo: '',
-                assignedToName: '',
+                ...assigneeOf(isCompanyAdmin, currentUser),
+                // As the lead import writes them: the phone key the import
+                // finds a duplicate by, and the email an application is
+                // matched to its lead by (functions/shared/leadApplicationLink.js).
                 normalizedPhone: normalizePhone(formData.phone),
+                emailNormalized: normalizeSearchEmail(formData.email),
             };
 
-            await addDoc(collection(db, 'companies', companyId, 'leads'), leadData);
+            const added = await addDoc(collection(db, 'companies', companyId, 'leads'), leadData);
             showSuccess('Lead added successfully!');
-            navigate('/company/drivers/leads/company');
+            navigate(listPath, { state: { openRecordId: added.id, openRecordCollection: 'leads' } });
         } catch (err) {
             console.error('Error adding lead:', err);
             showError('Failed to add lead. Please try again.');
@@ -170,25 +208,51 @@ export const QuickAddLeadPage = () => {
     return (
         <div className="min-h-full bg-ds-canvas">
             <PageContainer width="standard">
-                <Stack gap="lg">
-                    <PageHeader
-                        title="Quick Add Lead"
-                        description="Manually add a new lead to your pipeline."
-                    />
+                {/*
+                  One form holds the header too: Save Lead sits on the title's
+                  row (and, on a phone, in the bar pinned to the bottom of the
+                  screen), and it stays this form's submit button, so Enter in
+                  a field and the button submit the same way.
+                */}
+                <form ref={formRef} onSubmit={handleSubmit} noValidate>
+                    <Stack gap="lg">
+                        <PageHeader
+                            eyebrow={EYEBROW}
+                            back={leadsBackLink(isCompanyAdmin, navigate)}
+                            title="Add lead"
+                            description="Manually add a new lead to your pipeline."
+                            mobileActions="sticky"
+                            actions={(
+                                <>
+                                    <Button
+                                        variant="secondary"
+                                        onClick={() => navigate(listPath)}
+                                    >
+                                        <Icon icon={X} /> Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        variant="primary"
+                                        disabled={isSaving}
+                                        loading={isSaving}
+                                    >
+                                        {!isSaving && <Icon icon={Save} />}
+                                        {isSaving ? 'Saving...' : 'Save Lead'}
+                                    </Button>
+                                </>
+                            )}
+                        />
 
-                    <form
-                        ref={formRef}
-                        onSubmit={handleSubmit}
-                        noValidate
-                        className="mx-auto w-full max-w-2xl"
-                    >
-                        <FormSection
-                            title="Lead details"
-                            description="Fields marked with an asterisk are required."
-                        >
-                            <Stack gap="lg">
-                                <ResponsiveGrid minItemWidth="220px">
+                        {/* The fields' columns follow the width of the page, not the window. */}
+                        <div className="min-w-0 [container-type:inline-size]">
+                            <FormSection
+                                header="bleed"
+                                title="Lead details"
+                                description="Fields marked with an asterisk are required."
+                            >
+                                <div className={FIELD_GRID}>
                                     <FormField
+                                        className={PHONE_FULL_ROW}
                                         label="First Name"
                                         required
                                         error={fieldErrors.firstName}
@@ -202,6 +266,7 @@ export const QuickAddLeadPage = () => {
                                         />
                                     </FormField>
                                     <FormField
+                                        className={PHONE_FULL_ROW}
                                         label="Last Name"
                                         required
                                         error={fieldErrors.lastName}
@@ -214,10 +279,8 @@ export const QuickAddLeadPage = () => {
                                             autoComplete="family-name"
                                         />
                                     </FormField>
-                                </ResponsiveGrid>
-
-                                <ResponsiveGrid minItemWidth="220px">
                                     <FormField
+                                        className={PHONE_FULL_ROW}
                                         label="Phone"
                                         required
                                         error={fieldErrors.phone}
@@ -231,7 +294,7 @@ export const QuickAddLeadPage = () => {
                                             autoComplete="tel"
                                         />
                                     </FormField>
-                                    <FormField label="Email">
+                                    <FormField className={PHONE_FULL_ROW} label="Email">
                                         <Input
                                             type="email"
                                             name="email"
@@ -241,9 +304,6 @@ export const QuickAddLeadPage = () => {
                                             autoComplete="email"
                                         />
                                     </FormField>
-                                </ResponsiveGrid>
-
-                                <ResponsiveGrid minItemWidth="220px">
                                     <FormField label="City">
                                         <Input
                                             name="city"
@@ -262,9 +322,6 @@ export const QuickAddLeadPage = () => {
                                             autoComplete="address-level1"
                                         />
                                     </FormField>
-                                </ResponsiveGrid>
-
-                                <ResponsiveGrid minItemWidth="220px">
                                     <FormField label="Years of Experience">
                                         <Input
                                             type="number"
@@ -287,39 +344,20 @@ export const QuickAddLeadPage = () => {
                                             <option value="None">No CDL</option>
                                         </Select>
                                     </FormField>
-                                </ResponsiveGrid>
-
-                                <FormField label="Notes">
-                                    <Textarea
-                                        name="notes"
-                                        value={formData.notes}
-                                        onChange={handleChange}
-                                        rows={3}
-                                        placeholder="Any additional notes about this lead..."
-                                    />
-                                </FormField>
-
-                                <div className="flex flex-wrap justify-end gap-ds-3 border-t border-ds-border-subtle pt-ds-4">
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => navigate('/company/dashboard')}
-                                    >
-                                        <Icon icon={X} /> Cancel
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        disabled={isSaving}
-                                        loading={isSaving}
-                                    >
-                                        {!isSaving && <Icon icon={Save} />}
-                                        {isSaving ? 'Saving...' : 'Save Lead'}
-                                    </Button>
+                                    <FormField className="col-span-full" label="Notes">
+                                        <Textarea
+                                            name="notes"
+                                            value={formData.notes}
+                                            onChange={handleChange}
+                                            rows={3}
+                                            placeholder="Any additional notes about this lead..."
+                                        />
+                                    </FormField>
                                 </div>
-                            </Stack>
-                        </FormSection>
-                    </form>
-                </Stack>
+                            </FormSection>
+                        </div>
+                    </Stack>
+                </form>
             </PageContainer>
         </div>
     );
