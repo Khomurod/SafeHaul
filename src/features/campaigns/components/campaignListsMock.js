@@ -70,7 +70,37 @@ function manyLists() {
     };
 }
 
-/** The fixture lists for `mode` ('mock' or 'many'). */
+/**
+ * `&e2eCampaignList=stopped`: the seeded draft and one campaign that failed
+ * part-way, as a provider refusal at a batch's start leaves it: 250 of 406 tried.
+ */
+function stoppedLists() {
+    const e2eNow = {
+        toDate: () => new Date(),
+        toMillis: () => Date.now(),
+    };
+    return {
+        drafts: seedLists().drafts,
+        sessions: [
+            {
+                id: 'session_e2e_stopped',
+                name: 'E2E Stopped Session',
+                status: 'failed',
+                error: 'SMS adapter initialization failed: Request rate exceeded',
+                progress: { processedCount: 250, totalCount: 406, successCount: 19, failedCount: 231, currentPointer: 250 },
+                config: { method: 'sms', message: 'Stopped seed campaign' },
+                messageConfig: { method: 'sms', message: 'Stopped seed campaign' },
+                createdAt: e2eNow,
+                updatedAt: e2eNow,
+                matchCount: 406,
+            },
+        ],
+    };
+}
+
+/** The fixture lists for `mode` ('mock', 'many' or 'stopped'). */
 export function e2eCampaignLists(mode) {
-    return mode === 'many' ? manyLists() : seedLists();
+    if (mode === 'many') return manyLists();
+    if (mode === 'stopped') return stoppedLists();
+    return seedLists();
 }

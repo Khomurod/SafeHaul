@@ -1,5 +1,5 @@
 /**
- * Listing: every provider on screen, the retired one shown honestly, the Research & Media subsection, and the page's heading structure.
+ * Listing: every provider on screen, the Research & Media subsection, and the page's heading structure.
  *
  * Part of the AiIntegrationsView contract suite, split from the original
  * single file by subject. The fixtures, callable stubs, spies and the
@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe('provider listing', () => {
-    it('lists all nine supported providers', async () => {
+    it('lists every supported provider', async () => {
         await renderView();
         for (const row of PROVIDERS) {
             expect(screen.getAllByText(row.displayName).length).toBeGreaterThan(0);
@@ -45,7 +45,7 @@ describe('provider listing', () => {
     it('shows each provider its position in the fallback order', async () => {
         await renderView();
         expect(screen.getByText('Fallback position 1')).toBeTruthy();
-        expect(screen.getByText('Fallback position 9')).toBeTruthy();
+        expect(screen.getByText('Fallback position 8')).toBeTruthy();
     });
 
     it('renders providers in registry priority order, not alphabetically', async () => {
@@ -91,32 +91,6 @@ describe('provider listing', () => {
         });
         await renderView();
         expect(screen.getAllByText('Groq').length).toBeGreaterThan(0);
-    });
-});
-
-describe('the retired provider', () => {
-    it('is listed rather than hidden', async () => {
-        await renderView();
-        // The name also appears inside the retirement sentence, so match the
-        // row's own cell rather than any occurrence.
-        expect(screen.getAllByText('GitHub Models').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Retired by vendor').length).toBeGreaterThan(0);
-    });
-
-    it('explains why, with the vendor\'s own retirement date', async () => {
-        await renderView();
-        expect(screen.getByText(/retired GitHub Models on 30 July 2026/)).toBeTruthy();
-    });
-
-    it('offers no actions, because every one of them would fail', async () => {
-        await renderView();
-        expect(screen.getByText('No actions available.')).toBeTruthy();
-        expect(screen.queryByRole('button', { name: /Add personal access token/i })).toBeNull();
-    });
-
-    it('keeps its place in the fallback order', async () => {
-        await renderView();
-        expect(screen.getByText('Fallback position 4')).toBeTruthy();
     });
 });
 

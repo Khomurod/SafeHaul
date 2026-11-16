@@ -300,18 +300,31 @@ describe('DataTable', () => {
       expect(screen.getByRole('region', { name: 'Follow-ups' })).toBeInTheDocument();
     });
 
-    it('refuses a selection, which a card has no header row to hold', () => {
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      expect(() => render(
+    // A card has no header row, so "Select all" moves to a strip above the cards
+    // (`DataTable.cards.test.jsx` pins the strip and the role layout).
+    it('takes a selection, each card keeping its own checkbox', () => {
+      screenWidth(true);
+      const onToggleRow = vi.fn();
+      render(
         <DataTable
           ariaLabel="Follow-ups"
           columns={workColumns}
           data={rows}
           mobilePresentation="cards"
-          selection={{ selectedIds: new Set(), onToggleRow: vi.fn(), onToggleAll: vi.fn() }}
+          selection={{
+            selectedIds: new Set(['row-2']),
+            selectAllLabel: 'Select all follow-ups on this page',
+            getRowLabel: (row) => `Select ${row.name}`,
+            onToggleRow,
+            onToggleAll: vi.fn(),
+          }}
         />,
-      )).toThrow('takes no selection');
+      );
+
+      expect(screen.getByRole('checkbox', { name: 'Select Bravo Driver' })).toBeChecked();
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alpha Driver' }));
+      expect(onToggleRow).toHaveBeenCalledWith('row-1', expect.anything());
+      expect(screen.getAllByRole('checkbox', { name: 'Select all follow-ups on this page' })).toHaveLength(1);
     });
 
     it('leaves a scrolling table as it was, on a phone too', () => {

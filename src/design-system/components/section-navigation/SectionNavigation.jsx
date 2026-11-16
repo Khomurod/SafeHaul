@@ -23,6 +23,20 @@ const STATUSES = {
   incomplete: { icon: Circle, suffix: ' (incomplete)' },
 };
 
+/*
+ * An item's second line (C2 settings rail: "Who recruits for you"). It must be
+ * words — a blank one would draw an empty line and describe the item as nothing.
+ */
+function checkedDescription(item) {
+  // `null` is absent too: `description={note || null}` is how React writes "none".
+  if (item.description == null) return undefined;
+  if (typeof item.description !== 'string' || item.description.trim() === '') {
+    contractViolation(`SectionNavigation item description must be a non-empty string (${item.id}).`);
+    return undefined;
+  }
+  return item.description;
+}
+
 function moveItemFocus(event) {
   if (!KEYBOARD_KEYS.has(event.key)) return;
 
@@ -120,17 +134,41 @@ export function SectionNavigation({
                     );
                   }
                   const status = item.status === undefined ? null : STATUSES[item.status];
+                  const description = checkedDescription(item);
+                  /*
+                   * A description is the item's second line, not part of its
+                   * name: the item stays "Team" — what a speech-input user says
+                   * and what every caller finds it by — and "Who recruits for
+                   * you" is its description (`aria-describedby`).
+                   *
+                   * So the line is the button's SIBLING, not its child. Inside
+                   * the button it was visible text the name lacks, which WCAG
+                   * 2.5.3 (Label in Name; axe `label-content-name-mismatch`)
+                   * refuses — `aria-hidden` on it does not help, moving it out
+                   * does. The row still acts as one: the stylesheet stretches the
+                   * button's hit area, fill and focus ring over the whole `<li>`.
+                   * Without a description nothing here changes.
+                   */
+                  const descriptionId = description
+                    ? `section-navigation-${instanceId}-${group.id}-${item.id}-description`
+                    : undefined;
 
                   return (
-                    <li key={item.id} className="ds-section-navigation__list-item">
+                    <li
+                      key={item.id}
+                      className="ds-section-navigation__list-item"
+                      data-described={description ? true : undefined}
+                    >
                       <button
                         type="button"
                         className="ds-section-navigation__item"
                         data-section-navigation-item
                         data-current={isCurrent || undefined}
                         data-status={item.status}
+                        data-described={description ? true : undefined}
                         aria-current={isCurrent ? currentType : undefined}
                         aria-controls={controlsId}
+                        aria-describedby={descriptionId}
                         disabled={item.disabled}
                         onClick={() => onSelect(item.id)}
                         onKeyDown={moveItemFocus}
@@ -138,7 +176,9 @@ export function SectionNavigation({
                         {Icon && (
                           <DsIcon
                             icon={Icon}
-                            size="xl"
+                            // A described rail draws the lighter 16px glyph (C2),
+                            // in the same 20px column.
+                            size={description ? 'md' : 'xl'}
                             className="ds-section-navigation__icon"
                           />
                         )}
@@ -154,6 +194,11 @@ export function SectionNavigation({
                           </>
                         )}
                       </button>
+                      {description && (
+                        <span id={descriptionId} className="ds-section-navigation__description">
+                          {description}
+                        </span>
+                      )}
                     </li>
                   );
                 })}

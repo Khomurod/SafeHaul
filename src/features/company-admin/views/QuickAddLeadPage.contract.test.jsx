@@ -21,7 +21,7 @@
  * All data below is artificial.
  */
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const dataMock = vi.hoisted(() => ({ value: {} }));
@@ -336,5 +336,59 @@ describe('Add lead — preserved contracts', () => {
         expect(fsMocks.addDoc.mock.calls[0][1].createdBy).toBe('unknown');
         // Nobody to assign it to: it is left for an admin to hand out.
         expect(fsMocks.addDoc.mock.calls[0][1]).toMatchObject({ assignedTo: '', assignedToName: '' });
+    });
+});
+
+/** The page's own header (the card's header is a `<header>` too). */
+const pageHeader = () => screen.getByRole('heading', { level: 1 }).closest('header');
+
+describe('Add lead — C2 header', () => {
+    it('names the section it belongs to above the title', () => {
+        render(<QuickAddLeadPage />);
+        expect(within(pageHeader()).getByText('Driver Applications & Leads')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['company_admin', COMPANY_LEADS],
+        ['recruiter', MY_LEADS],
+    ])('links a %s back to their leads list, followed inside the app', (role, list) => {
+        setCompany(COMPANY_ID, role);
+        render(<QuickAddLeadPage />);
+
+        const back = screen.getByRole('link', { name: 'Leads' });
+        expect(back).toHaveAttribute('href', list);
+        fireEvent.click(back);
+        expect(navigateMock).toHaveBeenCalledWith(list);
+        expect(fsMocks.addDoc).not.toHaveBeenCalled();
+    });
+
+    it("keeps Cancel and Save Lead on the header's row, Save Lead still this form's submit button", async () => {
+        render(<QuickAddLeadPage />);
+
+        const header = pageHeader();
+        const save = within(header).getByRole('button', { name: 'Save Lead' });
+        expect(within(header).getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+        expect(save).toHaveAttribute('type', 'submit');
+        expect(save.form).toBe(document.querySelector('form'));
+
+        fillRequired();
+        fireEvent.click(save);
+        await waitFor(() => expect(fsMocks.addDoc).toHaveBeenCalledOnce());
+    });
+
+    it('pins the actions to the bottom of a phone screen, as the same two buttons', () => {
+        render(<QuickAddLeadPage />);
+        expect(pageHeader()).toHaveAttribute('data-mobile-actions', 'sticky');
+        expect(screen.getAllByRole('button', { name: /cancel/i })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: 'Save Lead' })).toHaveLength(1);
+    });
+
+    it('keeps the fields in their order in one grid, Notes across the whole row', () => {
+        const { container } = render(<QuickAddLeadPage />);
+        const names = [...container.querySelectorAll('input, select, textarea')].map((control) => control.name);
+        expect(names).toEqual([
+            'firstName', 'lastName', 'phone', 'email', 'city', 'state', 'yearsExperience', 'cdlClass', 'notes',
+        ]);
+        expect(screen.getByLabelText(/^Notes/).closest('.ds-form-field')).toHaveClass('col-span-full');
     });
 });

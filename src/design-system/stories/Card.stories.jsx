@@ -35,7 +35,10 @@ const meta = {
           '  child manages its own edges — a table, or an image that must bleed to the border.',
           '- `Card` renders `<section>` by default; use `as` for a different element when the',
           '  document outline needs it (`as="article"`, `as="div"`).',
-          '- `MetricCard` tones: `neutral`, `info`, `success`, `warning`, `danger`, `accent`.',
+          '- `MetricCard` tones: `neutral`, `info`, `success`, `warning`, `danger`, `accent` —',
+          '  drawn as a 4px bar inset on the left edge. The glyph is bare and muted, top-right.',
+          '- `MetricCard description` adds a short note under the value; on an interactive card',
+          '  it is part of the name, after the number.',
           '- `MetricCard loading` draws a placeholder in place of the value and ignores',
           '  `value`; the card keeps its height and, with `onActivate`, stays a button.',
           '',
@@ -53,6 +56,7 @@ const meta = {
           '  by its label alone. `aria-busy` announces nothing: the caller says once, in a',
           '  polite `role="status"`, that the group is loading and when it has loaded.',
           '- Tone on a `MetricCard` is decoration. The label and value carry the meaning.',
+          '- Nothing on a `MetricCard` is cut: a long label wraps and a long value breaks.',
           '',
           '### Common mistakes',
           '',
@@ -176,9 +180,41 @@ export const MetricCardInteractive = {
 };
 
 /**
- * Long labels and unusually wide values. `MetricCard` truncates its label and
- * keeps the full text in a `title`, so a tile never pushes its neighbours out of
- * alignment.
+ * A note under the value, for a number that needs one sentence of context. It
+ * is muted, small and balanced; on an interactive card it ends the name.
+ */
+export const MetricCardWithDescription = {
+  render: () => (
+    <ResponsiveGrid minItemWidth="240px">
+      <MetricCard
+        label="Live sequences"
+        value="0"
+        description="Sending right now"
+        tone="info"
+        icon={<Icon icon={Activity} />}
+      />
+      <MetricCard
+        label="Messages sent"
+        value="1,284"
+        description="Across every sequence"
+        tone="success"
+        icon={<Icon icon={Inbox} />}
+      />
+      <MetricCard
+        label="Owners"
+        value="36"
+        description="Opens the owner list"
+        tone="neutral"
+        onActivate={fn()}
+        icon={<Icon icon={FileText} />}
+      />
+    </ResponsiveGrid>
+  ),
+};
+
+/**
+ * Long labels and unusually wide values. Nothing is cut: the label wraps beside
+ * the glyph and a long value breaks, so a tile never hides its own words.
  */
 export const LongContent = {
   render: () => (
@@ -188,6 +224,7 @@ export const LongContent = {
           label="Records awaiting secondary verification before release"
           value="1,284,509"
           tone="warning"
+          icon={<Icon icon={Inbox} />}
         />
         <MetricCard label="Short" value="8" tone="neutral" />
       </ResponsiveGrid>
@@ -209,15 +246,20 @@ export const LongContent = {
   ),
 };
 
-/** Narrow viewport: metric tiles reflow to a single column. */
+/**
+ * Narrow viewport: two tiles a row, the number a step smaller (24px) and the
+ * padding `--ds-space-4`. The grid's minimum is the caller's: 150px gives two
+ * a row on a phone and still four a row on the 1200px canvas.
+ */
 export const NarrowViewport = {
   globals: { viewport: { value: 'safehaulMobile' } },
   render: () => (
     <Stack gap="md">
-      <ResponsiveGrid minItemWidth="200px">
-        <MetricCard label="Total records" value="1,284" tone="neutral" onActivate={fn()} />
-        <MetricCard label="In review" value="36" tone="info" onActivate={fn()} />
-        <MetricCard label="Expiring soon" value="18" tone="warning" onActivate={fn()} />
+      <ResponsiveGrid minItemWidth="150px">
+        <MetricCard label="Total records" value="1,284" tone="neutral" onActivate={fn()} icon={<Icon icon={FileText} />} />
+        <MetricCard label="In review" value="36" tone="info" onActivate={fn()} icon={<Icon icon={Activity} />} />
+        <MetricCard label="Expiring soon" value="18" tone="warning" onActivate={fn()} icon={<Icon icon={Inbox} />} />
+        <MetricCard label="Priority" value="7" tone="accent" description="Flagged this week" icon={<Icon icon={TrendingUp} />} />
       </ResponsiveGrid>
       <Card>
         <p style={{ margin: 0 }}>Cards keep their padding at mobile width.</p>

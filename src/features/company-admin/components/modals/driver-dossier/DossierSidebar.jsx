@@ -1,10 +1,9 @@
 import React from 'react';
-import { Icon, Phone, Mail } from '@design-system/icons';
-import { Avatar, Button, ButtonLink, TabList } from '@design-system/components';
+import { Icon, Phone, Mail, Link2, User } from '@design-system/icons';
+import { Avatar, Badge, Button, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 import { dossierStatusLabel } from './dossierStatusLabel';
-import { DossierKeyFacts } from './DossierKeyFacts';
 import { DossierCloseButton } from './DossierHeader';
 import { DOSSIER_SECTIONS, sectionTitle } from './dossierSections';
 
@@ -41,9 +40,9 @@ import { DOSSIER_SECTIONS, sectionTitle } from './dossierSections';
  * - Missing contact details render as inert text, never as a live
  *   `<a href="tel:">` with `pointer-events-none`, which stays in the tab order
  *   and announces as a link pointing nowhere.
- * - Under Call and Email, the key facts (`DossierKeyFacts`): the phone and
- *   email as text, Do not text beside the phone, the day the record came in and
- *   the last call.
+ * - The phone, email, the day the record came in and the last call are not
+ *   here: they are the Contact card of the Application tab's Summary View
+ *   (`DossierKeyFacts`), which the tab opens on.
  *
  * On a phone the dossier does not render `DossierSidebar`: `DriverProfileModal`
  * lays out its parts. `DossierIdentityBar` (Close first, then the name and the
@@ -74,84 +73,80 @@ const nameOf = (appData) => `${appData?.firstName || ''} ${appData?.lastName || 
 /** Who referred the driver, and the lead or application this record names. */
 function RecordLinks({ appData, collectionName, onOpenRecord }) {
     const linked = onOpenRecord ? linkedRecordOf(appData, collectionName) : null;
+    if (!appData?.referral?.code && !linked) return null;
     return (
-        <>
-            {/* Set by the server from the link the driver came through. */}
+        <div className="space-y-ds-1">
+            {/* Set by the server from the link the driver came through. One
+                text node, so it reads (and is found) as one sentence. */}
             {appData?.referral?.code && (
-                <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
-                    Referred by {appData.referral.referrerName || 'a driver'} · link {appData.referral.code}
+                <p className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
+                    <Icon icon={Link2} size="sm" className="mt-ds-1 shrink-0 text-ds-content-muted" />
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                        Referred by {appData.referral.referrerName || 'a driver'} · link {appData.referral.code}
+                    </span>
                 </p>
             )}
             {/* A `link` button: it shows the other record in this
                 dossier rather than navigating. */}
             {linked && (
-                <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
-                    {linked.text} ·{' '}
-                    <Button variant="link" size="sm" onClick={() => onOpenRecord(linked.id, linked.collection)}>
-                        {linked.action}
-                    </Button>
+                <p className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
+                    <Icon icon={User} size="sm" className="mt-ds-1 shrink-0 text-ds-content-muted" />
+                    <span className="min-w-0">
+                        {linked.text} ·{' '}
+                        <Button variant="link" size="sm" onClick={() => onOpenRecord(linked.id, linked.collection)}>
+                            {linked.action}
+                        </Button>
+                    </span>
                 </p>
             )}
-        </>
+        </div>
     );
 }
 
-/** Call and Email, then the key facts. */
-function ContactBlock({ appData, collectionName, companyId, canEdit, logCall = null }) {
-    // Contact Logic
+/**
+ * Call, Log call and Email in one row.
+ *
+ * Call is the primary action: it is the reason a recruiter opens a dossier from
+ * a list, so it is the one filled button. The three share the row by content
+ * (`flex-1` from a zero basis, never below their own width), so "Log call" keeps
+ * one line at the sidebar's narrowest.
+ */
+function ContactBlock({ appData, logCall = null }) {
     const email = appData?.email || '';
     const phone = appData?.phone || '';
 
+    // `ButtonLink`, not a styled `<a>`: these are navigations (a dialler, a mail
+    // client), so they must be announced as links. Border, radius, focus ring and
+    // hover are the primitive's.
     return (
-        <>
-            {/*
-              `ButtonLink`, not a styled `<a>`: these are navigations
-              (a dialler, a mail client), so they must be announced as
-              links. The two-line tile shape comes from the caller; the
-              border, radius, focus ring and hover are the primitive's.
-            */}
-            {/* One equal column per tile, so Log call sits between Call and Email when offered. */}
-            <div className="mt-ds-4 grid auto-cols-fr grid-flow-col gap-ds-2">
-                {phone ? (
-                    <ButtonLink
-                        href={`tel:${phone}`}
-                        variant="secondary"
-                        fullWidth
-                        className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
-                    >
-                        {/* Inside `ButtonLink`, whose `.ds-button__content > svg` rule owns the size. */}
-                        <Icon icon={Phone} />
-                        <span>Call</span>
-                    </ButtonLink>
-                ) : (
-                    <p className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
-                        <Icon icon={Phone} size="lg" />
-                        <span>No phone</span>
-                    </p>
-                )}
+        <div className="flex gap-ds-2 [&>*]:min-w-fit [&>*]:flex-1">
+            {phone ? (
+                <ButtonLink href={`tel:${phone}`} variant="primary" size="sm">
+                    {/* Inside `ButtonLink`, whose `.ds-button__content > svg` rule owns the size. */}
+                    <Icon icon={Phone} />
+                    <span>Call</span>
+                </ButtonLink>
+            ) : (
+                <p className="flex min-h-9 items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
+                    <Icon icon={Phone} size="sm" />
+                    <span>No phone</span>
+                </p>
+            )}
 
-                {logCall}
+            {logCall}
 
-                {email ? (
-                    <ButtonLink
-                        href={`mailto:${email}`}
-                        variant="secondary"
-                        fullWidth
-                        className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
-                    >
-                        <Icon icon={Mail} />
-                        <span>Email</span>
-                    </ButtonLink>
-                ) : (
-                    <p className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
-                        <Icon icon={Mail} size="lg" />
-                        <span>No email</span>
-                    </p>
-                )}
-            </div>
-
-            <DossierKeyFacts appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} />
-        </>
+            {email ? (
+                <ButtonLink href={`mailto:${email}`} variant="secondary" size="sm">
+                    <Icon icon={Mail} />
+                    <span>Email</span>
+                </ButtonLink>
+            ) : (
+                <p className="flex min-h-9 items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
+                    <Icon icon={Mail} size="sm" />
+                    <span>No email</span>
+                </p>
+            )}
+        </div>
     );
 }
 
@@ -171,16 +166,23 @@ export function DossierSectionTabs({ activeTab, setActiveTab, dqStatus, idBase =
             activeTab={activeTab}
             onChange={setActiveTab}
             orientation={isCompact ? 'horizontal' : 'vertical'}
-            className="gap-ds-1 overflow-x-auto px-ds-2 py-ds-2 sm:flex-1 sm:overflow-x-visible sm:overflow-y-auto sm:px-ds-3 sm:py-ds-4"
+            /*
+              On a phone the strip is one row that scrolls sideways
+              (`flex-nowrap` over the primitive's wrapping row): wrapped, six
+              sections took three rows and the selected underline sat between
+              them. From `sm` it is the vertical rail.
+            */
+            className="flex-nowrap gap-ds-1 overflow-x-auto px-ds-2 [&>*]:shrink-0 [&>*]:whitespace-nowrap sm:flex-1 sm:overflow-x-visible sm:overflow-y-auto sm:px-ds-3 sm:py-ds-3"
             tabs={DOSSIER_SECTIONS.map((item) => ({
                 ...item,
                 label: sectionTitle(item.id, { isLead }),
+                // A word, not a dot: the badge says it, and the name keeps its
+                // "— incomplete" for assistive technology.
                 badge: item.id === 'dq' && dqStatus === 'incomplete' ? (
                     <>
-                        <span
-                            aria-hidden="true"
-                            className="ml-auto h-2 w-2 shrink-0 rounded-ds-full bg-ds-status-danger-fg"
-                        />
+                        <span aria-hidden="true" className="ml-auto shrink-0 pl-ds-2">
+                            <Badge tone="danger">Incomplete</Badge>
+                        </span>
                         <span className="ds-visually-hidden">— incomplete</span>
                     </>
                 ) : null,
@@ -208,13 +210,13 @@ export function DossierIdentityBar({ appData, currentStatus, onClose }) {
 
 /**
  * The rest of the left column on a phone, at the top of what scrolls: the
- * referral and linked record, Call and Email, and the key facts.
+ * referral and linked record, then Call, Log call and Email.
  */
-export function DossierDetails({ appData, collectionName, onOpenRecord, companyId, canEdit = false, logCall = null }) {
+export function DossierDetails({ appData, collectionName, onOpenRecord, logCall = null }) {
     return (
-        <div className="border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-4 pb-ds-4 pt-ds-3">
+        <div className="space-y-ds-4 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-4">
             <RecordLinks appData={appData} collectionName={collectionName} onOpenRecord={onOpenRecord} />
-            <ContactBlock appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} logCall={logCall} />
+            <ContactBlock appData={appData} logCall={logCall} />
         </div>
     );
 }
@@ -228,8 +230,6 @@ export function DossierSidebar({
     idBase = 'dossier',
     collectionName,
     onOpenRecord,
-    companyId,
-    canEdit = false,
     // Beside Call: the dossier's Log call (`DossierLogCall`), or nothing.
     logCall = null,
 }) {
@@ -237,33 +237,32 @@ export function DossierSidebar({
 
     return (
         <div className="flex h-full flex-col">
-            {/* Identity Header */}
-            <div className="border-b border-ds-border-subtle bg-ds-surface p-ds-4 sm:p-ds-6">
-                <div className="flex items-center gap-ds-4">
-                    {/* 48px on a phone, 64px from 640px up — unchanged, and now
-                        expressed through the contract's own responsive size
-                        rather than a hand-written `sm:` pair. Primer types its
-                        avatar the same way, for the same reason: a profile
-                        header wants a larger disc where there is room. */}
-                    <Avatar size={{ base: 'lg', sm: 'xl' }} tone="info" bordered>
+            {/* Identity, links to related records, then how to reach the driver. */}
+            <div className="space-y-ds-4 border-b border-ds-border-subtle bg-ds-surface p-ds-5">
+                <div className="flex items-start gap-ds-3">
+                    {/* 48px: beside a two-line name it anchors the block without
+                        taking the width the name needs. */}
+                    <Avatar size="lg" tone="info" bordered>
                         {initials}
                     </Avatar>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         {/*
                           `<h2>` under the dialog's own accessible name. The name
                           is the driver's, so a screen-reader user knows whose
-                          dossier they opened without hunting for it.
+                          dossier they opened without hunting for it. Balanced,
+                          so a long name breaks into even lines.
                         */}
-                        <h2 className="text-ds-body-lg font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">
+                        <h2 className="text-balance text-ds-heading-sm font-bold text-ds-content [overflow-wrap:anywhere]">
                             {nameOf(appData) || 'Driver'}
                         </h2>
                         {/* Named as the header's status picker names it. */}
-                        <div className="mt-ds-1"><StatusBadge status={dossierStatusLabel(currentStatus)} /></div>
-                        <RecordLinks appData={appData} collectionName={collectionName} onOpenRecord={onOpenRecord} />
+                        <div className="mt-ds-2"><StatusBadge status={dossierStatusLabel(currentStatus)} /></div>
                     </div>
                 </div>
 
-                <ContactBlock appData={appData} collectionName={collectionName} companyId={companyId} canEdit={canEdit} logCall={logCall} />
+                <RecordLinks appData={appData} collectionName={collectionName} onOpenRecord={onOpenRecord} />
+
+                <ContactBlock appData={appData} logCall={logCall} />
             </div>
 
             {/* Navigation */}

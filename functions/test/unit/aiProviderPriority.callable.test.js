@@ -171,14 +171,13 @@ describe('validation', () => {
             .rejects.toMatchObject({ code: 'invalid-argument' });
     });
 
-    it('accepts the retired provider, because the list stays complete', async () => {
-        // Rejecting it would make the screen — which lists all nine rows —
-        // impossible to save. The router still skips it as `retired`.
-        const result = await aiCallables.setAiProviderPriority(
+    it('rejects a provider removed from the registry like any unknown id', async () => {
+        // A screen loaded before GitHub Models was removed could still submit it.
+        await expect(aiCallables.setAiProviderPriority(
             request(superAdmin(), { providerIds: ['github-models', 'gemini'] }),
-        );
+        )).rejects.toMatchObject({ code: 'not-found' });
 
-        expect(result.order[0]).toBe('github-models');
+        expect(mock.docs.has(ORDER_PATH)).toBe(false);
     });
 });
 
@@ -257,7 +256,7 @@ describe('listAiProviders routing summary', () => {
 
         expect(result.routing.usingDefaultOrder).toBe(false);
         expect(result.providers.map((row) => row.id).slice(0, 2)).toEqual(['mistral', 'gemini']);
-        expect(result.providers[0]).toMatchObject({ id: 'mistral', rank: 1, priority: 5 });
+        expect(result.providers[0]).toMatchObject({ id: 'mistral', rank: 1, priority: 4 });
         expect(result.providers.map((row) => row.rank))
             .toEqual(result.providers.map((_row, index) => index + 1));
     });
@@ -279,7 +278,6 @@ describe('listAiProviders routing summary', () => {
         expect(reasons.cerebras).toBe('incapable');
         expect(reasons.sambanova).toBe('incapable');
         expect(reasons.cloudflare).toBe('incapable');
-        expect(reasons['github-models']).toBe('retired');
         expect(reasons.gemini).toBe('unconfigured');
         // Groq declares vision again on `qwen/qwen3.6-27b`, so its gap in this
         // suite is a missing credential, not a missing capability. The two need

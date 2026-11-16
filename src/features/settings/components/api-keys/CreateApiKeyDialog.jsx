@@ -1,11 +1,18 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Copy, Icon, X } from '@design-system/icons';
+import { Copy, Icon, KeyRound, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Button, Checkbox, FieldMessage, FormField, IconButton, Input, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { apiKeyErrorMessage } from './apiKeysService';
 
 const MAX_NAME_LENGTH = 60;
+
+/**
+ * The dialog's last row: its actions at the end, sharing the row on a phone,
+ * where the dialog is a bottom sheet and this row clears the home indicator.
+ */
+const FOOTER = 'flex shrink-0 justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3 '
+    + 'max-sm:pb-[calc(var(--ds-space-3)+env(safe-area-inset-bottom,0px))] sm:px-ds-6 sm:py-ds-4 max-sm:[&>*]:flex-1';
 
 /**
  * Making an API key, in two steps: name it and choose what it may read, then
@@ -73,30 +80,31 @@ export function CreateApiKeyDialog({ onCreate, onClose }) {
             labelledBy={titleId}
             describedBy={descriptionId}
             initialFocusRef={made ? doneRef : nameRef}
-            size="md"
+            size="lg"
+            mobile="sheet"
             scroll="body"
         >
-            <div className="flex items-start justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
+            <div className="flex shrink-0 items-start justify-between gap-ds-4 px-ds-4 pt-ds-5 sm:px-ds-6">
                 <div className="min-w-0">
-                    <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">
+                    <h2 id={titleId} className="text-ds-heading-md font-bold text-ds-content">
                         {made ? 'Copy your new key' : 'Create an API key'}
                     </h2>
-                    <p id={descriptionId} className="mt-ds-1 text-ds-xs text-ds-content-secondary">
+                    <p id={descriptionId} className="mt-ds-1 text-ds-body text-ds-content-secondary [text-wrap:pretty]">
                         {made
                             ? `“${made.name}” is ready. Give it to the service that will use it.`
                             : 'The key lets one service read the applications drivers submit to you. It cannot change anything.'}
                     </p>
                 </div>
                 {!made && (
-                    <IconButton label="Close" variant="ghost" onClick={onClose} disabled={saving}>
-                        <Icon icon={X} size="xl" />
+                    <IconButton label="Close" variant="ghost" size="sm" onClick={onClose} disabled={saving} className="-mr-ds-2 -mt-ds-1">
+                        <Icon icon={X} size="lg" />
                     </IconButton>
                 )}
             </div>
 
             {made ? (
                 <>
-                    <div className="min-h-0 flex-1 overflow-y-auto p-ds-5">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-ds-4 py-ds-5 sm:px-ds-6">
                         <Stack gap="md">
                             <Notice tone="warning" size="sm" title="This is the only time the key is shown">
                                 Copy it now and keep it somewhere safe. We keep only a fingerprint of it, so
@@ -119,13 +127,13 @@ export function CreateApiKeyDialog({ onCreate, onClose }) {
                             </div>
                         </Stack>
                     </div>
-                    <div className="flex shrink-0 justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
+                    <div className={FOOTER}>
                         <Button ref={doneRef} variant="primary" onClick={onClose}>Done</Button>
                     </div>
                 </>
             ) : (
                 <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
-                    <div className="min-h-0 flex-1 overflow-y-auto p-ds-5">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-ds-4 py-ds-5 sm:px-ds-6">
                         <Stack gap="md">
                             <FormField
                                 label="Key name"
@@ -164,9 +172,12 @@ export function CreateApiKeyDialog({ onCreate, onClose }) {
                             </div>
                         </Stack>
                     </div>
-                    <div className="flex shrink-0 flex-col-reverse justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4 sm:flex-row">
+                    <div className={FOOTER}>
                         <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-                        <Button type="submit" variant="primary" loading={saving} disabled={saving}>Create key</Button>
+                        <Button type="submit" variant="primary" loading={saving} disabled={saving}>
+                            {!saving && <Icon icon={KeyRound} />}
+                            Create key
+                        </Button>
                     </div>
                 </form>
             )}

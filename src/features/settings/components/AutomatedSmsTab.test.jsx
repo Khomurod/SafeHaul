@@ -85,6 +85,20 @@ describe('AutomatedSmsTab compatibility slice', () => {
         }
     });
 
+    it('lists each placeholder on its own line with what it becomes, and the requirements beside the fields', async () => {
+        render(<AutomatedSmsTab companyId="company-1" />);
+        await findTextarea('Contact Attempt 1');
+        const section = screen.getByRole('region', { name: 'Contact-attempt messages' });
+        expect(within(section).getByText('Use these in a message:')).toBeInTheDocument();
+        const items = within(section).getAllByRole('listitem').map((item) => item.textContent);
+        expect(items).toEqual([
+            '{driver name}The applicant’s name',
+            '{user name}The recruiter’s name',
+            '{application link}Your application page with the recruiter’s personal link',
+        ]);
+        expect(within(section).getByText(/Requires an active SMS integration/)).toBeInTheDocument();
+    });
+
     it('falls back to empty strings when the document is missing', async () => {
         firestoreMocks.getDoc.mockResolvedValue(missingDoc());
         render(<AutomatedSmsTab companyId="company-1" />);
@@ -133,17 +147,15 @@ describe('AutomatedSmsTab compatibility slice', () => {
         expect(three).toHaveValue('Edited three');
     });
 
-    it('says the templates could not be loaded, and retries', async () => {
+    it('says the templates could not be loaded once, in the banner, and retries', async () => {
         firestoreMocks.getDoc.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         render(<AutomatedSmsTab companyId="company-1" />);
 
-        await waitFor(() => {
-            expect(toastMocks.showError)
-                .toHaveBeenCalledWith('Could not load automated SMS templates.');
-        });
-        expect(screen.getByRole('alert')).toHaveTextContent('The saved templates could not be loaded.');
+        expect(await screen.findByRole('alert')).toHaveTextContent('The saved templates could not be loaded.');
+        // No toast besides: it would say it twice and cover the fields.
+        expect(toastMocks.showError).not.toHaveBeenCalled();
         expect(await findTextarea('Contact Attempt 1')).toHaveValue('');
 
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));

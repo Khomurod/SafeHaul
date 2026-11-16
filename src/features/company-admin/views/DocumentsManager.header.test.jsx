@@ -58,26 +58,28 @@ describe('DocumentsManager header', () => {
         expect(tabs().templates).toBeInTheDocument();
     });
 
-    it('navigates back to the company dashboard', () => {
+    it('links back to the company dashboard and routes there in the app', () => {
         renderManager();
-        fireEvent.click(screen.getByRole('button', { name: 'Back to Dashboard' }));
+        const back = screen.getByRole('link', { name: 'Back to Dashboard' });
+        // A real link (it opens in a new tab too), routed in script on a plain click.
+        expect(back).toHaveAttribute('href', '/company/dashboard');
+        fireEvent.click(back);
         expect(navigateMock).toHaveBeenCalledTimes(1);
         expect(navigateMock).toHaveBeenCalledWith('/company/dashboard');
     });
 
-    it('outdents the back control by its own padding so the label aligns with the heading', () => {
+    it('draws the back link and the Documents eyebrow on one row above the heading (C2)', () => {
         renderManager();
-        // -ml-ds-3 cancels the sm button's ds-space-3 inline padding: the
-        // visible arrow/label lines up with the Documents heading while the
-        // padded hit area and focus ring keep their full size.
-        expect(screen.getByRole('button', { name: 'Back to Dashboard' })).toHaveClass('-ml-ds-3', 'self-start');
+        const header = screen.getByRole('heading', { level: 1, name: 'E-Docs' }).closest('header');
+        const row = within(header).getByRole('link', { name: 'Back to Dashboard' }).closest('.ds-page-eyebrow');
+        expect(row).toBeTruthy();
+        expect(within(row).getByText('Documents')).toHaveClass('ds-page-eyebrow__text');
     });
 
-    it('uses approved Button primitives for every header action', () => {
+    it('uses approved primitives for every header action', () => {
         renderManager();
-        for (const name of ['Back to Dashboard', 'New Document']) {
-            expect(screen.getByRole('button', { name })).toHaveClass('ds-button');
-        }
+        expect(screen.getByRole('button', { name: 'New Document' })).toHaveClass('ds-button');
+        expect(screen.getByRole('link', { name: 'Back to Dashboard' })).toHaveClass('ds-link');
     });
 
     it('uses no legacy gray canvas or hard-coded header colours', () => {
@@ -97,25 +99,39 @@ describe('DocumentsManager header', () => {
 
 describe('DocumentsManager sent documents count', () => {
     const sent = (id, overrides = {}) => ({ id, title: `Artificial ${id}`, status: 'sent', ...overrides });
-    it('counts the sent documents beside the heading on Sent Documents only', () => {
+    const announced = () => screen.getByTestId('sent-documents-count');
+
+    it('counts the sent documents in the Sent Documents tab on every tab, never beside the heading: on Sent what it lists, elsewhere all of them', () => {
         signingRequestsMock.current = {
             ...signingRequestsMock.current,
             documents: [sent('a'), sent('b', { status: 'signed' }), sent('c', { emailStatus: 'failed' })],
         };
         renderManager();
         const header = screen.getByRole('heading', { level: 1, name: 'E-Docs' }).closest('header');
+        expect(within(header).queryByRole('status')).not.toBeInTheDocument();
+        // The number is in the tab on Overview too; the heading is the same on every tab.
+        expect(tabs().sent).toHaveTextContent(/^Sent Documents 3$/);
         // The region stays in place, empty, so a screen reader hears the count arrive.
-        expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
+        expect(announced()).toHaveAttribute('role', 'status');
+        expect(announced()).toHaveTextContent(/^$/);
 
         fireEvent.click(tabs().sent);
-        expect(within(header).getByRole('status')).toHaveTextContent(/^3 sent documents$/);
+        expect(tabs().sent).toHaveTextContent(/^Sent Documents 3$/);
+        expect(announced()).toHaveTextContent(/^3 sent documents$/);
 
         // The documents the panel's search and filters keep.
         act(() => sentProps.current.setFilters((prev) => ({ ...prev, needsAttention: true })));
-        expect(within(header).getByRole('status')).toHaveTextContent(/^1 sent document$/);
+        expect(tabs().sent).toHaveTextContent(/^Sent Documents 1$/);
+        expect(announced()).toHaveTextContent(/^1 sent document$/);
 
+        // Away from Sent its search and filters are out of sight, so the tab
+        // counts every sent document again; back on Sent, what it lists.
         fireEvent.click(tabs().templates);
-        expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
+        expect(tabs().sent).toHaveTextContent(/^Sent Documents 3$/);
+        expect(announced()).toHaveTextContent(/^$/);
+        fireEvent.click(tabs().sent);
+        expect(tabs().sent).toHaveTextContent(/^Sent Documents 1$/);
+        expect(announced()).toHaveTextContent(/^1 sent document$/);
     });
 
     it.each([
@@ -125,8 +141,8 @@ describe('DocumentsManager sent documents count', () => {
         signingRequestsMock.current = { ...signingRequestsMock.current, documents: [], ...state };
         renderManager();
         fireEvent.click(tabs().sent);
-        const header = screen.getByRole('heading', { level: 1, name: 'E-Docs' }).closest('header');
-        expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
+        expect(tabs().sent).toHaveTextContent(/^Sent Documents$/);
+        expect(announced()).toHaveTextContent(/^$/);
     });
 });
 

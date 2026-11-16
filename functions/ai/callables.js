@@ -28,9 +28,7 @@
 // deployment surface and nothing else — `index.js` reads these names off it, so
 // **the export names here are the contract** and a rename is a redeployment.
 const { buildProviderRow, listAiProviders } = require('./callables/list');
-const {
-    diagnoseAiCredentialAccess, migrateGroqCredential, revealAiCredential,
-} = require('./callables/credentials');
+const { diagnoseAiCredentialAccess, revealAiCredential } = require('./callables/credentials');
 const {
     deleteAiCredential, saveAiCredential, setAiProviderEnabled,
     setAiProviderPriority, updateAiProviderConfig,
@@ -53,7 +51,6 @@ exports.setAiProviderPriority = setAiProviderPriority;
 exports.updateAiProviderConfig = updateAiProviderConfig;
 exports.testAiProvider = testAiProvider;
 exports.diagnoseAiCredentialAccess = diagnoseAiCredentialAccess;
-exports.migrateGroqCredential = migrateGroqCredential;
 exports.listAiTelemetry = listAiTelemetry;
 exports.diagnoseAiModelPins = diagnoseAiModelPins;
 exports.getAiModelVersions = getAiModelVersions;

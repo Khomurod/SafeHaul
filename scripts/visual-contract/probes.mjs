@@ -19,6 +19,7 @@
  * downstream knows about the split.
  */
 import { SYSTEM_PROBES } from './probes-system.mjs';
+import { C2_PROBES } from './probes-c2.mjs';
 
 const COMPONENT_PROBES = [
     {
@@ -472,6 +473,6 @@ const COMPONENT_PROBES = [
 
 /**
  * One table, whatever it is spelled across. The checker asks for the probes
- * and gets all of them, in component-then-system order.
+ * and gets all of them, in component, system, then C2 order.
  */
-export const PROBES = [...COMPONENT_PROBES, ...SYSTEM_PROBES];
+export const PROBES = [...COMPONENT_PROBES, ...SYSTEM_PROBES, ...C2_PROBES];

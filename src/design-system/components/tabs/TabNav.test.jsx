@@ -63,8 +63,40 @@ describe('TabNav', () => {
       .toThrow(/requires an href/i);
   });
 
+  it('draws the segmented tray when asked, still links with aria-current', () => {
+    render(<TabNav ariaLabel="Record lists" items={ITEMS} currentId="mine" variant="segmented" />);
+
+    const list = within(screen.getByRole('navigation', { name: 'Record lists' })).getByRole('list');
+    expect(list).toHaveClass('ds-tab-list', 'ds-segmented-group');
+    expect(list).toHaveAttribute('data-variant', 'segmented');
+    // Three scopes in thirds on a phone.
+    expect(list).toHaveAttribute('data-phone-columns', '3');
+    expect(screen.getByRole('link', { name: 'Mine' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Mine' })).toHaveClass('ds-segmented-group__item');
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+
+  it('keeps the underlined strip by default', () => {
+    render(<TabNav ariaLabel="Record lists" items={ITEMS} currentId="mine" />);
+
+    const list = screen.getByRole('list');
+    expect(list).toHaveAttribute('data-variant', 'underline');
+    expect(list).not.toHaveClass('ds-segmented-group');
+  });
+
+  it('refuses a look it does not have', () => {
+    expect(() => render(<TabNav ariaLabel="Record lists" items={ITEMS} variant="pill" />))
+      .toThrow(/Unsupported TabNav variant: pill/);
+  });
+
   it('has no accessibility violations', async () => {
     const { container } = render(<TabNav ariaLabel="Record lists" items={ITEMS} currentId="all" />);
+
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it('has no accessibility violations as a segmented tray', async () => {
+    const { container } = render(<TabNav ariaLabel="Record lists" items={ITEMS} currentId="all" variant="segmented" />);
 
     expect((await axe(container)).violations).toEqual([]);
   });

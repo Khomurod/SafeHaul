@@ -35,7 +35,7 @@ const SECRET_ID_PATTERN = /^SAFEHAUL_AI_[A-Z0-9_]{1,80}$/;
 const CACHE_TTL_MS = 60 * 1000;
 const cache = new Map();
 
-/** `github-models` + `token` → `SAFEHAUL_AI_GITHUB_MODELS_TOKEN`. */
+/** `groq` + `apiKey` → `SAFEHAUL_AI_GROQ_APIKEY`. */
 function buildSecretId(providerId, fieldName) {
     const provider = requireProvider(providerId);
     const field = provider.secretFields.find((candidate) => candidate.name === fieldName);

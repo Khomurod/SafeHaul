@@ -306,3 +306,34 @@ describe('EnvelopeHistory — the signed copy in the details dialog', () => {
         expect(within(details).queryByText('Signed copy')).not.toBeInTheDocument();
     });
 });
+
+describe('EnvelopeHistory — the signed copy fits its row', () => {
+    it('gives the quick action the wider column while a listed document offers Send signed copy', () => {
+        const { container } = renderHistory();
+        emit([signed()]);
+        expect(sendAction()).toBeInTheDocument();
+        const actionsHeader = [...container.querySelectorAll('thead th')].find((th) => th.textContent.trim() === 'Actions');
+        expect(actionsHeader).toHaveAttribute('data-width', 'xl');
+    });
+
+    it('keeps the usual column when no document offers it', () => {
+        const { container } = renderHistory();
+        emit([signed({ status: 'sent' })]);
+        const actionsHeader = [...container.querySelectorAll('thead th')].find((th) => th.textContent.trim() === 'Actions');
+        expect(actionsHeader).toHaveAttribute('data-width', 'lg');
+    });
+});
+
+describe('SignedCopyStatus', () => {
+    it('breaks the address before its "@", never inside a word', async () => {
+        const { render } = await import('@testing-library/react');
+        const { SignedCopyStatus } = await import('./SignedCopy');
+        const { container } = render(
+            <SignedCopyStatus record={{ state: 'sent', sentTo: 'omar.haddad@example.test', sentAt: NOV_4 }} />,
+        );
+        const line = container.firstChild;
+        expect(line).toHaveTextContent('Copy sent to omar.haddad@example.test on Nov 4, 2026');
+        expect(line.innerHTML).toContain('omar.haddad<wbr>@example.test');
+        expect(line.className).not.toContain('anywhere');
+    });
+});

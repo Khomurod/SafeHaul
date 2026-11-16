@@ -1,7 +1,7 @@
 // After-application forms: enabled ids, ordering, the required default, and the
 // explicit-save contract. All templates below are artificial.
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApplicationFormsPanel } from './ApplicationFormsPanel';
@@ -146,5 +146,30 @@ describe('explicit save', () => {
     it('has no accessibility violations', async () => {
         const { container } = renderPanel();
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('one stacked section (C2)', () => {
+    it('is one region named by its heading, with Choose templates a sub-heading inside its card', () => {
+        renderPanel();
+        const section = screen.getByRole('region', { name: 'Forms shown after an application' });
+        expect(screen.getByRole('heading', { level: 2, name: 'Forms shown after an application' })).toBeInTheDocument();
+        expect(within(section).getByRole('heading', { level: 3, name: 'Choose templates' })).toBeInTheDocument();
+        expect(screen.getAllByRole('region')).toHaveLength(1);
+    });
+
+    it('puts Save forms in the card footer, after the checklist', () => {
+        renderPanel();
+        const save = screen.getByRole('button', { name: /Save forms/ });
+        expect(save.closest('.ds-form-section__footer')).toBeTruthy();
+        const lastCheckbox = screen.getByRole('checkbox', { name: 'W-9' });
+        expect(lastCheckbox.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('says changes are not live right under Choose templates, before the checklist', () => {
+        renderPanel();
+        const hint = screen.getByText('Changes are not live until you press “Save forms”.');
+        const heading = screen.getByRole('heading', { level: 3, name: 'Choose templates' });
+        expect(heading.nextElementSibling).toBe(hint);
     });
 });

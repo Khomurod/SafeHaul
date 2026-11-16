@@ -481,6 +481,20 @@ describe('useCampaignLists — E2E fixtures', () => {
         expect(result.current.sessions.hasMore).toBe(false);
     });
 
+    it('serves a campaign that failed part-way (e2eCampaignList=stopped)', async () => {
+        e2eParams.current = { e2eCampaign: 'mock', e2eCampaignList: 'stopped' };
+        const { result } = renderLists();
+
+        expect(fs.onSnapshot).not.toHaveBeenCalled();
+        expect(ids(result.current.drafts.items)).toEqual(['camp_e2e_seed']);
+        expect(ids(result.current.sessions.items)).toEqual(['session_e2e_stopped']);
+        expect(result.current.sessions.items[0]).toMatchObject({
+            status: 'failed',
+            progress: { processedCount: 250, totalCount: 406 },
+        });
+        expect(result.current.totalOutreach).toBe(250);
+    });
+
     it('ignores e2eCampaignList without the mock', () => {
         e2eParams.current = { e2eCampaignList: 'many' };
         renderLists();

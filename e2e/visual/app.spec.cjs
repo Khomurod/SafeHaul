@@ -86,17 +86,18 @@ const SCREENS = [
      * same applicant whatever row opens it), opened from the list on the
      * driver's name: on a phone the middle of a row is its call button. On a
      * phone, Close, the name on one line and the section strip stay put above
-     * the record. Each part that loads on its own is waited on: Do not text once
-     * the opt-out check is answered here, the DQ marker once its (empty) list
-     * arrives, and the Application tab's summary once the preserved record's
-     * read fails, as every read does in E2E mode.
+     * the record. Each part that loads on its own is waited on: Do not text (in
+     * the Summary's Contact card) once the opt-out check is answered here, the
+     * DQ marker once its (empty) list arrives, and the Application tab's
+     * summary, which it opens on.
      */
     {
         name: 'company-dossier-loaded',
         url: '/company/drivers/applications?e2eAuth=company_admin&e2eDossier=loaded',
         callables: { checkSmsOptOut: { listed: false } },
+        // The name, not the middle of the cell, which now holds the phone number's button.
         open: (page) => page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' })
-            .getByRole('rowheader').click(),
+            .getByRole('rowheader').getByText('Maria Garcia', { exact: true }).click(),
         ready: (page) => [
             page.getByRole('dialog', { name: 'Driver dossier' })
                 .getByRole('heading', { level: 2, name: 'Maximiliano Alejandro Castellanos-Whitfield' }),
@@ -108,8 +109,14 @@ const SCREENS = [
     {
         name: 'company-settings',
         url: '/company/settings?e2eAuth=company_admin',
-        // Company profile beside the rail; on a phone, the menu of sections.
-        ready: (page) => page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ }),
+        // The menu of sections, at every width.
+        ready: (page) => page.getByRole('heading', { level: 1, name: 'Settings' }),
+    },
+    {
+        name: 'company-settings-profile',
+        url: '/company/settings?section=company&e2eAuth=company_admin',
+        // Company profile beside the rail; on a phone, with its way back to the menu.
+        ready: (page) => page.getByRole('heading', { level: 1, name: 'Company profile' }),
     },
     {
         name: 'company-profile',
@@ -163,7 +170,7 @@ const SCREENS = [
         url: '/company/settings?section=sms&e2eAuth=company_admin',
         callables: { listSmsOptOuts: SMS_OPT_OUTS },
         ready: (page) => [
-            page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ }),
+            page.getByRole('heading', { level: 3, name: /^Connect RingCentral/ }),
             page.getByRole('button', { name: 'Remove (555) 555-0199' }),
         ],
     },

@@ -8,11 +8,13 @@ import { MAX_PEV_COPIES } from '@features/company-admin/utils/pevCopies';
  * and the recruiter may change it for one request.
  *
  * Settings → Email holds the list (`usePevCopiesDraft`) and saves it with the
- * page's one Save; this draws the field.
+ * page's one Save; this draws the field, its section explained beside it as
+ * the page's other sections are.
  */
 export function PevCopiesSection({ text, error, onChange }) {
     return (
         <FormSection
+            layout="aside"
             title="Employment Verification Copies"
             description="People on your team who get a copy (CC) of every previous employment verification request. They receive the same email as the employer, including the response link."
         >

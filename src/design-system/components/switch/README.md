@@ -13,6 +13,12 @@ it moves.
 Getting this backwards produces either a control that announces a state it has
 not reached yet, or a form field that saves behind the user's back.
 
+## How it looks
+
+Off, a grey track (`--ds-color-border`) with the white thumb at the start; on,
+the tone's colour with the thumb at the end, so the state never rests on colour
+alone. 44 × 24px: a 24px target is the smallest WCAG 2.5.8 allows.
+
 ## Rules the tests pin
 
 - **`label` is required** and is the accessible name. In a matrix, name *both*

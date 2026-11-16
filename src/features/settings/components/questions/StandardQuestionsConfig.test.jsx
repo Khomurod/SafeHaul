@@ -128,9 +128,26 @@ describe('StandardQuestionsConfig', () => {
         expect(within(ssnRow).getByRole('switch', { name: 'Hide Social Security Number' })).toBeInTheDocument();
     });
 
+    it('puts each switch before its word on a phone card, the word for the eye only', () => {
+        render(<StandardQuestionsConfig config={{}} onChange={vi.fn()} />);
+        const ssnRow = screen.getByRole('rowheader', { name: 'Social Security Number' }).closest('tr');
+        const require = within(ssnRow).getByRole('switch', { name: 'Require Social Security Number' });
+        const word = require.nextElementSibling;
+        expect(word).toHaveTextContent('Required');
+        expect(word).toHaveAttribute('aria-hidden', 'true');
+        // No label drawn before the switch: the word after it says it.
+        expect(require.closest('td')).not.toHaveAttribute('data-mobile-label');
+        const hide = within(ssnRow).getByRole('switch', { name: 'Hide Social Security Number' });
+        expect(hide.nextElementSibling).toHaveTextContent('Hidden');
+        expect(hide.closest('td')).not.toHaveAttribute('data-mobile-label');
+    });
+
     it('keeps the compliance note', () => {
         render(<StandardQuestionsConfig config={{}} onChange={vi.fn()} />);
-        expect(screen.getByText(/may make your application non-compliant/i)).toBeInTheDocument();
+        // The note is the table card's last row: "non-compliant." is kept on one line.
+        const note = screen.getByText('Note:').closest('.ds-notice');
+        expect(note).toHaveAttribute('data-frame', 'flush');
+        expect(note).toHaveTextContent(/may make your application non-compliant\./i);
     });
 
     it('has no accessibility violations', async () => {

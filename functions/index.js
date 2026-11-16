@@ -299,7 +299,6 @@ function exportFunctions(wanted) {
   if (wanted('checkAiModelVersionsNow')) exports.checkAiModelVersionsNow = require('./ai/callables').checkAiModelVersionsNow;
   if (wanted('setAiModelAutoSelect')) exports.setAiModelAutoSelect = require('./ai/callables').setAiModelAutoSelect;
   if (wanted('resetAiModelLists')) exports.resetAiModelLists = require('./ai/callables').resetAiModelLists;
-  if (wanted('migrateGroqCredential')) exports.migrateGroqCredential = require('./ai/callables').migrateGroqCredential;
   // Credential access is diagnosed from BOTH Functions generations on purpose:
   // 1st gen defaults to the App Engine service account and 2nd gen to the Compute
   // Engine one, so a Secret Manager grant can fix some AI entry points and not

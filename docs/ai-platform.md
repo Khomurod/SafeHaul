@@ -10,9 +10,9 @@ No feature talks to a vendor directly, and
 - [Provider registry](#provider-registry)
 - [Capability matrix](#capability-matrix)
 - [Fallback order and behaviour](#fallback-order-and-behaviour)
-- [GitHub Models is retired](#github-models-is-retired)
+- [GitHub Models was removed](#github-models-was-removed)
 - [Credential storage](#credential-storage)
-- [Groq migration](#groq-migration)
+- [Groq's key](#groqs-key)
 - [Current AI call sites](#current-ai-call-sites)
 - [Super Admin operation](#super-admin-operation)
 - [Adding or removing a provider](#adding-or-removing-a-provider)
@@ -91,7 +91,6 @@ Three properties make it load-bearing rather than decorative:
 | Groq | ✅ | ✅ | ✅ | ✅ (max 3) | ✅ | Responses `json_schema`, images included |
 | Google Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | Interactions `response_format` |
 | Cloudflare Workers AI | ✅ | ✅ | — | — | — | prompt-carried |
-| GitHub Models | ✅ | ✅ | — | — | — | *retired — never selected* |
 | Mistral | ✅ | ✅ | ✅ | ✅ | ✅ | OpenAI `json_schema` |
 | Cerebras | ✅ | ✅ | — | — | ✅ | OpenAI `json_schema` |
 | SambaNova | ✅ | ✅ | — | — | ✅ | OpenAI `json_object` |
@@ -330,7 +329,7 @@ of its lanes (`laneHealth`, begun at `laneFailedAt`; a 429 is not one), then at 
 while the last check still finds the lane failing (only the router's own
 answers reset `laneHealth`). Only enabled, configured (required settings and
 readable credentials, the router's own test: `missingRequiredConfig`,
-`credentialReadiness`), unretired providers, only the lanes they already
+`credentialReadiness`) providers, only the lanes they already
 serve, and never a lane an operator chose a model for by hand.
 
 For each lane (`ai/tasks/modelCheck.js`):
@@ -404,12 +403,11 @@ The **default** order, derived from `priority` so it lives in one place:
 1. Google Gemini
 2. Groq
 3. Cloudflare Workers AI
-4. GitHub Models *(retired — always skipped)*
-5. Mistral
-6. Cerebras
-7. SambaNova
-8. OpenRouter
-9. Hugging Face
+4. Mistral
+5. Cerebras
+6. SambaNova
+7. OpenRouter
+8. Hugging Face
 
 Gemini leads and Groq is the fallback. The original brief specified Groq first;
 the owner reversed it on 2026-08-03 after measurement — on the free tiers Groq's
@@ -423,7 +421,7 @@ Since 2026-08-08 that list is the default rather than necessarily the effective
 order. A Super Admin can reorder providers from **Super Admin → AI
 Integrations**, and the chosen order is stored in the server-only Firestore
 document `ai_routing_config/order` as a single `providerIds` array — one
-document, so a reorder is one atomic write rather than nine.
+document, so a reorder is one atomic write rather than one per provider.
 
 `functions/ai/router/order.js` applies it, and its contract is what makes it
 safe to put in front of every AI request:
@@ -455,7 +453,7 @@ provider, plus a `routing.lanes` summary from the router's own
 skipped for a given kind of task rather than only showing a number.
 
 For each request the router determines the required capability, then walks the
-effective order, skipping any provider that is retired, incapable, disabled,
+effective order, skipping any provider that is incapable, disabled,
 missing a credential, missing a required non-secret setting, in cooldown, or has
 no resolvable model. The first response that passes schema validation wins.
 
@@ -670,20 +668,20 @@ entitlements. So health and the failure counter are now per lane (`text`,
 and the console shows a badge per lane. Quota and rate-limit cooldowns stay
 provider-wide, because a vendor allowance is account-wide.
 
-## GitHub Models is retired
+## GitHub Models was removed
 
 GitHub retired GitHub Models on **2026-07-30**: the playground, model catalogue,
 inference API and bring-your-own-key access were withdrawn from all customers
 ([changelog](https://github.blog/changelog/2026-07-30-github-models-is-now-retired/)).
+SafeHaul removed it: it has no registry row, adapter, model list or credential
+slot, and there is no "retired provider" state any more.
 
-The registry row is kept so the documented fallback order keeps its shape and so
-the console can explain the gap, but the provider can never be selected,
-configured or enabled. The router filters retired providers before eligibility;
-the adapter throws as a backstop; `saveAiCredential` refuses it; the console
-shows "Retired by vendor" with the reason and offers no actions.
-
-If GitHub ever restores an inference API, clearing the `retired` field on the
-row re-enables it. Nothing else needs to change.
+What Firestore stored while it was listed is ignored, never an error: the
+`ai_provider_config/github-models` document is not read, a saved routing order
+naming `github-models` skips the id (`orderProviders`), a stale screen that
+submits it in an order is refused like any unknown id, and logs from before the
+removal still show its skipped turn (as "passed over"). Bringing it back would
+be [adding a provider](#adding-or-removing-a-provider).
 
 ## Gemini: the Interactions API shapes, and how they were got wrong
 
@@ -829,54 +827,25 @@ the entire functions deploy, so adding a tenth provider would otherwise break CI
 until someone created its secret; and a new or rotated credential takes effect
 within the 60-second in-process cache instead of needing a redeploy.
 
-## Groq migration
+## Groq's key
 
-`GROQ_API_KEY` was the original deploy-time binding and is still used by working
-production features. The migration is deliberately reversible.
+Groq's key is `SAFEHAUL_AI_GROQ_APIKEY` in Secret Manager, managed from AI
+Integrations like every other provider's. Secret Manager is the only source:
+`resolveCredentials` and a reveal read nothing else, so a missing Groq key reads
+as unconfigured and an unreadable one as `credential_error`.
 
-1. On first deploy, nothing changes behaviourally: `resolveCredentials` prefers
-   the managed credential and falls back to the legacy binding, so CDL and E-Doc
-   parsing keep working before anyone migrates anything.
+The original deploy-time binding, `GROQ_API_KEY`, and the one-time **Migrate
+legacy key** step that copied it into Secret Manager are gone (owner decision
+К7, once AI Integrations showed Groq on its managed key and **Test connection**
+passed). No function binds or reads `GROQ_API_KEY`, and Environment &
+Integrations no longer lists it. The `migrateGroqCredential` callable is in
+`scripts/retire-functions.mjs`, so the first promotion after this change
+deletes it from Cloud Functions; the Production release `79bdaef` still has the
+button, but shows it only when the server reports Groq on `legacy-env`, which it
+no longer does.
 
-   The fallback covers a **failed** managed read as well as an absent secret.
-   That was the gap: `readSecret` re-throws anything that is not NOT_FOUND, so a
-   `PERMISSION_DENIED` threw before the fallback branch was ever reached — the
-   rollback path did not protect production in the one failure mode it exists
-   for. A fallback taken after a read failure reports
-   `source: 'legacy-env-after-read-failure'`, and the console says so, because
-   running on the legacy binding *because the managed read is broken* is a
-   different situation from not having migrated yet. `store.legacyCredential`
-   alone decides when the binding counts; the router, the provider list and a
-   reveal all ask it.
-2. AI Integrations shows Groq as configured, with "Using the legacy deploy
-   binding, not the managed credential."
-3. **Migrate legacy key** copies the token into Secret Manager entirely
-   server-side. The token is never returned to the browser, never logged, and
-   never placed in a response — an operator can migrate without ever seeing it.
-4. The migration verifies the new credential against Groq before reporting
-   success. A migration that silently wrote a stale value would look fine right
-   up until the next driver tried to auto-fill a licence.
-5. The old binding is **left in place**. That is the rollback path and it needs
-   no code change: destroy the managed credential and the router falls back.
-6. The migration is idempotent — run twice, it reports `alreadyManaged`.
-
-### Final cleanup, after production verification
-
-Only once AI Integrations shows Groq on `secret-manager`, a connection test
-passes, and CDL auto-fill and the AI Field Assistant have been exercised in
-production:
-
-1. Remove `'GROQ_API_KEY'` from the `secrets` arrays in `functions/cdlParser.js`,
-   `functions/ai/callables.js`, `functions/blog/scheduler.js` and
-   `functions/blog/callables.js`.
-2. Remove the legacy branch in `functions/ai/credentials/store.js`
-   (`resolveCredentials` and `revealCredential`).
-3. Remove the `GROQ_API_KEY` row from `functions/environmentVault/registry.js`
-   and its entry in `functions/test/unit/environmentRegistry.inventory.test.js`.
-4. Delete the `GROQ_API_KEY` secret in Secret Manager.
-5. Deploy, then re-verify both AI features.
-
-Do not perform steps 1–4 in the same change as the migration itself.
+The `GROQ_API_KEY` secret itself still exists in Secret Manager, unused.
+Deleting it is a separate owner decision.
 
 ## Current AI call sites
 
@@ -918,7 +887,7 @@ knowledge package, and never driver, applicant, employee or company-private data
 
 ## Super Admin operation
 
-**Super Admin → AI Integrations** lists all nine providers in fallback order
+**Super Admin → AI Integrations** lists every provider in fallback order
 with status, capabilities, masked credentials, resolved models, per-lane health,
 last test — including the stored per-capability results, so a reload no longer
 reduces them to a bare *Failed* — cooldown state and actions. A separated
@@ -970,8 +939,10 @@ To add one:
 Nothing else changes. The environment-vault inventory row, the console row, the
 capability gating and the fallback position are all derived.
 
-To remove one: delete the row and the adapter, or — if the vendor withdrew the
-service — set `retired` instead, which keeps the documented order legible.
+To remove one: delete its row, its `modelVersions.js` lists and its adapter,
+and close the gap in `priority`. Stored data naming it is then skipped, not an
+error (see [GitHub Models was removed](#github-models-was-removed)); its Secret
+Manager secret is left for the owner to delete.
 
 ## Telemetry and the Logs tab
 
@@ -1205,11 +1176,11 @@ retrying into the limit. "A test that did not finish is not a pass" still holds 
 | `functions/test/unit/aiTelemetry.test.js` | Transaction shape, attempt cap, the allowlist at both levels, vendor-code validation, and explicit refusal to record prompts, images, credentials or extracted fields |
 | `functions/test/unit/aiTelemetryIndexes.test.js` | Composite indexes read out of the real query chain, and the TTL policy |
 | `functions/test/unit/aiHealthCheck.*.test.js` | Capability probes, including failing correctly: schema rejected while text works, retired vision model, an image ignored, a rubber-stamped claim (`probes`); model pins and throttled diagnostics (`pins`); stored results, a provider put back in use, secrecy (`results`) |
-| `functions/test/unit/aiProviders.*.test.js` | All nine adapters: endpoint, auth header, structured mode, response envelope, HTTP classification, timeout, path-traversal refusal |
-| `functions/test/unit/aiCredentials.*.test.js` | Secret naming, namespace refusal, lifecycle, legacy fallback, every callable's authorization, audit records, Groq migration |
+| `functions/test/unit/aiProviders.*.test.js` | Every adapter: endpoint, auth header, structured mode, response envelope, HTTP classification, timeout, path-traversal refusal |
+| `functions/test/unit/aiCredentials.*.test.js` | Secret naming, namespace refusal, lifecycle, Secret Manager as the only source, every callable's authorization, audit records |
 | `functions/test/unit/cdlParser.test.js` | Callable contract preserved, guards ordered before AI spend, error mapping, log privacy |
 | `functions/test/unit/edocFieldPlacement.test.js` | Callable contract preserved, clamping, dedup, category mapping, log privacy |
-| `src/features/super-admin/views/AiIntegrationsView.contract.*.test.jsx` | Masking, one-at-a-time reveal, 30-second clear, no plaintext in DOM or storage, retired provider, re-authentication, typed delete |
+| `src/features/super-admin/views/AiIntegrationsView.contract.*.test.jsx` | Masking, one-at-a-time reveal, 30-second clear, no plaintext in DOM or storage, re-authentication, typed delete |
 | `functions/test/unit/aiCredentialAccess.test.js` | The diagnostic: per-secret exists/readable, gRPC status mapping, `exists: null` when a check is refused, the runtime account read from the metadata server, and that no credential value is ever returned or logged |
 | `functions/test/unit/aiCredentialAccessV1.test.js` | The 1st-generation entry point, and that its error codes are translated rather than flattened to `internal` |
 
@@ -1281,8 +1252,7 @@ owner. **The feature is not fully live until they are.**
 
 4. **Provider credentials.** No AI provider ships with a key. Until at least one
    capable provider is configured in AI Integrations, AI features return
-   `failed-precondition` and the blog publishes nothing. Groq is covered by the
-   legacy binding until migrated.
+   `failed-precondition` and the blog publishes nothing.
 
 5. **Media credentials (optional).** Without Pexels or Unsplash, articles use
    the approved local fallback image. Openverse works without a credential.

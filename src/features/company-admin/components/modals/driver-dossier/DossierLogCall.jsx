@@ -24,12 +24,7 @@ export function DossierLogCall({ companyId, recordId, record, collectionName = n
 
     return (
         <>
-            <Button
-                variant="secondary"
-                fullWidth
-                className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
-                onClick={() => setOpen(true)}
-            >
+            <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
                 {/* Inside `Button`, whose `.ds-button__content > svg` rule owns the size. */}
                 <Icon icon={ClipboardList} />
                 <span>Log call</span>

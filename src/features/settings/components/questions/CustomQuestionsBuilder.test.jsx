@@ -63,7 +63,11 @@ describe('CustomQuestionsBuilder', () => {
     it('appends additional questions and reports the count', () => {
         const onChangeSpy = vi.fn();
         render(<Harness initial={[{ ...INITIAL_QUESTION_STATE, id: 'a', label: 'First' }]} onChangeSpy={onChangeSpy} />);
-        expect(screen.getByText('1 questions added')).toBeInTheDocument();
+        // The count is a pill beside the heading, read with its words; a polite status.
+        const count = screen.getByText(/questions added/).parentElement;
+        expect(count).toHaveTextContent('1 questions added');
+        expect(count).toHaveAttribute('role', 'status');
+        expect(screen.getByRole('heading', { level: 2, name: 'Custom Questions' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /^Add Question$/i }));
         const appended = onChangeSpy.mock.calls[0][0];

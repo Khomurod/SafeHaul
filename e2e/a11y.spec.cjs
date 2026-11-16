@@ -227,8 +227,9 @@ test.describe('@a11y migrated design-system surfaces', () => {
         // The arrow keys move AND select, and focus follows.
         await selected.focus();
         await page.keyboard.press('ArrowRight');
-        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Sent Documents');
-        await expect(page.locator(':focus')).toHaveAccessibleName('Sent Documents');
+        // The tab carries its count ("Sent Documents 6") once the list has loaded.
+        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName(/^Sent Documents(?: \d+)?$/);
+        await expect(page.locator(':focus')).toHaveAccessibleName(/^Sent Documents(?: \d+)?$/);
         await page.keyboard.press('End');
         await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('After-application forms');
         await page.keyboard.press('Home');

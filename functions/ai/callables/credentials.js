@@ -1,15 +1,13 @@
 /**
- * Reading a credential back, diagnosing why one cannot be read, and the
- * one-time Groq migration.
+ * Reading a credential back, and diagnosing why one cannot be read.
  *
  * Part of the AI Integrations callable surface. `onCall`, `HttpsError` and the
  * shared options and guards come from `./options` — see the note there about
- * why the `firebase-functions/v2` import lives beside the `secrets:` literal.
+ * why the `firebase-functions/v2` import lives beside the options.
  */
 
 const {
-    HttpsError, callableOptions, onCall, requireCredentialField, requireRegisteredProvider,
-    safeFailure,
+    callableOptions, onCall, requireCredentialField, requireRegisteredProvider, safeFailure,
 } = require('./options');
 
 const {
@@ -18,7 +16,6 @@ const {
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../../environmentVault/audit');
 const { buildSecretId } = require('../credentials/secretManager');
 const store = require('../credentials/store');
-const { testProviderConnection } = require('../tasks/healthCheck');
 const { diagnoseCredentialAccess } = require('../tasks/credentialAccess');
 // ---------------------------------------------------------------------------
 // Reveal — exactly one credential, per request
@@ -31,7 +28,7 @@ exports.revealAiCredential = onCall(callableOptions, async (request) => {
     await guardPrivileged(request, 'reveal', ACTIONS.REVEAL, { providerId, field: fieldName });
 
     try {
-        const provider = requireRegisteredProvider(providerId, 'read');
+        const provider = requireRegisteredProvider(providerId);
         const field = requireCredentialField(provider, fieldName);
         const revealed = await store.revealCredential(provider.id, field.name);
 
@@ -117,83 +114,5 @@ exports.diagnoseAiCredentialAccess = onCall(callableOptions, async (request) => 
         return report;
     } catch (error) {
         return safeFailure(error, 'diagnoseAiCredentialAccess');
-    }
-});
-
-// ---------------------------------------------------------------------------
-// Groq credential migration
-// ---------------------------------------------------------------------------
-
-/**
- * Copies the legacy `GROQ_API_KEY` deploy binding into the managed credential
- * store, entirely server-side.
- *
- * The token is read from the function's own runtime environment and written
- * straight to Secret Manager. It is never returned to the browser, never
- * placed in a response, and never logged — an operator can migrate without
- * ever seeing the value, and revealing it stays a separate, separately-audited
- * action.
- *
- * The old binding is deliberately left in place. `resolveCredentials` prefers
- * the managed credential and falls back to the legacy one, so until an
- * operator removes the binding there is a working rollback path that needs no
- * code change. `docs/ai-platform.md` documents the final cleanup.
- */
-exports.migrateGroqCredential = onCall(callableOptions, async (request) => {
-    await guardPrivileged(request, 'mutate', ACTIONS.ADD, { providerId: 'groq' });
-
-    try {
-        const provider = requireRegisteredProvider('groq');
-        const legacyValue = process.env.GROQ_API_KEY;
-
-        if (!legacyValue || !legacyValue.trim()) {
-            throw new HttpsError('failed-precondition', 'There is no legacy Groq binding on this runtime to migrate.');
-        }
-
-        const existing = await store.readCredentials('groq').catch(() => ({ values: {} }));
-        if (existing.values?.apiKey) {
-            return {
-                providerId: 'groq',
-                migrated: false,
-                alreadyManaged: true,
-                verified: null,
-                message: 'Groq already has a managed credential. Replace it directly if you need to change it.',
-            };
-        }
-
-        const saved = await store.saveCredential('groq', 'apiKey', legacyValue.trim());
-
-        // Verify against Groq before declaring the migration good. A migration
-        // that silently wrote a stale or truncated value would look successful
-        // right up until the next driver tried to auto-fill a licence.
-        const verification = await testProviderConnection('groq');
-
-        await recordAuditEvent({
-            auth: request.auth,
-            action: ACTIONS.ADD,
-            result: verification.success ? RESULTS.SUCCESS : RESULTS.FAILED,
-            metadata: {
-                providerId: 'groq',
-                field: 'apiKey',
-                key: saved.secretId,
-                integration: `${provider.displayName} (AI)`,
-                sensitivity: 'critical',
-                valueLength: saved.valueLength,
-                reason: verification.success ? 'migrated-and-verified' : `verification-${verification.category}`,
-            },
-        });
-
-        return {
-            providerId: 'groq',
-            migrated: true,
-            alreadyManaged: false,
-            verified: verification.success,
-            // Safe category text only.
-            message: verification.success
-                ? 'Groq credential migrated to Secret Manager and verified. The legacy binding is retained as a rollback path.'
-                : `Credential migrated, but verification failed: ${verification.message} The legacy binding is still active.`,
-        };
-    } catch (error) {
-        return safeFailure(error, 'migrateGroqCredential');
     }
 });

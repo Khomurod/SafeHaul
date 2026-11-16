@@ -189,10 +189,6 @@ describe('environment registry — coverage of each required area', () => {
             'FACEBOOK_APP_ID',
             'FACEBOOK_APP_SECRET',
             'FACEBOOK_VERIFY_TOKEN',
-            // Retained as the rollback path for the AI credential migration.
-            // The shared router reads it only when SAFEHAUL_AI_GROQ_APIKEY is
-            // absent; see docs/ai-platform.md.
-            'GROQ_API_KEY',
             'PROCESS_BULK_BATCH_URL',
             // The GitHub App the Super Admin Release Management screen uses to
             // start a production promotion. Inventoried like every other
@@ -220,8 +216,8 @@ describe('environment registry — coverage of each required area', () => {
         ));
 
         expect([...registered].sort()).toEqual([...expected].sort());
-        // Nine supported providers, each with at least one credential field.
-        expect(AI_PROVIDERS).toHaveLength(9);
+        // Eight supported providers, each with at least one credential field.
+        expect(AI_PROVIDERS).toHaveLength(8);
     });
 
     it('keeps AI credentials read-only in this console, since AI Integrations owns them', () => {

@@ -90,6 +90,19 @@ describe('who may call', () => {
         expect(mockCheckRateLimit).toHaveBeenLastCalledWith(`api_key_${keyId}`, 60, 60, 'closed');
     });
 
+    it("limits and records the address Google's front end saw, not the first X-Forwarded-For entry", async () => {
+        const { key } = support.seedKey('co-a');
+        for (const spoofed of ['6.6.6.6', '7.7.7.7']) {
+            // The caller writes that first entry, and Express's `req.ip` is it.
+            const req = support.request({ path: '/v1/key', key, ip: spoofed });
+            req.headers['x-forwarded-for'] = `${spoofed}, 203.0.113.7`;
+            await handleRequest(req, support.response());
+        }
+        const addressKeys = mockCheckRateLimit.mock.calls.map(([name]) => name).filter((name) => name.startsWith('api_addr_'));
+        expect(addressKeys).toEqual(['api_addr_203.0.113.7', 'api_addr_203.0.113.7']);
+        expect(support.auditRecords().map((record) => record.address)).toEqual(['203.0.113.7', '203.0.113.7']);
+    });
+
     it('answers with no CORS header and nothing cached', async () => {
         const { key } = support.seedKey('co-a');
         const res = await get('/v1/key', { key });

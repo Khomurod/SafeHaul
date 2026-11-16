@@ -50,26 +50,10 @@ const huggingfaceAdapter = createOpenAiCompatibleAdapter({
     buildHeaders: bearer('apiKey'),
 });
 
-/**
- * GitHub retired Models on 2026-07-30. The adapter is kept so the registry row
- * has a partner and so restoring the provider would be a one-line change, but
- * it refuses to run: the router already filters retired providers out, and
- * this is the backstop if a future caller bypasses that filter.
- */
-const githubModelsAdapter = {
-    id: 'githubModels',
-    async execute({ provider }) {
-        throw new AiError('provider_unavailable', 'GitHub Models was retired on 2026-07-30.', {
-            providerId: provider?.id || 'github-models',
-        });
-    },
-};
-
 const ADAPTERS = Object.freeze({
     groq: groqAdapter,
     gemini: geminiAdapter,
     cloudflare: cloudflareAdapter,
-    githubModels: githubModelsAdapter,
     mistral: mistralAdapter,
     cerebras: cerebrasAdapter,
     sambanova: sambanovaAdapter,

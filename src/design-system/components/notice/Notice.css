@@ -139,3 +139,21 @@
   outline-offset: 2px;
   box-shadow: var(--ds-focus-ring);
 }
+
+/*
+ * `frame="flush"`: a row of a card, under the rows it is about. No side or
+ * bottom border and no radius — a rule in the tone's border colour across the
+ * top is the whole frame — and the card's own inset at the sides, so its words
+ * line up with the rows above. As the LAST row its bottom corners follow the
+ * card's inner curve, so the tint never shows outside a card that does not clip
+ * (a `FormSection` card does not: it would cut off a field's popover).
+ */
+.ds-notice[data-frame='flush'] {
+  border-width: 1px 0 0;
+  border-radius: 0;
+  padding: var(--ds-space-3) var(--ds-card-padding);
+}
+
+.ds-notice[data-frame='flush']:last-child {
+  border-radius: 0 0 calc(var(--ds-card-radius) - 1px) calc(var(--ds-card-radius) - 1px);
+}

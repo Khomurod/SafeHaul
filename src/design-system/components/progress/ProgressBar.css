@@ -9,7 +9,7 @@
 .ds-progress__fill {
   height: 100%;
   border-radius: var(--ds-radius-full);
-  background: var(--ds-color-action-primary);
+  background: var(--ds-color-progress);
   transition: width var(--ds-duration-slow) var(--ds-ease-standard);
 }
 

@@ -225,8 +225,8 @@ describe('DossierSidebar contact actions', () => {
   });
 });
 
-describe('DossierSidebar key facts (what matters, seen at once)', () => {
-  it('shows the phone and email as text under Call and Email, with the day and the last call', () => {
+describe('DossierSidebar contact (the owner\'s choice: Call and Email only)', () => {
+  it('keeps Call and Email, and leaves the phone, email, day and last call to the Summary\'s Contact card', () => {
     renderSidebar({
       appData: {
         ...baseProps().appData,
@@ -235,14 +235,11 @@ describe('DossierSidebar key facts (what matters, seen at once)', () => {
       },
       collectionName: 'applications',
     });
-    const valueOf = (label) => screen.getByText(label, { selector: 'dt' }).nextElementSibling;
-
-    expect(valueOf('Phone')).toHaveTextContent('(512) 555-1234');
-    expect(valueOf('Email')).toHaveTextContent('maria@example.com');
-    expect(valueOf('Applied')).toHaveTextContent(/2026/);
-    expect(valueOf('Last call')).toHaveTextContent('No Answer');
-    // Text, not a second dialler or mail link.
     expect(screen.getAllByRole('link')).toHaveLength(2);
+    for (const label of ['Phone', 'Email', 'Applied', 'Last call']) {
+      expect(screen.queryByText(label, { selector: 'dt' })).toBeNull();
+    }
+    expect(screen.queryByText('No Answer')).toBeNull();
   });
 });
 

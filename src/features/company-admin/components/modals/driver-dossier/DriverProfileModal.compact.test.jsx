@@ -135,15 +135,17 @@ describe('the dossier on a phone', () => {
     expect(precedes(close, tablist) && precedes(tablist, panel)).toBe(true);
     expect(panel).toHaveClass('overflow-y-auto', 'flex-1', 'min-h-0');
 
-    // Inside, in reading order: the driver's details, the section header, the section.
+    // Inside, in reading order: Call, Log call and Email, the section header,
+    // the section. The phone, email and last call are the Summary's Contact
+    // card now, not the column's.
     const call = within(panel).getByRole('link', { name: /call/i });
-    const phone = within(panel).getByText('Phone', { selector: 'dt' });
     const title = within(panel).getByRole('heading', { level: 3, name: 'Application' });
     const status = within(panel).getByRole('combobox', { name: /status/i });
     const remove = within(panel).getByRole('button', { name: 'Delete application' });
     const content = within(panel).getByTestId('content');
-    expect(precedes(call, phone) && precedes(phone, title) && precedes(title, status)).toBe(true);
+    expect(precedes(call, title) && precedes(title, status)).toBe(true);
     expect(precedes(remove, content)).toBe(true);
+    expect(within(panel).queryByText('Phone', { selector: 'dt' })).toBeNull();
   });
 
   it('opens with focus on the tab panel, at the top of what scrolls', () => {

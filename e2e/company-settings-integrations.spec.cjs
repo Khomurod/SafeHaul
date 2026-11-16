@@ -62,13 +62,13 @@ test.describe('Company Settings Integrations', () => {
     await expect(page.getByText(/Tenstreet|Driver Pulse/)).toHaveCount(0);
   });
 
-  test('is hidden, and its address opens Company profile, unless Facebook leads is switched on', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.startsWith('mobile'), 'Beside the rail from 768px up; a phone opens its menu.');
+  test('is hidden, and its address opens the menu of sections, unless Facebook leads is switched on', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'The same menu at every width; checked once, wide.');
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/company/settings?e2eAuth=company_admin&section=integrations');
-    await expect(page.getByRole('heading', { level: 1, name: 'Company profile' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Facebook leads', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'API keys', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Facebook leads/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^API keys / })).toBeVisible();
   });
 
   test('shows a reachable, named Connect Facebook control, enabled once the SDK has loaded', async ({ page }) => {
