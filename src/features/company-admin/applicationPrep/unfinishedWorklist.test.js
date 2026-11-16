@@ -14,7 +14,9 @@ import {
     matchesSearch,
     progressOf,
     removalOf,
+    statusDetailsOf,
     visibleRows,
+    worklistLayoutOf,
 } from './unfinishedWorklist';
 import { STEP_LABELS } from './unfinishedRowActions';
 
@@ -101,11 +103,21 @@ describe('when it last moved', () => {
     });
 
     it('says when a carrier’s link went, and only while it waits for the driver', () => {
-        expect(describeSent({ ...SENT, invitedAt: ago(3 * DAY) }, NOW)).toBe('sent 3 days ago');
-        expect(describeSent({ ...SENT, invitedAt: ago(HOUR) }, NOW)).toBe('sent today');
+        expect(describeSent({ ...SENT, invitedAt: ago(3 * DAY) }, NOW)).toBe('Sent 3 days ago');
+        expect(describeSent({ ...SENT, invitedAt: ago(HOUR) }, NOW)).toBe('Sent today');
         expect(describeSent({ ...TAKEN_OVER, invitedAt: ago(3 * DAY) }, NOW)).toBeNull();
         expect(describeSent({ ...DRIVER, invitedAt: ago(3 * DAY) }, NOW)).toBeNull();
         expect(describeSent(SENT, NOW)).toBeNull();
+    });
+
+    it('adds to a carrier’s status who prepared it, when its link went and what it locked, a line each', () => {
+        const row = { preparedByName: 'Rae Recruiter', lockedEmployersLabel: '1 employer locked' };
+        expect(statusDetailsOf({ ...SENT, invitedAt: ago(3 * DAY) }, row, NOW))
+            .toEqual(['Prepared by Rae Recruiter', 'Sent 3 days ago', '1 employer locked']);
+        expect(statusDetailsOf(PREPARED, { preparedByName: 'Sam Sourcer', lockedEmployersLabel: null }, NOW))
+            .toEqual(['Prepared by Sam Sourcer']);
+        // A driver's own row adds nothing.
+        expect(statusDetailsOf(DRIVER, { preparedByName: null, lockedEmployersLabel: null }, NOW)).toEqual([]);
     });
 });
 
@@ -229,3 +241,37 @@ describe('the filters', () => {
         expect(keys(visibleRows(minted, { filter: 'quiet', query: 'starter', now: NOW, keepKey: 'f' }))).toEqual(['e']);
     });
 });
+
+/**
+ * The table's shape by the room its box has: Last activity gets its own column
+ * only where every action still fits beside it, and How far they got and Status
+ * widen, in that order, as room allows.
+ */
+describe('the table layout', () => {
+    it('folds Last activity under the status until the box holds every column', () => {
+        expect(worklistLayoutOf(1067)).toEqual({ shape: 'fold', progress: 'lg', status: 'lg' });
+        expect(worklistLayoutOf(1068)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
+    });
+
+    it('holds every column on one line at 1440px beside the menu, as C2 draws it', () => {
+        // A 1440px window, with no scrollbar taking room: a 1102px box.
+        expect(worklistLayoutOf(1102)).toEqual({ shape: 'full', progress: 'lg', status: 'lg' });
+        expect(worklistLayoutOf(1100)).toEqual({ shape: 'full', progress: 'lg', status: 'lg' });
+        expect(worklistLayoutOf(1099)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
+    });
+
+    it('widens How far they got when the folded table has room', () => {
+        expect(worklistLayoutOf(943)).toEqual({ shape: 'fold', progress: 'md', status: 'lg' });
+        expect(worklistLayoutOf(944)).toEqual({ shape: 'fold', progress: 'lg', status: 'lg' });
+    });
+
+    it('keeps the narrow widths where the table scrolls in its card', () => {
+        expect(worklistLayoutOf(686)).toEqual({ shape: 'fold', progress: 'md', status: 'lg' });
+    });
+
+    it('follows the window until the box is measured', () => {
+        expect(worklistLayoutOf(0)).toEqual({ shape: 'full', progress: 'md', status: 'lg' });
+        expect(worklistLayoutOf(0, { foldByWindow: true })).toEqual({ shape: 'fold', progress: 'md', status: 'lg' });
+    });
+});
+

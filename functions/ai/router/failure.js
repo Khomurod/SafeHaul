@@ -81,7 +81,7 @@ function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) 
     }
 
     const onlyIncapable = skipped.length > 0
-        && skipped.every((entry) => entry.reason === SKIP_REASONS.INCAPABLE || entry.reason === SKIP_REASONS.RETIRED);
+        && skipped.every((entry) => entry.reason === SKIP_REASONS.INCAPABLE);
     if (onlyIncapable) {
         return new AiError('capability_unavailable', 'No provider supports the required capabilities.');
     }

@@ -116,7 +116,12 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={helpers}>
       {children}
 
-      <div className="pointer-events-none fixed bottom-ds-6 left-ds-4 right-ds-4 z-ds-toast flex max-h-[calc(100vh-3rem)] flex-col items-end gap-ds-3 overflow-hidden sm:left-auto sm:right-ds-6">
+      {/*
+       * Above a page's sticky action bar on a phone (`PageHeader
+       * mobileActions="sticky"` sets `--ds-page-sticky-bar-height`), so a
+       * message never covers the Save it reports on; elsewhere 24px up.
+       */}
+      <div className="pointer-events-none fixed bottom-[calc(var(--ds-page-sticky-bar-height,0px)+var(--ds-space-6))] left-ds-4 right-ds-4 z-ds-toast flex max-h-[calc(100vh-3rem)] flex-col items-end gap-ds-3 overflow-hidden sm:left-auto sm:right-ds-6">
         {toasts.map((toast) => {
           const variant = TOAST_VARIANTS[toast.type] || TOAST_VARIANTS.info;
           /*

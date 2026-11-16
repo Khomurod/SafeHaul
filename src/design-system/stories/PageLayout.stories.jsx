@@ -1,10 +1,11 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Icon, Download, Plus } from '@design-system/icons';
+import { Icon, Download, Plus, Save, X } from '@design-system/icons';
 import { Badge, Button, Card, MetricCard } from '@design-system/components';
 import {
   Inline,
   PageContainer,
+  PageEyebrow,
   PageHeader,
   ResponsiveGrid,
   Section,
@@ -35,8 +36,9 @@ const meta = {
           '',
           '| Primitive | Owns |',
           '| --- | --- |',
-          '| `PageContainer` | Maximum page width and horizontal gutters. `width` is `wide` (default) or `standard`. |',
-          '| `PageHeader` | The page `<h1>`, an optional description, an optional record `count` beside the heading, and a right-hand action slot. |',
+          '| `PageContainer` | The page canvas. `standard` is 1200px of content between 40px gutters (16px under 768px), 32px from the top and 48px from the bottom (20 and 40 on a phone). `wide` (default) is for work surfaces with side panes, up to 1600px. |',
+          '| `PageHeader` | The page `<h1>` (30px; 24px on a phone and at `level={2}`), an optional `eyebrow` and `back` link above it, an optional record `count` beside it, the `actions` on its row, and a `description` under both. `mobileActions` is `row` (default: a full-width row after the description under 768px) or `sticky` (a bar pinned to the bottom of a phone screen). |',
+          '| `PageEyebrow` | The line above a title — back link, rule, eyebrow — for a frame that draws it once above several pages. |',
           '| `Section` | A labelled region within a page. Pass `labelledBy` pointing at its heading. |',
           '| `Stack` | Vertical rhythm. `gap` is `sm`, `md` (default) or `lg`. |',
           '| `Inline` | Horizontal grouping that wraps by default. Same `gap` scale. |',
@@ -52,8 +54,13 @@ const meta = {
           '  for each section.',
           '- `Stack` and `Inline` are presentational `div`s with no semantics. Never use them',
           '  where a `<ul>` is what the content actually is.',
-          '- Actions in the header follow the header in DOM order, so keyboard order matches',
-          '  reading order.',
+          '- The DOM order is title, description, actions at every width. The actions are',
+          '  drawn on the title row on a wide screen, but reading and Tab order never move.',
+          '- `back` is a link (`Link`, with an `href`), first in the header; a page that routes',
+          '  in script passes `onClick` too, and calls `preventDefault`. On a phone it has a',
+          '  44px target. The eyebrow is plain text, read before the heading.',
+          '- The `sticky` phone bar is the same actions element, pinned on the page-content',
+          '  layer (`raised`), so the top bar, the navigation drawer and every dialog cover it.',
           '- `count` sits beside the `<h1>`, not inside it, so the heading keeps the page\'s',
           '  name. It is a `status` region read with `countLabel` ("8 records"), so a',
           '  screen reader hears the number change when a filter changes the list.',
@@ -126,7 +133,10 @@ export const HeaderWithCount = {
   ),
 };
 
-/** `width="standard"` narrows the column for reading-heavy or form pages. */
+/**
+ * `width="standard"` is the canvas every company workspace page uses: 1200px of
+ * content, whatever the gutters. `wide` stays for work surfaces with side panes.
+ */
 export const ContainerWidths = {
   render: () => (
     <div className="sb-page">
@@ -142,8 +152,8 @@ export const ContainerWidths = {
         <PageContainer width="standard">
           <Card>
             <p style={{ margin: 0 }}>
-              <strong>width=&quot;standard&quot;</strong> — a narrower measure for forms and
-              long-form reading, where an over-wide line is hard to follow.
+              <strong>width=&quot;standard&quot;</strong> — 1200px of content between the
+              gutters, the same left edge on every page that uses it.
             </p>
           </Card>
         </PageContainer>
@@ -254,7 +264,9 @@ export const FullPageComposition = {
 
 /**
  * Long title and many actions — the case that breaks page headers. The title
- * wraps and the actions drop below it rather than being squeezed or clipped.
+ * wraps into balanced lines and keeps at least 20rem; when the actions do not
+ * fit beside that, they wrap among themselves on the title row rather than
+ * squeeze the title into a column of short lines. Check it at 820px too.
  */
 export const LongTitleAndActions = {
   render: () => (
@@ -262,7 +274,7 @@ export const LongTitleAndActions = {
       <PageContainer>
         <PageHeader
           title="Consolidated quarterly review of every retained record held under the extended retention policy"
-          description="Long titles wrap onto as many lines as they need. The action slot keeps its alignment and drops below the title when there is no room beside it — verify this at the tablet and mobile viewports too."
+          description="Long titles wrap onto as many lines as they need. The actions stay on the title row and wrap among themselves when there is no room beside the title; on a phone they move under this description — verify this at the tablet and mobile viewports too."
           actions={(
             <>
               <Button variant="ghost" onClick={fn()}>Configure</Button>
@@ -292,6 +304,140 @@ export const NarrowViewport = {
             <MetricCard label="Total" value="1,284" tone="neutral" />
             <MetricCard label="In review" value="36" tone="info" />
           </ResponsiveGrid>
+        </Stack>
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
+ * The line above the title: a back link, a rule and the eyebrow (the section the
+ * page belongs to). The actions sit on the title's row, centred on its line.
+ */
+export const EyebrowAndBackLink = {
+  render: () => (
+    <div className="sb-page">
+      <PageContainer width="standard">
+        <Stack gap="lg">
+          <PageHeader
+            eyebrow="Records and owners"
+            title="Records"
+            count={1284}
+            countLabel="records"
+            actions={(
+              <>
+                <Button variant="secondary" onClick={fn()}>
+                  <Icon icon={Download} />
+                  Export
+                </Button>
+                <Button variant="primary" onClick={fn()}>
+                  <Icon icon={Plus} />
+                  New record
+                </Button>
+              </>
+            )}
+          />
+          <PageHeader
+            back={{ label: 'Records', href: '#records' }}
+            eyebrow="Records and owners"
+            title="New record"
+            description="Fill in what you know; everything else can be added later."
+            actions={(
+              <>
+                <Button variant="secondary" onClick={fn()}>
+                  <Icon icon={X} />
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={fn()}>
+                  <Icon icon={Save} />
+                  Save record
+                </Button>
+              </>
+            )}
+          />
+        </Stack>
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
+ * A phone: eyebrow, title, description, then the actions as a full-width row,
+ * each taking an equal share.
+ */
+export const PhoneActionRow = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => (
+    <div className="sb-page">
+      <PageContainer width="standard">
+        <PageHeader
+          back={{ label: 'Records', href: '#records' }}
+          eyebrow="Records and owners"
+          title="Records"
+          count={8}
+          countLabel="records"
+          description="Everything currently held in this workspace."
+          actions={(
+            <>
+              <Button variant="secondary" onClick={fn()}>Export</Button>
+              <Button variant="primary" onClick={fn()}>New record</Button>
+            </>
+          )}
+        />
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
+ * `mobileActions="sticky"` on a phone: the one-form page keeps Cancel and Save
+ * in a bar at the bottom of the screen, and the page makes room for it.
+ */
+export const StickyPhoneBar = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => (
+    <div className="sb-page">
+      <PageContainer width="standard">
+        <Stack gap="lg">
+          <PageHeader
+            back={{ label: 'Records', href: '#records' }}
+            eyebrow="Records and owners"
+            title="New record"
+            description="Fill in what you know; everything else can be added later."
+            mobileActions="sticky"
+            actions={(
+              <>
+                <Button variant="secondary" onClick={fn()}>
+                  <Icon icon={X} />
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={fn()}>
+                  <Icon icon={Save} />
+                  Save record
+                </Button>
+              </>
+            )}
+          />
+          <Card>
+            <p style={{ margin: 0 }}>The form&apos;s fields go here. The bar stays in reach while they scroll.</p>
+          </Card>
+        </Stack>
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
+ * `PageEyebrow` on its own: a frame holding several pages under one eyebrow
+ * draws the row once, `--ds-space-2` above each page's header.
+ */
+export const EyebrowDrawnByAFrame = {
+  render: () => (
+    <div className="sb-page">
+      <PageContainer width="standard">
+        <Stack gap="sm">
+          <PageEyebrow eyebrow="Preferences" />
+          <PageHeader title="Notifications" description="Choose what reaches you, and how." />
         </Stack>
       </PageContainer>
     </div>

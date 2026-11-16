@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { axe } from 'vitest-axe';
 import { Checkbox, ChoiceGroup, Radio } from './ChoiceControls';
 
 describe('Checkbox', () => {
@@ -147,5 +150,101 @@ describe('ChoiceGroup', () => {
       .toThrow(/Unsupported ChoiceGroup orientation/);
     expect(() => render(<ChoiceGroup legend="  ">{null}</ChoiceGroup>))
       .toThrow(/non-empty legend/);
+  });
+});
+
+describe('ChoiceGroup appearance="card"', () => {
+  function RoleCards({ value = 'standard', onChange = () => {} }) {
+    return (
+      <ChoiceGroup legend="Access" required appearance="card" orientation="horizontal">
+        <Radio
+          id="access-standard"
+          name="access"
+          value="standard"
+          label="Standard"
+          description="Sees their own records."
+          required
+          requiredMark={false}
+          checked={value === 'standard'}
+          onChange={onChange}
+        />
+        <Radio
+          id="access-full"
+          name="access"
+          value="full"
+          label="Full access"
+          description="Sees everything and changes settings."
+          required
+          requiredMark={false}
+          checked={value === 'full'}
+          onChange={onChange}
+        />
+      </ChoiceGroup>
+    );
+  }
+
+  it('marks the group for the card treatment and leaves the default unmarked', () => {
+    const { container, rerender } = render(<RoleCards />);
+    expect(container.querySelector('.ds-choice-group')).toHaveAttribute('data-appearance', 'card');
+    rerender(
+      <ChoiceGroup legend="Plain">
+        <Radio id="plain-a" name="plain" value="a" label="A" checked={false} onChange={() => {}} />
+      </ChoiceGroup>,
+    );
+    expect(container.querySelector('.ds-choice-group')).not.toHaveAttribute('data-appearance');
+  });
+
+  it('stays a group of native radios: one name, a description each, the question asked once', () => {
+    render(<RoleCards />);
+    expect(screen.getByRole('group', { name: /Access required/ }).tagName).toBe('FIELDSET');
+    const standard = screen.getByRole('radio', { name: 'Standard' });
+    const full = screen.getByRole('radio', { name: 'Full access' });
+    expect(standard).toBeChecked();
+    expect(full).not.toBeChecked();
+    expect(full).toHaveAttribute('name', 'access');
+    expect(full).toBeRequired();
+    expect(full).toHaveAccessibleDescription('Sees everything and changes settings.');
+  });
+
+  it('chooses an option when its title is pressed, as a label does', () => {
+    const onChange = vi.fn();
+    render(<RoleCards onChange={onChange} />);
+    fireEvent.click(screen.getByText('Full access'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0].target.value).toBe('full');
+  });
+
+  it('refuses an appearance it does not have', () => {
+    expect(() => render(<ChoiceGroup legend="X" appearance="tiles">{null}</ChoiceGroup>))
+      .toThrow(/Unsupported ChoiceGroup appearance: tiles/);
+  });
+
+  it('has no structural accessibility violations', async () => {
+    const { container } = render(<RoleCards />);
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  /* jsdom lays nothing out; the rules that make a card a card are what is pinned. */
+  it('draws a chosen card as SelectableCard draws a selected one, and stretches the label over the card', () => {
+    const css = readFileSync(path.join(__dirname, 'ChoiceControls.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const checked = css.slice(css.indexOf(".ds-choice-group[data-appearance='card'] .ds-choice:has(.ds-choice__control:checked) {"));
+    expect(checked).toMatch(/border-color:\s*var\(--ds-color-action-primary\)/);
+    expect(checked).toMatch(/background:\s*var\(--ds-color-surface-selected\)/);
+    expect(checked).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--ds-color-action-primary\)/);
+    expect(css).toMatch(/\.ds-choice-group\[data-appearance='card'\] \.ds-choice__label::after\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0/);
+    // Hover never repaints a chosen card: the hover rule outranks the checked
+    // one, so it must exclude it (a grey edge round the navy ring otherwise).
+    const hover = css.match(/\.ds-choice-group\[data-appearance='card'\] \.ds-choice:hover[^{]*\{/);
+    expect(hover?.[0]).toContain(':not(:has(.ds-choice__control:checked))');
+    expect(hover?.[0]).toContain(':not(:has(.ds-choice__control:disabled))');
+  });
+
+  it('keeps a link in a card description and the error message above the stretched hit area', () => {
+    const css = readFileSync(path.join(__dirname, 'ChoiceControls.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const lifted = css.match(
+      /\.ds-choice-group\[data-appearance='card'\] \.ds-choice__description :is\(a, button\),\s*\.ds-choice-group\[data-appearance='card'\] \.ds-choice \.ds-field-message\s*\{([^}]*)\}/,
+    );
+    expect(lifted?.[1]).toMatch(/position:\s*relative;/);
+    expect(lifted?.[1]).toMatch(/z-index:\s*var\(--ds-z-layer-1\);/);
   });
 });

@@ -32,9 +32,16 @@ const logo = read('src/shared/components/Logo.jsx');
 const loader = read('src/shared/components/SafeHaulLoader.jsx');
 const html = read('index.html');
 
-/** The four brand values, as declared. */
+/**
+ * The interface steps derived from the navy (button hover, selected tint). They
+ * are `--ds-color-brand-*` primitives too, but no artwork draws them.
+ */
+const INTERFACE_STEPS = new Set(['--ds-color-brand-deep-strong', '--ds-color-brand-deep-tint']);
+
+/** The four values of the mark, as declared. */
 const brandTokens = Object.fromEntries(
   [...foundation.matchAll(/(--ds-color-brand-[\w-]+)\s*:\s*(#[0-9A-Fa-f]{6})\s*;/g)]
+    .filter((match) => !INTERFACE_STEPS.has(match[1]))
     .map((match) => [match[1], match[2].toUpperCase()]),
 );
 
@@ -64,6 +71,15 @@ describe('the brand mark is one mark', () => {
       '--ds-color-brand-mint-gradient-end',
       '--ds-color-brand-mint-gradient-start',
     ]);
+  });
+
+  it('keeps the interface steps declared and out of the mark', () => {
+    const inFavicon = (faviconSvg.match(/#[0-9A-Fa-f]{6}/g) || []).map((hex) => hex.toUpperCase());
+    for (const step of INTERFACE_STEPS) {
+      const declared = foundation.match(new RegExp(`${step}\\s*:\\s*(#[0-9A-Fa-f]{6})`));
+      expect(declared, step).not.toBeNull();
+      expect(inFavicon).not.toContain(declared[1].toUpperCase());
+    }
   });
 
   // Mutation: change any brand token and this fails until the favicon follows.

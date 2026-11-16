@@ -134,6 +134,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
                 description="What drivers are asked, what happens to their answers, and the agreements they sign."
             />
             <TabList
+                variant="segmented"
                 ariaLabel="Application questions sections"
                 idBase="application-form"
                 tabs={TABS}

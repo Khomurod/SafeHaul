@@ -3,8 +3,9 @@ import { ListToolbar } from '@/design-system/patterns';
 import { WORKLIST_FILTERS } from './unfinishedWorklist';
 
 /**
- * The worklist's one row of controls: the filters, each with what it would
- * show, and the search. The page's heading carries the number of rows shown.
+ * The worklist's one row of controls, above the table's card: the filters,
+ * each with what it would show, and the search, ending on the table's edge.
+ * The page's heading carries the number of rows shown.
  *
  * Outside `DataTable` by the design system's rule: the table must not learn a
  * feature's filters. The counts are the whole list's, before the search, so a
@@ -19,6 +20,7 @@ import { WORKLIST_FILTERS } from './unfinishedWorklist';
 export function UnfinishedWorklistToolbar({ counts, ready, truncated, query, onQuery, filter, onFilter }) {
     return (
         <ListToolbar
+            placement="page"
             segments={{
                 ariaLabel: 'Show',
                 items: WORKLIST_FILTERS.map(({ id, label }) => ({

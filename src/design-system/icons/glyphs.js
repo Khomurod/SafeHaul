@@ -75,7 +75,7 @@ import {
     Newspaper as LucideNewspaper, Pause as LucidePause, PauseCircle as LucidePauseCircle,
     PenTool as LucidePenTool, Pencil as LucidePencil, PencilLine as LucidePencilLine,
     Phone as LucidePhone, Play as LucidePlay, Plug as LucidePlug, PlugZap as LucidePlugZap,
-    Plus as LucidePlus, PlusCircle as LucidePlusCircle, PlusSquare as LucidePlusSquare,
+    Plus as LucidePlus, PlusCircle as LucidePlusCircle, PlusSquare as LucidePlusSquare, Power as LucidePower,
     Printer as LucidePrinter, Redo2 as LucideRedo2, RefreshCcw as LucideRefreshCcw,
     RefreshCw as LucideRefreshCw, Rocket as LucideRocket, RotateCcw as LucideRotateCcw,
     Rows3 as LucideRows3, Ruler as LucideRuler, Save as LucideSave,
@@ -214,6 +214,7 @@ export const PlugZap = /* #__PURE__ */ glyph(LucidePlugZap, 'PlugZap');
 export const Plus = /* #__PURE__ */ glyph(LucidePlus, 'Plus');
 export const PlusCircle = /* #__PURE__ */ glyph(LucidePlusCircle, 'PlusCircle');
 export const PlusSquare = /* #__PURE__ */ glyph(LucidePlusSquare, 'PlusSquare');
+export const Power = /* #__PURE__ */ glyph(LucidePower, 'Power');
 export const Printer = /* #__PURE__ */ glyph(LucidePrinter, 'Printer');
 export const Redo2 = /* #__PURE__ */ glyph(LucideRedo2, 'Redo2');
 export const RefreshCcw = /* #__PURE__ */ glyph(LucideRefreshCcw, 'RefreshCcw');
@@ -287,7 +288,7 @@ export const GLYPH_NAMES = /* #__PURE__ */ Object.freeze([
     'Megaphone', 'Menu', 'MessageSquare', 'MinusCircle', 'MoreHorizontal', 'MoreVertical',
     'MousePointerSquareDashed', 'MoveHorizontal', 'MoveVertical', 'Newspaper', 'Pause',
     'PauseCircle', 'PenTool', 'Pencil', 'PencilLine', 'Phone', 'Play', 'Plug', 'PlugZap',
-    'Plus', 'PlusCircle', 'PlusSquare', 'Printer', 'Redo2', 'RefreshCcw', 'RefreshCw',
+    'Plus', 'PlusCircle', 'PlusSquare', 'Power', 'Printer', 'Redo2', 'RefreshCcw', 'RefreshCw',
     'Rocket', 'RotateCcw', 'Rows3', 'Ruler', 'Save', 'Scaling', 'ScrollText', 'Search',
     'Send', 'Server', 'ServerCog', 'Settings', 'Settings2', 'Share2', 'Shield',
     'ShieldAlert', 'ShieldCheck', 'ShieldOff', 'SlidersHorizontal', 'Sparkles', 'Star',

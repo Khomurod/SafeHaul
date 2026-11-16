@@ -1,6 +1,6 @@
 /**
- * Gemini, Cloudflare Workers AI, GitHub Models and the OpenAI-compatible
- * adapters.
+ * Gemini, Cloudflare Workers AI and the OpenAI-compatible adapters, and that
+ * GitHub Models is no longer one.
  *
  * Part of the `aiProviders` suite. The injected `fetch`, the adapter context
  * builder and the fixtures are in `aiProviders.support.js`. The `jest.mock`
@@ -10,7 +10,7 @@
 
 jest.mock('../../firebaseAdmin', () => require('./aiProviders.support').firebaseAdminMock());
 
-const { getAdapter } = require('../../ai/providers');
+const { ADAPTERS, getAdapter } = require('../../ai/providers');
 const { getProvider, STRUCTURED_MODE } = require('../../ai/registry/providers');
 const { requireModel: requireCloudflareModel } = require('../../ai/providers/cloudflare');
 const {
@@ -115,6 +115,32 @@ describe('Gemini adapter', () => {
             mime_type: 'application/json',
             schema: SCHEMA,
         });
+    });
+
+    it('asks Google not to keep the request, with a document photo or without', async () => {
+        // Left out, `store` defaults to true and the Interactions API keeps the
+        // input and the answer for later retrieval. `false`, not merely falsy:
+        // an absent field means "store".
+        const textOnly = fetchReturning(GEMINI_TEXT_RESPONSE);
+        const withPhoto = fetchReturning(GEMINI_TEXT_RESPONSE);
+
+        await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl: textOnly }));
+        await getAdapter(getProvider('gemini')).execute(contextFor('gemini', {
+            fetchImpl: withPhoto,
+            schema: SCHEMA,
+            images: [{ dataUrl: 'data:image/jpeg;base64,QUJD' }],
+        }));
+
+        expect(textOnly.calls[0].body.store).toBe(false);
+        expect(withPhoto.calls[0].body.store).toBe(false);
+        // The two features `store: false` gives up must not appear beside it:
+        // Google documents it as incompatible with background mode, and an
+        // interaction that was not stored cannot be continued.
+        for (const { body } of [...textOnly.calls, ...withPhoto.calls]) {
+            expect(body).not.toHaveProperty('previous_interaction_id');
+            expect(body).not.toHaveProperty('background');
+        }
     });
 
     it('sends an image as a sibling-field image content entry', async () => {
@@ -258,26 +284,11 @@ describe('Cloudflare Workers AI adapter', () => {
     });
 });
 
-describe('GitHub Models adapter', () => {
-    it('refuses to run, because the vendor retired the API', async () => {
-        const fetchImpl = fetchReturning(OPENAI_BODY);
-
-        await expect(getAdapter(getProvider('github-models')).execute(contextFor('github-models', { fetchImpl })))
-            .rejects.toMatchObject({ category: 'provider_unavailable' });
-
-        // The point of the guard is that no request is attempted at all.
-        expect(fetchImpl.calls).toHaveLength(0);
-    });
-
-    it('is marked retired in the registry with a dated reason and reference', () => {
-        const provider = getProvider('github-models');
-        expect(provider.retired.since).toBe('2026-07-30');
-        expect(provider.retired.reason).toMatch(/retired GitHub Models/i);
-        expect(provider.retired.reference).toMatch(/^https:\/\/github\.blog\//);
-    });
-
-    it('keeps its place in the fallback order so the documented order is intact', () => {
-        expect(getProvider('github-models').priority).toBe(4);
+describe('GitHub Models', () => {
+    it('is neither a provider nor an adapter any more', () => {
+        // GitHub retired Models on 2026-07-30.
+        expect(getProvider('github-models')).toBeNull();
+        expect(ADAPTERS).not.toHaveProperty('githubModels');
     });
 });
 

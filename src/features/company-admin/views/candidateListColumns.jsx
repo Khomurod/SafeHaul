@@ -1,24 +1,29 @@
 import React from 'react';
-import { Badge, Button, defineTableColumns } from '@/design-system/components';
+import { Avatar, Badge, Button, defineTableColumns } from '@/design-system/components';
 import { formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
+import { initialsOf } from '@shared/utils/initials';
 import { toUsStateCode } from '@shared/utils/usStates';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { dossierStatusLabel } from '../components/modals/driver-dossier/dossierStatusLabel';
 
 /**
- * The candidate list's columns and their pure display helpers. One fact per
- * cell, one line per record (the list-page standard,
- * `src/design-system/patterns/list-toolbar/README.md`): Driver, Phone, Status,
- * Freight, State, Applied, Last call, Recruiter. The Applied column's order is
- * not a column concern: the page passes it to `DataTable` as `sort`.
+ * The candidate list's columns and their pure display helpers (the list-page
+ * standard, `src/design-system/patterns/list-toolbar/README.md`): the driver's
+ * initials, the Driver (the name, a Stale mark, the number as the call button
+ * under it), Status, Freight · State, Applied (Added on a lead list), Last call
+ * and Assignee. The Applied column's order is not a column concern: the page
+ * passes it to `DataTable` as `sort`.
  *
- * Each list fits the 1,134px a 1440px window leaves it: Applications 1,112px.
- * A lead list's Driver column is `xl`, because a stale first attempt ("Stale")
- * sits beside the name there. All leads (1,124px with its selection column)
- * leaves out State, which its filter and the dossier still show; Assigned to me
- * (1,036px) and Unassigned (1,092px with its selection column) leave out
- * Recruiter, which would say the same on every row. A longer value is shortened
- * with an ellipsis (`truncate`) rather than widening a column.
+ * Every list shows the same columns at the same widths, so moving between All,
+ * Assigned to me and Unassigned never moves a column: 972px of columns, 1,028px
+ * with a lead list's selection column, which a 1366px window's 1,030px of
+ * content still holds. A wider page shares the rest out among them. Nothing is
+ * cut short: a long value wraps inside its column.
+ *
+ * On a phone each driver is a card (`mobileRole`): the initials leading, the
+ * name and number as its title, the status in its corner, the facts inline
+ * (a Stale mark first, "Reefer · IL", "Applied Jul 11, 2026", "Last call: Left
+ * Voicemail", each left out when empty) and the assignee on a line of its own.
  */
 
 /**
@@ -31,9 +36,12 @@ export const nameAsWritten = (text) => {
     return oneCase ? toTitleCase(name) : name;
 };
 
-export const getCandidateName = (item) => nameAsWritten(
+/** The name the record holds, as written; '' for a record with none. */
+const writtenNameOf = (item) => nameAsWritten(
     item.fullName || [item.firstName, item.lastName].filter(Boolean).join(' '),
-) || 'Unknown Driver';
+);
+
+export const getCandidateName = (item) => writtenNameOf(item) || 'Unknown Driver';
 
 // ── A record's Added Date, which the column shows and its header sorts by ──
 // The day the record was created, which the date filter searches by; an
@@ -118,11 +126,64 @@ export const LEAD_PIPELINE_TABS = [
     { id: 'declined', label: 'Declined' },
 ];
 
-/** An empty cell, said quietly. */
-const quiet = (text = '—') => <span className="text-ds-content-muted">{text}</span>;
+/**
+ * An empty value: a dash, which a phone card leaves out (`DataTable` reads a
+ * plain '—' as no value), so a card never shows "Last call: —".
+ */
+const NONE = '—';
 
-/** A value that may be cut short: the whole of it on hover. */
-const clipped = (value) => (value ? <span title={value}>{value}</span> : quiet());
+/** A person's initials disc, or an empty ring holding the place of nobody. */
+const personDisc = (name, size) => {
+    const initials = initialsOf(name);
+    return initials
+        ? <Avatar size={size} tone="brand">{initials}</Avatar>
+        : <Avatar size={size} tone="placeholder" />;
+};
+
+/**
+ * "Stale", not "Stale CA1": the Status beside it says Contact Attempt 1, and
+ * the name keeps the room. Not focusable, so where it is drawn changes no Tab
+ * stop.
+ */
+const staleMark = (level) => (
+    <span title="More than 48 hours in Contact Attempt 1">
+        <Badge tone={level === 'severe' ? 'danger' : 'warning'}>Stale</Badge>
+    </span>
+);
+
+/**
+ * The freight types and the state, read together: "Reefer · IL", the state
+ * quieter than the freight it qualifies. Either alone when the other is
+ * missing.
+ */
+function freightAndState(item) {
+    const freight = freightOf(item);
+    const state = stateOf(item);
+    if (!freight || !state) return freight || state || NONE;
+    return (
+        <span>
+            {freight}
+            <span className="text-ds-content-muted">{` · ${state}`}</span>
+        </span>
+    );
+}
+
+/**
+ * The first fact on a phone's card. A stale lead's mark leads that line there
+ * (`md:hidden`: the table is cards under 768px), where the name and number
+ * keep the title to themselves; in the table it stays beside the name.
+ */
+function firstFact(item) {
+    const facts = freightAndState(item);
+    const stale = staleContactMeta(item);
+    if (!stale) return facts;
+    return (
+        <span>
+            <span className="mr-ds-2 md:hidden">{staleMark(stale)}</span>
+            {facts === NONE ? <span className="max-md:hidden">{NONE}</span> : facts}
+        </span>
+    );
+}
 
 /**
  * @param {object} ctx
@@ -136,49 +197,46 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
 
     return defineTableColumns([
         {
+            // The disc names no one a screen reader needs (`Avatar` is hidden
+            // from it): the name beside it does.
+            key: 'initials',
+            header: '',
+            headerLabel: 'Initials',
+            mobileRole: 'lead',
+            render: (item) => personDisc(writtenNameOf(item), 'sm'),
+        },
+        {
             key: 'identity',
             header: 'Driver',
             rowHeader: true,
-            width: isApplications ? 'lg' : 'xl',
+            width: 'xl',
             render: (item) => {
                 const name = getCandidateName(item);
                 const stale = staleContactMeta(item);
+                const phone = item.phone ? formatPhoneNumber(item.phone) : '';
                 return (
-                    <span className="flex min-w-0 items-center gap-ds-2">
-                        <span className="truncate font-semibold text-ds-content" title={name}>{name}</span>
-                        {/* "Stale", not "Stale CA1": the Status beside it says
-                            Contact Attempt 1, and the name keeps the room. */}
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-ds-2 gap-y-0">
+                        <span className="min-w-0 break-words font-semibold text-ds-content">{name}</span>
+                        {/* Beside the name in the table; on a phone's card it
+                            leads the facts line instead (`firstFact`). */}
                         {stale && (
-                            <span className="shrink-0" title="More than 48 hours in Contact Attempt 1">
-                                <Badge tone={stale === 'severe' ? 'danger' : 'warning'}>Stale</Badge>
+                            <span className="shrink-0 max-md:hidden">{staleMark(stale)}</span>
+                        )}
+                        {/* The number is the call button, on a line of its own: it
+                            opens the same call log the row's phone always did, and
+                            not the dossier the rest of the row opens. */}
+                        {phone && (
+                            <span className="flex basis-full">
+                                <Button
+                                    variant="link"
+                                    onClick={(e) => handlePhoneClick(e, item)}
+                                    aria-label={`Call ${name} at ${phone}`}
+                                >
+                                    <span className="tabular-nums">{phone}</span>
+                                </Button>
                             </span>
                         )}
                     </span>
-                );
-            },
-        },
-        {
-            // The number is the call button: it opens the same call log the
-            // row's phone always did.
-            key: 'phone',
-            header: 'Phone',
-            width: 'md',
-            stopPropagation: true,
-            render: (item) => {
-                if (!item.phone) return quiet();
-                const phone = formatPhoneNumber(item.phone);
-                return (
-                    <Button
-                        variant="link"
-                        size="sm"
-                        // At the start of a card's value column, with the other
-                        // values, rather than stretched across it and centred.
-                        className="justify-self-start"
-                        onClick={(e) => handlePhoneClick(e, item)}
-                        aria-label={`Call ${getCandidateName(item)} at ${phone}`}
-                    >
-                        <span className="tabular-nums">{phone}</span>
-                    </Button>
                 );
             },
         },
@@ -188,25 +246,19 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
             // `lg`: the widest status a list shows ("Contact Attempt 1") is a
             // non-wrapping badge.
             width: 'lg',
+            mobileRole: 'status',
             // The dossier's name for the stored status: one per stage ("New
             // Application" and a lead's "New Lead" read "New", "Rejected"
             // "Declined"), the names the segments use.
             render: (item) => <StatusBadge status={dossierStatusLabel(item.status) || 'New'} />,
         },
         {
-            key: 'freight',
-            header: 'Freight',
+            key: 'freightState',
+            header: 'Freight · State',
             width: 'sm',
-            truncate: true,
-            render: (item) => clipped(freightOf(item)),
+            mobileRole: 'meta',
+            render: firstFact,
         },
-        ...(scope === 'company_leads' ? [] : [{
-            key: 'state',
-            header: 'State',
-            width: 'xs',
-            truncate: true,
-            render: (item) => clipped(stateOf(item)),
-        }]),
         {
             // The page owns the order (newest first unless the header is
             // pressed); the table draws the header's one sort arrow.
@@ -215,34 +267,44 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
             sortable: { first: 'desc', labels: { desc: 'Newest first', asc: 'Oldest first' } },
             // `md`: "Dec 22, 2026" is about 97px, on one line.
             width: 'md',
+            mobileRole: 'meta',
+            mobileLabel: isApplications ? 'Applied' : 'Added',
             render: (item) => {
                 const date = formatAddedDate(item);
-                return date ? <span className="whitespace-nowrap tabular-nums">{date}</span> : quiet();
+                return date ? <span className="whitespace-nowrap tabular-nums">{date}</span> : NONE;
             },
         },
         {
             key: 'lastCall',
             header: 'Last call',
-            // `md`: "Not Interested", "Left Voicemail" and the like whole.
-            width: 'md',
-            truncate: true,
+            width: 'sm',
+            mobileRole: 'meta',
+            mobileLabel: 'Last call:',
             render: (item) => {
                 const outcome = lastCallOf(item);
-                return outcome ? <span title={item.lastCallOutcome}>{outcome}</span> : quiet();
+                return outcome ? <span title={item.lastCallOutcome}>{outcome}</span> : NONE;
             },
         },
-        ...(scope === 'my_leads' || scope === 'unassigned_leads' ? [] : [{
+        {
+            // "Assigned to" is what the pickers and the filter say; a header
+            // names the person. Shown on every list, Assigned to me and
+            // Unassigned included, so a column never moves between them.
             key: 'assignee',
-            // "Assigned to" does not fit `sm`, and the columns already fill the
-            // list at 1440px: a wider one would scroll it. The pickers and the
-            // filter say "Assigned to"; a header names the person.
             header: 'Assignee',
-            width: 'sm',
-            truncate: true,
+            width: 'md',
+            mobileRole: 'line',
             render: (item) => {
-                if (!item.assignedTo) return quiet('Unassigned');
-                return clipped(recruiterOf(item, teamNames));
+                const name = item.assignedTo ? recruiterOf(item, teamNames) : '';
+                if (item.assignedTo && !name) return NONE;
+                return (
+                    <span className="flex min-w-0 items-center gap-ds-2">
+                        {personDisc(name, 'xs')}
+                        <span className={`min-w-0 break-words${name ? '' : ' text-ds-content-muted'}`}>
+                            {name || 'Unassigned'}
+                        </span>
+                    </span>
+                );
             },
-        }]),
+        },
     ]);
 }

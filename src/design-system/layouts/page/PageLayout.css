@@ -2,63 +2,84 @@
   width: 100%;
   margin-inline: auto;
   /*
-   * The gutter ROLES, not the raw spacing scale they resolve to. Both roles
-   * existed and neither was read here — `--ds-page-gutter-mobile` had no
-   * consumer at all, which is what `tokens.consumers.test.js` reported on the
-   * day it was written. Identical values, so nothing moves; what changes is that
-   * re-tuning the page gutter is now one edit in `semantic.css` instead of a
-   * search for every place that happened to pick `--ds-space-6`.
+   * The gutter ROLES, not the raw spacing scale they resolve to, so re-tuning
+   * the page gutter is one edit in `semantic.css`. Above and below, the page
+   * breathes on the spacing scale: 32px under the top bar, 48px after the last
+   * section.
    */
-  padding: var(--ds-page-gutter);
+  padding: var(--ds-space-8) var(--ds-page-gutter) var(--ds-space-12);
 }
 
+/*
+ * 1200px of CONTENT, the gutters added on top (the box is border-box), so the
+ * content's left edge is the same on every `standard` page at every width.
+ */
 .ds-page-container[data-width='standard'] {
-  max-width: 1200px;
+  max-width: calc(var(--ds-page-content-width) + 2 * var(--ds-page-gutter));
 }
 
 .ds-page-container[data-width='wide'] {
   max-width: 1600px;
 }
 
+/*
+ * The page header keeps the DOM in reading and Tab order — eyebrow, title,
+ * description, actions — and lays it out as wrapping lines:
+ *
+ *   eyebrow                      the back link and the eyebrow, a line of their own
+ *   title …………………… actions      the heading and its count | the actions, at the right
+ *   description                  under both, a line of its own
+ *
+ * When the title and the actions do not fit on one line (a long title, or a
+ * tablet beside the menu), the actions wrap to a line of their own under the
+ * title, still at the right, and the description follows (C2 at 768px). The
+ * title gives way first, never the actions: a button label does not break
+ * inside its button, and nothing is pushed past the page's edge.
+ *
+ * The lines are `--ds-space-4` apart, which is the distance a wrapped row of
+ * actions keeps from the title; the eyebrow and the description pull
+ * themselves back to `--ds-space-2` from their neighbours, so an absent
+ * eyebrow or description leaves no gap behind.
+ */
 .ds-page-header {
+  --ds-page-header-title-size: var(--ds-font-size-heading-2xl);
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--ds-space-4) var(--ds-space-6);
+  align-items: center;
+  gap: var(--ds-space-4);
 }
 
-/*
- * The heading and its description keep at least 30rem beside the actions. With
- * less room, as on a tablet, the actions move under the description instead of
- * squeezing it into a column a few words wide.
- */
-.ds-page-header__content {
-  min-width: 0;
-  flex: 1 1 30rem;
+/* Under a masthead that holds the page's `<h1>` (Super Admin), the 24px step. */
+.ds-page-header[data-level='2'] {
+  --ds-page-header-title-size: var(--ds-font-size-heading-xl);
 }
 
-.ds-page-header__heading,
-.ds-page-header p {
-  margin: 0;
-}
-
-.ds-page-header__heading {
-  color: var(--ds-color-content);
-  font-size: var(--ds-font-size-heading-xl);
-  font-weight: var(--ds-font-weight-bold);
-  line-height: var(--ds-line-height-tight);
+.ds-page-header > .ds-page-eyebrow {
+  flex-basis: 100%;
+  margin-bottom: calc(var(--ds-space-2) - var(--ds-space-4));
 }
 
 .ds-page-header__title {
   display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-2) var(--ds-space-3);
+  order: 1;
 }
 
-.ds-page-header__title .ds-page-header__heading {
+.ds-page-header__heading {
   min-width: 0;
+  margin: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-page-header-title-size);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: var(--ds-line-height-display);
+  overflow-wrap: break-word;
+  /* A two-line title breaks into two even lines, not a line and a word. */
+  text-wrap: balance;
 }
 
 /* The number of records beside the heading, quieter than the heading itself. */
@@ -66,14 +87,15 @@
   display: inline-flex;
   min-height: 24px;
   align-items: center;
-  border: 1px solid var(--ds-color-border-subtle);
+  border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   padding: 2px var(--ds-space-2);
   background: var(--ds-color-surface);
   color: var(--ds-color-content-secondary);
-  font-size: var(--ds-font-size-sm);
+  font-size: var(--ds-font-size-body);
   font-weight: var(--ds-font-weight-semibold);
   font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
   line-height: var(--ds-line-height-tight);
   white-space: nowrap;
 }
@@ -85,15 +107,99 @@
   padding: 0;
 }
 
-.ds-page-header p {
-  margin-top: var(--ds-space-2);
+/*
+ * Always a line of its own. The 68ch measure is kept by padding rather than a
+ * `max-width`: a narrower box would let a wrapping line put it beside the title.
+ */
+.ds-page-header__description {
+  flex-basis: 100%;
+  margin: calc(var(--ds-space-2) - var(--ds-space-4)) 0 0;
+  padding-inline-end: max(0px, 100% - 68ch);
   color: var(--ds-color-content-secondary);
   font-size: var(--ds-font-size-body-lg);
   line-height: var(--ds-line-height-body);
+  order: 3;
+  /* No last line of one word. */
+  text-wrap: pretty;
 }
 
+/*
+ * Centred on the title line, and allowed to overhang it: the negative block
+ * margin takes a default (44px) control down to the title line's height, so the
+ * line is only as tall as the title and the eyebrow-to-title distance is the
+ * same on a page with actions as on one without. A smaller control stays
+ * centred (the margin box is symmetric); a taller one grows the line instead of
+ * overlapping it. `margin-inline-start: auto` keeps the actions at the right
+ * edge on the title's line and on a line of their own alike.
+ */
 .ds-page-header__actions {
-  flex: 0 0 auto;
+  display: flex;
+  max-width: 100%;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+  margin-block: calc(
+    (var(--ds-page-header-title-size) * var(--ds-line-height-display) - var(--ds-control-height-md)) / 2
+  );
+  margin-inline-start: auto;
+  order: 2;
+}
+
+/* A label never breaks inside its button; the row wraps between buttons instead. */
+.ds-page-header__actions > * {
+  white-space: nowrap;
+}
+
+/*
+ * The line above the title. With a back link and an eyebrow, a 1×12 rule
+ * between them.
+ */
+.ds-page-eyebrow {
+  display: flex;
+  min-height: var(--ds-space-5);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-1) var(--ds-space-3);
+}
+
+.ds-page-eyebrow__text {
+  margin: 0;
+  color: var(--ds-color-brand-primary);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: 0.08em;
+  line-height: var(--ds-line-height-body);
+  text-transform: uppercase;
+}
+
+.ds-page-eyebrow__separator {
+  width: 1px;
+  height: var(--ds-space-3);
+  flex: none;
+  background: var(--ds-color-border);
+}
+
+/*
+ * A link on its own row, not inside a sentence, so the arrow and its place say
+ * "link" rather than colour and an underline (WCAG 1.4.1 is about a link among
+ * words): muted text, underlined on hover. The focus ring is `Link`'s own.
+ */
+.ds-page-eyebrow__back.ds-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-tight);
+  text-decoration: none;
+}
+
+.ds-page-eyebrow__back.ds-link:hover {
+  color: var(--ds-color-content);
+  text-decoration: underline;
 }
 
 .ds-section {
@@ -131,6 +237,12 @@
   gap: var(--ds-space-6);
 }
 
+/* Between whole sections of a page (C2 settings: 32px). */
+.ds-stack[data-gap='xl'],
+.ds-inline[data-gap='xl'] {
+  gap: var(--ds-space-8);
+}
+
 .ds-responsive-grid {
   display: grid;
   min-width: 0;
@@ -143,21 +255,101 @@
 
 @media (max-width: 767px) {
   .ds-page-container {
-    padding: var(--ds-page-gutter-mobile);
+    padding: var(--ds-space-5) var(--ds-page-gutter-mobile) var(--ds-space-10);
   }
 
+  /*
+   * Phone order is the DOM order: eyebrow, title, description, then the actions
+   * as a full-width row, each child an equal share.
+   */
   .ds-page-header {
-    flex-direction: column;
-    gap: var(--ds-space-4);
+    --ds-page-header-title-size: var(--ds-font-size-heading-xl);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 
-  /* In a column a basis would be a height. */
-  .ds-page-header__content {
-    flex-basis: auto;
+  .ds-page-header > * {
+    order: 0;
+  }
+
+  .ds-page-header > .ds-page-eyebrow {
+    margin-bottom: var(--ds-space-2);
+  }
+
+  .ds-page-header__description {
+    margin-top: var(--ds-space-2);
+    padding-inline-end: 0;
+  }
+
+  /* A 44px target without making the row taller. */
+  .ds-page-eyebrow__back.ds-link {
+    min-height: var(--ds-control-height-md);
+    margin-block: calc(-1 * var(--ds-space-3));
+    padding-block: var(--ds-space-3);
+    padding-inline-end: var(--ds-space-2);
   }
 
   .ds-page-header__actions {
-    width: 100%;
+    justify-content: flex-start;
+    margin: var(--ds-space-4) 0 0;
+  }
+
+  /*
+   * Equal shares while they fit on one row; a child never narrower than its
+   * own label (so a label does not break inside its button), and the next one
+   * wraps to a second row instead.
+   */
+  .ds-page-header__actions > * {
+    min-width: fit-content;
+    flex: 1 1 0;
+    white-space: normal;
+  }
+
+  /* A status among the actions keeps its own size: only controls share the row. */
+  .ds-page-header__actions > .ds-badge {
+    flex: none;
+  }
+
+  /*
+   * `mobileActions="sticky"`: the same actions element, pinned to the bottom of
+   * the screen as a bar. Page content scrolling beneath the application chrome,
+   * so `raised` — under the top bar, the navigation drawer and every dialog.
+   */
+  .ds-page-header[data-mobile-actions='sticky'] .ds-page-header__actions {
+    position: fixed;
+    z-index: var(--ds-z-raised);
+    inset: auto 0 0;
+    margin: 0;
+    border-top: 1px solid var(--ds-color-border-subtle);
+    padding:
+      var(--ds-space-3)
+      max(var(--ds-space-4), env(safe-area-inset-right, 0px))
+      calc(var(--ds-space-3) + env(safe-area-inset-bottom, 0px))
+      max(var(--ds-space-4), env(safe-area-inset-left, 0px));
+    background: var(--ds-color-surface);
+  }
+
+  /*
+   * What the bar covers: one row of controls, its padding, its top border and
+   * the safe area — one number, so the two uses below cannot drift apart.
+   *
+   * The scroll container keeps a field that Tab scrolls into view clear of the
+   * bar (WCAG 2.2 SC 2.4.11, Focus Not Obscured): the page's bottom padding only
+   * helps at the end of the page. The scroll container is the document or the
+   * application frame's `<main>`, however deep the page sits inside it.
+   */
+  :root:has(.ds-page-header[data-mobile-actions='sticky']),
+  main:has(.ds-page-header[data-mobile-actions='sticky']) {
+    --ds-page-sticky-bar-height: calc(
+      var(--ds-control-height-md) + 2 * var(--ds-space-3) + 1px + env(safe-area-inset-bottom, 0px)
+    );
+    scroll-padding-bottom: var(--ds-page-sticky-bar-height);
+  }
+
+  /* Room for the bar under the last section: the bar, then the page's own 40px. */
+  .ds-page-container:has(.ds-page-header[data-mobile-actions='sticky']) {
+    padding-bottom: calc(var(--ds-page-sticky-bar-height) + var(--ds-space-10));
   }
 
   .ds-responsive-grid {

@@ -266,6 +266,18 @@ describe('getPublicEnvelope', () => {
     expect(checkRateLimit).toHaveBeenCalledWith('envelope_read_ip_203.0.113.7', 100, 300, 'closed');
   });
 
+  it("keys it on the address Google's front end saw, not the first X-Forwarded-For entry", async () => {
+    // The caller writes that first entry, and Express's `req.ip` is it.
+    for (const spoofed of ['6.6.6.6', '7.7.7.7']) {
+      await getPublicEnvelope({
+        ...validRequest,
+        rawRequest: { ip: spoofed, headers: { 'x-forwarded-for': `${spoofed}, 203.0.113.7` } },
+      });
+    }
+    const networkKeys = checkRateLimit.mock.calls.map(([key]) => key).filter((key) => key.startsWith('envelope_read_ip_'));
+    expect(networkKeys).toEqual(['envelope_read_ip_203.0.113.7', 'envelope_read_ip_203.0.113.7']);
+  });
+
   // The limits run side by side, then the two reads do; every decision is still
   // taken in the order it always was, and nothing leaves before the token compare.
   describe('independent steps side by side', () => {

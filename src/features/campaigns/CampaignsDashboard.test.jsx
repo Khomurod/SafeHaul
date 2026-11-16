@@ -438,7 +438,8 @@ describe('CampaignsDashboard shell', () => {
         await React.act(async () => { callbacks.drafts(snapshot(draftItems(60))); });
 
         expect(screen.getAllByTestId('campaign-card')).toHaveLength(60);
-        expect(screen.getByText('All 60 drafts are shown.')).toBeInTheDocument();
+        // The done line takes focus from the button that went away.
+        expect(screen.getByText('All 60 drafts are shown.')).toHaveAttribute('tabindex', '-1');
         expect(screen.queryByRole('button', { name: 'Load more drafts' })).not.toBeInTheDocument();
     });
 
@@ -582,18 +583,25 @@ describe('CampaignsDashboard shell', () => {
         // liveCount = active + queued + scheduled = 3; totalOutreach = 10+5+0+20 = 35.
         const live = document.getElementById('campaigns-stat-live');
         const outreach = document.getElementById('campaigns-stat-outreach');
-        expect(live).toHaveTextContent('Live Campaigns');
+        // Sentence-case labels, each with its note (C2).
+        expect(live).toHaveTextContent('Live campaigns');
         expect(live).toHaveTextContent('3');
-        expect(outreach).toHaveTextContent('Total Outreach');
+        expect(live).toHaveTextContent('Sending right now');
+        expect(outreach).toHaveTextContent('Total outreach');
         expect(outreach).toHaveTextContent('35');
+        expect(outreach).toHaveTextContent('Messages across all campaigns');
     });
 
     it('exposes an accessible header, tablist and primary action', async () => {
         await renderReady();
 
         expect(screen.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeInTheDocument();
+        // C2: the section it belongs to above the title, on the 1200px canvas.
+        expect(screen.getByText('Outreach')).toHaveClass('ds-page-eyebrow__text');
+        expect(document.querySelector('.ds-page-container')).toHaveAttribute('data-width', 'standard');
         const tablist = screen.getByRole('tablist', { name: 'Campaign views' });
         expect(tablist).toBeInTheDocument();
+        expect(tablist).toHaveAttribute('data-variant', 'segmented');
         expect(screen.getAllByRole('tab')).toHaveLength(2);
         expect(screen.getByRole('button', { name: /Create Campaign/i })).toBeInTheDocument();
     });

@@ -59,7 +59,7 @@ test.describe('Profile: the personal link', () => {
     await openLinkCard(page);
 
     const { violations } = await new AxeBuilder({ page })
-      .include('[aria-labelledby="personal-recruiting-link-title"]')
+      .include('#personal-recruiting-link')
       .analyze();
     const severe = violations
       .filter((violation) => ['serious', 'critical'].includes(violation.impact))

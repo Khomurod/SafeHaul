@@ -26,7 +26,7 @@
  */
 
 const {
-    requireProvider, resolveModels, isRetired, missingRequiredConfig, credentialReadiness,
+    requireProvider, resolveModels, missingRequiredConfig, credentialReadiness,
 } = require('../registry/providers');
 const { CAPABILITIES } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
@@ -304,10 +304,6 @@ async function runProbeOn(probe, model, { provider, config, credentials, deps, m
 async function testProviderConnection(providerId, deps = {}) {
     const provider = requireProvider(providerId);
     const startedAt = Date.now();
-
-    if (isRetired(provider)) {
-        return unavailable('provider_unavailable', provider.retired.reason);
-    }
 
     // Reading the config and the credential both touch infrastructure that can
     // fail for reasons that are nothing to do with this provider. Neither read

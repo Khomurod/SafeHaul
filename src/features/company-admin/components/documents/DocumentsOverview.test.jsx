@@ -130,18 +130,33 @@ describe('needs attention', () => {
         expect(props.onViewNeedsAttention).toHaveBeenCalled();
     });
 
-    it('opens a document from its card, the card a button named by what it shows', () => {
+    it('opens a document from its Review button, named for the document (C2)', () => {
         const failed = doc({ id: 'b', status: 'sent', emailStatus: 'failed', title: 'Failed Delivery' });
         const { props } = renderOverview({ documents: [doc({ id: 'a' }), failed] });
 
         const section = screen.getByRole('region', { name: 'Needs attention' });
-        const card = within(section).getByRole('button', { name: /^Failed Delivery/ });
-        expect(card).toHaveAccessibleName('Failed Delivery Artificial Person Delivery failed');
-        expect(card).toHaveClass('ds-selectable-card');
-        fireEvent.click(card);
+        // The row shows the title with what failed beside it and the recipient under it.
+        const row = within(section).getByText('Failed Delivery').closest('li');
+        expect(row).toHaveTextContent('Failed Delivery Delivery failed Artificial Person');
+        // The row itself is no longer a button; its Review is, and says which document.
+        expect(within(section).queryByRole('button', { name: /^Failed Delivery/ })).not.toBeInTheDocument();
+        const review = within(row).getByRole('button', { name: 'Review details for Failed Delivery' });
+        expect(review).toHaveTextContent('Review');
+        fireEvent.click(review);
 
         expect(props.onOpenDocument).toHaveBeenCalledTimes(1);
         expect(props.onOpenDocument).toHaveBeenCalledWith(failed);
+    });
+
+    it('puts Review all in the card heading row, beside Needs attention', () => {
+        renderOverview({ documents: [doc({ emailStatus: 'failed' })] });
+        const heading = screen.getByRole('heading', { level: 2, name: 'Needs attention' });
+        expect(within(heading.parentElement).getByRole('button', { name: 'Review all 1' })).toBeInTheDocument();
+    });
+
+    it('draws the Active templates number in the accent tone', () => {
+        renderOverview({ documents: [doc({ status: 'sent' })] });
+        expect(metric('Active templates')).toHaveAttribute('data-tone', 'accent');
     });
 });
 

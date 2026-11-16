@@ -9,7 +9,7 @@
  *   1. Static parser: every export in functions/index.js maps to a real file.
  *   2. Closure walker on a known nested chain.
  *   3. fileToEntrypoints gives a helper exactly the modules that load it
- *      (shared/clientIp.js → publicSigning.js and referrals/submitReferralInterest.js).
+ *      (shared/clientIp.js → CLIENT_IP_LOADERS).
  *   4. Strict runtime filter only includes deployable JS sources.
  *   5. resolveRelativeRequire refuses to escape functions/.
  *   6. Simulating today's commit produces a small, correct deploy plan.
@@ -128,7 +128,17 @@ section('2. Closure walker');
   assert('companyAdmin closure contains itself', closure.has('functions/companyAdmin.js'));
 }
 
-// ───────── 3. A helper two modules load ─────────
+// ───────── 3. A helper some modules load ─────────
+// Every entry module whose code reads the caller's address through clientIp.js,
+// directly or through a file it requires.
+const CLIENT_IP_LOADERS = [
+  'functions/companyApi/http.js',
+  'functions/employmentVerification.js',
+  'functions/postApplicationEdocs.js',
+  'functions/publicSigning.js',
+  'functions/referrals/submitReferralInterest.js',
+  'functions/requestNewLink.js',
+];
 section('3. shared/clientIp.js → its loaders attribution');
 {
   const owners = fileToEntries.get('functions/shared/clientIp.js');
@@ -137,7 +147,7 @@ section('3. shared/clientIp.js → its loaders attribution');
     assertEqual(
       'clientIp is owned by exactly the modules that load it',
       [...owners].sort(),
-      ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js', 'functions/requestNewLink.js']
+      CLIENT_IP_LOADERS
     );
   }
 }
@@ -222,8 +232,7 @@ section('7. Touching ONLY shared/clientIp.js');
   const plan = planFor(['functions/shared/clientIp.js']);
   assert('plan is partial', plan.kind === 'partial');
   if (plan.kind === 'partial') {
-    const expected = ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js', 'functions/requestNewLink.js']
-      .flatMap((file) => fileToExports.get(file) || []).sort();
+    const expected = CLIENT_IP_LOADERS.flatMap((file) => fileToExports.get(file) || []).sort();
     assertEqual('no orphan skips', plan.skippedOrphans, []);
     assert('publicSigning has exports to compare', (fileToExports.get('functions/publicSigning.js') || []).length > 0);
     assertEqual('plan equals exactly the exports of the modules that load it', plan.exports, expected);

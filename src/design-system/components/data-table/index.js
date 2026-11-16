@@ -2,5 +2,6 @@ export { DataTable } from './DataTable';
 export {
   defineTableColumns,
   TABLE_COLUMN_ALIGNMENTS,
+  TABLE_COLUMN_MOBILE_ROLES,
   TABLE_COLUMN_WIDTHS,
 } from './tableColumnContract';

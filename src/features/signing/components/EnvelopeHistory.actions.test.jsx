@@ -156,59 +156,74 @@ describe('EnvelopeHistory — download action', () => {
     });
 });
 
+/** The pager's "Page X of Y", as read. */
+const pageShown = () => screen.getByRole('navigation', { name: /pagination/ })
+    .querySelector('strong').parentElement.textContent.replace(/\s+/g, ' ').trim();
+
 describe('EnvelopeHistory — pagination', () => {
     const manyDocs = (count) => Array.from({ length: count }, (_, index) =>
         makeDoc({ id: `req-${index}`, title: `Doc ${index}`, status: 'sent' }));
 
-    it('shows no pagination for 25 or fewer documents', () => {
+    it('shows 25 or fewer documents on one page, its footer saying so', () => {
         renderHistory();
         emit(manyDocs(25));
-        expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
         // Header row plus every document.
         expect(screen.getAllByRole('row')).toHaveLength(26);
+        expect(screen.getByText('25 total')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 1');
+        expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
     });
 
-    it('pages beyond 25 documents and announces the visible range', () => {
+    it('has no footer while there is nothing to list', () => {
+        renderHistory();
+        emit([]);
+        expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
+    });
+
+    it('pages beyond 25 documents, saying how many there are and which page shows', () => {
         renderHistory();
         emit(manyDocs(30));
 
         expect(screen.getAllByRole('row')).toHaveLength(26);
-        expect(screen.getByText('Showing 1–25 of 30 documents')).toBeInTheDocument();
+        // The list page's footer words (C2): the total, and the pager's own page.
+        expect(screen.getByText('30 total')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 2');
 
         fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
         expect(screen.getAllByRole('row')).toHaveLength(6);
-        expect(screen.getByText('Showing 26–30 of 30 documents')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 2 of 2');
         expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
 
         fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
-        expect(screen.getByText('Showing 1–25 of 30 documents')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 2');
     });
 
     it('clamps the page when a live update shrinks the list', () => {
         renderHistory();
         emit(manyDocs(30));
         fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
-        expect(screen.getByText('Showing 26–30 of 30 documents')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 2 of 2');
 
         // The live snapshot narrows (a filter change upstream, or deletions):
         // the table must fall back to a page that still exists.
         emit(manyDocs(3));
         expect(screen.getAllByRole('row')).toHaveLength(4);
-        expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 1');
     });
 
     it('does not resurrect a stale page after the list shrinks and grows again', () => {
         renderHistory();
         emit(manyDocs(30));
         fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
-        expect(screen.getByText('Showing 26–30 of 30 documents')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 2 of 2');
 
         // A filter narrows the list below one page, then is cleared again. The
         // clamp must persist, or the restored list would silently open on page
         // 2 and hide the first 25 documents.
         emit(manyDocs(10));
         emit(manyDocs(30));
-        expect(screen.getByText('Showing 1–25 of 30 documents')).toBeInTheDocument();
+        expect(pageShown()).toBe('Page 1 of 2');
     });
 });
 

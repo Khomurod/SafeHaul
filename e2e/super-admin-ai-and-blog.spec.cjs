@@ -10,8 +10,7 @@
 //
 // Row-level behaviour (masking, one-at-a-time reveal, the 30-second auto-hide,
 // typed-confirmation delete, re-authentication, reordering the routing order by
-// drag and by keyboard, the retired
-// provider's missing actions, blog deletion and focus restoration) is proven by
+// drag and by keyboard, blog deletion and focus restoration) is proven by
 // `AiIntegrationsView.contract.test.jsx` and `BlogPostsView.contract.test.jsx`,
 // which can supply rows deterministically. Asserting it here would require a
 // backend this environment must never have.
@@ -73,7 +72,7 @@ test.describe('Super Admin AI Integrations', () => {
   test('shows the provider summary cards', async ({ page }) => {
     await openAi(page);
     const summary = page.getByLabel('AI provider summary');
-    for (const label of ['Supported providers', 'Configured', 'Active in routing', 'In cooldown', 'Retired by vendor']) {
+    for (const label of ['Supported providers', 'Configured', 'Active in routing', 'In cooldown']) {
       await expect(summary.getByText(label, { exact: true })).toBeVisible();
     }
   });

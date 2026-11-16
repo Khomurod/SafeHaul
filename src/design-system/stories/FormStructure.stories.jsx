@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  Notice,
   FieldDisplay,
   FieldMessage,
   FormField,
@@ -35,7 +36,7 @@ const meta = {
           '',
           '| Primitive | Owns |',
           '| --- | --- |',
-          '| `FormSection` | A titled `Card` grouping related fields, with an optional description and action slot. |',
+          '| `FormSection` | A titled group of fields in a `Card`: `layout` `card` (heading inside; `header="bleed"` runs its divider edge to edge), `stacked` (heading above) or `aside` (heading beside, stacking under 760px); an optional `footer`; `padding` for the body. |',
           '| `FormField` | Label, description, error, and all of the ARIA wiring for exactly one control. |',
           '| `Label` | A standalone `<label>` with the required marker. Rarely needed directly. |',
           '| `FieldMessage` | A help, error or success message. Tones: `help`, `error`, `success`. |',
@@ -125,6 +126,155 @@ export const Section = {
           <Checkbox label="Send a copy to the record owner" onChange={fn()} />
         </Stack>
       </FormSection>
+    </div>
+  ),
+};
+
+/**
+ * `footer`: the section's own actions under its body — right-aligned, over a
+ * full-bleed divider, each an equal share of the row on a phone. With
+ * `header="bleed"` the header's divider runs edge to edge too, and the
+ * description is 14px (C2: Add lead, Import); the default `Section` above keeps
+ * the inset divider.
+ */
+export const SectionWithFooter = {
+  render: () => (
+    <div className="sb-measure">
+      <FormSection
+        title="Sign-in details"
+        description="The name and address this account signs in with."
+        header="bleed"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={fn()}>Cancel</Button>
+            <Button variant="primary" onClick={fn()}>Save changes</Button>
+          </>
+        )}
+      >
+        <FormField label="Display name" required>
+          <Input autoComplete="name" onChange={fn()} />
+        </FormField>
+        <FormField label="Email address" required>
+          <Input type="email" autoComplete="email" onChange={fn()} />
+        </FormField>
+      </FormSection>
+    </div>
+  ),
+};
+
+const ROWS = ['North depot', 'South depot', 'Harbour office'];
+
+/**
+ * `layout="stacked"`: the heading and description sit above a full-width card.
+ * The second section's body is flush (`padding="none"`): its list is the card,
+ * edge to edge, and its footer keeps the card's inset.
+ */
+export const StackedSections = {
+  render: () => (
+    <Stack gap="lg">
+      <FormSection
+        layout="stacked"
+        title="Contact"
+        description="How people reach this workspace. Shown on every outgoing message."
+        actions={<Button variant="secondary" onClick={fn()}>Edit</Button>}
+      >
+        <FieldDisplay label="Phone">(555) 010-0199</FieldDisplay>
+        <FieldDisplay label="Email">office@example.test</FieldDisplay>
+      </FormSection>
+      <FormSection
+        layout="stacked"
+        title="Locations"
+        description="Every place a record can be assigned to."
+        padding="none"
+        footer={<Button variant="primary" onClick={fn()}>Save locations</Button>}
+      >
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          {ROWS.map((row, index) => (
+            <li
+              key={row}
+              style={{
+                padding: 'var(--ds-space-4) var(--ds-card-padding)',
+                borderTop: index ? '1px solid var(--ds-color-border-subtle)' : undefined,
+              }}
+            >
+              {row}
+            </li>
+          ))}
+        </ul>
+        <Notice tone="warning" frame="flush">Removing a location unassigns its records.</Notice>
+      </FormSection>
+    </Stack>
+  ),
+};
+
+function AsideSections({ style }) {
+  return (
+    <Stack gap="lg" style={style}>
+      <FormSection
+        layout="aside"
+        title="Outgoing mail server"
+        description="The server your messages are sent from."
+        actions={<Notice tone="warning" size="sm" title="Not connected">Run a connection test to verify it.</Notice>}
+        footer={<Button variant="secondary" onClick={fn()}>Test connection</Button>}
+      >
+        <FormField label="Host" required description="For example smtp.example.test">
+          <Input onChange={fn()} />
+        </FormField>
+        <FormField label="Port" required>
+          <Input inputMode="numeric" defaultValue="587" onChange={fn()} />
+        </FormField>
+      </FormSection>
+      <FormSection
+        layout="aside"
+        title="Signature"
+        description="Added to the end of every message this workspace sends."
+      >
+        <FormField label="Default signature">
+          <Textarea rows={3} onChange={fn()} />
+        </FormField>
+      </FormSection>
+    </Stack>
+  );
+}
+
+/**
+ * `layout="aside"`: the heading, description and `actions` in a 232px column
+ * beside the card — here a status in the side column and a footer action.
+ * Adjacent aside sections are divided by a rule.
+ */
+export const AsideSectionsWide = {
+  parameters: { layout: 'fullscreen' },
+  render: () => (
+    <div className="sb-page">
+      <AsideSections />
+    </div>
+  ),
+};
+
+/**
+ * The same sections under a 760px section width: each becomes `stacked`. The
+ * section is its own size container, so this follows the width it is given —
+ * here a phone; in the app, also a 1366px laptop beside the settings rail.
+ */
+export const AsideSectionsNarrow = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => <AsideSections />,
+};
+
+/**
+ * The proof that `aside` stacks by the section's width, not the viewport: at a
+ * desktop viewport, inside a 700px column (the settings content beside the
+ * rail on a 1366px laptop is 702px), each section is stacked. A viewport media
+ * query could not do this. The column also aligns its children to the start —
+ * a shrink-to-fit parent, in which an `aside` section must still fill its slot.
+ */
+export const AsideSectionsInNarrowColumn = {
+  parameters: { layout: 'fullscreen' },
+  render: () => (
+    <div className="sb-page">
+      <div style={{ maxWidth: 700 }}>
+        <AsideSections style={{ alignItems: 'flex-start' }} />
+      </div>
     </div>
   ),
 };

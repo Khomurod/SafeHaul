@@ -1,10 +1,15 @@
 import React from 'react';
-import { Icon, HelpCircle } from '@design-system/icons';
-import { Card } from '@/design-system/components';
+import { FormSection } from '@/design-system/components';
+import { Stack } from '@/design-system/layouts';
 import { CustomQuestionsBuilder } from '../questions/CustomQuestionsBuilder';
+import { CUSTOM_QUESTIONS_DESCRIPTION } from '../questions/QuestionConfig';
 import { StandardQuestionsConfig } from '../questions/StandardQuestionsConfig';
 
-
+/**
+ * Application questions → Questions: the standard DOT questions, a table that
+ * is its section's card, then the company's own questions. Each section's
+ * heading sits above its card.
+ */
 export function QuestionsTabContent({
     compData,
     isCompanyAdmin,
@@ -12,50 +17,33 @@ export function QuestionsTabContent({
     onQuestionsChange,
 }) {
     return (
-        <div className="space-y-ds-8">
-            <section aria-labelledby="standard-questions-heading">
-                <div className="mb-ds-4">
-                    <h3 id="standard-questions-heading" className="text-ds-heading-sm font-bold text-ds-content">
-                        Standard DOT Questions
-                    </h3>
-                    <p className="text-ds-sm text-ds-content-muted">
-                        Configure visibility and requirements for standard application fields.
-                    </p>
-                </div>
-
+        <Stack gap="xl">
+            <FormSection
+                layout="stacked"
+                padding={isCompanyAdmin ? 'none' : 'md'}
+                title="Standard DOT Questions"
+                description="Configure visibility and requirements for standard application fields."
+            >
                 {isCompanyAdmin ? (
                     <StandardQuestionsConfig
                         config={compData.applicationConfig}
                         onChange={onConfigChange}
                     />
                 ) : (
-                    <Card className="text-center text-ds-content-muted">
-                        <p>Read-only view for standard questions.</p>
-                    </Card>
+                    <p className="text-center text-ds-content-muted">Read-only view for standard questions.</p>
                 )}
-            </section>
+            </FormSection>
 
-            <section aria-labelledby="custom-questions-heading" className="border-t border-ds-border-subtle pt-ds-6">
-                <div className="mb-ds-6">
-                    <h3 id="custom-questions-heading" className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <Icon icon={HelpCircle} size="xl" className="text-ds-action-primary" /> Custom Questions
-                    </h3>
-                    <p className="text-ds-sm text-ds-content-muted">
-                        Add specific questions for your company (e.g. "Do you have flatbed experience?").
-                    </p>
-                </div>
-
-                {isCompanyAdmin ? (
-                    <CustomQuestionsBuilder
-                        questions={compData.customQuestions || []}
-                        onChange={onQuestionsChange}
-                    />
-                ) : (
-                    <Card className="text-center text-ds-content-muted">
-                        <p>Only Company Admins can edit application questions.</p>
-                    </Card>
-                )}
-            </section>
-        </div>
+            {isCompanyAdmin ? (
+                <CustomQuestionsBuilder
+                    questions={compData.customQuestions || []}
+                    onChange={onQuestionsChange}
+                />
+            ) : (
+                <FormSection layout="stacked" title="Custom Questions" description={CUSTOM_QUESTIONS_DESCRIPTION}>
+                    <p className="text-center text-ds-content-muted">Only Company Admins can edit application questions.</p>
+                </FormSection>
+            )}
+        </Stack>
     );
 }

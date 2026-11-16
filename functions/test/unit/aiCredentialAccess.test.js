@@ -64,18 +64,13 @@ function metadataServing(email) {
 
 const metadataAbsent = async () => { throw new Error('ENOTFOUND metadata.google.internal'); };
 
-const originalGroqBinding = process.env.GROQ_API_KEY;
-
 beforeEach(() => {
     clearCache();
     mockSecretStore.clear();
-    delete process.env.GROQ_API_KEY;
 });
 
 afterAll(() => {
     clearCache();
-    if (originalGroqBinding === undefined) delete process.env.GROQ_API_KEY;
-    else process.env.GROQ_API_KEY = originalGroqBinding;
 });
 
 describe('what the report says when everything is readable', () => {
@@ -183,7 +178,6 @@ describe('the report never carries a credential', () => {
     it('contains neither the value nor its length', async () => {
         const secret = 'gsk_ThisMustNeverAppearAnywhereInTheReport';
         mockSecretStore.set('SAFEHAUL_AI_GROQ_APIKEY', secret);
-        process.env.GROQ_API_KEY = 'legacy-value-also-never-shown';
 
         const report = await diagnoseCredentialAccess({
             client: readableClient,
@@ -192,7 +186,6 @@ describe('the report never carries a credential', () => {
         const serialized = JSON.stringify(report);
 
         expect(serialized).not.toContain(secret);
-        expect(serialized).not.toContain('legacy-value-also-never-shown');
         // The length check excludes `checkedAt`, which is not derived from the
         // credential. This secret is 42 characters and a clock reading of 17:42
         // contains "42", so asserting over the whole serialized report failed for a
@@ -237,26 +230,15 @@ describe('report shape', () => {
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it('checks no secret for a provider the vendor retired', async () => {
+    it('checks at least one secret for every provider, and reports nothing else per row', async () => {
         const report = await diagnoseCredentialAccess({
             client: readableClient, fetchImpl: metadataAbsent,
         });
-        const retired = report.providers.find((row) => row.providerId === 'github-models');
 
-        expect(retired).toMatchObject({ retired: true, secrets: [] });
-    });
-
-    it('reports whether THIS runtime carries the legacy Groq deploy binding', async () => {
-        const without = await diagnoseCredentialAccess({
-            client: readableClient, fetchImpl: metadataAbsent,
-        });
-        expect(without.providers.find((row) => row.providerId === 'groq').legacyBinding).toBe(false);
-
-        process.env.GROQ_API_KEY = 'legacy-key';
-        const with_ = await diagnoseCredentialAccess({
-            client: readableClient, fetchImpl: metadataAbsent,
-        });
-        expect(with_.providers.find((row) => row.providerId === 'groq').legacyBinding).toBe(true);
+        for (const row of report.providers) {
+            expect(Object.keys(row).sort()).toEqual(['displayName', 'providerId', 'secrets']);
+            expect(row.secrets.length).toBeGreaterThan(0);
+        }
     });
 
     it('answers from a fresh read rather than the 60-second value cache', async () => {

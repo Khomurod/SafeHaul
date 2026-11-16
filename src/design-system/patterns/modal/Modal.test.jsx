@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -285,10 +287,31 @@ describe('Modal chrome', () => {
         expect(overlayOf()).toHaveAttribute('data-mobile', 'fullscreen');
     });
 
+    it('takes mobile="sheet", a centred dialog that is a bottom sheet on a phone', () => {
+        render(<Modal label="Add a member" mobile="sheet"><p>Body</p></Modal>);
+        expect(overlayOf()).toHaveAttribute('data-mobile', 'sheet');
+        // Wide, it is the default centred dialog: the placement does not change.
+        expect(overlayOf()).toHaveAttribute('data-placement', 'center');
+    });
+
+    it('scopes the sheet to phones and gives it the bottom-sheet shape there', () => {
+        const css = readFileSync(path.join(__dirname, 'Modal.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+        const phone = css.slice(css.lastIndexOf('@media (max-width: 639px)'));
+        expect(phone).toMatch(/\.ds-modal\[data-mobile='sheet'\]\s*\{\s*align-items:\s*flex-end;\s*padding:\s*0;/);
+        const panel = phone.slice(phone.indexOf(".ds-modal[data-mobile='sheet'] .ds-modal__panel {"));
+        expect(panel).toMatch(/max-height:\s*var\(--ds-sheet-max-height\)/);
+        expect(panel).toMatch(/border-radius:\s*var\(--ds-radius-xl\) var\(--ds-radius-xl\) 0 0/);
+        // The last row pads the home-indicator inset itself, so a footer band's
+        // background reaches the edge; the panel padding it would leave a strip.
+        expect(panel.slice(0, panel.indexOf('}'))).not.toMatch(/padding|safe-area/);
+        // Nothing about the sheet applies outside the phone query.
+        expect(css.slice(0, css.lastIndexOf('@media (max-width: 639px)'))).not.toMatch(/data-mobile='sheet'/);
+    });
+
     it.each([
         ['size', '3xl'],
         ['scroll', 'page'],
-        ['mobile', 'sheet'],
+        ['mobile', 'drawer'],
         ['placement', 'top'],
         ['tone', 'warning'],
     ])('refuses an unsupported %s rather than rendering something plausible', (prop, value) => {

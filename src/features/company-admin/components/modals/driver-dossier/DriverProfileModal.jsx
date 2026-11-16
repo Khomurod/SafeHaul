@@ -186,10 +186,9 @@ export function DriverProfileModal({
         appData,
         collectionName,
         onOpenRecord: openLinkedRecord,
-        companyId,
-        // Do not text acts on the phone shown, which is the last record's while
-        // the next loads or after its read failed.
-        canEdit: canEdit && !loading && !error,
+        // Do not text is in the Application tab's Summary, which is not drawn
+        // while a record loads or after its read failed: the phone it would act
+        // on is then the last record's.
         logCall: (
             <DossierLogCall
                 companyId={companyId}
@@ -213,7 +212,7 @@ export function DriverProfileModal({
           width. Wrapping lets the actions drop to a second line
           instead of eating the title.
         */
-        <div className="z-ds-raised flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
+        <div className="z-ds-raised flex shrink-0 flex-wrap items-center gap-x-ds-3 gap-y-ds-3 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
             <DossierHeader
                 activeTab={activeTab}
                 // `useAppFetch` keeps the last record's data until the next arrives.
@@ -329,7 +328,7 @@ export function DriverProfileModal({
                       side by side inside this one child rather than on the panel.
                     */
                     <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-                        <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface-subtle sm:h-full sm:w-[280px] sm:border-b-0 sm:border-r">
+                        <div className="shrink-0 overflow-y-auto border-b border-ds-border-subtle bg-ds-surface-subtle sm:h-full sm:w-[312px] sm:border-b-0 sm:border-r">
                             <DossierSidebar {...recordProps} {...tabsProps} currentStatus={currentStatus} />
                         </div>
 

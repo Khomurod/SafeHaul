@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Button, Card, DataTable, Notice } from '@/design-system/components';
+import { Button, DataTable, FormSection, Notice } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { ErrorState, LoadingState, SaveBar, useUnsavedChanges } from '@/design-system/patterns';
 import { Icon, Plus, Send, Copy } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { AddLineModal } from '@/features/super-admin/components/integrations/AddLineModal';
 import { RemoveLineDialog } from '@/features/super-admin/components/integrations/RemoveLineDialog';
 import { useRemovePhoneLine } from '@/features/super-admin/components/integrations/useRemovePhoneLine';
@@ -27,7 +28,8 @@ import { supportRequestText } from './smsSupportRequest';
  * `removePhoneLine` through `useRemovePhoneLine`, and `AddLineModal`, which takes
  * the RingCentral credentials with the first line and encrypts them server-side.
  * Edits to who texts from which line and to the default are kept on the page
- * until Save; the save bar and the shell's leave guard watch them.
+ * until Save; the save bar and the shell's leave guard watch them. Every
+ * section is a heading above its own card (`FormSection layout="stacked"`).
  */
 export function SmsSettingsPage({ companyId, companyName }) {
     const la = useLineAssignments(companyId);
@@ -36,6 +38,8 @@ export function SmsSettingsPage({ companyId, companyName }) {
     const [showAdd, setShowAdd] = useState(false);
     const [showTest, setShowTest] = useState(false);
     const [pendingRemove, setPendingRemove] = useState(null);
+    // A step's actions are small beside its words at a desk, full-size targets on a phone.
+    const stepButtonSize = useIsMobile() ? 'md' : 'sm';
     useUnsavedChanges(la.hasChanges);
 
     const configDoc = la.configDoc;
@@ -51,10 +55,10 @@ export function SmsSettingsPage({ companyId, companyName }) {
                 ? `RingCentral · ${inventory.length} ${inventory.length === 1 ? 'line' : 'lines'}. A member without a line of their own texts from the default line.`
                 : 'Text drivers from your own phone numbers. Four steps to set it up.'}
             actions={configured && !la.loading && !la.configError ? (
-                <div className="flex flex-wrap gap-ds-2">
+                <>
                     <Button variant="secondary" onClick={() => setShowTest(true)}><Icon icon={Send} />Send a test</Button>
                     <Button variant="primary" onClick={() => setShowAdd(true)}><Icon icon={Plus} />Add line</Button>
-                </div>
+                </>
             ) : undefined}
         />
     );
@@ -122,8 +126,8 @@ export function SmsSettingsPage({ companyId, companyName }) {
                             done: inventory.length > 0,
                             actions: (
                                 <>
-                                    <Button variant="primary" onClick={() => setShowAdd(true)}><Icon icon={Plus} />Add line</Button>
-                                    <Button variant="secondary" onClick={copySupportRequest}><Icon icon={Copy} />Copy request for support</Button>
+                                    <Button variant="primary" size={stepButtonSize} onClick={() => setShowAdd(true)}><Icon icon={Plus} />Add line</Button>
+                                    <Button variant="secondary" size={stepButtonSize} onClick={copySupportRequest}><Icon icon={Copy} />Copy request for support</Button>
                                 </>
                             ),
                         },
@@ -179,11 +183,12 @@ export function SmsSettingsPage({ companyId, companyName }) {
                     {sanitizedDefault} is the default line, but it is missing from the synced lines. Set one of your lines as the default.
                 </Notice>
             )}
-            <Card padding="none" className="overflow-hidden">
-                <div className="border-b border-ds-border-subtle px-ds-4 py-ds-3">
-                    <h2 className="font-semibold text-ds-content">Phone lines</h2>
-                    <p className="text-ds-sm text-ds-content-muted">Check sends nothing: it only confirms the line answers RingCentral.</p>
-                </div>
+            <FormSection
+                layout="stacked"
+                padding="none"
+                title="Phone lines"
+                description="Check sends nothing: it only confirms the line answers RingCentral."
+            >
                 <DataTable
                     embedded
                     ariaLabel="Phone lines"
@@ -194,7 +199,7 @@ export function SmsSettingsPage({ companyId, companyName }) {
                     columns={columns}
                     getRowId={(line) => line.token}
                 />
-            </Card>
+            </FormSection>
             <AssignmentTable
                 users={la.users}
                 loading={la.rosterLoading}

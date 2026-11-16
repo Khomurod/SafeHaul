@@ -30,11 +30,6 @@ export function AiProvidersOverview({ summary }) {
                     value={String(summary.cooldown)}
                     tone={summary.cooldown > 0 ? 'warning' : 'neutral'}
                 />
-                <MetricCard
-                    label="Retired by vendor"
-                    value={String(summary.retired)}
-                    tone={summary.retired > 0 ? 'neutral' : 'neutral'}
-                />
             </ResponsiveGrid>
         </>
     );

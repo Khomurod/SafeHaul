@@ -50,7 +50,8 @@ const STATE_PRESENTATION = {
     sealing: { tone: 'warning', label: 'Sealing', icon: Loader2 },
     signed: { tone: 'success', label: 'Signed', icon: CheckCircle },
     seal_failed: { tone: 'danger', label: 'Seal failed', icon: AlertCircle },
-    voided: { tone: 'danger', label: 'Voided', icon: Ban },
+    // Withdrawn by the company: closed, not failing (grey, as on E-Docs).
+    voided: { tone: 'neutral', label: 'Voided', icon: Ban },
     other: { tone: 'neutral', label: null, icon: FileText },
 };
 

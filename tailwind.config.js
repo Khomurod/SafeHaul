@@ -115,11 +115,15 @@ export default {
       'ds-status-danger-fg-on-inverse': 'var(--ds-color-status-danger-fg-on-inverse)',
       'ds-surface-inverse-hover': 'var(--ds-color-surface-inverse-hover)',
       'ds-brand-primary': 'var(--ds-color-brand-primary)',
+      'ds-brand-primary-subtle': 'var(--ds-color-brand-primary-subtle)',
       'ds-brand-accent': 'var(--ds-color-brand-accent)',
       'ds-brand-accent-soft': 'var(--ds-color-brand-accent-soft)',
       'ds-border': 'var(--ds-color-border)',
       'ds-border-subtle': 'var(--ds-color-border-subtle)',
       'ds-focus': 'var(--ds-color-focus)',
+      // The company frame's blue (sidebar active item, logo tile), which stays
+      // blue now that actions are the brand navy. Frame code only.
+      'ds-navigation-accent': 'var(--ds-color-navigation-accent)',
       'ds-action-primary': 'var(--ds-color-action-primary)',
       'ds-action-primary-hover': 'var(--ds-color-action-primary-hover)',
       'ds-action-danger': 'var(--ds-color-action-danger)',
@@ -153,6 +157,7 @@ export default {
       'ds-heading-md': ['var(--ds-font-size-heading-md)', { lineHeight: 'var(--ds-line-height-tight)' }],
       'ds-heading-lg': ['var(--ds-font-size-heading-lg)', { lineHeight: 'var(--ds-line-height-tight)' }],
       'ds-heading-xl': ['var(--ds-font-size-heading-xl)', { lineHeight: 'var(--ds-line-height-tight)' }],
+      'ds-heading-2xl': ['var(--ds-font-size-heading-2xl)', { lineHeight: 'var(--ds-line-height-display)' }],
       // Not a step of the scale: iOS Safari's no-zoom size, for a control that
       // cannot be `.ds-form-control`. See `--ds-font-size-control-mobile`.
       'ds-control-mobile': ['var(--ds-font-size-control-mobile)', { lineHeight: 'var(--ds-line-height-body)' }],

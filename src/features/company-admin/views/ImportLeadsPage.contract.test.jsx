@@ -7,7 +7,7 @@
  * bulk-upload component is mocked so this file tests only the page's contract.
  */
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const dataMock = vi.hoisted(() => ({ value: {} }));
@@ -62,7 +62,7 @@ describe('ImportLeadsPage — preserved contracts', () => {
         bulkUploadProps.value.onUploadComplete();
         expect(navigateMock).toHaveBeenLastCalledWith('/company/drivers/leads/company');
 
-        // Closing the import, and its Close once done.
+        // The import's Close once done.
         bulkUploadProps.value.onClose();
         expect(navigateMock).toHaveBeenCalledTimes(2);
         expect(navigateMock).toHaveBeenLastCalledWith('/company/drivers/leads/company');
@@ -144,5 +144,67 @@ describe('ImportLeadsPage — preserved contracts', () => {
         expect(closeControls.length).toBeGreaterThan(0);
         fireEvent.click(closeControls[0]);
         expect(navigateMock).toHaveBeenCalledWith('/company/drivers/leads/company');
+    });
+});
+
+describe('ImportLeadsPage — C2 header', () => {
+    it('names the section it belongs to above the title', () => {
+        render(<ImportLeadsPage />);
+        expect(within(screen.getByRole('banner')).getByText('Driver Applications & Leads')).toBeInTheDocument();
+    });
+
+    it("links back to the person's leads list, followed inside the app", () => {
+        render(<ImportLeadsPage />);
+
+        const back = screen.getByRole('link', { name: 'Leads' });
+        expect(back).toHaveAttribute('href', '/company/drivers/leads/company');
+        fireEvent.click(back);
+        expect(navigateMock).toHaveBeenCalledWith('/company/drivers/leads/company');
+    });
+
+    it('leaves a click with a modifier key to the browser (a new tab)', () => {
+        render(<ImportLeadsPage />);
+
+        const event = new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true });
+        screen.getByRole('link', { name: 'Leads' }).dispatchEvent(event);
+        expect(navigateMock).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('shows the import steps in the header, following the step the upload reports', () => {
+        render(<ImportLeadsPage />);
+
+        const steps = within(screen.getByRole('banner')).getByRole('list', { name: 'Import steps' });
+        const items = within(steps).getAllByRole('listitem');
+        expect(items.map((item) => item.getAttribute('aria-current'))).toEqual(['step', null, null]);
+
+        act(() => bulkUploadProps.value.onStepChange('preview'));
+        expect(items[1]).toHaveAttribute('aria-current', 'step');
+        expect(items[0]).toHaveTextContent('completed');
+    });
+
+    it('keeps the steps on the title row from 560px of page, as C2 does', () => {
+        const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockReturnValue({ width: 560, height: 0, top: 0, left: 0, right: 560, bottom: 0, x: 0, y: 0 });
+        try {
+            render(<ImportLeadsPage />);
+            const header = screen.getByRole('banner');
+            expect(within(header).getByRole('list', { name: 'Import steps' })).toBeInTheDocument();
+            expect(screen.getAllByRole('list', { name: 'Import steps' })).toHaveLength(1);
+        } finally {
+            rect.mockRestore();
+        }
+    });
+
+    it('puts the steps on a row of their own where the page is too narrow for the title row', () => {
+        const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockReturnValue({ width: 432, height: 0, top: 0, left: 0, right: 432, bottom: 0, x: 0, y: 0 });
+        try {
+            render(<ImportLeadsPage />);
+            expect(screen.getAllByRole('list', { name: 'Import steps' })).toHaveLength(1);
+            expect(within(screen.getByRole('banner')).queryByRole('list', { name: 'Import steps' })).toBeNull();
+        } finally {
+            rect.mockRestore();
+        }
     });
 });

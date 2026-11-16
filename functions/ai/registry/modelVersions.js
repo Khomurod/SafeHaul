@@ -93,14 +93,6 @@ const MODEL_VERSIONS = {
         [CLASSIFICATION]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
         [STRUCTURED_JSON]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
     },
-    // Retired with GitHub Models (see its row); kept so the row stays whole.
-    'github-models': {
-        [TEXT]: ['openai/gpt-4.1-mini'],
-        [ARTICLE_WRITING]: ['openai/gpt-4.1-mini'],
-        [SUMMARIZATION]: ['openai/gpt-4.1-mini'],
-        [CLASSIFICATION]: ['openai/gpt-4.1-mini'],
-        [STRUCTURED_JSON]: ['openai/gpt-4.1-mini'],
-    },
     /**
      * The Ministral models, the ones a *free* key can call.
      *

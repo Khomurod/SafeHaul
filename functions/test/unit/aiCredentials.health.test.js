@@ -69,42 +69,14 @@ describe('an unreadable credential is not an absent one', () => {
             .resolves.toMatchObject({ complete: false });
     });
 
-    /**
-     * The defect this whole stage exists for. The Groq fallback triggered on
-     * `missing` alone, and a refused read throws before a field is ever recorded
-     * as missing — so the deploy binding sat there, working, and was never
-     * consulted. A rollback path that only survives the rarer of two faults is
-     * not a rollback path.
-     */
-    it('falls back to the legacy Groq binding when the managed read is refused', async () => {
-        process.env.GROQ_API_KEY = 'legacy-key';
+    it('reports a refused Groq read as unreadable, with no deploy-binding fallback', async () => {
+        process.env.GROQ_API_KEY = 'leftover-deploy-binding';
 
         const resolved = await store.resolveCredentials('groq', { client: denyingClient });
-
-        expect(resolved.complete).toBe(true);
-        expect(resolved.values.apiKey).toBe('legacy-key');
-        // Distinguished from a plain `legacy-env` so the console can say this is
-        // a fault being masked, not a migration state to leave alone.
-        expect(resolved.source).toBe('legacy-env-after-read-failure');
-    });
-
-    it('still refuses to extend that fallback to another provider', async () => {
-        process.env.GROQ_API_KEY = 'legacy-key';
-
-        const resolved = await store.resolveCredentials('mistral', { client: denyingClient });
-
-        expect(resolved.complete).toBe(false);
-        expect(resolved.source).toBeNull();
-        expect(resolved.unreadable).toEqual(['apiKey']);
-    });
-
-    it('lets an operator still reveal the legacy value when the managed read fails', async () => {
-        process.env.GROQ_API_KEY = 'legacy-key';
-
         const revealed = await store.revealCredential('groq', 'apiKey', { client: denyingClient });
 
-        expect(revealed.value).toBe('legacy-key');
-        expect(revealed.source).toBe('legacy-env-after-read-failure');
+        expect(resolved).toMatchObject({ complete: false, unreadable: ['apiKey'], missing: [], source: null });
+        expect(revealed).toMatchObject({ value: null, source: null, unreadable: true });
     });
 
     it('never puts the Secret Manager resource name in what it returns', async () => {
@@ -114,7 +86,7 @@ describe('an unreadable credential is not an absent one', () => {
         expect(JSON.stringify(read)).not.toMatch(/projects\//);
     });
 
-    it('decides when the legacy Groq binding counts in one place, so the router, the list and a reveal agree', () => {
+    it('has no runtime code that reads the old GROQ_API_KEY deploy binding', () => {
         const fs = require('fs');
         const path = require('path');
         const root = path.resolve(__dirname, '../..');
@@ -131,12 +103,9 @@ describe('an unreadable credential is not an absent one', () => {
         };
         walk(root);
 
-        // Besides the store's fallback: the migration copies the binding into
-        // Secret Manager, and the access diagnostic reports whether this runtime
-        // has it. Neither decides whether a request may use it.
-        expect(readers.sort()).toEqual([
-            'ai/callables/credentials.js', 'ai/credentials/store.js', 'ai/tasks/credentialAccess.js',
-        ]);
+        // No function binds it any more, so a reader would see `undefined` in
+        // production while a local `.env` made it look like it worked.
+        expect(readers).toEqual([]);
     });
 });
 
