@@ -4,7 +4,9 @@
  * Targets the Interactions API (`/v1beta/interactions`), which Google's
  * current documentation presents as the standard surface, authenticated with
  * the `x-goog-api-key` header. Structured output uses `response_format` with a
- * `mime_type` of `application/json` and an inline schema.
+ * `mime_type` of `application/json` and an inline schema. Every request carries
+ * `store: false`, which asks Google not to store the interaction for later
+ * retrieval.
  *
  * Images are supplied inline as base64 with their media type, which is why the
  * adapter splits the data URL rather than passing it through — Gemini does not
@@ -150,6 +152,12 @@ const geminiAdapter = {
         const body = {
             model,
             input: buildInput({ inputText, images }),
+            // Left out, `store` defaults to true and Google keeps the request
+            // and the answer for later retrieval. SafeHaul never reads one
+            // back, and the input can be a driver's licence. `false` gives up
+            // only `previous_interaction_id` and background mode, and every
+            // call here is one synchronous turn that uses neither.
+            store: false,
             generation_config: {
                 temperature,
                 // See THINKING_HEADROOM_TOKENS: the caller's budget is for the

@@ -117,6 +117,32 @@ describe('Gemini adapter', () => {
         });
     });
 
+    it('asks Google not to keep the request, with a document photo or without', async () => {
+        // Left out, `store` defaults to true and the Interactions API keeps the
+        // input and the answer for later retrieval. `false`, not merely falsy:
+        // an absent field means "store".
+        const textOnly = fetchReturning(GEMINI_TEXT_RESPONSE);
+        const withPhoto = fetchReturning(GEMINI_TEXT_RESPONSE);
+
+        await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl: textOnly }));
+        await getAdapter(getProvider('gemini')).execute(contextFor('gemini', {
+            fetchImpl: withPhoto,
+            schema: SCHEMA,
+            images: [{ dataUrl: 'data:image/jpeg;base64,QUJD' }],
+        }));
+
+        expect(textOnly.calls[0].body.store).toBe(false);
+        expect(withPhoto.calls[0].body.store).toBe(false);
+        // The two features `store: false` gives up must not appear beside it:
+        // Google documents it as incompatible with background mode, and an
+        // interaction that was not stored cannot be continued.
+        for (const { body } of [...textOnly.calls, ...withPhoto.calls]) {
+            expect(body).not.toHaveProperty('previous_interaction_id');
+            expect(body).not.toHaveProperty('background');
+        }
+    });
+
     it('sends an image as a sibling-field image content entry', async () => {
         const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
 
