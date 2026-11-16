@@ -93,6 +93,7 @@ rule on this page only when it says so; say what the rule protects first.
 
 | What | Command |
 |---|---|
+| Install, before any check or work when `node_modules` is missing | `npm ci`, and `npm ci` in `functions/` |
 | Lint | `npm run lint:frontend`, and `npm run lint` in `functions/` |
 | Unit tests | `npm test` (CI runs `npm run test:coverage`), and `npm test` in `functions/` |
 | Build | `npm run build`, then `npm run check:bundle-budget` |
