@@ -59,14 +59,16 @@ assert('A1. every executable extension this repository uses is measured',
  * Pinned by NAME, not by count.
  *
  * A length assertion does not hold: coverage can be EXCHANGED rather than
- * narrowed. Removing `.scss` and adding anything else keeps the length at 14, and
- * A1, F5 and F6 stay green while a whole language quietly stops being scanned.
+ * narrowed. Removing `.scss` and adding anything else keeps the length the
+ * same, and A1, F5 and F6 stay green while a whole language quietly stops being
+ * scanned.
  * Adding an extension is still free; removing one has to be a deliberate edit
  * here.
  */
 const PINNED_EXTENSIONS = [
   '.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx',
   '.css', '.scss', '.html', '.rules', '.svelte', '.vue',
+  '.sh',
 ];
 {
   const missing = PINNED_EXTENSIONS.filter((e) => !SOURCE_EXTENSIONS.includes(e));
