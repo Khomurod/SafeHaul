@@ -146,4 +146,21 @@ describe('a segmented tray in a row as wide as itself', () => {
     expect(naturalTrayWidth(tray) - Math.floor(naturalTrayWidth(tray))).toBeGreaterThan(0.5);
     expect(tray).not.toHaveAttribute('data-wrapped');
   });
+
+  it('still takes its full-row layout in a row truly narrower than itself', () => {
+    const realStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(Range.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 120, height: 0, top: 0, left: 0, right: 120, bottom: 0, x: 0, y: 0 });
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = realStyle(element);
+      if (element.tagName !== 'NAV') return style;
+      return new Proxy(style, { get: (target, key) => (key === 'width' ? '300px' : Reflect.get(target, key)) });
+    });
+
+    render(<TabNav ariaLabel="Lead lists" items={ITEMS} currentId="all" variant="segmented" />);
+
+    // Three 120px labels need more than the row's 300px.
+    expect(within(screen.getByRole('navigation', { name: 'Lead lists' })).getByRole('list'))
+      .toHaveAttribute('data-wrapped', 'true');
+  });
 });
