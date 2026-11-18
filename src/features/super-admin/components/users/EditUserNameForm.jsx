@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { updateUser } from '@features/auth/services/userService';
 import { auth, functions } from '@lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -58,7 +58,22 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
     const nameId = useId();
     const emailId = useId();
 
+    // The 2-second reset of the save message. A new save cancels the last one
+    // (it would wipe "Saving..." or the new error), and a closed form neither
+    // keeps one running nor starts one when a save it sent finishes later: a
+    // reset left behind fired after the dialog (or a test's page) was gone.
+    const saveMessageTimer = useRef(null);
+    const mounted = useRef(false);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+            clearTimeout(saveMessageTimer.current);
+        };
+    }, []);
+
     const handleSave = async () => {
+      clearTimeout(saveMessageTimer.current);
       setSaveLoading(true);
       setSaveMessage('Saving...');
       try {
@@ -67,7 +82,7 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
         setSaveMessage('Profile saved!');
         if (onSave) onSave();
 
-        setTimeout(() => setSaveMessage(''), 2000);
+        if (mounted.current) saveMessageTimer.current = setTimeout(() => setSaveMessage(''), 2000);
       } catch (error) {
         console.error("Error updating user:", error);
         setSaveMessage('Error: ' + plainErrorMessage(error, 'The profile could not be saved.'));
