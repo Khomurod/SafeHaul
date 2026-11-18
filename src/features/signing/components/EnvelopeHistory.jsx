@@ -77,7 +77,8 @@ function DocumentCell({ document: docItem }) {
 
 /** The recipient's name and, under it, how to reach them. */
 function RecipientLines({ document: docItem }) {
-    const contact = docItem.recipientEmail || docItem.recipientPhone;
+    // As text: a phone can be stored as a number.
+    const contact = String(docItem.recipientEmail || docItem.recipientPhone || '');
     return (
         <span className="block min-w-0">
             <span className="block font-semibold text-ds-content [overflow-wrap:anywhere]">{docItem.recipientName}</span>

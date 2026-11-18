@@ -375,3 +375,16 @@ describe('E-Doc grouped template prefills', () => {
     expect(isFieldLocked({ type: 'company_signature', prefillPolicy: 'editable' })).toBe(true);
   });
 });
+
+describe('buildEditablePrefillGroups with a stored list in an unusual shape', () => {
+  const editable = { id: 'note', type: 'text', bindingKey: '', prefillPolicy: 'editable', defaultValue: '' };
+
+  it('skips empty entries', () => {
+    const { groups, plainFields } = buildEditablePrefillGroups([null, undefined, editable]);
+    expect(groups.length + plainFields.length).toBe(1);
+  });
+
+  it('reads a map where a list belongs as no fields', () => {
+    expect(buildEditablePrefillGroups({ note: editable })).toEqual({ groups: [], plainFields: [] });
+  });
+});

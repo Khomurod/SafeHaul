@@ -272,9 +272,12 @@ export function formatIsoDateAsPlaceholderLong(iso) {
  * Partitions editable text/date fields into grouped controls vs plain-text-per-slot fields.
  */
 export function buildEditablePrefillGroups(fields = []) {
-  const editable = fields.filter(
+  // Only field objects: a stored template can hold an empty entry, or a map
+  // instead of a list, and opening it must not fail.
+  const editable = (Array.isArray(fields) ? fields : []).filter(
     (f) =>
-      (f.type === 'text' || f.type === 'date') && normalizePrefillPolicy(f) === 'editable'
+      f && typeof f === 'object'
+      && (f.type === 'text' || f.type === 'date') && normalizePrefillPolicy(f) === 'editable'
   );
 
   const plainFields = [];

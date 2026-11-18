@@ -61,3 +61,12 @@ describe('EnvelopeStatusBadge', () => {
         expect(screen.queryByText(OPTED_OUT)).toBeNull();
     });
 });
+
+describe('EnvelopeStatusBadge with a failure reason that is not text', () => {
+    it('says the delivery failed without drawing the stored object', () => {
+        badgeOf({ status: 'sent', sendEmail: true, emailStatus: 'failed', emailError: { code: 'EAUTH' } });
+
+        expect(toneOf('Delivery failed')).toBe('danger');
+        expect(screen.getByText(/delivery failed$/i, { selector: 'span:not(.ds-badge *)' })).toBeInTheDocument();
+    });
+});

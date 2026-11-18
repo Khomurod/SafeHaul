@@ -32,6 +32,12 @@ import {
     withCompanySignaturePaths,
 } from '@features/signing/utils/companySignature';
 
+/** A stored contact detail as text: a string as it is, a number as its digits, anything else ''. */
+function contactText(value) {
+    if (typeof value === 'string') return value;
+    return typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
+}
+
 // The picker's records load when it opens (`pickerRecords.js`), never the whole lists.
 const loadPickerRecords = () => import('./pickerRecords');
 
@@ -150,8 +156,10 @@ export function useTemplateSendFlow({
     // to the record, for as long as the recipient is still that record.
     const handleQuickSelect = (driver) => {
         setManualName(`${driver.firstName || ''} ${driver.lastName || ''}`.trim());
-        setManualEmail(driver.email || '');
-        setManualPhone(driver.phone || driver.phoneNumber || '');
+        // As text: a record can store its phone as a number, and the review
+        // step reads these with `.trim()`.
+        setManualEmail(contactText(driver.email));
+        setManualPhone(contactText(driver.phone) || contactText(driver.phoneNumber));
         setPicked(pickedRecord(driver));
     };
     const linkedRecord = linkedRecordFor(picked, manualName);
