@@ -49,6 +49,28 @@ export function naturalTrayWidth(tray) {
 }
 
 /**
+ * The width a row gives its content, to the fraction of a pixel: its used
+ * width (the resolved `width`, which no transform scales) less its padding and,
+ * for a border box, its border.
+ *
+ * Not `clientWidth`. That is a whole number, and under a browser zoom such as
+ * 80% or 110% it can come out more than half a pixel under the real width. A
+ * row as wide as its tray — the Leads scope tabs, in the toolbar's
+ * content-sized lead slot — then read as too narrow for the tray; the tray took
+ * its full-row layout, which widened the row, which read as wide enough again,
+ * and React ended the flipping with "Maximum update depth exceeded", which
+ * replaced the whole Leads page. Measured exactly, a row the tray sizes is
+ * always exactly wide enough, so the answer cannot feed back on itself.
+ */
+export function rowContentWidth(row) {
+  const style = window.getComputedStyle(row);
+  const width = px(style.width);
+  if (style.boxSizing !== 'border-box') return width;
+  return width - px(style.paddingLeft) - px(style.paddingRight)
+    - px(style.borderLeftWidth) - px(style.borderRightWidth);
+}
+
+/**
  * Whether a segmented tray no longer fits on one row of the element that holds
  * it — measured from the row, not the window: E-Docs' four tabs beside an open
  * menu on a tablet. A tray that does not fit takes its full-row layout
@@ -68,8 +90,7 @@ export function useTrayWraps(enabled) {
       setWrapped(false);
       return;
     }
-    const rowStyle = window.getComputedStyle(row);
-    const available = row.clientWidth - px(rowStyle.paddingLeft) - px(rowStyle.paddingRight);
+    const available = rowContentWidth(row);
     // Half a pixel of slack, for sub-pixel widths that round differently.
     setWrapped(available > 0 && naturalTrayWidth(tray) > available + 0.5);
   }, [enabled]);

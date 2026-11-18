@@ -328,7 +328,14 @@ describe('a segmented item keeps its width whether chosen or not', () => {
 });
 
 describe('a segmented tray too wide for its row', () => {
-  const sized = (width) => vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width);
+  // The row is measured by its used width (`rowContentWidth`), not `clientWidth`.
+  const sized = (width) => {
+    const realStyle = window.getComputedStyle.bind(window);
+    return vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => new Proxy(
+      realStyle(element, pseudo),
+      { get: (target, key) => (key === 'width' ? `${width}px` : Reflect.get(target, key)) },
+    ));
+  };
   const rangeWidth = (width) => vi.spyOn(Range.prototype, 'getBoundingClientRect')
     .mockReturnValue({ width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 });
   const tabs = ['Overview', 'Sent Documents', 'Templates', 'After-application forms'].map((label, i) => ({ id: `t${i}`, label }));

@@ -2,8 +2,9 @@ import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TabNav } from './TabNav';
+import { naturalTrayWidth } from './segmentedGroup';
 
 const ITEMS = [
   { id: 'all', label: 'All', href: '/records/all' },
@@ -99,5 +100,67 @@ describe('TabNav', () => {
     const { container } = render(<TabNav ariaLabel="Record lists" items={ITEMS} currentId="all" variant="segmented" />);
 
     expect((await axe(container)).violations).toEqual([]);
+  });
+});
+
+/*
+ * The Leads scope tabs sit in the list toolbar's content-sized lead slot, so the
+ * <nav> the tray is measured against is exactly as wide as the tray. Under a
+ * browser zoom such as 80% or 110% the browser can report that row's width
+ * (`clientWidth`, a whole number) more than half a pixel under the real one.
+ * Measured that way the tray read as too wide, took its full-row layout, which
+ * widened the row, read as fitting, shrank back, and React ended the flipping
+ * with "Maximum update depth exceeded": the whole Leads page was replaced by
+ * "Leads is temporarily unavailable". The stub below draws that row: exactly as
+ * wide as the tray's one-row width, or three times its widest label once the
+ * tray takes its grid; `clientWidth` reports the width rounded down, as the
+ * zoomed browser did.
+ */
+describe('a segmented tray in a row as wide as itself', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('stays one row under a zoom that rounds the row down, rather than flipping until React gives up', () => {
+    const LABEL = 95.55;
+    const trayOf = (nav) => nav.querySelector('.ds-segmented-group');
+    const rowWidth = (nav) => (trayOf(nav)?.getAttribute('data-wrapped') === 'true'
+      ? 3 * 2 * LABEL
+      : naturalTrayWidth(trayOf(nav)));
+    const realStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(Range.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: LABEL, height: 0, top: 0, left: 0, right: LABEL, bottom: 0, x: 0, y: 0 });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function clientWidth() {
+      return this.tagName === 'NAV' ? Math.floor(rowWidth(this)) : 0;
+    });
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = realStyle(element);
+      if (element.tagName !== 'NAV') return style;
+      return new Proxy(style, {
+        get: (target, key) => (key === 'width' ? `${rowWidth(element)}px` : Reflect.get(target, key)),
+      });
+    });
+
+    render(<TabNav ariaLabel="Lead lists" items={ITEMS} currentId="all" variant="segmented" />);
+
+    const tray = within(screen.getByRole('navigation', { name: 'Lead lists' })).getByRole('list');
+    // The stub is the case it describes: a whole-pixel width more than half a pixel short.
+    expect(naturalTrayWidth(tray) - Math.floor(naturalTrayWidth(tray))).toBeGreaterThan(0.5);
+    expect(tray).not.toHaveAttribute('data-wrapped');
+  });
+
+  it('still takes its full-row layout in a row truly narrower than itself', () => {
+    const realStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(Range.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 120, height: 0, top: 0, left: 0, right: 120, bottom: 0, x: 0, y: 0 });
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = realStyle(element);
+      if (element.tagName !== 'NAV') return style;
+      return new Proxy(style, { get: (target, key) => (key === 'width' ? '300px' : Reflect.get(target, key)) });
+    });
+
+    render(<TabNav ariaLabel="Lead lists" items={ITEMS} currentId="all" variant="segmented" />);
+
+    // Three 120px labels need more than the row's 300px.
+    expect(within(screen.getByRole('navigation', { name: 'Lead lists' })).getByRole('list'))
+      .toHaveAttribute('data-wrapped', 'true');
   });
 });

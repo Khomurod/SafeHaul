@@ -302,6 +302,16 @@ describe('ListToolbar', () => {
       };
       vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function offsetWidth() { return widthOf(this); });
       vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function clientWidth() { return widthOf(this); });
+      // A segmented tray measures the row it sits in by its used width
+      // (`rowContentWidth`), to the fraction of a pixel, not by `clientWidth`.
+      const realStyle = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+        const style = realStyle(element, pseudo);
+        if (!element.classList?.contains('ds-list-toolbar__bar')) return style;
+        return new Proxy(style, {
+          get: (target, key) => (key === 'width' ? `${widthOf(element)}px` : Reflect.get(target, key)),
+        });
+      });
       // Every observer on the page answers a resize: the row's and the tray's.
       const callbacks = [];
       resize = () => callbacks.forEach((callback) => callback([]));
