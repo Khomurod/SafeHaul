@@ -1,4 +1,5 @@
 import React from 'react';
+import { splitAfterDots } from '../utils/splitAfterDots';
 
 /**
  * Text that breaks only where a reader expects it, never at a hyphen inside a
@@ -11,7 +12,7 @@ export function BreakableText({ text, email = false }) {
     if (!email && !text.includes('-')) return text;
     const at = text.lastIndexOf('@');
     const parts = email
-        ? [...(at > 0 ? text.slice(0, at + 1) : text).split(/(?<=\.)/), ...(at > 0 ? [text.slice(at + 1)] : [])]
+        ? [...splitAfterDots(at > 0 ? text.slice(0, at + 1) : text), ...(at > 0 ? [text.slice(at + 1)] : [])]
         : text.split(' ');
     return parts.map((part, index) => (
         // The parts are positions in one string, so their index is their identity.
