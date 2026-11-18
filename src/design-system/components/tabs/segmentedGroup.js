@@ -64,9 +64,10 @@ export function naturalTrayWidth(tray) {
  */
 export function rowContentWidth(row) {
   const style = window.getComputedStyle(row);
-  const padding = px(style.paddingLeft) + px(style.paddingRight);
-  const border = style.boxSizing === 'border-box' ? px(style.borderLeftWidth) + px(style.borderRightWidth) : 0;
-  return style.boxSizing === 'border-box' ? px(style.width) - padding - border : px(style.width);
+  const width = px(style.width);
+  if (style.boxSizing !== 'border-box') return width;
+  return width - px(style.paddingLeft) - px(style.paddingRight)
+    - px(style.borderLeftWidth) - px(style.borderRightWidth);
 }
 
 /**
