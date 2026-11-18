@@ -15,7 +15,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateUser = vi.hoisted(() => vi.fn());
 const sendPasswordResetEmail = vi.hoisted(() => vi.fn());
@@ -163,25 +163,54 @@ describe('EditUserNameForm — profile save contract', () => {
         )).toBeInTheDocument();
     });
 
-    it('clears the saved message after 2 seconds, and stops that timer when the form closes', async () => {
-        vi.useFakeTimers({ shouldAdvanceTime: true });
-        try {
-            const { unmount } = renderNameForm();
+    describe('the 2-second reset of the saved message', () => {
+        // Manual fake timers: the save resolves at once, so flushing its
+        // promise is enough, and the clock moves only when a test moves it.
+        const save = async () => {
             fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-            await screen.findByText('Profile saved!');
-            await act(async () => { vi.advanceTimersByTime(2000); });
-            expect(screen.queryByText('Profile saved!')).toBeNull();
+            await act(async () => {});
+        };
 
-            // A second save, then the dialog closes before the 2 seconds are up:
-            // nothing of the form is left waiting to run.
-            fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-            await screen.findByText('Profile saved!');
+        beforeEach(() => { vi.useFakeTimers(); });
+        afterEach(() => { vi.useRealTimers(); });
+
+        it('keeps "Profile saved!" for exactly 2 seconds', async () => {
+            renderNameForm();
+            await save();
+            act(() => { vi.advanceTimersByTime(1999); });
+            expect(screen.getByText('Profile saved!')).toBeInTheDocument();
+            act(() => { vi.advanceTimersByTime(1); });
+            expect(screen.queryByText('Profile saved!')).toBeNull();
+        });
+
+        it('lets a new save cancel the last reset, so it cannot wipe the new outcome', async () => {
+            renderNameForm();
+            await save();
+            act(() => { vi.advanceTimersByTime(1500); });
+            updateUser.mockRejectedValueOnce(new Error('permission denied'));
+            await save();
+            act(() => { vi.advanceTimersByTime(1000); });
+            expect(screen.getByText('Error: permission denied')).toBeInTheDocument();
+        });
+
+        it('stops the reset when the form closes', async () => {
+            const { unmount } = renderNameForm();
+            await save();
             const pending = vi.getTimerCount();
             unmount();
             expect(vi.getTimerCount()).toBe(pending - 1);
-        } finally {
-            vi.useRealTimers();
-        }
+        });
+
+        it('starts no reset when a save sent before the form closed finishes after', async () => {
+            let finish;
+            updateUser.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+            const { unmount } = renderNameForm();
+            await save();
+            const before = vi.getTimerCount();
+            unmount();
+            await act(async () => { finish(); });
+            expect(vi.getTimerCount()).toBe(before);
+        });
     });
 
     it('puts the save outcome in a live region, not colour alone', async () => {
