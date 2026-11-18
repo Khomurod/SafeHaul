@@ -79,6 +79,14 @@ describe('VOEPreviewModal legal text and ordering', () => {
     expect(doc).not.toHaveTextContent('Signed electronically with the application');
   });
 
+  it('opens with a stored signature that is not text, and treats it as missing', () => {
+    // An older record can hold the signature as a map; the preview still opens.
+    renderModal({ applicant: { ...APPLICANT, signature: { image: 'data:image/png;base64,AAAA', type: 'drawn' } } });
+    const doc = documentNode();
+    expect(within(doc).queryByAltText('Signature')).toBeNull();
+    expect(doc).toHaveTextContent('DRIVER SIGNATURE MISSING');
+  });
+
   it('dates the authorization by the signer\'s own calendar day, not the UTC day', () => {
     renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined, signatureDate: '2026-08-04T03:00:00.000Z', signatureDay: '2026-08-03' } });
     expect(authorizationDate()).toHaveTextContent('08/03/2026');

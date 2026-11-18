@@ -186,3 +186,20 @@ describe('a template sent to no record', () => {
         expect(result.current.linkedRecord).toBeNull();
     });
 });
+
+describe('a record or template stored in an unusual shape', () => {
+    it('takes a phone stored as a number as its digits, so the review step can read it', () => {
+        const { result } = open();
+        act(() => result.current.handleQuickSelect({ ...LEAD, phone: 5550101234 }));
+        expect(result.current.manualPhone).toBe('5550101234');
+        expect(result.current.manualEmail).toBe('');
+    });
+
+    it('opens a template whose field list holds an empty entry', () => {
+        const { result } = open();
+        act(() => result.current.handleUseTemplate({ ...TEMPLATE, fields: [null, ...TEMPLATE.fields] }));
+        expect(result.current.selectedTemplate.id).toBe('template-1');
+        expect(result.current.editablePrefillPartition.plainFields.length
+            + result.current.editablePrefillPartition.groups.length).toBeGreaterThan(0);
+    });
+});

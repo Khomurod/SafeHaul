@@ -178,6 +178,12 @@ describe('EnvelopeHistory — delivery method and fallbacks', () => {
         expect(screen.queryByText(/^Sent /)).not.toBeInTheDocument();
     });
 
+    it('shows a phone stored as a number when there is no email', () => {
+        renderHistory();
+        emit([makeDoc({ recipientEmail: undefined, recipientPhone: 5550142 })]);
+        expect(screen.getByText('5550142')).toBeInTheDocument();
+    });
+
     it('falls back to the phone number when there is no email', () => {
         renderHistory();
         emit([makeDoc({ recipientEmail: undefined, recipientPhone: '555-0142' })]);

@@ -80,12 +80,15 @@ import { useEmployerRelease } from '../../hooks/useEmployerRelease';
 export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
     const hasRequiredData = Boolean(employer && applicant);
 
-    const signatureUrl = applicant?.signature && !applicant.signature.startsWith('TEXT_SIGNATURE')
-        ? applicant?.signature
+    // A signature is text: a data URL, or `TEXT_SIGNATURE:<name>`. Anything
+    // else an older record holds shows no signature rather than failing.
+    const signature = typeof applicant?.signature === 'string' ? applicant.signature : '';
+    const signatureUrl = signature && !signature.startsWith('TEXT_SIGNATURE')
+        ? signature
         : null;
 
-    const signatureText = applicant?.signature && applicant.signature.startsWith('TEXT_SIGNATURE')
-        ? applicant?.signature.replace('TEXT_SIGNATURE:', '')
+    const signatureText = signature.startsWith('TEXT_SIGNATURE')
+        ? signature.replace('TEXT_SIGNATURE:', '')
         : null;
 
     const documentRef = useRef(null);

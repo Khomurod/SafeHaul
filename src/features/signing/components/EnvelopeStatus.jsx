@@ -41,13 +41,15 @@ const STATUS_PRESENTATION = {
 function statusParts(docItem, detailSize = 'text-ds-xs') {
     const failure = openDeliveryFailure(docItem);
     if (failure) {
+        // Only a written reason is shown: the details dialog reads it the same way.
+        const reason = typeof failure.error === 'string' ? failure.error : '';
         // Truncate error for operator debugging without exposing sensitive internals
-        const errorDetail = failure.error
-            ? (failure.error.length > 80 ? failure.error.substring(0, 80) + '…' : failure.error)
+        const errorDetail = reason
+            ? (reason.length > 80 ? reason.substring(0, 80) + '…' : reason)
             : `${failure.channel} delivery failed`;
         return {
             badge: (
-                <span title={failure.error || `${failure.channel} delivery failed`}>
+                <span title={reason || `${failure.channel} delivery failed`}>
                     <Badge tone="danger" icon={AlertCircle}>Delivery failed</Badge>
                 </span>
             ),
@@ -55,7 +57,7 @@ function statusParts(docItem, detailSize = 'text-ds-xs') {
             // 80-character safety cut above stays, and the complete safe detail
             // lives in the details dialog.
             detail: (
-                <span className={`${detailSize} text-ds-status-danger-fg [overflow-wrap:anywhere]`} title={failure.error}>
+                <span className={`${detailSize} text-ds-status-danger-fg [overflow-wrap:anywhere]`} title={reason || undefined}>
                     {errorDetail}
                 </span>
             ),

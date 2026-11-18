@@ -24,6 +24,17 @@ function formatTimelineDate(val) {
     return formatDate(val);
 }
 
+/**
+ * A stored list's rows, for display. An older or hand-edited record can hold a
+ * word ("None") or a map where a list belongs, or an empty row in it, and the
+ * summary must still open. Only empty rows are left out: any other row is
+ * still counted and shown (as "Violation", "Unknown Employer"), so a list that
+ * has rows never reads as a clean record.
+ */
+function rowsOf(value) {
+    return Array.isArray(value) ? value.filter((row) => row !== null && row !== undefined) : [];
+}
+
 function toDateOrNull(val) {
     if (!val) return null;
     if (typeof val?.toDate === 'function') return val.toDate();          // Firestore Timestamp
@@ -226,8 +237,8 @@ function yesNoAnswer(value) {
 }
 
 function SafetyCard({ appData }) {
-    const violations = appData.violations || [];
-    const accidents = appData.accidents || [];
+    const violations = rowsOf(appData.violations);
+    const accidents = rowsOf(appData.accidents);
     const hasIncidents = violations.length > 0 || accidents.length > 0;
     const violationsAnswer = yesNoAnswer(appData['has-violations']);
     const accidentsAnswer = yesNoAnswer(appData['has-accidents']);
@@ -297,7 +308,7 @@ function SafetyCard({ appData }) {
 }
 
 function ExperienceTimeline({ appData }) {
-    const history = appData.employers || appData.employmentHistory || [];
+    const history = rowsOf(appData.employers || appData.employmentHistory);
 
     if (history.length === 0) return null;
 
@@ -470,7 +481,7 @@ function ConsentCard({ appData }) {
                 </div>
 
                 {/* Signature Image */}
-                {signature && signature.startsWith('data:') && (
+                {typeof signature === 'string' && signature.startsWith('data:') && (
                     <div>
                         <h5 className="mb-ds-2 block text-ds-xs font-bold uppercase text-ds-content-secondary">Electronic Signature</h5>
                         <div className="inline-block rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3">
