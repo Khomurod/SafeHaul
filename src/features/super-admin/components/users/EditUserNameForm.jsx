@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { updateUser } from '@features/auth/services/userService';
 import { auth, functions } from '@lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -58,6 +58,11 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
     const nameId = useId();
     const emailId = useId();
 
+    // The 2-second reset of the save message, cleared when the form closes: a
+    // reset left running fired after the dialog (or a test's page) was gone.
+    const saveMessageTimer = useRef(null);
+    useEffect(() => () => clearTimeout(saveMessageTimer.current), []);
+
     const handleSave = async () => {
       setSaveLoading(true);
       setSaveMessage('Saving...');
@@ -67,7 +72,8 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
         setSaveMessage('Profile saved!');
         if (onSave) onSave();
 
-        setTimeout(() => setSaveMessage(''), 2000);
+        clearTimeout(saveMessageTimer.current);
+        saveMessageTimer.current = setTimeout(() => setSaveMessage(''), 2000);
       } catch (error) {
         console.error("Error updating user:", error);
         setSaveMessage('Error: ' + plainErrorMessage(error, 'The profile could not be saved.'));

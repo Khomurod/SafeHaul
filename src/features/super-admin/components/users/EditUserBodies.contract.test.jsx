@@ -13,7 +13,7 @@
  * All names, emails and ids below are artificial test fixtures.
  */
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -161,6 +161,27 @@ describe('EditUserNameForm — profile save contract', () => {
         expect(await screen.findByText(
             'Error: The profile could not be saved. Please try again. If it keeps happening, contact support.',
         )).toBeInTheDocument();
+    });
+
+    it('clears the saved message after 2 seconds, and stops that timer when the form closes', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            const { unmount } = renderNameForm();
+            fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+            await screen.findByText('Profile saved!');
+            await act(async () => { vi.advanceTimersByTime(2000); });
+            expect(screen.queryByText('Profile saved!')).toBeNull();
+
+            // A second save, then the dialog closes before the 2 seconds are up:
+            // nothing of the form is left waiting to run.
+            fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+            await screen.findByText('Profile saved!');
+            const pending = vi.getTimerCount();
+            unmount();
+            expect(vi.getTimerCount()).toBe(pending - 1);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('puts the save outcome in a live region, not colour alone', async () => {
