@@ -25,12 +25,14 @@ function formatTimelineDate(val) {
 }
 
 /**
- * A stored list's rows, for display: only rows that are records. An older or
- * hand-edited record can hold a word ("None") or a map where a list belongs,
- * or an empty row in it, and the summary must still open.
+ * A stored list's rows, for display. An older or hand-edited record can hold a
+ * word ("None") or a map where a list belongs, or an empty row in it, and the
+ * summary must still open. Only empty rows are left out: any other row is
+ * still counted and shown (as "Violation", "Unknown Employer"), so a list that
+ * has rows never reads as a clean record.
  */
 function rowsOf(value) {
-    return Array.isArray(value) ? value.filter((row) => row && typeof row === 'object') : [];
+    return Array.isArray(value) ? value.filter((row) => row !== null && row !== undefined) : [];
 }
 
 function toDateOrNull(val) {

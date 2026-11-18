@@ -23,6 +23,12 @@ describe('the Safety card with lists in an unusual shape', () => {
         expect(screen.getByText('Violations (1)')).toBeInTheDocument();
         expect(screen.getByText('Speeding (artificial)')).toBeInTheDocument();
     });
+
+    it('still counts a row stored as plain text, so the record never reads as clean', () => {
+        render(<SafetyCard appData={{ violations: ['Speeding'] }} />);
+        expect(screen.getByText('Violations (1)')).toBeInTheDocument();
+        expect(screen.queryByText(/clean record/i)).toBeNull();
+    });
 });
 
 describe('the Employment History with a list in an unusual shape', () => {

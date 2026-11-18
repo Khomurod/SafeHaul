@@ -67,6 +67,8 @@ describe('EnvelopeStatusBadge with a failure reason that is not text', () => {
         badgeOf({ status: 'sent', sendEmail: true, emailStatus: 'failed', emailError: { code: 'EAUTH' } });
 
         expect(toneOf('Delivery failed')).toBe('danger');
-        expect(screen.getByText(/delivery failed$/i, { selector: 'span:not(.ds-badge *)' })).toBeInTheDocument();
+        // The detail line names the channel; the stored object is not drawn.
+        expect(screen.getByText('Email delivery failed')).toBeInTheDocument();
+        expect(screen.queryByText(/EAUTH|\[object Object\]/)).toBeNull();
     });
 });
