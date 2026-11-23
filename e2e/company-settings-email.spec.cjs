@@ -180,7 +180,8 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers
 const KEPT = 'Your mail-server settings are kept and used again if you disconnect Gmail.';
 const GMAIL_ACTIVE = {
   connected: true, email: 'hiring@example.test', status: 'active', statusReason: null,
-  connectedAt: Date.UTC(2026, 10, 30, 15), connectedByName: 'Artificial Admin',
+  // Noon on Nov 30 where the browser is (the same machine), so the day reads the same everywhere.
+  connectedAt: new Date(2026, 10, 30, 12).getTime(), connectedByName: 'Artificial Admin',
 };
 
 /** `getEmailSettingsMeta` as the server answers it, with this Gmail. */

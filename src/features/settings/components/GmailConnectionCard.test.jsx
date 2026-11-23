@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GmailConnectionCard } from './GmailConnectionCard';
 
 const DISCLOSURE = "SafeHaul will send your company's emails from this account. SafeHaul can only send; it cannot read your mailbox.";
-const CONNECTED_AT = Date.UTC(2026, 10, 30, 15);
+// Local noon, so the date reads Nov 30 in any time zone.
+const CONNECTED_AT = new Date(2026, 10, 30, 12).getTime();
 
 const NOT_CONNECTED = { connected: false, email: null, status: null, statusReason: null, connectedAt: null, connectedByName: null };
 const ACTIVE = {

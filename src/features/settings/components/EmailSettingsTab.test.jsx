@@ -735,7 +735,7 @@ describe('EmailSettingsTab — Send from Gmail', () => {
     const GMAIL_ON = { id: 'company-1', features: { gmailSending: true } };
     const CONNECTED = {
         connected: true, email: 'hiring@acme.com', status: 'active', statusReason: null,
-        connectedAt: Date.UTC(2026, 10, 30, 15), connectedByName: 'Anna Lee',
+        connectedAt: new Date(2026, 10, 30, 12).getTime(), connectedByName: 'Anna Lee',
     };
     const gmailCard = () => screen.queryByRole('region', { name: 'Send from Gmail' });
     const connectButton = () => screen.getByRole('button', { name: 'Connect Gmail' });
