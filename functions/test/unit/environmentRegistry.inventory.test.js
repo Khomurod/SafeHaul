@@ -189,6 +189,9 @@ describe('environment registry — coverage of each required area', () => {
             'FACEBOOK_APP_ID',
             'FACEBOOK_APP_SECRET',
             'FACEBOOK_VERIFY_TOKEN',
+            // Send from Gmail's OAuth client, read at run time rather than bound.
+            'GMAIL_OAUTH_CLIENT_ID',
+            'GMAIL_OAUTH_CLIENT_SECRET',
             'PROCESS_BULK_BATCH_URL',
             // The GitHub App the Super Admin Release Management screen uses to
             // start a production promotion. Inventoried like every other
@@ -233,6 +236,22 @@ describe('environment registry — coverage of each required area', () => {
         }
     });
 
+    it('lists the Gmail OAuth client as read at run time, never read back here', () => {
+        const rows = GLOBAL_ENTRIES.filter((entry) => entry.key.startsWith('GMAIL_OAUTH_'));
+        expect(rows.map((row) => [row.key, row.sensitivity])).toEqual([
+            ['GMAIL_OAUTH_CLIENT_ID', 'internal'],
+            ['GMAIL_OAUTH_CLIENT_SECRET', 'critical'],
+        ]);
+        for (const row of rows) {
+            expect(row.source).toBe('secret-manager');
+            expect(row.availability).toBe(AVAILABILITY.NOT_RETRIEVABLE);
+            expect(row.unavailableReason).toBe('Read at run time by the email functions; change it in Secret Manager.');
+            // No `secrets: [...]` binding, so no deploy is needed for a new version.
+            expect(row.requiresDeployment).toBe(false);
+            expect(row.permissions).toMatchObject({ editable: false, replaceable: false, addable: false, deletable: false });
+        }
+    });
+
     it('lists every GitHub Actions secret the workflows reference', () => {
         const workflowSecrets = new Set();
         for (const file of ALL_FILES.filter((f) => f.includes(`${path.sep}workflows${path.sep}`))) {
@@ -266,8 +285,10 @@ describe('environment registry — coverage of each required area', () => {
 
     it('covers the other stored integration credentials', () => {
         expect(COMPANY_TEMPLATES.email_config.fields.map((f) => f.field)).toEqual(
-            expect.arrayContaining(['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass']),
+            expect.arrayContaining(['smtpHost', 'smtpPort', 'smtpUser', 'smtpPass', 'gmailEmail', 'gmailRefreshToken']),
         );
+        const token = COMPANY_TEMPLATES.email_config.fields.find((f) => f.field === 'gmailRefreshToken');
+        expect(token).toMatchObject({ sensitivity: 'critical', notRetrievable: true, editable: false, deletable: false });
         expect(COMPANY_TEMPLATES.facebook_page.fields.map((f) => f.field)).toContain('accessToken');
     });
 

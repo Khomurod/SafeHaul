@@ -51,10 +51,10 @@ browser map cannot resolve fails there.
 | — repository config (`repo-config`) | 1 |
 | — deployment / operations tooling (`local-tooling`) | 24 |
 | — other infrastructure stores | 1 |
-| Per-company credential **field templates** | **20** |
+| Per-company credential **field templates** | **22** |
 | — SMS provider configuration | 11 |
 | — SMS dedicated-line keychain | 3 |
-| — company SMTP email configuration | 4 |
+| — company email configuration (SMTP and Gmail) | 6 |
 | — connected Facebook page | 2 |
 
 Company rows are expanded per tenant at list time, so the number of company rows
@@ -122,8 +122,19 @@ Value availability values:
 | `FACEBOOK_APP_ID` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_APP_SECRET` | Facebook Lead Ads | critical | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_VERIFY_TOKEN` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
+| `GMAIL_OAUTH_CLIENT_ID` | Gmail | internal | `not-retrievable` | reveal / — / — | No |
+| `GMAIL_OAUTH_CLIENT_SECRET` | Gmail | critical | `not-retrievable` | reveal / — / — | No |
 | `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 | `SMS_ENCRYPTION_KEY` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
+
+The two `GMAIL_OAUTH_*` rows are Send from Gmail's Google OAuth client. They are
+**read at run time, not bound** with `secrets: [...]`
+([`functions/shared/gmail/oauthClient.js`](../functions/shared/gmail/oauthClient.js)):
+a new version takes effect within ten minutes, with no deploy, and the vault
+cannot read them back. Both Functions runtime accounts (the table below) need
+`roles/secretmanager.secretAccessor` on each. While either secret is missing or
+unreadable only Gmail stops: connecting answers "Sending from Gmail is not set up
+yet." and the function log says `gmail-not-configured`.
 
 #### Binding a secret from a new function generation needs an IAM grant first
 
@@ -306,12 +317,19 @@ sends with and reports identity only.
 | `smtpPort` | plaintext | public | Yes | No — same | No — referenced |
 | `smtpUser` | plaintext | internal | Yes | No — same | No — referenced |
 | `smtpPass` | encrypted (`enc:v1:`) | critical | Yes | No — same | No — referenced |
+| `gmailEmail` | plaintext | internal | Yes | No — reconnect Gmail in Company Settings → Email | No — disconnect Gmail there |
+| `gmailRefreshToken` | encrypted (`enc:v1:`) | critical | **No** — `not-retrievable` | No — reconnect Gmail | No — disconnect Gmail |
 
 [`functions/saveEmailSettings.js`](../functions/saveEmailSettings.js) stores
 `smtpPass` encrypted with an `enc:v1:` mark and refuses a submitted value that
 already carries it, so a password is never encrypted twice. A password saved
 before that stays plain text until the company's next save. No browser reads
 this document: only the server and this vault's reveal decrypt it.
+
+The two `gmail*` rows appear only for a company that connected Gmail
+([`functions/gmailConnection.js`](../functions/gmailConnection.js)). The
+refresh token is never read back: its reveal answers `not-retrievable` without
+opening the document. Google issues it once; reconnecting Gmail replaces it.
 
 #### `integrations_index/{pageId}` — connected Facebook page
 
@@ -367,7 +385,7 @@ state and nowhere else — not `localStorage`, `sessionStorage`, IndexedDB, a da
 attribute, the URL, a console line, an error, an analytics event or a Sentry
 breadcrumb.
 
-### The one source that cannot answer
+### Sources that cannot answer
 
 **GitHub Actions never returns a stored secret's plaintext through its API.**
 Those rows keep their eye control and, when pressed, report:
@@ -376,6 +394,10 @@ Those rows keep their eye control and, when pressed, report:
 
 They are **not** omitted, and no value is invented, reconstructed or substituted.
 Their status is reported as *Not retrievable* rather than a guess.
+
+The `GMAIL_OAUTH_*` rows answer the same way, with their own reason, because
+the vault never holds them. A company's `gmailRefreshToken` row has no eye at
+all, and its reveal is refused by the server too.
 
 ---
 
@@ -517,7 +539,8 @@ Cloud Functions service account's read permissions, then Retry.
 - **Company rows are only emitted for integrations that exist.** A company with
   no SMS provider configured has no credentials to inventory; emitting a dozen
   "missing" rows per tenant would bury real gaps. Fields absent *on an existing*
-  integration document do get a `missing` row.
+  integration document do get a `missing` row, except Gmail's, which belong only
+  to a company that connected Gmail.
 - **`listEnvironmentAndIntegrations` reads company names with a 1000-document
   cap.** Beyond that, rows fall back to showing the company ID.
 

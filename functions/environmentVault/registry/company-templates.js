@@ -233,6 +233,35 @@ const EMAIL_CONFIG_FIELDS = [
         editReason: 'Edit through Company Settings so the connection is re-tested',
         deleteReason: REASONS.REFERENCED,
     },
+    // Send from Gmail (`functions/gmailConnection.js`): listed only for a
+    // company that holds them.
+    {
+        field: 'gmailEmail',
+        displayName: 'Gmail address',
+        description: 'The Google account the company sends from while Gmail is connected.',
+        encrypted: false,
+        sensitivity: SENSITIVITY.INTERNAL,
+        optional: true,
+        editable: false,
+        deletable: false,
+        editReason: 'Reconnect Gmail in Company Settings → Email to change it',
+        deleteReason: 'Disconnect Gmail in Company Settings → Email',
+    },
+    {
+        field: 'gmailRefreshToken',
+        displayName: 'Gmail refresh token',
+        description: 'Google refresh token, sealed enc:v1:. Google issues it once; reconnect Gmail to replace it.',
+        encrypted: true,
+        sensitivity: SENSITIVITY.CRITICAL,
+        optional: true,
+        // Never read back, here or anywhere: the reveal answers `not-retrievable`.
+        notRetrievable: true,
+        unavailableReason: 'SafeHaul never shows this token. Reconnect Gmail in Company Settings → Email to replace it.',
+        editable: false,
+        deletable: false,
+        editReason: 'Reconnect Gmail in Company Settings → Email to replace it',
+        deleteReason: 'Disconnect Gmail in Company Settings → Email',
+    },
 ];
 
 /** `integrations_index/{pageId}` — connected Facebook Lead Ads page. */
