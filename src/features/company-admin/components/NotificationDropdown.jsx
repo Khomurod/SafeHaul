@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Icon, Bell, Check, Clock, User, Briefcase, FileText, FileCheck, AlertTriangle } from '@design-system/icons';
+import { Icon, Bell, Check, Clock, User, Briefcase, FileText, FileCheck, AlertTriangle, MailWarning } from '@design-system/icons';
 import { Badge, Button, IconButton } from '@/design-system/components';
 import { ErrorState } from '@design-system/patterns';
 import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
@@ -17,6 +17,8 @@ const getNotificationIcon = (type) => {
         // A hired driver's DQ document (`functions/notifyDqExpiry.js`).
         case 'dq_expiring': return <Icon icon={AlertTriangle} className="text-ds-status-warning-fg" />;
         case 'dq_expired': return <Icon icon={AlertTriangle} className="text-ds-status-danger-fg" />;
+        // The company's Gmail stopped sending until an admin reconnects it (`functions/shared/gmail/gmailStatus.js`).
+        case 'gmail_reconnect': return <Icon icon={MailWarning} className="text-ds-status-danger-fg" />;
         default: return <Icon icon={Bell} className="text-ds-content-muted" />;
     }
 };
