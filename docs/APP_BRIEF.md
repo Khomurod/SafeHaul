@@ -1340,7 +1340,7 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting, Performance) | Everything | Project config |
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS; logs omit the number texted | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email (logs omit the recipient); no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password encrypted (`enc:v1:`), shown only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
+| **Per-company email: SMTP or Gmail** (Nodemailer) | All outbound email (logs omit the recipient); no platform-wide fallback sender. A company that connected Gmail (`provider: 'gmail'`) sends it all through the Gmail API (`gmail.send`; `functions/shared/gmail/`), Nodemailer building the message | `companies/{id}/system_settings/email_config` (server only); SMTP password and Gmail refresh token encrypted (`enc:v1:`), the password shown only by the vault's reveal, the token never; Gmail access tokens in memory only; the Gmail OAuth client read at run time from Secret Manager (`GMAIL_OAUTH_CLIENT_*`). Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog, an applicant's own PSP/MVR read into *suggestions* where enabled (`extractApplicationReport`), and a recruiter's attached paperwork (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | Operator alerts (`watchAiAndBlog`) and release offers (`offerProductionRelease`) in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |
@@ -1486,7 +1486,8 @@ the daily count**; refusing is a recorded outcome.
   prepared application's submission, a lead's application, a PEV answer or no-response,
   a status change and an assignment notify once per event (`createNotification` with a
   fixed id). A public link's "Ask … for a new link" notifies once per record a day
-  (`signing_link_requested`, `pev_link_requested`, `review_link_requested`).
+  (`signing_link_requested`, `pev_link_requested`, `review_link_requested`); a Gmail
+  that needs reconnecting tells the team once a UTC day while it refuses emails (`gmail_reconnect_<day>`).
 - **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
   matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
   An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);
@@ -1535,7 +1536,8 @@ An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
 An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
-no sent text between them, also across batches, pause the campaign. Resume (paused) and Continue (failed) are one
+no sent text between them, also across batches, pause the campaign, as does an email Gmail refuses for its sending
+limit or a needed reconnect (`pauseReason`: `sms_silent`, `gmail_limit`, `gmail_reconnect`; cleared on Resume). Resume (paused) and Continue (failed) are one
 claim (`resumeSession.js`): only from those two states, from `currentPointer`, under a new `workerGeneration`;
 with no one left the campaign completes instead. The recipient log and the Delivery Report
 read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any
@@ -1656,6 +1658,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 - **A screen offers to email a link only to an address the server would send
   to:** `canEmailLinkTo` and Fix recipient use `isWellFormedEmail`, the server's
   `isValidEmail` rule (`functions/shared/isValidEmail.vectors.json`).
+- **Gmail never falls back to SMTP silently.** A grant Google no longer honours
+  (`invalid_grant`, a Workspace block, a lost send scope) marks it
+  `needs_reconnect`: every email fails with the reconnect message until an admin
+  reconnects. Gmail's sending limits fail only that email, or pause a campaign.
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
   `onCancel`, so "start a new application" is never the cancel action: Start
   over is its own explicit destructive confirmation, and Escape at either stage

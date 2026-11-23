@@ -105,12 +105,13 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 ## Callable exports with no SPA caller
 
 A callable no screen calls is retired through `RETIREMENTS` in
-[`scripts/retire-functions.mjs`](../scripts/retire-functions.mjs). These three
+[`scripts/retire-functions.mjs`](../scripts/retire-functions.mjs). These four
 are new, and their screen (Settings → Email, Connect Gmail) comes next:
 
 | Callable | Typical use |
 |----------|-------------|
 | `startGmailConnection`, `completeGmailConnection`, `disconnectGmail` | Send from Gmail ([`gmailConnection.js`](../functions/gmailConnection.js)), Company Admin only. `startGmailConnection({ companyId })` → `{ url }` of Google's consent page, while the company's `gmailSending` switch is on and the request comes from one of the app's sites; `completeGmailConnection({ state, code })` → `{ email }`, from the return page `/oauth/google/callback`, by the same admin within ten minutes, once; `disconnectGmail({ companyId })` → `{ disconnected: true }`. The refresh token never leaves the server |
+| `sendTestEmail` | "Send test email" ([`sendTestEmail.js`](../functions/sendTestEmail.js)), Company Admin only. `{ companyId }` → `{ sent: true, to, from }`: a fixed test email to the caller's own sign-in address, through what the company sends with (its connected Gmail, else SMTP); five an hour per company (`resource-exhausted`); a failure answers a plain message (Gmail needs reconnecting, Gmail's limit, not set up) |
 
 ---
 
