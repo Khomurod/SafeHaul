@@ -4,13 +4,14 @@ import { COMPANY_FEATURES, isFeatureOn } from './companyFeatures';
 const company = (features) => ({ id: 'co-1', features });
 
 describe('company features', () => {
-    it('lists the five stored keys in order, Facebook leads under its stored key', () => {
+    it('lists the six stored keys in order, Facebook leads under its stored key', () => {
         expect(COMPANY_FEATURES.map(({ key, label }) => [key, label])).toEqual([
             ['pev', 'PEV'],
             ['campaignsEnabled', 'Campaigns'],
             ['eDocs', 'E-Docs'],
             ['importLeads', 'Import Leads'],
             ['callTracking', 'Facebook leads'],
+            ['gmailSending', 'Send from Gmail'],
         ]);
     });
 
@@ -28,6 +29,15 @@ describe('company features', () => {
         expect(isFeatureOn(null, 'callTracking')).toBe(false);
         expect(isFeatureOn(company({ callTracking: false }), 'callTracking')).toBe(false);
         expect(isFeatureOn(company({ callTracking: true }), 'callTracking')).toBe(true);
+    });
+
+    it('keeps Send from Gmail off unless a super admin switched it on', () => {
+        expect(isFeatureOn(company({}), 'gmailSending')).toBe(false);
+        expect(isFeatureOn(company(undefined), 'gmailSending')).toBe(false);
+        expect(isFeatureOn(null, 'gmailSending')).toBe(false);
+        expect(isFeatureOn(company({ gmailSending: false }), 'gmailSending')).toBe(false);
+        expect(isFeatureOn(company({ gmailSending: 'yes' }), 'gmailSending')).toBe(false);
+        expect(isFeatureOn(company({ gmailSending: true }), 'gmailSending')).toBe(true);
     });
 
     it('reads a key it does not list as every other: on unless switched off', () => {

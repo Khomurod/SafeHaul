@@ -14,8 +14,9 @@
 /** The companies as the overview reads them from `companies`. */
 export function mockFeatureCompanies() {
     return [
-        // Facebook leads is off unless switched on, so "everything on" switches it on.
-        { id: 'e2e-co-1', companyName: 'Artificial Freight Lines', features: { callTracking: true } },
+        // Facebook leads and Send from Gmail are off unless switched on, so
+        // "everything on" switches them on.
+        { id: 'e2e-co-1', companyName: 'Artificial Freight Lines', features: { callTracking: true, gmailSending: true } },
         {
             id: 'e2e-co-2',
             companyName: 'Northern Plains Refrigerated Transport Cooperative',

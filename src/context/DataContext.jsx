@@ -20,6 +20,15 @@ export const useData = () => {
   return context;
 };
 
+/** The E2E fixture company's switches that are off unless set, from the address. */
+function e2eFeatures() {
+  const features = {
+    ...(getE2EQueryParam('e2eFacebookLeads', '') === 'on' ? { callTracking: true } : {}),
+    ...(getE2EQueryParam('e2eGmail', '') === 'on' ? { gmailSending: true } : {}),
+  };
+  return Object.keys(features).length > 0 ? { features } : {};
+}
+
 /**
  * `renderLoading(platformLoader)`, optional, returns what shows while the session
  * settles; it is handed the provider's own loader to fall back to. The app picks
@@ -112,9 +121,10 @@ export function DataProvider({ children, renderLoading }) {
         applicationConfig: {},
         // The team cache the server keeps on a company document.
         teamMembers: [{ userId: 'e2e-company_admin', name: 'E2E Admin', email: 'company_admin@safehaul.local', role: 'company_admin' }],
-        // `?e2eFacebookLeads=on`: Facebook leads switched on, as a super admin
-        // does per company; off otherwise, as for a company that never set it.
-        ...(getE2EQueryParam('e2eFacebookLeads', '') === 'on' ? { features: { callTracking: true } } : {}),
+        // `?e2eFacebookLeads=on` and `?e2eGmail=on`: Facebook leads and Send from
+        // Gmail switched on, as a super admin does per company; off otherwise, as
+        // for a company that never set them.
+        ...e2eFeatures(),
       };
 
       if (e2eAuthMode === 'none') {

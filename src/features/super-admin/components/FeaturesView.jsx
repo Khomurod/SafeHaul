@@ -19,7 +19,7 @@ import { COMPANY_FEATURES, isFeatureOn } from '@shared/utils/companyFeatures';
  * shapes, the "clear the schedule when a feature is toggled manually" rule, the
  * ISO-string schedule value, the missing-field / invalid / past-date
  * validation order, the `feature_alerts` aggregation by
- * `userEmail || userId || 'Unknown'`, the five feature keys and their order,
+ * `userEmail || userId || 'Unknown'`, the feature keys and their order,
  * and every toast string.
  *
  * These are `Switch`, not `Checkbox`: toggling one writes to Firestore
@@ -181,7 +181,7 @@ export function FeaturesView({ company, onChanged }) {
             width: 'sm',
             render: (f) => {
                 // As every screen that honours the flag reads it (`isFeatureOn`):
-                // on unless switched off; Facebook leads off unless switched on.
+                // on unless switched off; Facebook leads and Send from Gmail off unless switched on.
                 const isEnabled = isFeatureOn(company, f.key);
                 return (
                     <Switch

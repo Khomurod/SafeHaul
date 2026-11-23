@@ -7,6 +7,11 @@
  * `callTracking` is Facebook leads: the Settings → Connections section. The
  * stored key keeps its old name; Facebook lead capture is switched off, so the
  * section shows only where it was explicitly switched on.
+ *
+ * `gmailSending` is Send from Gmail: Settings → Email offers Connect Gmail only
+ * where it is switched on, and the server refuses to start a connection while
+ * it is off. A Gmail already connected keeps sending until an admin disconnects
+ * it, so the Email tab also shows the card while one is connected.
  */
 export const COMPANY_FEATURES = Object.freeze([
     { key: 'pev', label: 'PEV' },
@@ -14,6 +19,7 @@ export const COMPANY_FEATURES = Object.freeze([
     { key: 'eDocs', label: 'E-Docs' },
     { key: 'importLeads', label: 'Import Leads' },
     { key: 'callTracking', label: 'Facebook leads', defaultOn: false },
+    { key: 'gmailSending', label: 'Send from Gmail', defaultOn: false },
 ]);
 
 const OFF_UNLESS_SET = new Set(
