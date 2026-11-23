@@ -70,6 +70,17 @@ export const PROTECTED_FEATURE_ROUTE_MANIFEST = Object.freeze([
     featureName: 'Super Admin',
     allowedRoles: SUPER_ADMIN_ROLES,
   },
+  {
+    // Where Google returns a company admin after Connect Gmail (Settings →
+    // Email), with a one-time code in the query. Signed in, so a signed-out
+    // visitor signs in and comes back; the server refuses anyone but the admin
+    // who started. `/oauth/` is secret to speed monitoring (`routePattern.js`).
+    id: 'gmailReturn',
+    path: '/oauth/google/callback',
+    screen: 'gmailReturn',
+    featureName: 'Email settings',
+    allowedRoles: COMPANY_WORKSPACE_ROLES,
+  },
 ]);
 
 export const COMPANY_WORKSPACE_ROUTE = Object.freeze({

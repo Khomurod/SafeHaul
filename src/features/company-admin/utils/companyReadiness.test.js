@@ -37,6 +37,27 @@ describe('what is not set up', () => {
         })]);
     });
 
+    it('nothing for a company that sends through a working Gmail, whatever its mail server', () => {
+        const gmail = { connected: true, email: 'hiring@example.test', status: 'active' };
+        expect(ids(companyReadiness({ ...READY, email: ok({ smtpHost: '', isVerified: false, gmail }) }))).toEqual([]);
+        expect(ids(companyReadiness({ ...READY, email: ok({ smtpHost: 'smtp.example.test', isVerified: false, gmail }) }))).toEqual([]);
+    });
+
+    it('a connected Gmail that needs reconnecting, even with a verified mail server: nothing falls back to it', () => {
+        const gmail = { connected: true, email: 'hiring@example.test', status: 'needs_reconnect' };
+        const [item] = companyReadiness({ ...READY, email: ok({ smtpHost: 'smtp.example.test', isVerified: true, gmail }) }).items;
+        expect(item).toMatchObject({
+            id: 'email', state: 'todo', title: 'Gmail needs reconnecting', href: READINESS_LINKS.email, linkLabel: 'Open email settings',
+        });
+    });
+
+    it('reads the mail server as before when no Gmail is connected', () => {
+        const gmail = { connected: false, email: null, status: null };
+        expect(ids(companyReadiness({ ...READY, email: ok({ smtpHost: 'smtp.example.test', isVerified: true, gmail }) }))).toEqual([]);
+        const [item] = companyReadiness({ ...READY, email: ok({ smtpHost: '', isVerified: false, gmail }) }).items;
+        expect(item).toMatchObject({ id: 'email', title: 'Company email is not connected' });
+    });
+
     it('a company email saved but not verified', () => {
         const [item] = companyReadiness({ ...READY, email: ok({ smtpHost: 'smtp.example.test', isVerified: false }) }).items;
         expect(item).toMatchObject({ id: 'email', state: 'todo', title: 'Company email could not be verified' });

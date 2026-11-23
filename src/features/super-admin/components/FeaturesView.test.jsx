@@ -68,10 +68,10 @@ describe('FeaturesView — frozen write contract', () => {
         await waitFor(() => expect(updateDoc.mock.calls[0][1]['features.pev']).toBe(false));
     });
 
-    it('lists the five features in the frozen order', () => {
+    it('lists the six features in the frozen order', () => {
         renderView();
         const features = screen.getAllByRole('rowheader').map((h) => h.textContent);
-        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Facebook leads']);
+        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Facebook leads', 'Send from Gmail']);
     });
 
     it('reports a failed toggle through the frozen toast, and lets the operator try again', async () => {
@@ -108,7 +108,7 @@ describe('FeaturesView — a write waits for the company to be read again', () =
 describe('FeaturesView — toggles are named and stateful (defect)', () => {
     it('gives every toggle an accessible name identifying feature and company', () => {
         renderView();
-        expect(screen.getAllByRole('switch')).toHaveLength(5);
+        expect(screen.getAllByRole('switch')).toHaveLength(6);
         expect(screen.getByRole('switch', { name: 'Campaigns for Artificial Freight Co' })).toBeInTheDocument();
     });
 
@@ -141,6 +141,19 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
         await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(
             { path: 'companies/co-2' },
             { 'features.callTracking': true, 'featureSchedules.callTracking': null },
+        ));
+    });
+
+    it('shows Send from Gmail off until it is switched on, and switching it on writes true', async () => {
+        renderView({ company: UNSET });
+        const gmail = screen.getByRole('switch', { name: 'Send from Gmail for Second Artificial Carrier' });
+        expect(gmail).not.toBeChecked();
+        expect(screen.queryByRole('button', { name: 'Schedule deactivation of Send from Gmail for Second Artificial Carrier' })).toBeNull();
+
+        fireEvent.click(gmail);
+        await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(
+            { path: 'companies/co-2' },
+            { 'features.gmailSending': true, 'featureSchedules.gmailSending': null },
         ));
     });
 

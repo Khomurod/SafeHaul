@@ -1,7 +1,8 @@
 /**
  * The route pattern of an address, read from the route manifests, so a page
  * load is named `/apply/:slug` and never by the address itself; and which
- * addresses carry a secret (a `:token` segment). Speed monitoring records
+ * addresses carry a secret: a `:token` segment, or anything under `/oauth/`,
+ * where Google returns a one-time code in the query. Speed monitoring records
  * nothing on those, because the Performance SDK attaches the page address to
  * everything it sends (`src/lib/monitoring/pageLoadTrace.js`).
  *
@@ -32,16 +33,24 @@ const ROUTE_PATTERNS = Object.freeze([
   `${COMPANY}/*`,
 ]);
 
+/** Where every address is secret, whatever its pattern: OAuth return pages carry a code. */
+const STATIC_SECRET_PREFIXES = Object.freeze(['/oauth/']);
+
+const underStaticSecret = (path) => STATIC_SECRET_PREFIXES.some((prefix) => path.toLowerCase().startsWith(prefix));
+
 export function isSecretPattern(pattern) {
-  return pattern.split('/').includes(':token');
+  return pattern.split('/').includes(':token') || underStaticSecret(pattern);
 }
 
-/** `/verify/`, `/review-change/`: the static part of each secret pattern. */
-const SECRET_PREFIXES = Object.freeze(ROUTE_PATTERNS.filter(isSecretPattern).map((pattern) => {
-  const segments = pattern.split('/');
-  const firstDynamic = segments.findIndex((segment) => segment.startsWith(':') || segment === '*');
-  return `${segments.slice(0, firstDynamic).join('/')}/`.toLowerCase();
-}));
+/** `/verify/`, `/review-change/`: the static part of each `:token` pattern; and `/oauth/`. */
+const SECRET_PREFIXES = Object.freeze([
+  ...ROUTE_PATTERNS.filter((pattern) => pattern.split('/').includes(':token')).map((pattern) => {
+    const segments = pattern.split('/');
+    const firstDynamic = segments.findIndex((segment) => segment.startsWith(':') || segment === '*');
+    return `${segments.slice(0, firstDynamic).join('/')}/`.toLowerCase();
+  }),
+  ...STATIC_SECRET_PREFIXES,
+]);
 
 /** The address as the router reads it: each segment percent-decoded. */
 function decoded(pathname) {
@@ -60,9 +69,9 @@ export function routePatternOf(pathname) {
 }
 
 /**
- * True when `pathname` is, or could be, a secret page: it matches a `:token`
- * route, or starts with a secret route's prefix (`/verify/<token>/x` matches no
- * route, yet carries the token). Case-insensitive, as the router is, and read
+ * True when `pathname` is, or could be, a secret page: it matches a secret
+ * route, or starts with a secret prefix (`/verify/<token>/x` matches no route,
+ * yet carries the token; anything under `/oauth/`). Case-insensitive, as the router is, and read
  * both as given and decoded, as the router reads it.
  */
 export function isSecretPath(pathname) {

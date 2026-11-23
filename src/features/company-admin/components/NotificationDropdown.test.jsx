@@ -208,6 +208,18 @@ describe('a notification in the bell', () => {
         expect(hook.markAsRead).toHaveBeenCalledWith('dq_expired_app-8_2026-11-20');
     });
 
+    it("marks a Gmail that needs reconnecting as a problem, as plain text: it names no record to open", async () => {
+        await openBell([{
+            id: 'gmail_reconnect_2026-11-20_0123456789ab', type: 'gmail_reconnect', title: 'Gmail needs reconnecting',
+            message: 'Emails are not being sent from your company Gmail. A company admin can reconnect it in Settings → Email.',
+            read: false, createdAt: at,
+        }]);
+
+        const row = screen.getByText('Gmail needs reconnecting').closest('div');
+        expect(row.querySelector('svg')).toHaveClass('text-ds-status-danger-fg');
+        expect(screen.queryByRole('button', { name: /Gmail needs reconnecting/ })).not.toBeInTheDocument();
+    });
+
     // By the notice's type, so those already sent open the tab too; any other
     // opens the dossier on its first tab (`undefined` above).
     it.each([

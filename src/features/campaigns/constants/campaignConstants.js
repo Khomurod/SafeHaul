@@ -136,6 +136,23 @@ export function campaignStatusPresentation(status) {
 }
 
 /**
+ * Why the send worker paused a campaign (`pauseReason`, cleared on Resume), in
+ * plain words for its report: the SMS provider stopped answering, or Gmail
+ * refused an email for its sending limit or a connection that needs
+ * reconnecting. Nobody was skipped: Resume sends to the rest. Null for a
+ * campaign a person paused, or a reason this screen does not know.
+ */
+const PAUSE_REASONS = Object.freeze({
+    sms_silent: 'The text provider did not answer three texts in a row, so sending stopped. Check Settings → Text messages, then press Resume.',
+    gmail_limit: "Gmail's sending limit was reached, so sending stopped. Nobody was skipped: press Resume later to send to the rest.",
+    gmail_reconnect: 'Gmail needs reconnecting, so no email is being sent. A company admin can reconnect it in Settings → Email; then press Resume.',
+});
+
+export function campaignPauseReason(pauseReason) {
+    return Object.prototype.hasOwnProperty.call(PAUSE_REASONS, pauseReason) ? PAUSE_REASONS[pauseReason] : null;
+}
+
+/**
  * How a campaign's channel reads on its card: the stored `messageConfig.method`
  * is lower case ('sms', 'email') and SMS when unset, as the editor defaults it.
  * The card used to capitalise it with CSS; now the words are the label's own.

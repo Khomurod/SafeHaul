@@ -296,6 +296,20 @@ test.describe('Super Admin views', () => {
     await expectNoHorizontalOverflow(page, '412 Unified Driver DB with rows');
   });
 
+  // At 1440 every feature column is in view: the table does not scroll sideways
+  // and hide the last one behind its edge shade.
+  test('Features shows every feature column at 1440 px without scrolling sideways', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Explicit viewport runs on the desktop lane.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/super-admin/features?e2eAuth=super_admin&e2eFeatures=mock');
+    const table = page.getByRole('table', { name: 'Features of every company' });
+    await expect(table.getByText('Northern Plains Refrigerated Transport Cooperative')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.ds-data-table__scroll-frame')).not.toHaveAttribute('data-overflow-end');
+    const scroll = await page.getByRole('region', { name: /^Features of every company/ })
+      .evaluate((region) => ({ scrollWidth: region.scrollWidth, clientWidth: region.clientWidth }));
+    expect(scroll.scrollWidth, 'the features table scrolls sideways at 1440').toBeLessThanOrEqual(scroll.clientWidth);
+  });
+
   test('all migrated views stay usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
     await openShell(page);

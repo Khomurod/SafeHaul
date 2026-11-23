@@ -65,6 +65,10 @@ export const featureScreens = Object.freeze({
     () => import('@features/settings/components/CompanySettings'),
     'CompanySettings',
   ),
+  gmailReturn: lazyNamed(
+    () => import('@features/settings/components/GmailReturnScreen'),
+    'GmailReturnScreen',
+  ),
   // The start-up warm-up asks for this screen first on an apply page; both
   // share one request (`applyScreenLoader.js`).
   publicApplyHandler: lazyNamed(loadPublicApplyHandler, 'PublicApplyHandler'),

@@ -2,14 +2,15 @@ import React, { forwardRef } from 'react';
 import { Icon, Mail, Server } from '@design-system/icons';
 import { Card, Link } from '@/design-system/components';
 
-/** One provider's guide: a heading, the numbered steps, then the settings to type in. */
-function ProviderGuide({ icon, iconClassName, title, steps, configuration }) {
+/** One provider's guide: a heading, an optional note, the numbered steps, then the settings to type in. */
+function ProviderGuide({ icon, iconClassName, title, note, steps, configuration }) {
     return (
         <section className="space-y-ds-3 py-ds-5 first:pt-0 last:pb-0">
             <h3 className="flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content">
                 <Icon icon={icon} size="lg" className={iconClassName} />
                 {title}
             </h3>
+            {note && <p className="text-ds-body text-ds-content">{note}</p>}
             <ol className="list-inside list-decimal space-y-ds-2 text-ds-body text-ds-content-secondary">
                 {steps}
             </ol>
@@ -27,8 +28,10 @@ function ProviderGuide({ icon, iconClassName, title, steps, configuration }) {
  * server section, since three guides have no room in its side column: one
  * card, the providers divided by rules, no box inside it. Feature-owned
  * content. The ref is the card, so the page can bring it into view.
+ * `offerGmail`: the company may Connect Gmail instead, which needs no app
+ * password, and the Gmail guide says so first.
  */
-export const SmtpSetupGuide = forwardRef(function SmtpSetupGuide({ id, labelledBy }, ref) {
+export const SmtpSetupGuide = forwardRef(function SmtpSetupGuide({ id, labelledBy, offerGmail = false }, ref) {
     return (
         <Card ref={ref} as="section" id={id} aria-labelledby={labelledBy} padding="md" className="scroll-mt-ds-6">
             <div className="divide-y divide-ds-border-subtle animate-in fade-in slide-in-from-top-2">
@@ -36,6 +39,9 @@ export const SmtpSetupGuide = forwardRef(function SmtpSetupGuide({ id, labelledB
                     icon={Mail}
                     iconClassName="text-ds-status-danger-fg"
                     title="Gmail / Google Workspace"
+                    note={offerGmail && (
+                        <>Using Gmail? Press <strong>Connect Gmail</strong> above instead: no app password is needed.</>
+                    )}
                     steps={(
                         <>
                             <li>Go to your <Link href="https://myaccount.google.com/" external>Google Account</Link></li>

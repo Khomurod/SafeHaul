@@ -12,6 +12,9 @@ const callableMocks = vi.hoisted(() => ({
     getEmailSettingsMeta: vi.fn(),
     testEmailConnection: vi.fn(),
     saveEmailSettings: vi.fn(),
+    startGmailConnection: vi.fn(),
+    disconnectGmail: vi.fn(),
+    sendTestEmail: vi.fn(),
 }));
 
 const toastMocks = vi.hoisted(() => ({
@@ -724,6 +727,139 @@ describe('EmailSettingsTab — presentation and accessibility', () => {
         fireEvent.change(signature(), { target: { value: 'Thanks' } });
         fireEvent.click(barButton('Save'));
         expect(within(saveBar()).getByRole('alert')).toBeInTheDocument();
+        expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('EmailSettingsTab — Send from Gmail', () => {
+    const GMAIL_ON = { id: 'company-1', features: { gmailSending: true } };
+    const CONNECTED = {
+        connected: true, email: 'hiring@acme.com', status: 'active', statusReason: null,
+        connectedAt: new Date(2026, 10, 30, 12).getTime(), connectedByName: 'Anna Lee',
+    };
+    const gmailCard = () => screen.queryByRole('region', { name: 'Send from Gmail' });
+    const connectButton = () => screen.getByRole('button', { name: 'Connect Gmail' });
+    const KEPT = 'Your mail-server settings are kept and used again if you disconnect Gmail.';
+
+    async function renderConnected(company = GMAIL_ON) {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true, isVerified: true, gmail: CONNECTED }));
+        const result = render(<EmailSettingsTab currentCompanyProfile={company} />);
+        await screen.findByText(KEPT);
+        return result;
+    }
+
+    it('shows no Gmail card where the switch is off and no Gmail is connected', async () => {
+        await renderLoaded();
+        expect(gmailCard()).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Connect Gmail' })).toBeNull();
+    });
+
+    it('offers Connect Gmail above the mail server where the switch is on, with the server form as it was', async () => {
+        await renderLoaded({ currentCompanyProfile: GMAIL_ON });
+        const card = gmailCard();
+        expect(card).toHaveTextContent("SafeHaul will send your company's emails from this account. SafeHaul can only send; it cannot read your mailbox.");
+        const server = screen.getByRole('region', { name: 'SMTP Server Configuration' });
+        expect(card.compareDocumentPosition(server) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(host()).toHaveValue('smtp.gmail.com');
+        expect(testButton()).toBeInTheDocument();
+    });
+
+    it('tells Gmail users in the setup guide to Connect Gmail instead, only where they can', async () => {
+        await renderLoaded({ currentCompanyProfile: GMAIL_ON });
+        fireEvent.click(screen.getByRole('button', { name: /How to Set Up SMTP/i }));
+        expect(screen.getByText(/Using Gmail\? Press/)).toHaveTextContent('Using Gmail? Press Connect Gmail above instead: no app password is needed.');
+    });
+
+    it('says nothing of Connect Gmail in the guide where the switch is off', async () => {
+        await renderLoaded();
+        fireEvent.click(screen.getByRole('button', { name: /How to Set Up SMTP/i }));
+        expect(screen.queryByText(/Using Gmail\? Press/)).toBeNull();
+    });
+
+    it('holds Connect Gmail while the page has unsaved changes, and lets it go once they are discarded', async () => {
+        await renderLoaded({ currentCompanyProfile: GMAIL_ON });
+        expect(connectButton()).toBeEnabled();
+
+        fireEvent.change(copies(), { target: { value: 'safety@acme.com' } });
+        expect(connectButton()).toBeDisabled();
+        expect(connectButton()).toHaveAccessibleDescription('Save or discard your changes first.');
+
+        fireEvent.click(barButton('Discard'));
+        expect(connectButton()).toBeEnabled();
+    });
+
+    it('folds the mail-server form into one line while Gmail is connected', async () => {
+        await renderConnected();
+        const server = screen.getByRole('region', { name: 'SMTP Server Configuration' });
+        expect(server).toHaveTextContent(KEPT);
+        expect(within(server).queryAllByRole('textbox')).toHaveLength(0);
+        expect(screen.queryByRole('textbox', { name: /SMTP Host/i })).toBeNull();
+        expect(screen.queryByLabelText(/SMTP Password/i)).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Test Connection' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /How to Set Up SMTP/i })).toBeNull();
+        expect(gmailCard()).toHaveTextContent('Sending from hiring@acme.com · connected by Anna Lee on Nov 30, 2026');
+        // The signature and the verification copies are still the page's.
+        expect(signature()).toHaveValue('Best regards');
+        expect(copies()).toBeInTheDocument();
+    });
+
+    it('keeps showing a connected Gmail, and lets it be disconnected, after the switch went off', async () => {
+        await renderConnected({ id: 'company-1', features: { gmailSending: false } });
+        expect(gmailCard()).toHaveTextContent('Send from Gmail is switched off');
+        expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument();
+    });
+
+    it('saves the signature alone while Gmail is connected', async () => {
+        await renderConnected();
+        fireEvent.change(signature(), { target: { value: 'Thanks, Dispatch' } });
+        expect(saveBar()).toHaveTextContent('1 change · Signature');
+
+        fireEvent.click(barButton('Save'));
+
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(callableMocks.saveEmailSettings).toHaveBeenCalledExactlyOnceWith({
+            companyId: 'company-1',
+            signatureOnly: true,
+            signature: 'Thanks, Dispatch',
+        });
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Signature saved.');
+        expect(signature()).toHaveValue('Thanks, Dispatch');
+        expect(callableMocks.testEmailConnection).not.toHaveBeenCalled();
+    });
+
+    it("keeps the signature and the bar, with the server's reason, when the signature was not saved", async () => {
+        callableMocks.saveEmailSettings.mockRejectedValueOnce(
+            callableFailure('failed-precondition', 'Save the signature together with your mail server settings.'),
+        );
+        const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await renderConnected();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
+
+        fireEvent.click(barButton('Save'));
+
+        expect(await within(saveBar()).findByRole('alert')).toHaveTextContent('Save the signature together with your mail server settings.');
+        expect(signature()).toHaveValue('Thanks');
+        err.mockRestore();
+    });
+
+    it('unfolds the saved mail-server settings once Gmail is disconnected', async () => {
+        callableMocks.disconnectGmail.mockResolvedValue({ data: { disconnected: true } });
+        await renderConnected();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Disconnect Gmail?' })).getByRole('button', { name: 'Disconnect Gmail' }));
+
+        expect(await screen.findByRole('textbox', { name: /SMTP Host/i })).toHaveValue('smtp.gmail.com');
+        expect(callableMocks.disconnectGmail).toHaveBeenCalledExactlyOnceWith({ companyId: 'company-1' });
+        expect(screen.getByText('Successfully Linked')).toBeInTheDocument();
+        expect(screen.queryByText(KEPT)).toBeNull();
+        expect(connectButton()).toBeEnabled();
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Gmail disconnected.');
+    });
+
+    it('has no accessibility violations with Gmail connected and the signature changed', async () => {
+        const { container } = await renderConnected();
+        fireEvent.change(signature(), { target: { value: 'Thanks' } });
         expect((await axe(container)).violations).toEqual([]);
     });
 });

@@ -8,14 +8,15 @@
  * only empty.
  *
  * One company with everything on, one with a long name and two features off,
- * and one with a switch-off scheduled. Every company is made up.
+ * and one with two switch-offs scheduled. Every company is made up.
  */
 
 /** The companies as the overview reads them from `companies`. */
 export function mockFeatureCompanies() {
     return [
-        // Facebook leads is off unless switched on, so "everything on" switches it on.
-        { id: 'e2e-co-1', companyName: 'Artificial Freight Lines', features: { callTracking: true } },
+        // Facebook leads and Send from Gmail are off unless switched on, so
+        // "everything on" switches them on.
+        { id: 'e2e-co-1', companyName: 'Artificial Freight Lines', features: { callTracking: true, gmailSending: true } },
         {
             id: 'e2e-co-2',
             companyName: 'Northern Plains Refrigerated Transport Cooperative',
@@ -25,7 +26,8 @@ export function mockFeatureCompanies() {
             id: 'e2e-co-3',
             companyName: 'Sample Haulage',
             features: { campaignsEnabled: true },
-            featureSchedules: { campaignsEnabled: '2026-10-30T15:00:00.000Z' },
+            // E-Docs's is in one of the narrowest columns, where it wraps.
+            featureSchedules: { campaignsEnabled: '2026-10-30T15:00:00.000Z', eDocs: '2026-11-02T15:00:00.000Z' },
         },
     ];
 }

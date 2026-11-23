@@ -4,7 +4,7 @@ Per-tenant feature toggles live on **`companies/{companyId}`** as two parallel m
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off** — except `callTracking` (Facebook leads), which is off until an explicit `true`. |
+| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off** — except `callTracking` (Facebook leads) and `gmailSending` (Send from Gmail), which are off until an explicit `true`. |
 | `featureSchedules` | `Record<string, string \| null>` | ISO-8601 datetime when a feature should auto-disable |
 
 Super admins manage both on each company's own screen, its Features tab ([`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx)). Only they can: the rules refuse a company admin's write to either. Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
@@ -24,6 +24,7 @@ Defined in `COMPANY_FEATURES` in [`companyFeatures.js`](../src/shared/utils/comp
 | `eDocs` | E-Docs | Sidebar; [`DocumentsManager.jsx`](../src/features/company-admin/views/DocumentsManager.jsx) when `=== false` |
 | `importLeads` | Import Leads | Leads page's Import leads button (admin); [`ImportLeadsPage.jsx`](../src/features/company-admin/views/ImportLeadsPage.jsx) when `=== false` |
 | `callTracking` | Facebook leads | [`CompanySettings.jsx`](../src/features/settings/components/CompanySettings.jsx) "Facebook leads" section shown only when `=== true` (default **off**; the stored key keeps its old name) |
+| `gmailSending` | Send from Gmail | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) shows the Send from Gmail card when `=== true` **or** a Gmail is connected (default **off**); `startGmailConnection` and `completeGmailConnection` refuse while it is not `true` ([`gmailConnection.js`](../functions/gmailConnection.js)) |
 
 Routes without a `featureFlag` in [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) (dashboard, applications, leads, pipeline, Add lead, profile, settings) are **always visible** to company team regardless of `features`.
 
@@ -58,8 +59,9 @@ Stricter checks on direct URL access:
 | Campaigns | `features.campaignsEnabled !== false` |
 | PEV tab | `features.pev !== false` |
 | Facebook leads settings section | `features.callTracking === true` |
+| Send from Gmail card (Settings → Email) | `features.gmailSending === true`, or a Gmail already connected |
 
-**Asymmetry:** every flag is opt-out (`=== false` disables) except `callTracking`, which is opt-in (`=== true` enables): Facebook lead capture is switched off, so the section shows only where a super admin switched it on.
+**Asymmetry:** every flag is opt-out (`=== false` disables) except `callTracking` and `gmailSending`, which are opt-in (`=== true` enables): Facebook lead capture is switched off, so the section shows only where a super admin switched it on; Send from Gmail waits for Google's review of SafeHaul. Switching `gmailSending` off stops new connections but not a connected Gmail: it keeps sending until an admin disconnects it, so mail never stops silently, and its card stays to show it and to disconnect.
 
 ### 3. Public surfaces
 
@@ -148,7 +150,8 @@ Mounted from company shell (see `CompanyAppShell` / dashboard layout).
     "eDocs": true,
     "pev": true,
     "importLeads": true,
-    "callTracking": true
+    "callTracking": true,
+    "gmailSending": true
   },
   "featureSchedules": {
     "campaignsEnabled": "2026-06-01T04:00:00.000Z"
@@ -183,5 +186,5 @@ After scheduler runs past June 1:
 
 ## Gaps / implementation notes
 
-1. **Default-on** — flags disable only on explicit `false`; a missing key means the feature is on. The one exception is `callTracking` (Facebook leads), off unless `true`.
+1. **Default-on** — flags disable only on explicit `false`; a missing key means the feature is on. The exceptions are `callTracking` (Facebook leads) and `gmailSending` (Send from Gmail), off unless `true`.
 2. **Scale** — scheduler loads all companies each run; acceptable at current scale per code comment; would need indexing if tenant count grows large.
