@@ -1,12 +1,50 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db } = require("./firebaseAdmin");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
+const { millisOf } = require("./shared/millisOf");
+const { nameFromProfile } = require("./shared/userIdentity");
+
+/** `settings.gmail` while no Gmail is connected (`gmailConnection.js`). */
+const GMAIL_NOT_CONNECTED = Object.freeze({
+    connected: false,
+    email: null,
+    status: null,
+    statusReason: null,
+    connectedAt: null,
+    connectedByName: null,
+});
+
+/**
+ * The company's Gmail connection, as the Email tab shows it: the account, its
+ * status, when (milliseconds) and by whom it was connected. Never the token.
+ */
+async function gmailMeta(data) {
+    if (data.provider !== 'gmail' || !data.gmailRefreshToken) return { ...GMAIL_NOT_CONNECTED };
+    let connectedByName = null;
+    if (typeof data.gmailConnectedBy === 'string' && data.gmailConnectedBy && !data.gmailConnectedBy.includes('/')) {
+        try {
+            const user = await db.collection('users').doc(data.gmailConnectedBy).get();
+            connectedByName = user.exists ? nameFromProfile(user.data()) : null;
+        } catch (error) {
+            console.warn('[getEmailSettingsMeta] The user who connected Gmail could not be read:', error?.code ?? 'error');
+        }
+    }
+    return {
+        connected: true,
+        email: data.gmailEmail || null,
+        status: data.gmailStatus || 'active',
+        statusReason: data.gmailStatusReason || null,
+        connectedAt: millisOf(data.gmailConnectedAt),
+        connectedByName,
+    };
+}
 
 /**
  * Get sanitized email settings metadata for the UI.
  *
  * Returns all non-sensitive email configuration fields so the frontend
- * can render the settings form without ever receiving the SMTP password.
+ * can render the settings form without ever receiving the SMTP password,
+ * and `settings.gmail`, the company's Gmail connection without its token.
  *
  * This replaces direct Firestore reads of the company root document
  * which previously exposed smtpPass (encrypted or plaintext) to the client.
@@ -34,17 +72,23 @@ exports.getEmailSettingsMeta = onCall(
 
         if (configDoc.exists) {
             const data = configDoc.data();
+            // A document a Gmail connection created holds no mail-server settings:
+            // those still live on the company document, and are shown from there.
+            const server = data.smtpHost || data.smtpPass
+                ? data
+                : ((await db.collection('companies').doc(companyId).get()).data()?.emailSettings || {});
             return {
                 success: true,
                 settings: {
-                    smtpHost: data.smtpHost || '',
-                    smtpPort: data.smtpPort || 587,
-                    smtpUser: data.smtpUser || '',
-                    signature: data.signature || '',
-                    isVerified: data.isVerified || false,
-                    updatedAt: data.updatedAt || null,
-                    hasPassword: !!data.smtpPass,
-                    // NEVER include smtpPass
+                    smtpHost: server.smtpHost || '',
+                    smtpPort: server.smtpPort || 587,
+                    smtpUser: server.smtpUser || '',
+                    signature: data.signature ?? server.signature ?? '',
+                    isVerified: server.isVerified || false,
+                    updatedAt: data.updatedAt || server.updatedAt || null,
+                    hasPassword: !!server.smtpPass,
+                    // NEVER include smtpPass, or gmailRefreshToken
+                    gmail: await gmailMeta(data),
                 },
             };
         }
@@ -65,6 +109,7 @@ exports.getEmailSettingsMeta = onCall(
                     updatedAt: legacy.updatedAt || null,
                     hasPassword: !!legacy.smtpPass,
                     // NEVER include smtpPass
+                    gmail: { ...GMAIL_NOT_CONNECTED },
                 },
             };
         }
@@ -80,6 +125,7 @@ exports.getEmailSettingsMeta = onCall(
                 isVerified: false,
                 updatedAt: null,
                 hasPassword: false,
+                gmail: { ...GMAIL_NOT_CONNECTED },
             },
         };
     }

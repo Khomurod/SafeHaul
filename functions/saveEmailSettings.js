@@ -21,7 +21,38 @@ const { isSealed, normalizeSmtpSettings, sealPassword } = require("./shared/smtp
  * `isVerified` ("Successfully Linked" on the settings screen) is set from a
  * connection the server opens with the values it saves, on every save: Save
  * Settings runs no Test Connection first.
+ *
+ * `signatureOnly: true` saves the signature alone, with no SMTP fields and no
+ * connection check: the Email tab sends it while Gmail is connected. A full
+ * SMTP save is refused while Gmail is connected (`provider === 'gmail'`,
+ * `gmailConnection.js`); the stored SMTP settings are kept for a disconnect.
  */
+const GMAIL_CONNECTED = 'Gmail is connected. Disconnect Gmail in Settings → Email to send through your mail server again.';
+
+const SIGNATURE_WITH_SERVER = 'Save the signature together with your mail server settings.';
+
+/**
+ * The signature alone, on `email_config`, its copy on the company document,
+ * and the oldest settings (`integrations/email_settings`) where they remain, so
+ * the mail server sends it too once Gmail is disconnected. Only while Gmail is
+ * connected: a company on its mail server may still send with older settings
+ * kept elsewhere, which a signature-only document would hide from the Email tab.
+ */
+async function saveSignature(uid, companyId, emailConfigRef, signature) {
+    const existing = await emailConfigRef.get();
+    if (!existing.exists || existing.data()?.provider !== 'gmail') {
+        throw new HttpsError('failed-precondition', SIGNATURE_WITH_SERVER);
+    }
+    const companyRef = db.collection('companies').doc(companyId);
+    const updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await emailConfigRef.set({ signature, updatedAt, updatedBy: uid }, { merge: true });
+    await companyRef.update({ 'emailSettings.signature': signature });
+    const oldest = companyRef.collection('integrations').doc('email_settings');
+    if ((await oldest.get()).exists) await oldest.set({ signature }, { merge: true });
+    console.log(`[saveEmailSettings] Signature saved for company ${companyId} by ${uid}`);
+    return { success: true, message: 'Signature saved.' };
+}
+
 exports.saveEmailSettings = onCall(
     // The secret encrypts the password, and decrypts a stored one for that check.
     { cors: true, secrets: ['SMS_ENCRYPTION_KEY'] },
@@ -30,10 +61,16 @@ exports.saveEmailSettings = onCall(
             throw new HttpsError('unauthenticated', 'Login required.');
         }
 
-        const { companyId, smtpHost, smtpPort, smtpUser, smtpPass, signature } = request.data || {};
+        const { companyId, smtpHost, smtpPort, smtpUser, smtpPass, signature, signatureOnly } = request.data || {};
+        const onlySignature = signatureOnly === true;
 
-        if (!companyId || !smtpHost || !smtpUser) {
-            throw new HttpsError('invalid-argument', 'Missing required fields: companyId, smtpHost, smtpUser.');
+        if (!companyId || (!onlySignature && (!smtpHost || !smtpUser))) {
+            throw new HttpsError('invalid-argument', onlySignature
+                ? 'Missing required field: companyId.'
+                : 'Missing required fields: companyId, smtpHost, smtpUser.');
+        }
+        if (onlySignature && signature !== undefined && signature !== null && typeof signature !== 'string') {
+            throw new HttpsError('invalid-argument', 'The signature must be text.');
         }
 
         // Rate limit: 10 saves per 5 minutes per user (prevent spam)
@@ -49,19 +86,25 @@ exports.saveEmailSettings = onCall(
         const emailConfigRef = db.collection('companies').doc(companyId)
             .collection('system_settings').doc('email_config');
 
-        // PARTIAL UPDATE SUPPORT:
-        // If smtpPass is omitted/empty, preserve the existing password from the subcollection.
-        let finalPassword;
+        if (onlySignature) return saveSignature(request.auth.uid, companyId, emailConfigRef, signature || '');
 
         if (isSealed(smtpPass)) {
             throw new HttpsError('invalid-argument', 'Enter the SMTP password itself.');
         }
+        const existingDoc = await emailConfigRef.get();
+        const existingSettings = existingDoc.exists ? existingDoc.data() || {} : {};
+        if (existingSettings.provider === 'gmail') {
+            throw new HttpsError('failed-precondition', GMAIL_CONNECTED);
+        }
+
+        // PARTIAL UPDATE SUPPORT:
+        // If smtpPass is omitted/empty, preserve the existing password from the subcollection.
+        let finalPassword;
+
         if (smtpPass && smtpPass.trim()) {
             finalPassword = sealPassword(smtpPass.trim());
         } else {
-            // No new password provided — fetch and preserve existing password
-            const existingDoc = await emailConfigRef.get();
-            const existingSettings = existingDoc.exists ? existingDoc.data() : {};
+            // No new password provided — preserve the existing password
             const stored = existingSettings.smtpPass || null;
 
             if (!stored) {

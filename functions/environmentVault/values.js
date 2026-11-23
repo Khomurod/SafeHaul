@@ -192,6 +192,17 @@ async function revealValue(resolved) {
         }
     }
 
+    // A field SafeHaul never reads back (the Gmail refresh token): answered
+    // without reading the document at all.
+    if (resolved.definition.notRetrievable) {
+        return {
+            availability: AVAILABILITY.NOT_RETRIEVABLE,
+            value: null,
+            unavailableReason: resolved.definition.unavailableReason || UNAVAILABLE_MESSAGE,
+            readFrom: 'none',
+        };
+    }
+
     const docRef = await resolveCompanyDocument(resolved);
     if (!docRef) throw new HttpsError('not-found', 'That integration record no longer exists.');
 

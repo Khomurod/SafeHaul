@@ -135,7 +135,8 @@ function companyPermissions(definition, { present, providerActive }) {
 
     return {
         permissions: {
-            revealable: present,
+            // A `notRetrievable` field is never read back, so there is nothing to reveal.
+            revealable: present && !definition.notRetrievable,
             editable,
             replaceable: editable,
             addable,
@@ -185,9 +186,9 @@ function buildCompanyRow({
     updatedBy = null,
 }) {
     const template = COMPANY_TEMPLATES[templateId];
-    const availability = definition.encrypted
-        ? AVAILABILITY.FIRESTORE_ENCRYPTED
-        : AVAILABILITY.FIRESTORE_PLAINTEXT;
+    const availability = definition.notRetrievable
+        ? AVAILABILITY.NOT_RETRIEVABLE
+        : (definition.encrypted ? AVAILABILITY.FIRESTORE_ENCRYPTED : AVAILABILITY.FIRESTORE_PLAINTEXT);
 
     const { permissions, restrictions } = companyPermissions(definition, { present, providerActive });
 
@@ -213,7 +214,7 @@ function buildCompanyRow({
         maskedValue: MASK,
         status: present ? STATUS.CONFIGURED : STATUS.MISSING,
         statusResolvedBy: 'server',
-        unavailableReason: null,
+        unavailableReason: definition.notRetrievable ? (definition.unavailableReason || null) : null,
         companyId,
         companyName: companyName || companyId,
         documentPath,
@@ -334,13 +335,16 @@ async function buildCompanyRows(companyFilter = null) {
         const updatedBy = data.updatedBy || null;
 
         COMPANY_TEMPLATES.email_config.fields.forEach((definition) => {
+            const present = isPresent(data[definition.field]);
+            // Gmail's fields belong only to a company that connected Gmail.
+            if (!present && definition.optional) return;
             rows.push(buildCompanyRow({
                 templateId: 'email_config',
                 definition,
                 companyId,
                 companyName: names.get(companyId),
                 documentPath: doc.ref.path,
-                present: isPresent(data[definition.field]),
+                present,
                 lastUpdated,
                 updatedBy,
             }));

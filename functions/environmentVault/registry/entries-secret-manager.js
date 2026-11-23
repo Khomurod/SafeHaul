@@ -2,7 +2,7 @@
  * Secret Manager-backed values.
  */
 
-const { CATEGORIES, SOURCES, AVAILABILITY, SENSITIVITY, PROTECTED } = require('./vocabulary');
+const { CATEGORIES, SOURCES, AVAILABILITY, SENSITIVITY, PROTECTED, REASONS, readOnly } = require('./vocabulary');
 
 // ---------------------------------------------------------------------------
 // 3. Secret Manager-backed values
@@ -118,4 +118,35 @@ const SECRET_MANAGER_ENTRIES = [
     ...PROTECTED,
 }));
 
-module.exports = { SECRET_MANAGER_ENTRIES };
+// Send from Gmail's OAuth client. Read at run time through the Secret Manager
+// client (`functions/shared/gmail/oauthClient.js`), not bound with
+// `secrets: [...]`, so `process.env` never holds them and the vault cannot
+// read them back; a new version takes effect within ten minutes, with no
+// deploy.
+const GMAIL_OAUTH_ENTRIES = [
+    {
+        key: 'GMAIL_OAUTH_CLIENT_ID',
+        displayName: 'Gmail OAuth client ID',
+        description: 'Identifies SafeHaul\'s Google OAuth client for Send from Gmail. Public on Google\'s consent page; useless without the client secret.',
+        sensitivity: SENSITIVITY.INTERNAL,
+    },
+    {
+        key: 'GMAIL_OAUTH_CLIENT_SECRET',
+        displayName: 'Gmail OAuth client secret',
+        description: 'Secret of SafeHaul\'s Google OAuth client for Send from Gmail. Exchanges a company admin\'s consent for a refresh token, and refreshes it.',
+        sensitivity: SENSITIVITY.CRITICAL,
+    },
+].map((entry) => ({
+    ...entry,
+    category: CATEGORIES.GLOBAL_INTEGRATION,
+    integration: 'Gmail',
+    consumers: ['functions/shared/gmail/oauthClient.js'],
+    scope: 'global',
+    source: SOURCES.SECRET_MANAGER,
+    requiresDeployment: false,
+    availability: AVAILABILITY.NOT_RETRIEVABLE,
+    unavailableReason: 'Read at run time by the email functions; change it in Secret Manager.',
+    ...readOnly(REASONS.SOURCE_NO_EDIT),
+}));
+
+module.exports = { SECRET_MANAGER_ENTRIES: [...SECRET_MANAGER_ENTRIES, ...GMAIL_OAUTH_ENTRIES] };

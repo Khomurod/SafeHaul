@@ -172,6 +172,11 @@ function exportFunctions(wanted) {
   // REFACTOR: Sanitized callable for Email Settings UI — never returns smtpPass
   if (wanted('getEmailSettingsMeta')) exports.getEmailSettingsMeta = require('./getEmailSettingsMeta').getEmailSettingsMeta;
 
+  // Send from Gmail: connect a company's Gmail through Google's consent page, or disconnect it
+  if (wanted('startGmailConnection')) exports.startGmailConnection = require('./gmailConnection').startGmailConnection;
+  if (wanted('completeGmailConnection')) exports.completeGmailConnection = require('./gmailConnection').completeGmailConnection;
+  if (wanted('disconnectGmail')) exports.disconnectGmail = require('./gmailConnection').disconnectGmail;
+
   if (wanted('backfillPublicProfiles')) exports.backfillPublicProfiles = require('./companyAdmin').backfillPublicProfiles;
   // Hourly reconciler: rewrites public profiles left behind by a change to the
   // projection itself, which the onWrite trigger alone can never reach.

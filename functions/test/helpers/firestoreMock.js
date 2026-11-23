@@ -5,10 +5,11 @@
  * It implements only what the vault actually uses — document get/update with dot
  * paths, `FieldValue.delete()` and `arrayUnion`, `create` (refused when the document exists),
  * collection and collection-group reads,
- * `add`, `orderBy(...).limit(...)`, `count()`, `select(...)`, and the transaction shape the
- * shared rate limiter needs. Everything else is deliberately absent so a test
- * that starts depending on unimplemented Firestore behaviour fails loudly rather
- * than passing against a fiction.
+ * `add`, `orderBy(...).limit(...)`, `count()`, `select(...)`, and a transaction's
+ * `get`, `set`, `update` and `delete` (no isolation: it runs once, in order).
+ * Everything else is deliberately absent so a test that starts depending on
+ * unimplemented Firestore behaviour fails loudly rather than passing against a
+ * fiction.
  */
 
 const { isDeepStrictEqual } = require('util');
@@ -195,6 +196,7 @@ function createFirestoreMock(seed = {}, options = {}) {
                 get: async (ref) => ref.get(),
                 set: (ref, data, options) => { ref.set(data, options); },
                 update: (ref, data) => { ref.update(data); },
+                delete: (ref) => { ref.delete(); },
             };
             return handler(transaction);
         },
