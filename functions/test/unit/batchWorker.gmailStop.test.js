@@ -3,9 +3,10 @@
 // connection. When Gmail refuses an email for its sending limit, or because
 // the connection needs reconnecting, the rest would fail the same way: the
 // campaign stops at that email and is paused with the reason
-// (`pauseReason`), and the admin resumes it. Any other failure fails that
-// recipient only. The SMS provider's pause says its own reason. All data is
-// artificial.
+// (`pauseReason`). Gmail sent nothing, so that recipient is neither logged nor
+// counted, and the admin's Resume sends to them first. Any other failure fails
+// that recipient only. The SMS provider's pause says its own reason. All data
+// is artificial.
 
 process.env.BULK_WORKER_SECRET = 'unit-test-secret';
 
@@ -118,6 +119,12 @@ async function runWorker() {
 
 const sentTo = () => mockSendMail.mock.calls.map(([mail]) => mail.to);
 
+/** The recruiter's Resume, as `resumeSession` leaves the session for the next batch. */
+function resume() {
+  mockState.session.status = 'active';
+  delete mockState.session.pauseReason;
+}
+
 beforeEach(() => {
   jest.resetAllMocks();
   Object.assign(mockState, { logs: {}, sessionWrites: [] });
@@ -163,23 +170,38 @@ describe.each([
 
     expect(sentTo()).toEqual([emailOf(1), emailOf(2)]);
     expect(mockState.logs['lead-1']).toMatchObject({ status: 'delivered' });
-    expect(mockState.logs['lead-2']).toMatchObject({ status: 'failed', error: new GmailSendError(code).message });
+    expect(mockState.logs).not.toHaveProperty('lead-2');
     expect(mockState.logs).not.toHaveProperty('lead-3');
     expect(mockState.session).toMatchObject({ status: 'paused', pauseReason });
-    expect(mockState.session.progress.currentPointer).toBe(2);
+    expect(mockState.session.progress).toMatchObject({ currentPointer: 1, processedCount: 1, successCount: 1, failedCount: 0 });
     expect(mockEnqueueWorker).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.send).toHaveBeenCalledWith(answer);
   });
 
-  it('completes instead when it was the last recipient', async () => {
+  it('sends to that recipient first on Resume', async () => {
+    startSession(3);
+    mockSendMail.mockResolvedValueOnce({}).mockRejectedValueOnce(new GmailSendError(code));
+    await runWorker();
+
+    resume();
+    await runWorker();
+
+    expect(sentTo()).toEqual([emailOf(1), emailOf(2), emailOf(2), emailOf(3)]);
+    expect(mockState.logs['lead-2']).toMatchObject({ status: 'delivered' });
+    expect(mockState.session.status).toBe('completed');
+    expect(mockState.session.progress).toMatchObject({ currentPointer: 3, processedCount: 3, successCount: 3, failedCount: 0 });
+  });
+
+  it('pauses at the last recipient too, so Resume still sends to them', async () => {
     startSession(2);
     mockSendMail.mockResolvedValueOnce({}).mockRejectedValueOnce(new GmailSendError(code));
 
     await runWorker();
 
-    expect(mockState.session.status).toBe('completed');
-    expect(mockState.session).not.toHaveProperty('pauseReason');
+    expect(mockState.session).toMatchObject({ status: 'paused', pauseReason });
+    expect(mockState.logs).not.toHaveProperty('lead-2');
+    expect(mockState.session.progress.currentPointer).toBe(1);
   });
 
   it('never undoes a cancel made while that email was sent', async () => {

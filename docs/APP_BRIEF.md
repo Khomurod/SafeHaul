@@ -1537,7 +1537,8 @@ An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDel
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
 no sent text between them, also across batches, pause the campaign, as does an email Gmail refuses for its sending
-limit or a needed reconnect (`pauseReason`: `sms_silent`, `gmail_limit`, `gmail_reconnect`; cleared on Resume). Resume (paused) and Continue (failed) are one
+limit or a needed reconnect (`pauseReason`: `sms_silent`, `gmail_limit`, `gmail_reconnect`; cleared on Resume).
+Gmail sent nothing then, so that recipient is not logged and Resume sends to them first. Resume (paused) and Continue (failed) are one
 claim (`resumeSession.js`): only from those two states, from `currentPointer`, under a new `workerGeneration`;
 with no one left the campaign completes instead. The recipient log and the Delivery Report
 read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any

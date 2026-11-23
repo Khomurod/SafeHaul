@@ -12,6 +12,8 @@
 // answered with no sent text between them (each may have gone out), and at an
 // email Gmail refused for its sending limit or for a connection that needs
 // reconnecting (`shared/gmail/sendErrors.js`): the rest would fail the same way.
+// Gmail sent nothing then, so that recipient gets no log and the pointer stays
+// on it: Resume sends to them first.
 
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
@@ -39,7 +41,8 @@ const GMAIL_PAUSE_REASONS = Object.freeze({
  * `pauseReason` is null, or why the loop stopped the campaign: `sms_silent`
  * after `UNCONFIRMED_PAUSE_AFTER` unanswered texts with no sent text between
  * them (`progress.unconfirmedInARow`, kept across batches), `gmail_limit` or
- * `gmail_reconnect` after the email Gmail refused for that reason.
+ * `gmail_reconnect` at the email Gmail refused for that reason, which is not
+ * logged or counted, so Resume sends it.
  */
 async function runSendLoop({
     batchIds,
@@ -224,6 +227,13 @@ async function runSendLoop({
                     if (stopsCampaign(err)) stopReason = GMAIL_PAUSE_REASONS[err.code];
                 }
 
+                // Gmail refused it unsent: no log, no pointer move, so Resume starts with this recipient.
+                if (stopReason) {
+                    console.warn(`[BatchWorker] Gmail refused an email (${stopReason}). Stopping at item ${i + 1}/${batchIds.length}; Resume sends it.`);
+                    pauseReason = stopReason;
+                    break;
+                }
+
                 // 3. Log result + advance pointer atomically so pause/cancel never skips work.
                 const logPayload = {
                     leadId,
@@ -287,11 +297,6 @@ async function runSendLoop({
                 if (sendUnconfirmed && unconfirmedInARow >= UNCONFIRMED_PAUSE_AFTER) {
                     console.warn(`[BatchWorker] The SMS provider did not answer ${unconfirmedInARow} texts in a row. Stopping at item ${i + 1}/${batchIds.length}.`);
                     pauseReason = 'sms_silent';
-                    break;
-                }
-                if (stopReason) {
-                    console.warn(`[BatchWorker] Gmail refused an email (${stopReason}). Stopping at item ${i + 1}/${batchIds.length}.`);
-                    pauseReason = stopReason;
                     break;
                 }
 
