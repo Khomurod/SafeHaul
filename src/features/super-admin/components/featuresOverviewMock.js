@@ -8,7 +8,7 @@
  * only empty.
  *
  * One company with everything on, one with a long name and two features off,
- * and one with a switch-off scheduled. Every company is made up.
+ * and one with two switch-offs scheduled. Every company is made up.
  */
 
 /** The companies as the overview reads them from `companies`. */
@@ -26,7 +26,8 @@ export function mockFeatureCompanies() {
             id: 'e2e-co-3',
             companyName: 'Sample Haulage',
             features: { campaignsEnabled: true },
-            featureSchedules: { campaignsEnabled: '2026-10-30T15:00:00.000Z' },
+            // E-Docs's is in one of the narrowest columns, where it wraps.
+            featureSchedules: { campaignsEnabled: '2026-10-30T15:00:00.000Z', eDocs: '2026-11-02T15:00:00.000Z' },
         },
     ];
 }

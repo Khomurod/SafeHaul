@@ -8,13 +8,13 @@ import { mockFeatureCompanies } from './featuresOverviewMock';
 
 const nameOf = (company) => company.companyName || company.name || company.id;
 
-/**
- * The bucket a feature's one-line header needs (data-table README: about 8px
- * a capital, `sm` 80px, `md` 104px, `lg` 136px of text).
- */
+/** The header text each bucket leaves room for once its padding is taken (data-table README). */
+const HEADER_ROOM = [['xs', 56], ['sm', 88], ['md', 112], ['lg', 144]];
+
+/** The narrowest bucket a feature's one-line header fits, at about 7px a letter. */
 function headerWidth(label) {
-    if (label.length <= 9) return 'sm';
-    return label.length <= 12 ? 'md' : 'lg';
+    const needs = label.length * 7;
+    return (HEADER_ROOM.find(([, room]) => needs <= room) || HEADER_ROOM[HEADER_ROOM.length - 1])[0];
 }
 
 /** "Off from Oct 30": the day a scheduled switch-off takes effect, in the viewer's clock. */
@@ -59,8 +59,9 @@ export function FeaturesOverview({ onOpenCompany }) {
 
     useEffect(() => { load(); }, [load]);
 
-    // The widths fit the 926px the console leaves at 1440 (856px): each
-    // feature column is as wide as its one-line header needs.
+    // The widths fit the 926px the console leaves at 1440 (880px), so no
+    // feature is hidden past the edge: each feature column is as narrow as its
+    // one-line header allows, and "Off from Oct 30" wraps under its badge.
     const columns = useMemo(() => [
         {
             key: 'company',
