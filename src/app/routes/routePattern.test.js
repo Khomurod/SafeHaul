@@ -29,6 +29,25 @@ describe('route patterns', () => {
     },
   );
 
+  it.each([
+    '/oauth/google/callback',
+    '/oauth/google/callback/',
+    '/OAuth/Google/Callback',
+    '/oauth/anything/else',
+    '/%6Fauth/google/callback',
+  ])('treats %s as secret: Google returns a one-time code under /oauth/', (pathname) => {
+    expect(isSecretPath(pathname)).toBe(true);
+  });
+
+  it('names the Gmail return page by its route, a secret pattern', () => {
+    expect(routePatternOf('/oauth/google/callback')).toBe('/oauth/google/callback');
+    expect(isSecretPattern('/oauth/google/callback')).toBe(true);
+  });
+
+  it.each(['/oauth', '/oauthx/google', '/company/oauth/x'])('does not treat %s as secret', (pathname) => {
+    expect(isSecretPath(pathname)).toBe(false);
+  });
+
   it('measures the signing room: its key is a query, never part of the path', () => {
     expect(routePatternOf('/sign/c1/r1')).toBe('/sign/:companyId/:requestId');
     expect(isSecretPath('/sign/c1/r1')).toBe(false);
