@@ -12,11 +12,16 @@ import {
 } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
 import { SaveBar, useUnsavedChanges } from '@/design-system/patterns';
+import { isFeatureOn } from '@shared/utils/companyFeatures';
+import { GmailConnectionCard } from './GmailConnectionCard';
 import { PevCopiesSection } from './PevCopiesSection';
 import { SmtpSetupGuide } from './SmtpSetupGuide';
+import { useGmailConnection } from '../hooks/useGmailConnection';
 import { useSmtpSettingsDraft } from '../hooks/useSmtpSettingsDraft';
 import { usePevCopiesDraft } from '../hooks/usePevCopiesDraft';
 import { saveBarSummary } from '../utils/saveBarSummary';
+
+const SMTP_KEPT = 'Your mail-server settings are kept and used again if you disconnect Gmail.';
 
 /**
  * Settings → Email: the company's SMTP server (`useSmtpSettingsDraft`) and the
@@ -24,10 +29,18 @@ import { saveBarSummary } from '../utils/saveBarSummary';
  * on the page until the save bar's Save, which checks both and writes only the
  * parts changed; the company shell's leave guard watches them. Test Connection
  * checks what is typed and, when it connects, saves the server settings itself.
+ *
+ * Send from Gmail (`GmailConnectionCard`) shows above the server where the
+ * company's `gmailSending` switch is on, or while a Gmail is connected (it keeps
+ * sending until disconnected). While one is connected the server section folds
+ * into one line, since the server refuses a mail-server save then, and Save
+ * sends the signature alone.
  */
 export function EmailSettingsTab({ currentCompanyProfile }) {
     const smtp = useSmtpSettingsDraft(currentCompanyProfile?.id);
     const copies = usePevCopiesDraft(currentCompanyProfile);
+    const gmailConnection = useGmailConnection({ companyId: currentCompanyProfile?.id, setGmail: smtp.setGmail });
+    const gmailSwitchOn = isFeatureOn(currentCompanyProfile, 'gmailSending');
     const [showGuide, setShowGuide] = useState(false);
     const guideRef = useRef(null);
     const guideOpenedHere = useRef(false);
@@ -100,150 +113,172 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
         );
     }
 
-    const { form, testResult } = smtp;
+    const { form, testResult, gmail } = smtp;
     const changed = [...smtp.changed, ...(copies.dirty ? ['Verification copies'] : [])];
+    const showGmail = gmailSwitchOn || gmail.connected;
 
     return (
         <div className="space-y-ds-6" data-testid="email-settings">
             <PageHeader
                 title="Email"
-                description="Configure your company's email server to send automated messages directly from your domain."
+                description={showGmail
+                    ? "Send your company's automated messages from Gmail or from your own email server."
+                    : "Configure your company's email server to send automated messages directly from your domain."}
             />
 
-            {/* SMTP Configuration: its state and the setup guide in the side column. */}
-            <FormSection
-                layout="aside"
-                title="SMTP Server Configuration"
-                actions={(
-                    <>
-                        <SelectableCard
-                            as="div"
-                            tone={smtp.isConnected ? 'success' : 'warning'}
-                            role="group"
-                            aria-label="Email connection status"
-                        >
-                            {smtp.isConnected ? (
-                                <span className="flex flex-col items-start gap-ds-2 text-ds-xs text-ds-content-secondary [text-wrap:pretty]">
-                                    <Badge tone="success" icon={CheckCircle}>Successfully Linked</Badge>
-                                    <span>Currently linked and sending emails as: <strong className="text-ds-content [overflow-wrap:anywhere]">{smtp.savedUser}</strong></span>
-                                    <span>
-                                        This email account is automatically being used to safely send <strong>E-Docs</strong> and <strong>Previous Employment Verification (PEV)</strong> forms.
+            {showGmail && (
+                <GmailConnectionCard
+                    gmail={gmail}
+                    switchOn={gmailSwitchOn}
+                    connection={gmailConnection}
+                    // Connecting leaves the page for Google.
+                    blocked={dirty}
+                    busy={saving}
+                />
+            )}
+
+            {gmail.connected ? (
+                <FormSection layout="aside" title="SMTP Server Configuration">
+                    <p className="text-ds-body text-ds-content-secondary">{SMTP_KEPT}</p>
+                </FormSection>
+            ) : (
+                // SMTP Configuration: its state and the setup guide in the side column.
+                <FormSection
+                    layout="aside"
+                    title="SMTP Server Configuration"
+                    actions={(
+                        <>
+                            <SelectableCard
+                                as="div"
+                                tone={smtp.isConnected ? 'success' : 'warning'}
+                                role="group"
+                                aria-label="Email connection status"
+                            >
+                                {smtp.isConnected ? (
+                                    <span className="flex flex-col items-start gap-ds-2 text-ds-xs text-ds-content-secondary [text-wrap:pretty]">
+                                        <Badge tone="success" icon={CheckCircle}>Successfully Linked</Badge>
+                                        <span>Currently linked and sending emails as: <strong className="text-ds-content [overflow-wrap:anywhere]">{smtp.savedUser}</strong></span>
+                                        <span>
+                                            This email account is automatically being used to safely send <strong>E-Docs</strong> and <strong>Previous Employment Verification (PEV)</strong> forms.
+                                        </span>
                                     </span>
-                                </span>
-                            ) : (
-                                <span className="flex flex-col items-start gap-ds-2 text-ds-xs text-ds-content-secondary [text-wrap:pretty]">
-                                    <Badge tone="warning" icon={AlertTriangle}>Not Connected / Unverified</Badge>
-                                    <span>Please enter your credentials and run a Test Connection to verify your email setup.</span>
-                                </span>
-                            )}
-                        </SelectableCard>
-                        <SelectableCard
-                            id={guideTriggerId}
-                            aria-expanded={showGuide}
-                            aria-controls={guidePanelId}
-                            onSelect={toggleGuide}
-                        >
-                            <span className="flex w-full items-center gap-ds-3 text-left">
-                                <Icon icon={HelpCircle} size="lg" className="shrink-0 text-ds-brand-primary" />
-                                <span className="flex min-w-0 flex-1 flex-col gap-ds-1">
-                                    <span className="text-ds-body font-semibold text-ds-content">How to Set Up SMTP</span>
-                                    <span className="text-ds-xs text-ds-content-secondary [text-wrap:balance]">
-                                        Step-by-step guides for Gmail, Outlook, and SendGrid
+                                ) : (
+                                    <span className="flex flex-col items-start gap-ds-2 text-ds-xs text-ds-content-secondary [text-wrap:pretty]">
+                                        <Badge tone="warning" icon={AlertTriangle}>Not Connected / Unverified</Badge>
+                                        <span>Please enter your credentials and run a Test Connection to verify your email setup.</span>
                                     </span>
+                                )}
+                            </SelectableCard>
+                            <SelectableCard
+                                id={guideTriggerId}
+                                aria-expanded={showGuide}
+                                aria-controls={guidePanelId}
+                                onSelect={toggleGuide}
+                            >
+                                <span className="flex w-full items-center gap-ds-3 text-left">
+                                    <Icon icon={HelpCircle} size="lg" className="shrink-0 text-ds-brand-primary" />
+                                    <span className="flex min-w-0 flex-1 flex-col gap-ds-1">
+                                        <span className="text-ds-body font-semibold text-ds-content">How to Set Up SMTP</span>
+                                        <span className="text-ds-xs text-ds-content-secondary [text-wrap:balance]">
+                                            Step-by-step guides for Gmail, Outlook, and SendGrid
+                                        </span>
+                                    </span>
+                                    <Icon icon={showGuide ? ChevronUp : ChevronDown} size="md" className="shrink-0 text-ds-content-muted" />
                                 </span>
-                                <Icon icon={showGuide ? ChevronUp : ChevronDown} size="md" className="shrink-0 text-ds-content-muted" />
-                            </span>
-                        </SelectableCard>
-                    </>
-                )}
-                footer={(
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        loading={smtp.testing}
-                        // Not while Save is writing: both write the same settings.
-                        disabled={!form.smtpHost || !form.smtpUser || !smtp.password || saving}
-                        onClick={smtp.test}
-                    >
-                        {!smtp.testing && <Icon icon={TestTube} size="lg" />}
-                        Test Connection
-                    </Button>
-                )}
-            >
-                {/* Two fields a row where the card has 430px for them; one where it is narrower. */}
-                <div className="[container-type:inline-size]">
-                    <div className="grid grid-cols-1 gap-ds-4 [@container(min-width:430px)]:grid-cols-2 [@container(min-width:430px)]:gap-x-ds-5">
-                        <FormField
-                            id="email-smtp-host"
-                            label="SMTP Host"
-                            required
-                            description="Example: smtp.gmail.com, smtp.office365.com"
+                            </SelectableCard>
+                        </>
+                    )}
+                    footer={(
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            loading={smtp.testing}
+                            // Not while Save is writing: both write the same settings.
+                            disabled={!form.smtpHost || !form.smtpUser || !smtp.password || saving}
+                            onClick={smtp.test}
                         >
-                            <Input
-                                type="text"
-                                value={form.smtpHost || ''}
-                                onChange={e => smtp.setField('smtpHost', e.target.value)}
-                                placeholder="smtp.gmail.com"
-                            />
-                        </FormField>
+                            {!smtp.testing && <Icon icon={TestTube} size="lg" />}
+                            Test Connection
+                        </Button>
+                    )}
+                >
+                    {/* Two fields a row where the card has 430px for them; one where it is narrower. */}
+                    <div className="[container-type:inline-size]">
+                        <div className="grid grid-cols-1 gap-ds-4 [@container(min-width:430px)]:grid-cols-2 [@container(min-width:430px)]:gap-x-ds-5">
+                            <FormField
+                                id="email-smtp-host"
+                                label="SMTP Host"
+                                required
+                                description="Example: smtp.gmail.com, smtp.office365.com"
+                            >
+                                <Input
+                                    type="text"
+                                    value={form.smtpHost || ''}
+                                    onChange={e => smtp.setField('smtpHost', e.target.value)}
+                                    placeholder="smtp.gmail.com"
+                                />
+                            </FormField>
 
-                        <FormField
-                            id="email-smtp-port"
-                            label="SMTP Port"
-                            required
-                            description="Common: 587 (TLS), 465 (SSL), 25"
-                        >
-                            <Input
-                                type="number"
-                                min="1"
-                                max="65535"
-                                value={form.smtpPort || 587}
-                                onChange={e => smtp.setField('smtpPort', parseInt(e.target.value))}
-                                placeholder="587"
-                            />
-                        </FormField>
+                            <FormField
+                                id="email-smtp-port"
+                                label="SMTP Port"
+                                required
+                                description="Common: 587 (TLS), 465 (SSL), 25"
+                            >
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    max="65535"
+                                    value={form.smtpPort || 587}
+                                    onChange={e => smtp.setField('smtpPort', parseInt(e.target.value))}
+                                    placeholder="587"
+                                />
+                            </FormField>
 
-                        <FormField id="email-smtp-user" label="SMTP Username" required>
-                            <Input
-                                type="email"
-                                value={form.smtpUser || ''}
-                                onChange={e => smtp.setField('smtpUser', e.target.value)}
-                                placeholder="your-email@company.com"
-                            />
-                        </FormField>
+                            <FormField id="email-smtp-user" label="SMTP Username" required>
+                                <Input
+                                    type="email"
+                                    value={form.smtpUser || ''}
+                                    onChange={e => smtp.setField('smtpUser', e.target.value)}
+                                    placeholder="your-email@company.com"
+                                />
+                            </FormField>
 
-                        <FormField
-                            id="email-smtp-password"
-                            label="SMTP Password"
-                            required={!smtp.hasPassword}
-                            description={smtp.hasPassword
-                                ? 'Password already saved. Enter a new password only if you want to change it.'
-                                : 'For Gmail, use an App Password, not your regular password.'}
-                        >
-                            <Input
-                                type="password"
-                                value={smtp.password}
-                                onChange={e => smtp.setPassword(e.target.value)}
-                                placeholder={smtp.hasPassword ? 'Password is saved but hidden. Enter new to rotate.' : '••••••••••••'}
-                            />
-                        </FormField>
+                            <FormField
+                                id="email-smtp-password"
+                                label="SMTP Password"
+                                required={!smtp.hasPassword}
+                                description={smtp.hasPassword
+                                    ? 'Password already saved. Enter a new password only if you want to change it.'
+                                    : 'For Gmail, use an App Password, not your regular password.'}
+                            >
+                                <Input
+                                    type="password"
+                                    value={smtp.password}
+                                    onChange={e => smtp.setPassword(e.target.value)}
+                                    placeholder={smtp.hasPassword ? 'Password is saved but hidden. Enter new to rotate.' : '••••••••••••'}
+                                />
+                            </FormField>
+                        </div>
                     </div>
-                </div>
 
-                {testResult && (
-                    /* Tone and announcement both follow the test's answer; the
-                       Notice's own glyph says the state, so no badge inside. */
-                    <Notice
-                        tone={testResult.success ? 'success' : 'danger'}
-                        announce={testResult.success ? 'polite' : 'assertive'}
-                        title={testResult.success ? 'Connection Connected & Saved!' : 'Connection Failed'}
-                    >
-                        {testResult.message}
-                    </Notice>
-                )}
-            </FormSection>
+                    {testResult && (
+                        /* Tone and announcement both follow the test's answer; the
+                           Notice's own glyph says the state, so no badge inside. */
+                        <Notice
+                            tone={testResult.success ? 'success' : 'danger'}
+                            announce={testResult.success ? 'polite' : 'assertive'}
+                            title={testResult.success ? 'Connection Connected & Saved!' : 'Connection Failed'}
+                        >
+                            {testResult.message}
+                        </Notice>
+                    )}
+                </FormSection>
+            )}
 
-            {showGuide && <SmtpSetupGuide ref={guideRef} id={guidePanelId} labelledBy={guideTriggerId} />}
+            {showGuide && !gmail.connected && (
+                <SmtpSetupGuide ref={guideRef} id={guidePanelId} labelledBy={guideTriggerId} offerGmail={gmailSwitchOn} />
+            )}
 
             {/* Email Signature */}
             <FormSection

@@ -13,6 +13,31 @@ const CONNECTION = [
 
 const BLANK = { smtpHost: '', smtpPort: 587, smtpUser: '', signature: '' };
 
+/** `settings.gmail` while no Gmail is connected, or when the server did not say. */
+export const GMAIL_NOT_CONNECTED = Object.freeze({
+    connected: false,
+    email: null,
+    status: null,
+    statusReason: null,
+    connectedAt: null,
+    connectedByName: null,
+});
+
+/** The company's Gmail connection as `getEmailSettingsMeta` reports it; never a token. */
+function gmailOf(meta) {
+    const gmail = meta?.gmail;
+    if (gmail?.connected !== true) return GMAIL_NOT_CONNECTED;
+    const text = (value) => (typeof value === 'string' && value ? value : null);
+    return {
+        connected: true,
+        email: text(gmail.email),
+        status: gmail.status === 'needs_reconnect' ? 'needs_reconnect' : 'active',
+        statusReason: text(gmail.statusReason),
+        connectedAt: typeof gmail.connectedAt === 'number' ? gmail.connectedAt : null,
+        connectedByName: text(gmail.connectedByName),
+    };
+}
+
 const fieldsOf = (settings) => ({
     smtpHost: settings.smtpHost,
     smtpPort: settings.smtpPort,
@@ -37,6 +62,11 @@ const portOf = (settings) => settings.smtpPort || 587;
  *
  * Test Connection checks what is typed, password included, and on success
  * saves it (the server checks the connection again on every save).
+ *
+ * The same answer says whether Gmail is connected (`gmail`, which
+ * `useGmailConnection` acts on). While it is, the server refuses a mail-server
+ * save, so Save sends the signature alone (`signatureOnly`) and nothing about
+ * the mail server is checked or changed: those settings wait for a disconnect.
  */
 export function useSmtpSettingsDraft(companyId) {
     const { showSuccess, showError } = useToast();
@@ -50,6 +80,7 @@ export function useSmtpSettingsDraft(companyId) {
     const [hasPassword, setHasPassword] = useState(false);
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState(null);
+    const [gmail, setGmail] = useState(GMAIL_NOT_CONNECTED);
 
     // Never read smtpPass from Firestore directly: the callable returns
     // sanitized settings (a hasPassword flag, no password).
@@ -76,6 +107,7 @@ export function useSmtpSettingsDraft(companyId) {
                     setSaved({ ...loaded, isVerified: meta.isVerified || false });
                     setForm(loaded);
                     setHasPassword(meta.hasPassword || false);
+                    setGmail(gmailOf(meta));
                 }
             } catch (err) {
                 console.warn('[EmailSettingsTab] Failed to load settings meta:', err.message);
@@ -123,13 +155,30 @@ export function useSmtpSettingsDraft(companyId) {
 
     /** The reason the settings cannot be saved as they are, or null. */
     const validate = () => {
+        // Only the signature is saved while Gmail is connected.
+        if (gmail.connected) return null;
         if (!form.smtpHost || !form.smtpUser) return 'Please fill in SMTP Host and Username.';
         if (!password && !hasPassword) return 'Please enter your SMTP password.';
         return null;
     };
 
+    /** While Gmail is connected: the signature alone, with nothing about the mail server. */
+    const saveSignature = async () => {
+        const signature = form.signature;
+        try {
+            await httpsCallable(functions, 'saveEmailSettings')({ companyId, signatureOnly: true, signature });
+            setSaved((prev) => ({ ...prev, signature }));
+            showSuccess('Signature saved.');
+            return null;
+        } catch (error) {
+            console.error('Error saving the email signature:', error);
+            return plainErrorMessage(error, 'The signature could not be saved.');
+        }
+    };
+
     /** Saves the settings; resolves to null, or to what to tell the person when they were not saved. */
     const save = async () => {
+        if (gmail.connected) return saveSignature();
         const sent = { ...form };
         const sentPassword = password;
         // PARTIAL UPDATE: Only include smtpPass if user entered a new one.
@@ -239,5 +288,7 @@ export function useSmtpSettingsDraft(companyId) {
         test,
         testing,
         testResult,
+        gmail,
+        setGmail,
     };
 }
