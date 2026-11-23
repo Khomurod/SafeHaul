@@ -1682,7 +1682,7 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   store the 404 (or SPA fallback) an open tab gets for a chunk a release removed,
   failing that browser even after a rollback. Everything stays on the one-hour default.
 - **The public site stays dependency-free**: no framework, no build step, no
-  application or design-system imports. The public pages ship no `<script>`
+  application or design-system imports. The privacy and About pages ship no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth;
