@@ -159,6 +159,17 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
         expect(privacy).not.toMatch(/<script/i);
         // And it must not link back into the removed marketing site.
         expect(privacy).not.toMatch(/href="\/#/);
+        // Google's and Meta's app reviews are given links to these two sections:
+        // Meta's data-deletion instructions URL is /privacy.html#data-deletion.
+        expect(privacy).toContain('id="google-user-data"');
+        expect(privacy).toContain('id="data-deletion"');
+        // Google requires this disclosure word for word, with a link to its policy.
+        const text = privacy.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+        expect(text).toContain(
+            "SafeHaul's use and transfer to any other app of information received from Google APIs will adhere"
+            + ' to the Google API Services User Data Policy, including the Limited Use requirements.',
+        );
+        expect(privacy).toContain('href="https://developers.google.com/terms/api-services-user-data-policy"');
     });
 
     it('reads the whole split blog surface, not a stale path', () => {

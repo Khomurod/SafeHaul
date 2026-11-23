@@ -52,7 +52,7 @@
 </nav>
 <header class="privacy-hero">
     <h1>Privacy Policy</h1>
-    <p>Last updated November 2026 · Rev. D</p>
+    <p>Last updated November 2026 · Rev. E</p>
 </header>
 
 <main id="main" class="policy-section">
@@ -64,9 +64,11 @@
                     handling sensitive personal information about drivers and applicants, so this policy sets out
                     plainly what we collect, what we do with it, and — just as importantly — what we do not do with
                     it.</p>
-                <p>This Privacy Policy explains how SafeHaul ("we", "us", or "our") collects, uses, protects, and
-                    discloses information. It covers data you provide to us directly, data we collect automatically,
-                    and data a carrier uploads about its drivers across our applications and related services.</p>
+                <p>SafeHaul is operated by Safehaul Technologies LLC. This Privacy Policy explains how SafeHaul
+                    ("we", "us", or "our") collects, uses, protects, and discloses information. It covers data you
+                    provide to us directly, data we collect automatically, data a carrier uploads about its drivers,
+                    and data that reaches us from Google or Facebook when you or your company connect them, across our
+                    applications and related services.</p>
             </section>
 
             <section>
@@ -74,13 +76,28 @@
 
                 <h3>Account Data (Company &amp; Admin)</h3>
                 <p>When carrier owners, administrators or recruiters set up and use an account, we record the
-                    foundational data needed to manage that account and its billing:</p>
+                    foundational data needed to manage that account:</p>
                 <ul>
                     <li>First and last names</li>
                     <li>Work email addresses</li>
                     <li>Company names and physical addresses</li>
-                    <li>Billing and payment-processing information</li>
                 </ul>
+
+                <h3>Sign in with Google</h3>
+                <p>If you sign in with Google, Google sends SafeHaul your name, email address, Google account
+                    identifier and the address of your profile photo. We use them only to sign you in to an account
+                    your company created.</p>
+
+                <h3>A Connected Gmail or Google Workspace Account</h3>
+                <p>If your company connects a Gmail or Google Workspace account so that SafeHaul's emails come from
+                    its own address, we store that email address and the permission Google issues to send email from
+                    it (a refresh token), encrypted. SafeHaul does not read, store or index the mailbox.</p>
+
+                <h3>A Connected Facebook Page</h3>
+                <p>If your company connects a Facebook Page to receive leads from its Lead Ads forms, we store the
+                    Page's ID and name and the access token Facebook issues for it. For each lead, we import what the
+                    person typed into your company's form — such as their name, phone number and email address — and
+                    which form and ad they used.</p>
 
                 <h3>Driver &amp; Applicant Data</h3>
                 <p>Driver hiring involves sensitive records, and SafeHaul stores what a carrier and its applicants put
@@ -125,6 +142,15 @@
                     <li><strong>Previous-employment verification:</strong> Sending verification requests to a driver's
                         prior employers and recording the responses they return, with a record of what was asked and
                         answered.</li>
+                    <li><strong>Sign-in:</strong> Using the details Google sends when you sign in with Google only to
+                        sign you in.</li>
+                    <li><strong>Email from your company's own address:</strong> Using a connected Gmail or Google
+                        Workspace account only to send the emails your company's team sends through SafeHaul, and the
+                        reminders SafeHaul schedules for them, such as application links, signing requests and
+                        previous-employment verification requests.</li>
+                    <li><strong>Facebook leads:</strong> Adding the leads from your company's Lead Ads forms to your
+                        company's lead list, for its recruiters to contact. The Page's access token is used only to
+                        receive those leads.</li>
                     <li><strong>Platform operation and improvement:</strong> Security monitoring and aggregate,
                         de-identified analysis to keep the service reliable.</li>
                 </ul>
@@ -143,8 +169,39 @@
                     warrant, SafeHaul does <em>not</em> sell, rent or broker driver data to third parties.</p>
             </section>
 
+            <section id="google-user-data">
+                <h2>5. Google User Data</h2>
+                <p>SafeHaul receives data from Google only when you sign in with Google or your company connects a
+                    Gmail or Google Workspace account, and uses it only as described in sections 2 and 3: to sign you
+                    in, and to send your company's emails from its own address. SafeHaul does not read, store or
+                    index the mailbox, and no one at SafeHaul reads your email.</p>
+                <p>SafeHaul's use and transfer to any other app of information received from Google APIs will
+                    adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy"
+                    rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+                <p>Data from Google APIs is not sold, not used for advertising, and not used to develop, improve or
+                    train AI or machine-learning models. It is not shared with third parties, except where the law
+                    requires it.</p>
+            </section>
+
+            <section id="data-deletion">
+                <h2>6. Facebook Data and How to Delete It</h2>
+                <p>If your company connects a Facebook Page, SafeHaul holds the Page's ID, name and access token,
+                    and the leads imported from your company's Lead Ads forms, as described in section 2. When your
+                    company disconnects the Page from SafeHaul, or asks us to, SafeHaul deletes its access token and
+                    stops importing its leads.</p>
+                <p>To have this data deleted (for any other data, see section 8):</p>
+                <ul>
+                    <li><strong>Email us:</strong> write to <a href="mailto:info@safehaul.io">info@safehaul.io</a>,
+                        from your SafeHaul account's address if you have one, naming the Facebook Page or the person
+                        whose data you want deleted. We confirm the request and delete the data within 30 days,
+                        except records a carrier must keep by law.</li>
+                    <li><strong>Remove SafeHaul in Facebook:</strong> in Facebook, open Settings → Business
+                        integrations and remove SafeHaul. That ends SafeHaul's access to your Page at once.</li>
+                </ul>
+            </section>
+
             <section>
-                <h2>5. Data Retention &amp; Security</h2>
+                <h2>7. Data Retention &amp; Security</h2>
                 <p>We limit who can reach driver data and keep a record of access. Security controls include:</p>
                 <ul>
                     <li><strong>Encryption:</strong> Data is encrypted in transit with industry-standard TLS, and
@@ -160,10 +217,13 @@
                     driver-qualification recordkeeping schedules that apply to the carrier. We accommodate deletion
                     requests where we can, subject to those retention obligations, following a verified administrative
                     request.</p>
+                <p>We keep a Gmail or Facebook Page connection's token only while the connection is in place. When
+                    your company disconnects Gmail or a Facebook Page, or asks us to, we delete the stored token, and
+                    a Gmail token is also revoked with Google.</p>
             </section>
 
             <section>
-                <h2>6. Your Rights</h2>
+                <h2>8. Your Rights</h2>
                 <p>Subject to verifying your identity and to the laws that apply to you (such as GDPR or CCPA), you or
                     the individuals whose data a carrier holds may:</p>
                 <ul>
@@ -175,10 +235,11 @@
             </section>
 
             <section>
-                <h2>7. Contact</h2>
+                <h2>9. Contact</h2>
                 <p>Questions about this policy or about the data we hold can be sent to us directly, and we will route
                     and answer them.</p>
                 <ul>
+                    <li><strong>Operator:</strong> Safehaul Technologies LLC</li>
                     <li><strong>Email:</strong> <a href="mailto:info@safehaul.io">info@safehaul.io</a></li>
                 </ul>
                 <p>SafeHaul supports your compliance process. It is not a law firm, and nothing here is advice about
