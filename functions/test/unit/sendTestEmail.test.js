@@ -82,8 +82,10 @@ describe('who may send one', () => {
         expect(google.requests).toEqual([]);
     });
 
-    it('refuses a sign-in without an email address', async () => {
+    it("refuses a sign-in without an email address, without using up the company's hourly tests", async () => {
         await expect(call({ email: null })).rejects.toMatchObject({ code: 'failed-precondition' });
+        await expect(call({ email: 'not-an-address' })).rejects.toMatchObject({ code: 'failed-precondition' });
+        expect(checkRateLimit).not.toHaveBeenCalled();
         expect(google.requests).toEqual([]);
     });
 });

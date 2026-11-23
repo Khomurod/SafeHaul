@@ -46,14 +46,13 @@ exports.sendTestEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, 
     if (!uid) throw new HttpsError('unauthenticated', 'Login required.');
     const companyId = companyIdOf(request.data);
     await assertCompanyAdminStrict(uid, companyId);
-    // After the admin check, so nobody else can use up the company's tests.
-    if (!(await checkRateLimit(`send_test_email_${companyId}`, TESTS_PER_HOUR, 3600, 'closed'))) {
-        throw new HttpsError('resource-exhausted', 'Five test emails were sent in the last hour. Try again later.');
-    }
-
     const to = typeof request.auth.token?.email === 'string' ? request.auth.token.email.trim() : '';
     if (!isValidEmail(to)) {
         throw new HttpsError('failed-precondition', 'Your sign-in has no email address to send the test to.');
+    }
+    // Last, so neither a refused caller nor a call that cannot send uses up the company's tests.
+    if (!(await checkRateLimit(`send_test_email_${companyId}`, TESTS_PER_HOUR, 3600, 'closed'))) {
+        throw new HttpsError('resource-exhausted', 'Five test emails were sent in the last hour. Try again later.');
     }
 
     let sent;
