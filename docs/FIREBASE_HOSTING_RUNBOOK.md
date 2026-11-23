@@ -470,7 +470,7 @@ not enough unless the token itself is newly generated.
   is restricted to a list of APIs, allowed both. Without them the SDK sends
   nothing and reports no error. Accepted loss: a page closed within seconds of
   becoming idle, hidden before the SDK is ready, or opened in a background tab
-  does not report. `/verify/:token` and `/review-change/:token` never record.
+  does not report. `/verify/:token`, `/review-change/:token` and `/oauth/` never record.
 - Dynadot owns only domain registration and DNS.
 - Vercel is not part of the active SafeHaul architecture after migration.
 

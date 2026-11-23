@@ -255,7 +255,7 @@ same headers; `src/tests/hostingConfig.test.js` pins them.
   for violation events, so a violation shows only in that browser's console.
 - **Enforcing it is a separate, later change, and a report collector comes
   first** (its own task; a report must never carry the path or query of
-  `/verify/:token` or `/review-change/:token`). After the policy has run with it
+  `/verify/:token`, `/review-change/:token` or `/oauth/google/callback`). After the policy has run with it
   on Testing and Production through normal use (sign-in, applications, uploads,
   E-Docs signing, the Facebook connection, sheet imports), move it from
   `Content-Security-Policy-Report-Only` into `Content-Security-Policy` only if

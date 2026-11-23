@@ -561,7 +561,7 @@ review link to driver**) or copied.
 **Company setup (dashboard).** For a company admin, read when the dashboard opens and
 kept two minutes for this sign-in and company (an answer with something not checked is
 not kept, and following one of its links forgets it): what is not set up, each linking to its page — company email not connected or
-not verified, no texting line, no contact email for PEV notices, no post-application
+not verified (or its Gmail needing reconnecting), no texting line, no contact email for PEV notices, no post-application
 form, a form whose company signature has no image or whose template was deleted (PEV
 copies are a hint). Ready, it is one line; others see nothing.
 
@@ -633,7 +633,12 @@ texts save through the save bar, which warns before leaving with
 unsaved changes (Company profile keeps Edit/Save). Automated texts writes only the
 changed templates; when they cannot be read it says so above the fields, with Retry. Email has one Save for what
 changed; Test Connection checks what is typed and, if it connects, saves the
-connection; the password field empties after a save. Team's Add person needs a
+connection; the password field empties after a save. Where **Send from Gmail** is on (or
+Gmail is connected), a card above the mail-server form connects Gmail on Google's page
+(not while changes are unsaved; `/oauth/google/callback` takes the code out of the
+address at once), reconnects, sends the admin a test email and disconnects, asking
+first. Connected, the mail-server form folds to one line (its settings kept) and Save
+saves the signature alone. Team's Add person needs a
 password of at least 6 characters.
 
 **Profile.** One page for every staff member (menu, or the name and avatar in the
@@ -1321,10 +1326,12 @@ only**.
 
 **Per-tenant feature flags** live on `companies/{companyId}` as `features` and
 `featureSchedules`. Keys: `pev`, `campaignsEnabled`, `eDocs`, `importLeads`,
-`callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
-an explicit `false` disables — except `callTracking` (labelled **Facebook leads**;
-the stored key keeps its old name), which is **opt-in**: Settings → Facebook leads
-shows only where a super admin set it `true`, since Facebook capture is off. Screens and routes read a flag only
+`callTracking`, `gmailSending`. Semantics are **opt-out**: a missing key means *enabled*; only
+an explicit `false` disables — except two **opt-in** keys a super admin sets `true`:
+`callTracking` (labelled **Facebook leads**; the stored key keeps its old name), since
+Facebook capture is off, and `gmailSending` (**Send from Gmail**), while Google has not
+verified SafeHaul's Gmail access. Switched off, Send from Gmail allows no new connection
+but leaves a connected Gmail sending until an admin disconnects it. Screens and routes read a flag only
 through `isFeatureOn` (`src/shared/utils/companyFeatures.js`), which knows each key's default. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
 [`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
@@ -1538,7 +1545,8 @@ An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDel
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
 no sent text between them, also across batches, pause the campaign, as does an email Gmail refuses for its sending
-limit or a needed reconnect (`pauseReason`: `sms_silent`, `gmail_limit`, `gmail_reconnect`; cleared on Resume).
+limit or a needed reconnect (`pauseReason`: `sms_silent`, `gmail_limit`, `gmail_reconnect`; cleared on Resume;
+the campaign page says why in plain words).
 Gmail sent nothing then, so that recipient is not logged and Resume sends to them first. Resume (paused) and Continue (failed) are one
 claim (`resumeSession.js`): only from those two states, from `currentPointer`, under a new `workerGeneration`;
 with no one left the campaign completes instead. The recipient log and the Delivery Report
@@ -1683,8 +1691,8 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   joins the policy when introduced. See [`docs/security-posture.md`](./security-posture.md).
 - **Speed data carries no secret.** Firebase Performance gets one `page_load`
   per page load (not per in-app navigation), by route pattern, `site` and
-  `release`. Automatic traces are off; `/verify/` and `/review-change/` record
-  nothing: the SDK sends the page address with every trace.
+  `release`. Automatic traces are off; `/verify/`, `/review-change/` and `/oauth/`
+  record nothing: the SDK sends the page address with every trace.
 - **No long cache on the app's files, `/assets/**` included.** Hosting attaches
   header rules to a missing file's response too, so a long `Cache-Control` would
   store the 404 (or SPA fallback) an open tab gets for a chunk a release removed,
@@ -1865,6 +1873,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   filter ask for. Older leads with `null` (imported) or none (Quick Add, Facebook)
   are not listed there until Data cleanup's lead fields item runs (below); a
   search on the tab finds them.
+- **Send from Gmail is for test companies until Google verifies SafeHaul's Gmail
+  access**: until then Connect shows Google's "unverified app" warning and few
+  accounts may connect. Google's daily sending limits (lower for a personal account
+  than for Workspace) fail the email past them, or pause a campaign; a Google
+  password change ends the grant, so Gmail needs reconnecting.
 - **Facebook lead capture is switched off; an earlier defect may have stranded
   leads** in `companies/{uid}/leads`, which no screen reads
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
