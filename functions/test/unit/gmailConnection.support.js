@@ -8,7 +8,8 @@
  * token and revoke endpoints and records every request. Every id, address and
  * token is artificial.
  *
- * `resetGmailHarness()` runs `jest.resetAllMocks()` and then puts back every
+ * `commitLate(ms)` makes every later transaction commit that much after its
+ * handler ran. `resetGmailHarness()` runs `jest.resetAllMocks()` and then puts back every
  * default the suites rely on: a signed-in admin passes, the rate limit allows,
  * the OAuth client is configured, Google grants sending.
  */
@@ -125,6 +126,22 @@ function resetGmailHarness() {
     for (const method of ['log', 'warn', 'error']) jest.spyOn(console, method).mockImplementation(() => {});
 }
 
+/**
+ * From now on every transaction commits `ms` after its handler ran: the clock
+ * (`Date.now`) moves on by that much at each commit. `afterEach` restores both.
+ */
+function commitLate(ms) {
+    const realNow = Date.now.bind(Date);
+    let offset = 0;
+    jest.spyOn(Date, 'now').mockImplementation(() => realNow() + offset);
+    const run = mock.db.runTransaction;
+    jest.spyOn(mock.db, 'runTransaction').mockImplementation(async (handler) => {
+        const result = await run(handler);
+        offset += ms;
+        return result;
+    });
+}
+
 /** Everything the suite logged, as one string: no token or address may appear in it. */
 const loggedText = () => JSON.stringify(['log', 'warn', 'error'].flatMap((method) => console[method].mock.calls));
 
@@ -135,6 +152,7 @@ module.exports = {
     EMAIL_CONFIG,
     SEND_SCOPE,
     callFrom,
+    commitLate,
     firebaseAdminMock,
     google,
     grantSending,

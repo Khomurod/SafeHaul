@@ -14,7 +14,7 @@ const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAdminStrict } = require('../../shared/companyAccess');
 const { sealPassword } = require('../../shared/smtpSettings');
 const {
-    ADMIN, EMAIL_CONFIG, callFrom, google, loggedText, mock, resetGmailHarness, revokedTokens,
+    ADMIN, EMAIL_CONFIG, callFrom, commitLate, google, loggedText, mock, resetGmailHarness, revokedTokens,
 } = require('./gmailConnection.support');
 
 const disconnect = (options = {}) => disconnectGmail(callFrom({ data: { companyId: 'co-1' }, ...options }));
@@ -61,6 +61,24 @@ describe('disconnectGmail', () => {
         expect(revokedTokens()).toEqual(['artificial-refresh-1001']);
         expect(loggedText()).not.toMatch(/artificial-refresh|hiring@example\.test/);
         expect(checkRateLimit).toHaveBeenCalledWith(`gmail_disconnect_${ADMIN}`, 10, 600, 'closed');
+    });
+
+    it('skips the revoke when its transaction committed too late: less than 45 seconds of the window left', async () => {
+        connected();
+        commitLate(16 * 1000);
+        await expect(disconnect()).resolves.toEqual({ disconnected: true });
+
+        expect(revokedTokens()).toEqual([]);
+        expect(config().gmailRefreshToken).toBeUndefined();
+        expect(mock.docs.get('gmail_grants/1001').companyIds).toEqual([]);
+        expect(loggedText()).toContain('committed too late');
+    });
+
+    it('still revokes after a commit that took a moment', async () => {
+        connected();
+        commitLate(10 * 1000);
+        await disconnect();
+        expect(revokedTokens()).toEqual(['artificial-refresh-1001']);
     });
 
     it('does not revoke while another company still uses that Google account', async () => {

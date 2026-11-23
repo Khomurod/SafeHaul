@@ -62,6 +62,26 @@ describe('saveEmailSettings with signatureOnly', () => {
         expect(nodemailer.createTransport).not.toHaveBeenCalled();
     });
 
+    it('also changes the signature on the oldest settings, which the mail server sends with after a disconnect', async () => {
+        const OLDEST = 'companies/co-1/integrations/email_settings';
+        const oldest = { email: 'ops@example.test', password: 'artificial-plain-password', signature: 'Old' };
+        mockStore.docs.set(OLDEST, oldest);
+
+        await save({ companyId: 'co-1', signatureOnly: true, signature: 'New' });
+        expect(mockStore.docs.get(OLDEST)).toEqual({ ...oldest, signature: 'New' });
+
+        // Gmail disconnected: the mail server reads the oldest settings, with the new signature.
+        const { readSmtpSettings } = require('../../shared/smtpSettings');
+        mockStore.docs.set(EMAIL_CONFIG, { signature: 'New', gmailDisconnectedAt: 'then' });
+        mockStore.docs.set('companies/co-1', { companyName: 'Artificial Carrier', emailSettings: { signature: 'New' } });
+        await expect(readSmtpSettings('co-1')).resolves.toMatchObject({ settings: { user: 'ops@example.test', signature: 'New' } });
+    });
+
+    it('creates no oldest settings where there are none', async () => {
+        await save({ companyId: 'co-1', signatureOnly: true, signature: 'New' });
+        expect(mockStore.docs.has('companies/co-1/integrations/email_settings')).toBe(false);
+    });
+
     it('ignores SMTP fields sent along with it', async () => {
         await save({ ...FORM, signatureOnly: true, signature: 'Hi' });
         expect(mockStore.docs.get(EMAIL_CONFIG)).toMatchObject({ smtpHost: 'smtp.example.test', smtpUser: 'ops@example.test', smtpPass: 'enc:v1:kept', signature: 'Hi' });

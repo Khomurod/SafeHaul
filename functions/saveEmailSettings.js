@@ -32,19 +32,23 @@ const GMAIL_CONNECTED = 'Gmail is connected. Disconnect Gmail in Settings → Em
 const SIGNATURE_WITH_SERVER = 'Save the signature together with your mail server settings.';
 
 /**
- * The signature alone, on `email_config` and its copy on the company document.
- * Only while Gmail is connected: Gmail sends with `email_config`'s signature,
- * while a company on its mail server may still send with older settings kept
- * elsewhere, which a signature-only document would hide from the Email tab.
+ * The signature alone, on `email_config`, its copy on the company document,
+ * and the oldest settings (`integrations/email_settings`) where they remain, so
+ * the mail server sends it too once Gmail is disconnected. Only while Gmail is
+ * connected: a company on its mail server may still send with older settings
+ * kept elsewhere, which a signature-only document would hide from the Email tab.
  */
 async function saveSignature(uid, companyId, emailConfigRef, signature) {
     const existing = await emailConfigRef.get();
     if (!existing.exists || existing.data()?.provider !== 'gmail') {
         throw new HttpsError('failed-precondition', SIGNATURE_WITH_SERVER);
     }
+    const companyRef = db.collection('companies').doc(companyId);
     const updatedAt = admin.firestore.FieldValue.serverTimestamp();
     await emailConfigRef.set({ signature, updatedAt, updatedBy: uid }, { merge: true });
-    await db.collection('companies').doc(companyId).update({ 'emailSettings.signature': signature });
+    await companyRef.update({ 'emailSettings.signature': signature });
+    const oldest = companyRef.collection('integrations').doc('email_settings');
+    if ((await oldest.get()).exists) await oldest.set({ signature }, { merge: true });
     console.log(`[saveEmailSettings] Signature saved for company ${companyId} by ${uid}`);
     return { success: true, message: 'Signature saved.' };
 }

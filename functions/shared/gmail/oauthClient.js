@@ -267,6 +267,7 @@ module.exports = {
     RETURN_PATH,
     SCOPES,
     SUB_PATTERN,
+    TIMEOUT_MS,
     buildAuthUrl,
     decodeIdToken,
     exchangeCode,

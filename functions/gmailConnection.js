@@ -19,7 +19,9 @@
  * Revoking runs after the transaction, so the emptied list keeps a one-minute
  * window (`revokingUntil`, also its TTL `expiresAt`) in which finishing a
  * connection to that account is refused: a token Google issued before the
- * revoke landed would already be dead when stored.
+ * revoke landed would already be dead when stored. The revoke starts only while
+ * 45 seconds of the window are left, so it ends, at its 15-second limit, half a
+ * minute before the window does; after a late commit it is skipped instead.
  *
  * The connection belongs to the company, not to the admin who made it. Logs
  * carry ids and outcome codes only: never an email address or a token.
@@ -33,8 +35,13 @@ const { plainPassword, sealPassword } = require('./shared/smtpSettings');
 const oauth = require('./shared/gmail/oauthClient');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
-/** Longer than a revoke (15 s limit) plus a code exchange (15 s limit) that began before it. */
 const REVOKE_WINDOW_MS = 60 * 1000;
+/**
+ * What must be left of the window when a revoke starts: its own request limit,
+ * then time for a connection whose code exchange ended just before the revoke
+ * landed to reach its transaction, inside the window, and be refused.
+ */
+const REVOKE_START_MARGIN_MS = oauth.TIMEOUT_MS + 30 * 1000;
 const RATE_LIMIT = 10;
 const RATE_WINDOW_SECONDS = 600;
 
@@ -108,17 +115,17 @@ const companyIdsOf = (snap) => {
 /**
  * In a transaction, after its reads: takes `companyId` off the account's
  * grant list. True when no company is left, and so the token may be revoked.
- * With `revoking`, the emptied list stays as the revoke window instead of
- * being deleted.
+ * With `revokingUntil` (milliseconds), the emptied list stays as the revoke
+ * window until then instead of being deleted.
  */
-function releaseGrant(transaction, sub, grantSnap, companyId, { revoking }) {
+function releaseGrant(transaction, sub, grantSnap, companyId, { revokingUntil }) {
     const remaining = companyIdsOf(grantSnap).filter((id) => id !== companyId);
     if (remaining.length) {
         transaction.set(grantRef(sub), { companyIds: remaining, updatedAt: fieldValue().serverTimestamp() });
         return false;
     }
-    if (revoking) {
-        const until = admin.firestore.Timestamp.fromMillis(Date.now() + REVOKE_WINDOW_MS);
+    if (revokingUntil) {
+        const until = admin.firestore.Timestamp.fromMillis(revokingUntil);
         transaction.set(grantRef(sub), {
             companyIds: [], revokingUntil: until, expiresAt: until, updatedAt: fieldValue().serverTimestamp(),
         });
@@ -131,8 +138,15 @@ function releaseGrant(transaction, sub, grantSnap, companyId, { revoking }) {
 /** A grant list still inside its revoke window: a token issued now may die with that revoke. */
 const revokePending = (grantSnap) => grantSnap?.exists && millisOf(grantSnap.data()?.revokingUntil) > Date.now();
 
-/** Best effort: the token is already gone from SafeHaul, so a failure is logged by code only. */
-async function revokeSealed(sealed, label, companyId) {
+/**
+ * Best effort: the token is already gone from SafeHaul, so a failure is logged
+ * by code only. Skipped when too little of its window (`revokeBy`) is left.
+ */
+async function revokeSealed(sealed, label, companyId, revokeBy) {
+    if (!(Date.now() + REVOKE_START_MARGIN_MS <= revokeBy)) {
+        console.warn(`[${label}] The old Gmail token for company ${companyId} was not revoked: its transaction committed too late.`);
+        return;
+    }
     let token;
     try {
         token = plainPassword(sealed);
@@ -243,7 +257,7 @@ exports.completeGmailConnection = onCall(
         const { sub, email, tokens } = granted;
         const sealed = sealPassword(tokens.refreshToken);
 
-        const { replacedSealed, accountChanged } = await db.runTransaction(async (transaction) => {
+        const { replacedSealed, revokeBy, accountChanged } = await db.runTransaction(async (transaction) => {
             const configRef = emailConfigRef(companyId);
             const configSnap = await transaction.get(configRef);
             const stored = configSnap.exists ? configSnap.data() || {} : {};
@@ -253,6 +267,7 @@ exports.completeGmailConnection = onCall(
             const oldGrant = previousSub ? await transaction.get(grantRef(previousSub)) : null;
             if (revokePending(newGrant)) throw new HttpsError('failed-precondition', MESSAGES.JUST_DISCONNECTED);
             const oldToken = typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null;
+            const revokeBy = oldToken ? Date.now() + REVOKE_WINDOW_MS : null;
 
             const now = fieldValue().serverTimestamp();
             transaction.set(configRef, {
@@ -276,14 +291,15 @@ exports.completeGmailConnection = onCall(
             });
             // The same account again: its old token is not revoked, since that would end the new one too.
             const lastHolder = previousSub
-                ? releaseGrant(transaction, previousSub, oldGrant, companyId, { revoking: Boolean(oldToken) })
+                ? releaseGrant(transaction, previousSub, oldGrant, companyId, { revokingUntil: revokeBy })
                 : false;
             return {
                 replacedSealed: lastHolder ? oldToken : null,
+                revokeBy,
                 accountChanged: Boolean(previousSub),
             };
         });
-        if (replacedSealed) await revokeSealed(replacedSealed, 'completeGmailConnection', companyId);
+        if (replacedSealed) await revokeSealed(replacedSealed, 'completeGmailConnection', companyId, revokeBy);
 
         console.log(`[completeGmailConnection] Gmail connected for company ${companyId} by ${uid}; account changed: ${accountChanged}`);
         return { email };
@@ -299,7 +315,7 @@ exports.disconnectGmail = onCall(
         await limitRate(`gmail_disconnect_${uid}`);
         await assertCompanyAdminStrict(uid, companyId);
 
-        const { revokeSealedToken, wasConnected } = await db.runTransaction(async (transaction) => {
+        const { revokeSealedToken, revokeBy, wasConnected } = await db.runTransaction(async (transaction) => {
             const configRef = emailConfigRef(companyId);
             const configSnap = await transaction.get(configRef);
             const stored = configSnap.exists ? configSnap.data() || {} : {};
@@ -319,13 +335,15 @@ exports.disconnectGmail = onCall(
                 gmailDisconnectedBy: uid,
             });
             const token = typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null;
-            const lastHolder = sub ? releaseGrant(transaction, sub, grant, companyId, { revoking: Boolean(token) }) : false;
+            const revokeBy = token ? Date.now() + REVOKE_WINDOW_MS : null;
+            const lastHolder = sub ? releaseGrant(transaction, sub, grant, companyId, { revokingUntil: revokeBy }) : false;
             return {
                 revokeSealedToken: lastHolder ? token : null,
+                revokeBy,
                 wasConnected: true,
             };
         });
-        if (revokeSealedToken) await revokeSealed(revokeSealedToken, 'disconnectGmail', companyId);
+        if (revokeSealedToken) await revokeSealed(revokeSealedToken, 'disconnectGmail', companyId, revokeBy);
 
         if (wasConnected) console.log(`[disconnectGmail] Gmail disconnected for company ${companyId} by ${uid}`);
         return { disconnected: true };

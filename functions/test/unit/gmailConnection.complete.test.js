@@ -16,7 +16,7 @@ const { readLatestSecret } = require('../../shared/secretStore');
 const { plainPassword, sealPassword } = require('../../shared/smtpSettings');
 const {
     ADMIN, CLIENT_ID, CLIENT_SECRET, EMAIL_CONFIG, SEND_SCOPE,
-    callFrom, google, grantSending, idTokenFor, loggedText, mock, resetGmailHarness, revokedTokens,
+    callFrom, commitLate, google, grantSending, idTokenFor, loggedText, mock, resetGmailHarness, revokedTokens,
 } = require('./gmailConnection.support');
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -284,6 +284,18 @@ describe('reconnecting, and the grant list', () => {
 
         await expect(complete(await startedState())).resolves.toEqual({ email: 'hiring@example.test' });
         expect(grant('1001')).toEqual({ companyIds: ['co-1'], updatedAt: '__server_timestamp__' });
+    });
+
+    it('another account: skips the revoke when its transaction committed too late, and stays connected', async () => {
+        connectedBefore('900');
+        grantSending({ sub: '1001' });
+        const state = await startedState();
+        commitLate(16 * 1000);
+
+        await expect(complete(state)).resolves.toEqual({ email: 'hiring@example.test' });
+        expect(revokedTokens()).toEqual([]);
+        expect(config().gmailSub).toBe('1001');
+        expect(loggedText()).toContain('committed too late');
     });
 
     it('stays connected when revoking the old token fails', async () => {
