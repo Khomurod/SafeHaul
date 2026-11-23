@@ -1284,7 +1284,7 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `rate_limits`, `processing_status`, `integrations_index`,
   `environment_audit_log`, `ai_provider_config`, `ai_routing_config`,
   `ai_telemetry`, `blog_posts`, `blog_runs`, `platform_settings`,
-  `landing_leads`, `orphaned_signature_cleanup`,
+  `landing_leads`, `orphaned_signature_cleanup`, `oauth_states`, `gmail_grants`,
   `companies/{id}/application_drafts`, `companies/{id}/application_draft_audit`,
   `companies/{id}/legal_agreements` (callables only; publish is Super Admin
   only), and the `application_originals` Storage prefix. Some rely on
@@ -1500,7 +1500,7 @@ the daily count**; refusing is a recorded outcome.
   `{application link}` becomes the company's apply page with the assignee's recruiter link
   (`?r=`), else the plain page (`shared/applicationLink.js`); campaigns' `[Application Link]` too.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
-  `application_drafts`, `application_draft_audit` and `rate_limits` at
+  `application_drafts`, `application_draft_audit`, `rate_limits` and `oauth_states` at
   `expiresAt` (activity logs carry one). An unfinished application expires
   30 days after its last save, its uploads too (`deleteExpiredDraftFiles`).
 
