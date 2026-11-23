@@ -482,7 +482,7 @@ and keeps it. Nothing emails a signed PDF by itself: for a signed document with
 one, a team member reviews and approves **Send signed copy**
 (`sendSignedDocumentCopy`, claimed once in `signedCopy`; only to the address the
 approval showed, refused if a correction changed it; checksum-checked; company
-SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
+email, SMTP or the connected Gmail; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
 the newest 100 requests live, older on request; past that, its numbers are server
 counts and a live list holds those needing attention (`firestore.indexes.json`): an
 unsigned document (`sent`, or the older `opened`) whose send failed, or a failed seal; a
