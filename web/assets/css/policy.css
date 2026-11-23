@@ -1,10 +1,10 @@
 /*
- * SafeHaul /privacy.html — policy page styling
+ * SafeHaul /privacy.html and /about.html — static page styling
  *
  * Extracted from the retired marketing site's styles.css, in its SOURCE ORDER,
  * exactly as the five news-*.css files were. These rules were spread across the
  * original's sections 3, 4 and 16; they are collected here because only the
- * privacy page uses them, and news-article.css has no headroom left.
+ * static pages use them, and news-article.css has no headroom left.
  *
  * LINKED AFTER news-chrome.css AND BEFORE news-footer.css. Every selector here
  * names .privacy-hero, .policy-content or .policy-section, so it cannot collide
@@ -39,7 +39,7 @@
 /* ========================================================================= */
 /* 16b. PRIVACY POLICY                                                       */
 /*                                                                           */
-/* `privacy.html` shares this stylesheet and uses its own four class names.   */
+/* `privacy.html` and `about.html` share it and use its four class names.    */
 /* It is the same object as an article: one sheet of the specification.       */
 /* ========================================================================= */
 

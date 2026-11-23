@@ -78,7 +78,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 22, **mixed v1 and v2** |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and a standalone privacy page, and redirects `/` to `/news`. |
+| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and the standalone public pages, and redirects `/` to `/news`. |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**: (1) **direct Firestore
@@ -1682,7 +1682,7 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   store the 404 (or SPA fallback) an open tab gets for a chunk a release removed,
   failing that browser even after a rollback. Everything stays on the one-hour default.
 - **The public site stays dependency-free**: no framework, no build step, no
-  application or design-system imports. `web/privacy.html` ships no `<script>`
+  application or design-system imports. The public pages ship no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth;

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About SafeHaul</title>
+<meta name="description" content="SafeHaul is driver hiring software for US trucking carriers: applications, driver documents, electronic signatures and previous-employment verification in one place.">
+<link rel="canonical" href="https://safehaul.io/about.html">
+<meta name="theme-color" content="#14161A">
+<link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+<!--
+  A STANDALONE PAGE, LIKE privacy.html. It says what SafeHaul is and who runs it,
+  and is the home page app reviewers (Google's OAuth verification among them) are
+  sent to; `/` itself still redirects to /news.
+
+  Every product sentence here comes from an `available` entry in
+  functions/ai/knowledge/safehaulCapabilities.js, and `npm run check:public-claims`
+  reads this page. Name nothing that is not live yet.
+
+  No JavaScript and no build step. The stylesheets, navigation and footer are the
+  privacy page's, in the same order; policy.css supplies the page's own classes.
+  The top navigation is the blog's two links: a third does not fit a phone's row,
+  so this page is linked from the footer.
+-->
+<link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/news-foundation.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-chrome.css?v=1">
+<link rel="stylesheet" href="/assets/css/policy.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-footer.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-responsive.css?v=1">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<nav id="navbar" class="navbar">
+  <div class="nav-container">
+    <a href="/news" class="logo-link" aria-label="SafeHaul News &amp; Insights">
+      <img src="/assets/images/logo.svg" alt="" class="logo" width="152" height="132">
+      <span class="logo-text">SafeHaul</span>
+    </a>
+    <div class="nav-links">
+      <a href="/news" class="nav-link">News &amp; Insights</a>
+      <a href="#footer" class="nav-link">Contact</a>
+    </div>
+    <div class="nav-cta">
+      <a href="https://app.safehaul.io" rel="noopener" class="btn btn-primary">Log in</a>
+    </div>
+  </div>
+</nav>
+<header class="privacy-hero">
+    <h1>About SafeHaul</h1>
+    <p>Driver hiring software for US trucking carriers</p>
+</header>
+
+<main id="main" class="policy-section">
+        <article class="policy-content">
+
+            <section>
+                <h2>What SafeHaul Is</h2>
+                <p>SafeHaul is web-based software that US trucking carriers use to hire drivers and keep their
+                    hiring records in one place, instead of in paper files, spreadsheets and email. It is built and
+                    operated by Safehaul Technologies LLC.</p>
+                <p>Carrier owners, recruiters and safety teams sign in at
+                    <a href="https://app.safehaul.io" rel="noopener">app.safehaul.io</a>. Drivers fill in their
+                    application in a browser, and documents can be signed in a browser without an account.</p>
+            </section>
+
+            <section>
+                <h2>What It Does</h2>
+                <ul>
+                    <li><strong>Driver applications:</strong> SafeHaul collects a complete driver application in one
+                        structured record. Applications can be submitted by an invited driver or through a public
+                        company link, and an application in progress survives a lost connection and is submitted when
+                        the device reconnects.</li>
+                    <li><strong>Licence photo auto-fill:</strong> A driver can start an application by photographing
+                        their licence. The auto-filled values are shown to the driver for review before
+                        submission.</li>
+                    <li><strong>Hiring pipeline:</strong> Recruiters move candidates through hiring stages, and leads
+                        can be added by hand or imported from a spreadsheet.</li>
+                    <li><strong>Driver documents:</strong> Driver documents are stored per driver, with access limited
+                        to that company's team. Each driver's DQ file lists which documents it holds and which are
+                        missing.</li>
+                    <li><strong>Electronic signatures:</strong> Documents can be sent for signature, and a completed
+                        document is sealed so later alteration is detectable.</li>
+                    <li><strong>Previous-employment verification:</strong> SafeHaul sends previous-employment
+                        verification requests to a driver's former employers and records the responses.</li>
+                    <li><strong>Reporting:</strong> SafeHaul reports on hiring pipeline activity from the records it
+                        holds.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>How It Protects Records</h2>
+                <p>SafeHaul holds hiring records on each carrier's behalf, so it keeps them apart and keeps a record
+                    of what is done with them:</p>
+                <ul>
+                    <li>Each company's records are isolated by database access rules, and every company has its own
+                        team, roles and public application link.</li>
+                    <li>Document links are issued by the server and checked against company membership.</li>
+                    <li>SafeHaul keeps activity records for actions taken on a driver record.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Privacy &amp; Contact</h2>
+                <p>How SafeHaul collects, uses, shares and deletes personal information is set out in our
+                    <a href="/privacy.html">Privacy Policy</a>.</p>
+                <p>SafeHaul is operated by Safehaul Technologies LLC. Questions can be sent to
+                    <a href="mailto:info@safehaul.io">info@safehaul.io</a>.</p>
+                <p>SafeHaul supports your compliance process. It is not a law firm, and nothing here is advice about
+                    your regulatory obligations.</p>
+            </section>
+
+        </article>
+    </main>
+<footer id="footer" class="footer-section">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="/news" class="logo-link" aria-label="SafeHaul News &amp; Insights">
+        <img src="/assets/images/logo-mono.svg" alt="" class="footer-logo" width="152" height="132">
+        <span class="logo-text">SafeHaul</span>
+      </a>
+      <p>Driver hiring and DOT compliance software for trucking carriers.</p>
+    </div>
+    <nav class="footer-links" aria-label="Resources">
+      <h2 class="footer-heading">Resources</h2>
+      <a href="/news">News &amp; Insights</a>
+      <a href="/news/feed.xml">Article feed</a>
+      <a href="/about.html" aria-current="page">About SafeHaul</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="https://app.safehaul.io" rel="noopener">Log in</a>
+    </nav>
+    <div class="footer-contact">
+      <h2 class="footer-heading">Contact</h2>
+      <a href="mailto:info@safehaul.io">info@safehaul.io</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; 2026 SafeHaul. All rights reserved.</p>
+    <p class="footer-disclaimer">SafeHaul supports your compliance process. It is not a law firm and nothing
+    here is advice about your regulatory obligations.</p>
+  </div>
+</footer>
+</body>
+</html>

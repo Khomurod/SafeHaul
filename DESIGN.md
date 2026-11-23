@@ -69,8 +69,8 @@ spacing:
 **Scope, updated when the marketing site was removed.** This is the design
 contract for the stylesheets in `web/assets/css/`, which dress the two public
 surfaces that remain: the server-rendered blog (`/news`, `/news/{slug}`,
-`/news/feed.xml`) and the standalone privacy page (`/privacy.html`). Every rule
-below binds both.
+`/news/feed.xml`) and the standalone static pages (`/privacy.html`,
+`/about.html`). Every rule below binds both.
 
 **It used to bind a third.** `landing/index.html` was the marketing homepage, and
 `landing/assets/css/styles.css` was one 3447-line file dressing all three. The
@@ -181,7 +181,7 @@ A technical drawing has a ruled margin carrying the sheet number.
 
 ## Motion: "parts seat into position"
 
-One grammar, `--ease-seat`. On the pages that remain (news, privacy) motion is
+One grammar, `--ease-seat`. On the pages that remain (news, privacy, about) motion is
 small: hover moves of 140ms, gated behind `@media (hover: hover) and (pointer:
 fine)`; a modal fades its overlay and scales its container from 0.98, never 0.
 
@@ -228,11 +228,11 @@ public page. Any screenshot for a public page is taken against a fixture tenant.
 ## Two surfaces, one stylesheet
 
 `/news`, `/news/{slug}` and `/news/feed.xml` are server-rendered by
-`functions/blog/publicApi.js`; `/privacy.html` is static. They **share these
+`functions/blog/publicApi.js`; `/privacy.html` and `/about.html` are static. They **share these
 stylesheets**. The old section 16 dresses the blog and is now
 `news-article.css`; sections 6 and 18 dress the navbar and footer that function
-emits and are now `news-chrome.css` and `news-footer.css`; the privacy page's own
-three classes are `policy.css`. Nothing in any of them may assume the removed
+emits and are now `news-chrome.css` and `news-footer.css`; the static pages' own
+classes are `policy.css`. Nothing in any of them may assume the removed
 homepage's markup exists — which is no longer a discipline to keep, but a fact.
 
 The blog ships **no JavaScript of its own and therefore no mobile-menu toggle** —

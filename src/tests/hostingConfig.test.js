@@ -170,6 +170,29 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
             + ' to the Google API Services User Data Policy, including the Limited Use requirements.',
         );
         expect(privacy).toContain('href="https://developers.google.com/terms/api-services-user-data-policy"');
+        expect(privacy).toContain('href="/about.html"');
+    });
+
+    it('ships the About page', () => {
+        // The public home page app reviewers are sent to; `/` still redirects
+        // to /news. Static like the privacy page, and linked to it.
+        expect(existsSync(resolve(root, 'web/about.html'))).toBe(true);
+        const about = readFileSync(resolve(root, 'web/about.html'), 'utf8');
+        expect(about).toContain('<title>About SafeHaul</title>');
+        expect(about).toContain('rel="canonical" href="https://safehaul.io/about.html"');
+        expect(about).not.toMatch(/<script/i);
+        expect(about).not.toMatch(/href="\/#/);
+        expect(about).toContain('href="/privacy.html"');
+        expect(about).toContain('href="https://app.safehaul.io"');
+    });
+
+    it.each(PUBLIC_TARGETS)('%s redirects neither static page away', (name) => {
+        // Redirects run before static files, so a glob or a page's own path here
+        // would send reviewers somewhere other than the page they were given.
+        for (const { source } of target(name).redirects ?? []) {
+            expect(source).not.toContain('*');
+            expect(['/about.html', '/privacy.html']).not.toContain(source);
+        }
     });
 
     it('reads the whole split blog surface, not a stale path', () => {
