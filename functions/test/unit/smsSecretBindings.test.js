@@ -35,6 +35,8 @@ const SENDER_FILES = [
     // Manager-backed keys are configured. Without the binding every one of
     // those rows would report "missing", which looks like an outage.
     'environmentVault/index.js',
+    // Send from Gmail: the refresh token is sealed and opened with the same key.
+    'gmailConnection.js',
 ];
 
 // Every function that reads a company's stored SMTP password (shared/smtpSettings.js),
@@ -56,6 +58,13 @@ const SMTP_PASSWORD_READERS = [
     ['applicationChanges.js', 'createChangeReview'],                             // "Email review link to driver"
 ];
 
+// Every function that seals or opens a company's Gmail refresh token
+// (`gmailConnection.js`): the same key, bound on each function's own options.
+const GMAIL_TOKEN_HANDLERS = [
+    ['gmailConnection.js', 'completeGmailConnection'],                           // seals the new token, opens a replaced one to revoke it
+    ['gmailConnection.js', 'disconnectGmail'],                                   // opens the token to revoke it
+];
+
 /** The text from `exports.<name> =` to the function's handler: its options, in every SDK form. */
 function definitionHead(src, name) {
     const start = src.indexOf(`exports.${name} =`);
@@ -63,7 +72,7 @@ function definitionHead(src, name) {
 }
 
 describe('SMS_ENCRYPTION_KEY secret bindings', () => {
-    test.each(SMTP_PASSWORD_READERS)('%s: %s binds SMS_ENCRYPTION_KEY on its own options', (rel, name) => {
+    test.each([...SMTP_PASSWORD_READERS, ...GMAIL_TOKEN_HANDLERS])('%s: %s binds SMS_ENCRYPTION_KEY on its own options', (rel, name) => {
         const head = definitionHead(fs.readFileSync(path.join(ROOT, rel), 'utf8'), name);
         expect(head).not.toBeNull();
         expect(head).toMatch(/secrets:\s*\[[^\]]*['"]SMS_ENCRYPTION_KEY['"]/);
