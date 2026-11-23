@@ -100,7 +100,7 @@ async function refusal({ status, body }, { companyId, settings }) {
 /** Sends one compiled Nodemailer message; resolves to Nodemailer's send info. */
 async function sendThroughGmail({ companyId, settings, mail, fetchImpl }) {
     if (settings.status === 'needs_reconnect') {
-        await noteGmailReconnectNeeded(companyId);
+        await noteGmailReconnectNeeded(companyId, settings.tokenFingerprint);
         throw new GmailSendError('GMAIL_RECONNECT_NEEDED');
     }
     mail.message.keepBcc = true;

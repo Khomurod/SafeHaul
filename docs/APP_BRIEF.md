@@ -1487,7 +1487,8 @@ the daily count**; refusing is a recorded outcome.
   a status change and an assignment notify once per event (`createNotification` with a
   fixed id). A public link's "Ask … for a new link" notifies once per record a day
   (`signing_link_requested`, `pev_link_requested`, `review_link_requested`); a Gmail
-  that needs reconnecting tells the team once a UTC day while it refuses emails (`gmail_reconnect_<day>`).
+  that needs reconnecting tells the team once a UTC day per broken connection while it refuses emails
+  (`gmail_reconnect_<day>_<token fingerprint>`), so one that breaks again after a reconnect is told again.
 - **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
   matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
   An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);

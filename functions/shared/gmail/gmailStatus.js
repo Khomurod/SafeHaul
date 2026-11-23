@@ -7,7 +7,9 @@
  *   (compared by the fingerprint of its sealed value), so a reconnect made in
  *   the meantime is never undone.
  * - `noteGmailReconnectNeeded` tells the team in the bell, once a UTC day
- *   (`createNotification` with a fixed id), each day a send is refused for it.
+ *   for each broken connection (`createNotification` with an id of the day
+ *   and the token's fingerprint), each day a send is refused for it: a
+ *   connection that breaks again after a reconnect is told again.
  *
  * Both are best effort and never throw: the send that found the failure
  * reports it either way. Logs carry the company id and codes only.
@@ -25,20 +27,22 @@ const emailConfigRef = (companyId) => db.collection('companies').doc(companyId)
 /** True when the settings the reader returned are a Gmail that needs reconnecting. */
 const gmailNeedsReconnect = (settings) => settings?.kind === 'gmail' && settings.status === 'needs_reconnect';
 
-/** Companies already told today by this instance: a repeat costs a refused write and a log line. */
+/** Connections already told about today by this instance: a repeat costs a refused write and a log line. */
 const toldOn = new Map();
 
-/** The team's bell notice for today, once a UTC day. */
-async function noteGmailReconnectNeeded(companyId) {
+/** The team's bell notice for today, once a UTC day for the connection with this token. */
+async function noteGmailReconnectNeeded(companyId, tokenFingerprint) {
     const day = new Date(Date.now()).toISOString().slice(0, 10);
-    if (toldOn.get(companyId) === day) return;
+    const connection = String(tokenFingerprint || '').slice(0, 12) || 'unknown';
+    const told = `${companyId}:${connection}`;
+    if (toldOn.get(told) === day) return;
     try {
         await createNotification(db, companyId, {
             type: 'gmail_reconnect',
             title: 'Gmail needs reconnecting',
             message: 'Emails are not being sent from your company Gmail. A company admin can reconnect it in Settings → Email.',
-        }, { id: `gmail_reconnect_${day}` });
-        toldOn.set(companyId, day);
+        }, { id: `gmail_reconnect_${day}_${connection}` });
+        toldOn.set(told, day);
     } catch (error) {
         console.warn(`[gmailStatus] company ${companyId}: the reconnect notice was not written (${error?.code ?? 'error'})`);
     }
@@ -75,7 +79,7 @@ async function markGmailNeedsReconnect(companyId, reason, tokenFingerprint) {
         outcome = 'failed';
     }
     console.warn(`[gmailStatus] company ${companyId}: Gmail needs reconnecting (${code}); status ${outcome}`);
-    if (outcome !== 'replaced') await noteGmailReconnectNeeded(companyId);
+    if (outcome !== 'replaced') await noteGmailReconnectNeeded(companyId, tokenFingerprint);
     return outcome;
 }
 

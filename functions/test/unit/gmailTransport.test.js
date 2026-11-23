@@ -7,8 +7,8 @@
  * - a 401 gets one fresh token and one retry;
  * - Gmail's sending limits fail as GMAIL_RATE_LIMITED and leave the status alone;
  * - a revoked grant (`invalid_grant`) or a lost send scope marks the Gmail
- *   `needs_reconnect`, with exactly one bell notice a day, and never undoes a
- *   reconnect made in the meantime;
+ *   `needs_reconnect`, with exactly one bell notice a day for that connection,
+ *   and never undoes a reconnect made in the meantime;
  * - a Gmail already marked sends nothing and asks Google nothing;
  * - no log carries a token, an address or Google's text.
  *
@@ -17,7 +17,7 @@
 jest.mock('../../firebaseAdmin', () => require('./gmailSending.support').firebaseAdminMock());
 jest.mock('../../shared/secretStore', () => ({ readLatestSecret: jest.fn() }));
 
-const { readSmtpSettings, sealPassword } = require('../../shared/smtpSettings');
+const { gmailTokenFingerprint, readSmtpSettings, sealPassword } = require('../../shared/smtpSettings');
 const { createGmailTransporter } = require('../../shared/gmail/gmailTransport');
 const {
     COMPANY, COMPANY_NAME, EMAIL_CONFIG, GMAIL, REFRESH_TOKEN, SECRETS_AND_ADDRESSES, SEND_ENDPOINT, TOKEN_ENDPOINT,
@@ -25,6 +25,9 @@ const {
 } = require('./gmailSending.support');
 
 const DAY = Date.parse('2026-11-23T15:00:00Z');
+
+/** The bell notice's id for that day and the connection now stored. */
+const noticeOn = (day) => `gmail_reconnect_${day}_${gmailTokenFingerprint(config().gmailRefreshToken).slice(0, 12)}`;
 
 /** One email through the company's Gmail, with the settings the senders read. */
 async function send(mail = {}) {
@@ -171,8 +174,8 @@ describe('a grant Google no longer honours', () => {
             // The token stays until an admin reconnects or disconnects.
             gmailRefreshToken: storedToken,
         });
-        expect(notices()).toEqual(['gmail_reconnect_2026-11-23']);
-        expect(mock.docs.get(`companies/${COMPANY}/notifications/gmail_reconnect_2026-11-23`)).toMatchObject({
+        expect(notices()).toEqual([noticeOn('2026-11-23')]);
+        expect(mock.docs.get(`companies/${COMPANY}/notifications/${noticeOn('2026-11-23')}`)).toMatchObject({
             type: 'gmail_reconnect',
             title: 'Gmail needs reconnecting',
             read: false,
@@ -193,7 +196,7 @@ describe('a grant Google no longer honours', () => {
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
 
         expect(config()).toMatchObject({ gmailStatus: 'needs_reconnect', gmailStatusReason: 'insufficient_scope' });
-        expect(notices()).toEqual(['gmail_reconnect_2026-11-23']);
+        expect(notices()).toEqual([noticeOn('2026-11-23')]);
     });
 
     it('tells the team once a day, however many emails fail', async () => {
@@ -201,11 +204,25 @@ describe('a grant Google no longer honours', () => {
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
-        expect(notices()).toEqual(['gmail_reconnect_2026-11-23']);
+        expect(notices()).toEqual([noticeOn('2026-11-23')]);
 
         Date.now.mockReturnValue(DAY + 24 * 3600 * 1000);
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
-        expect(notices()).toEqual(['gmail_reconnect_2026-11-23', 'gmail_reconnect_2026-11-24']);
+        expect(notices()).toEqual([noticeOn('2026-11-23'), noticeOn('2026-11-24')]);
+    });
+
+    it('tells the team again when the Gmail breaks again after a reconnect the same day', async () => {
+        google.refreshAnswers.push({ status: 400, body: { error: 'invalid_grant' } });
+        await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
+        const first = noticeOn('2026-11-23');
+
+        // An admin reconnects (a new token, the status active again), and Google refuses that grant too.
+        mock.docs.set(EMAIL_CONFIG(), gmailConfig({ gmailRefreshToken: sealPassword('artificial-refresh-token-new') }));
+        google.refreshAnswers.push({ status: 400, body: { error: 'invalid_grant' } });
+        await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
+
+        expect(noticeOn('2026-11-23')).not.toBe(first);
+        expect(notices().sort()).toEqual([first, noticeOn('2026-11-23')].sort());
     });
 
     it('tells the team once a day even across instances, by the notice id', async () => {
@@ -215,7 +232,7 @@ describe('a grant Google no longer honours', () => {
         _resetNoticesForTesting();
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
 
-        expect(notices()).toEqual(['gmail_reconnect_2026-11-23']);
+        expect(notices()).toEqual([noticeOn('2026-11-23')]);
     });
 
     it('never undoes a reconnect made while the failing email was being sent', async () => {
@@ -253,7 +270,7 @@ describe('a Gmail already marked as needing a reconnect', () => {
         await expect(send()).rejects.toMatchObject({ code: 'GMAIL_RECONNECT_NEEDED' });
 
         expect(google.requests).toEqual([]);
-        expect(notices()).toEqual(['gmail_reconnect_2026-11-23']);
+        expect(notices()).toEqual([noticeOn('2026-11-23')]);
     });
 });
 
