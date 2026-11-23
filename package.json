@@ -60,7 +60,7 @@
     "jspdf": "^4.0.0",
     "lucide-react": "^1.66.0",
     "papaparse": "^5.7.0",
-    "pdfjs-dist": "5.4.296",
+    "pdfjs-dist": "6.5.438",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-draggable": "^4.7.2",
