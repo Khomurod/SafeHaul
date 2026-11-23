@@ -56,8 +56,12 @@ async function claimResume(sessionRef, uid) {
         }
 
         // A new generation: a worker still holding the old one exits on its next batch.
+        // Why the worker paused it (`pauseReason`) no longer applies.
         const generation = (typeof data.workerGeneration === 'number' ? data.workerGeneration : 0) + 1;
-        t.update(sessionRef, { status: 'active', updatedBy: uid, lastUpdateAt: now, workerGeneration: generation });
+        t.update(sessionRef, {
+            status: 'active', updatedBy: uid, lastUpdateAt: now, workerGeneration: generation,
+            pauseReason: admin.firestore.FieldValue.delete(),
+        });
         return { generation };
     });
 }

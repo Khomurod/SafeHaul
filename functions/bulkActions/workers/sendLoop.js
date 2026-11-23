@@ -9,7 +9,9 @@
 // locals here and are returned, where the worker used to close over them.
 // The loop starts no send once the batch's send window is used (the next
 // batch carries on), and stops at the third text the SMS provider never
-// answered with no sent text between them (each may have gone out).
+// answered with no sent text between them (each may have gone out), and at an
+// email Gmail refused for its sending limit or for a connection that needs
+// reconnecting (`shared/gmail/sendErrors.js`): the rest would fail the same way.
 
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
@@ -20,16 +22,24 @@ const BaseAdapter = require("../../integrations/adapters/BaseAdapter");
 const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
 const { emailLedgerKey } = require("../helpers/recentlyMessaged");
 const { isPlaceholderEmail } = require("../../shared/placeholderDomains");
+const { stopsCampaign } = require("../../shared/gmail/sendErrors");
 
 // This many texts the SMS provider never answered, with no sent text between
 // them, stop the campaign: the provider is not answering.
 const UNCONFIRMED_PAUSE_AFTER = 3;
 
+/** Why the loop stopped a campaign, as the session's `pauseReason`, by Gmail failure code. */
+const GMAIL_PAUSE_REASONS = Object.freeze({
+    GMAIL_RATE_LIMITED: 'gmail_limit',
+    GMAIL_RECONNECT_NEEDED: 'gmail_reconnect',
+});
+
 /**
- * Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount, silentProvider }`;
- * `silentProvider` is true when the loop stopped after `UNCONFIRMED_PAUSE_AFTER`
- * unanswered texts with no sent text between them (`progress.unconfirmedInARow`,
- * kept across batches).
+ * Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount, pauseReason }`;
+ * `pauseReason` is null, or why the loop stopped the campaign: `sms_silent`
+ * after `UNCONFIRMED_PAUSE_AFTER` unanswered texts with no sent text between
+ * them (`progress.unconfirmedInARow`, kept across batches), `gmail_limit` or
+ * `gmail_reconnect` after the email Gmail refused for that reason.
  */
 async function runSendLoop({
     batchIds,
@@ -61,7 +71,7 @@ async function runSendLoop({
     let batchSuccessCount = 0;
     let batchFailCount = 0;
     let pointerAdvanceCount = 0;
-    let silentProvider = false;
+    let pauseReason = null;
 
 
         try {
@@ -98,6 +108,8 @@ async function runSendLoop({
                 let receipt = null;
                 // The SMS provider never answered this send: the text may have gone out.
                 let sendUnconfirmed = false;
+                // Gmail refused this email for its limit or its connection: the next would fail too.
+                let stopReason = null;
 
                 // Declare variables in loop scope
                 let leadData = {};
@@ -209,6 +221,7 @@ async function runSendLoop({
                     errorMsg = err.message || "Unknown error";
                     success = false;
                     sendUnconfirmed = err?.code === BaseAdapter.SEND_UNCONFIRMED;
+                    if (stopsCampaign(err)) stopReason = GMAIL_PAUSE_REASONS[err.code];
                 }
 
                 // 3. Log result + advance pointer atomically so pause/cancel never skips work.
@@ -273,7 +286,12 @@ async function runSendLoop({
                 }
                 if (sendUnconfirmed && unconfirmedInARow >= UNCONFIRMED_PAUSE_AFTER) {
                     console.warn(`[BatchWorker] The SMS provider did not answer ${unconfirmedInARow} texts in a row. Stopping at item ${i + 1}/${batchIds.length}.`);
-                    silentProvider = true;
+                    pauseReason = 'sms_silent';
+                    break;
+                }
+                if (stopReason) {
+                    console.warn(`[BatchWorker] Gmail refused an email (${stopReason}). Stopping at item ${i + 1}/${batchIds.length}.`);
+                    pauseReason = stopReason;
                     break;
                 }
 
@@ -333,7 +351,7 @@ async function runSendLoop({
             // Fallthrough to save progress
         }
 
-    return { batchSuccessCount, batchFailCount, pointerAdvanceCount, silentProvider };
+    return { batchSuccessCount, batchFailCount, pointerAdvanceCount, pauseReason };
 }
 
 module.exports = { runSendLoop };

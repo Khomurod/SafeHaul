@@ -56,7 +56,7 @@ jest.mock('../../firebaseAdmin', () => {
     },
   };
   const admin = {
-    firestore: { FieldValue: { serverTimestamp: () => 'server-time', increment: (n) => ({ increment: n }) } },
+    firestore: { FieldValue: { serverTimestamp: () => 'server-time', increment: (n) => ({ increment: n }), delete: () => 'field-delete' } },
     auth: () => ({ getUser: async () => ({ displayName: null }) }),
   };
   return { admin, db };
