@@ -82,6 +82,20 @@ describe('when the email itself fails', () => {
         for (const secret of [...SECRETS_AND_ADDRESSES, DRIVER]) expect(loggedText()).not.toContain(secret);
     });
 
+    it('does not say nobody received the link when Gmail did not answer', async () => {
+        // Google may have accepted the email before the answer was lost.
+        google.sendAnswers.push('network');
+
+        const refused = await sendLink();
+
+        expect(refused).toMatchObject({
+            code: 'unavailable',
+            details: { reason: 'email-failed' },
+            message: 'Gmail did not answer, so the email may or may not have gone out. Ask the driver whether it '
+                + 'arrived before you send another, or copy a link instead.',
+        });
+    });
+
     it("keeps the mail server's fixed message for an SMTP company, never the server's own text", async () => {
         // A company of its own: SMTP connections are kept per company for the process.
         mock.docs.set('companies/co-smtp', { companyName: COMPANY_NAME });

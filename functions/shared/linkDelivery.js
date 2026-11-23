@@ -102,10 +102,18 @@ function refusal(reason) {
     return new HttpsError(code, message, { reason });
 }
 
-/** `email-failed`, with Gmail's own plain message when the company sends through Gmail. */
+/**
+ * `email-failed`, with Gmail's own plain message when the company sends through
+ * Gmail. When Gmail did not answer, it may have accepted the email before the
+ * answer was lost, so the message does not say that nobody received the link.
+ */
 function emailFailed(error) {
     const code = error?.code;
     if (typeof code !== 'string' || !Object.prototype.hasOwnProperty.call(GMAIL_SEND_FAILURES, code)) return refusal('email-failed');
+    if (code === 'GMAIL_UNAVAILABLE') {
+        return new HttpsError('unavailable', 'Gmail did not answer, so the email may or may not have gone out. Ask the '
+            + 'driver whether it arrived before you send another, or copy a link instead.', { reason: 'email-failed' });
+    }
     return new HttpsError('unavailable', `The email could not be sent. ${GMAIL_SEND_FAILURES[code]} Nobody received `
         + 'the new link. Try again, or copy a link instead.', { reason: 'email-failed' });
 }
