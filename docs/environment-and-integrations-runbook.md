@@ -396,8 +396,8 @@ They are **not** omitted, and no value is invented, reconstructed or substituted
 Their status is reported as *Not retrievable* rather than a guess.
 
 The `GMAIL_OAUTH_*` rows answer the same way, with their own reason, because
-the vault never holds them. A company's `gmailRefreshToken` row has no eye at
-all, and its reveal is refused by the server too.
+the vault never holds them. A company's `gmailRefreshToken` row shows its eye
+disabled, and the server answers a reveal the same way without reading it.
 
 ---
 

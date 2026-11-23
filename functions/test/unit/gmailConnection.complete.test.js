@@ -152,6 +152,18 @@ describe('the one-time state', () => {
         expect(tokenRequests()).toHaveLength(0);
         expect(config().provider).toBeUndefined();
     });
+
+    it('refuses when the switch was turned off since the start, before calling Google', async () => {
+        const state = await startedState();
+        mock.docs.set('companies/co-1', { companyName: 'Artificial Carrier', features: { gmailSending: false } });
+
+        await expect(complete(state)).rejects.toMatchObject({
+            code: 'failed-precondition',
+            message: 'Sending from Gmail is not switched on for this company.',
+        });
+        expect(tokenRequests()).toHaveLength(0);
+        expect(config().provider).toBeUndefined();
+    });
 });
 
 describe("Google's answer is checked", () => {

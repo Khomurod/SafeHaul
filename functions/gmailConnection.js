@@ -127,6 +127,18 @@ async function revokeSealed(sealed, label, companyId) {
 }
 
 /**
+ * Refuses unless the company's `gmailSending` switch is on, read from the
+ * company the admin check read (a super admin's check may hand back none).
+ */
+async function requireSwitchOn(checked, companyId) {
+    const companySnap = checked || await db.collection('companies').doc(companyId).get();
+    const company = companySnap?.exists ? companySnap.data() || {} : {};
+    if (company.features?.gmailSending !== true) {
+        throw new HttpsError('failed-precondition', MESSAGES.SWITCHED_OFF);
+    }
+}
+
+/**
  * The state, taken and deleted in one transaction so it works once. A state
  * started by another user is left in place: refusing them must not spend the
  * real admin's attempt.
@@ -148,13 +160,7 @@ exports.startGmailConnection = onCall({ cors: true }, async (request) => {
     const companyId = companyIdOf(request.data);
     await limitRate(`gmail_connect_${uid}`);
 
-    const checked = await assertCompanyAdminStrict(uid, companyId);
-    // A super admin's check hands back no company when it could not read one.
-    const companySnap = checked || await db.collection('companies').doc(companyId).get();
-    const company = companySnap?.exists ? companySnap.data() || {} : {};
-    if (company.features?.gmailSending !== true) {
-        throw new HttpsError('failed-precondition', MESSAGES.SWITCHED_OFF);
-    }
+    await requireSwitchOn(await assertCompanyAdminStrict(uid, companyId), companyId);
 
     const redirectUri = oauth.gmailRedirectUriFor(request.rawRequest?.headers?.origin);
     if (!redirectUri) throw new HttpsError('failed-precondition', MESSAGES.WRONG_SITE);
@@ -199,8 +205,8 @@ exports.completeGmailConnection = onCall(
             throw new HttpsError('failed-precondition', MESSAGES.EXPIRED);
         }
         const { companyId } = pending;
-        // Again: the admin's role or the company may have changed since the start.
-        await assertCompanyAdminStrict(uid, companyId);
+        // Again: the admin's role, the company or its switch may have changed since the start.
+        await requireSwitchOn(await assertCompanyAdminStrict(uid, companyId), companyId);
 
         let granted;
         try {
@@ -277,6 +283,10 @@ exports.disconnectGmail = onCall(
             const connected = stored.provider === 'gmail' || GMAIL_FIELDS.some((field) => stored[field] !== undefined);
             if (!connected) return { revokeSealedToken: null, wasConnected: false };
             const sub = typeof stored.gmailSub === 'string' && oauth.SUB_PATTERN.test(stored.gmailSub) ? stored.gmailSub : null;
+            if (!sub && stored.gmailRefreshToken) {
+                // Without the account id, revoking could end another company's grant too.
+                console.warn(`[disconnectGmail] Company ${companyId} held a Gmail token without an account id; it was deleted, not revoked.`);
+            }
             const grant = sub ? await transaction.get(grantRef(sub)) : null;
 
             transaction.update(configRef, {

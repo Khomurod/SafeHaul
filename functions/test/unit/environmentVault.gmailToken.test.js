@@ -1,7 +1,7 @@
 /**
  * The vault lists a company's Gmail connection and never reads its refresh
  * token back: the reveal answers `not-retrievable` without opening the
- * document, and the row offers no eye, edit or delete.
+ * document, and the row has its eye, edit and delete turned off.
  *
  * Part of the environment-vault callable suite; the store, the seed documents
  * and the reset are in `environmentVault.callables.support.js`. Every value

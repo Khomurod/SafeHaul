@@ -202,6 +202,25 @@ describe('requests to Google', () => {
         expect(failure.message).not.toContain('ECONNREFUSED');
     });
 
+    it('answers google-unreachable when fifteen seconds run out while the answer is still arriving', async () => {
+        jest.useFakeTimers();
+        try {
+            const slow = jest.fn(async (_url, init) => ({
+                ok: true,
+                status: 200,
+                json: () => new Promise((_resolve, reject) => {
+                    init.signal.addEventListener('abort', () => reject(new Error('The operation was aborted.')));
+                }),
+            }));
+            const pending = oauth.exchangeCode({ code: 'c', codeVerifier: 'v', redirectUri: 'r' }, { fetchImpl: slow });
+            const outcome = expect(pending).rejects.toMatchObject({ code: 'google-unreachable' });
+            await jest.advanceTimersByTimeAsync(15 * 1000);
+            await outcome;
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('does not call Google when the client is not configured', async () => {
         secretStore.readLatestSecret.mockImplementation(async () => null);
         const { fetchImpl } = fakeFetch(200, {});

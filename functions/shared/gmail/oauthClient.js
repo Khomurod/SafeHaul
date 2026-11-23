@@ -163,6 +163,8 @@ async function postForm(url, form, { fetchImpl } = {}) {
         try {
             payload = await response.json();
         } catch {
+            // The fifteen seconds ran out while the answer was arriving.
+            if (controller.signal.aborted) throw new GmailOAuthError('google-unreachable');
             payload = null;
         }
     } catch {

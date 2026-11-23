@@ -94,6 +94,16 @@ describe('disconnectGmail', () => {
         expect(loggedText()).toContain('google-refused');
     });
 
+    it('deletes a token stored without an account id, says so, and does not revoke it', async () => {
+        connected();
+        mock.docs.set(EMAIL_CONFIG('co-1'), { ...config(), gmailSub: undefined });
+        await expect(disconnect()).resolves.toEqual({ disconnected: true });
+
+        expect(config().gmailRefreshToken).toBeUndefined();
+        expect(revokedTokens()).toEqual([]);
+        expect(loggedText()).toContain('deleted, not revoked');
+    });
+
     it('needs no OAuth client to disconnect', async () => {
         connected();
         require('../../shared/secretStore').readLatestSecret.mockImplementation(async () => null);
