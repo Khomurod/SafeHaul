@@ -54,7 +54,10 @@ describe('disconnectGmail', () => {
             gmailDisconnectedAt: '__server_timestamp__',
             gmailDisconnectedBy: ADMIN,
         });
-        expect(mock.docs.get('gmail_grants/1001')).toBeUndefined();
+        const window = mock.docs.get('gmail_grants/1001');
+        expect(window).toMatchObject({ companyIds: [], updatedAt: '__server_timestamp__' });
+        expect(window.revokingUntil.toMillis()).toBeGreaterThan(Date.now() + 50 * 1000);
+        expect(window.expiresAt.toMillis()).toBe(window.revokingUntil.toMillis());
         expect(revokedTokens()).toEqual(['artificial-refresh-1001']);
         expect(loggedText()).not.toMatch(/artificial-refresh|hiring@example\.test/);
         expect(checkRateLimit).toHaveBeenCalledWith(`gmail_disconnect_${ADMIN}`, 10, 600, 'closed');

@@ -1,6 +1,6 @@
 /**
  * `saveEmailSettings` while Gmail is connected: `signatureOnly` saves the
- * signature alone, with no SMTP fields and no connection check, and a full SMTP
+ * signature alone (and only then), with no SMTP fields and no connection check, and a full SMTP
  * save is refused so the mail-server settings kept for a disconnect are not
  * replaced by mistake. Every address and password below is artificial.
  */
@@ -85,6 +85,19 @@ describe('saveEmailSettings with signatureOnly', () => {
         });
         await expect(save({ companyId: 'co-1', signatureOnly: true, signature: 'x' })).rejects.toMatchObject({ code: 'permission-denied' });
         expect(mockStore.docs.get(EMAIL_CONFIG).signature).toBe('Old');
+    });
+
+    it('is refused while the company sends through its mail server, and writes nothing', async () => {
+        const message = 'Save the signature together with your mail server settings.';
+        mockStore.docs.set(EMAIL_CONFIG, { ...SMTP });
+        await expect(save({ companyId: 'co-1', signatureOnly: true, signature: 'x' })).rejects.toMatchObject({ code: 'failed-precondition', message });
+        expect(mockStore.docs.get(EMAIL_CONFIG)).toEqual(SMTP);
+
+        // Older settings kept only on the company document: no email_config is created to hide them.
+        mockStore.docs.delete(EMAIL_CONFIG);
+        await expect(save({ companyId: 'co-1', signatureOnly: true, signature: 'x' })).rejects.toMatchObject({ code: 'failed-precondition', message });
+        expect(mockStore.docs.has(EMAIL_CONFIG)).toBe(false);
+        expect(mockStore.docs.get('companies/co-1').emailSettings.signature).toBe('Old');
     });
 
     it('takes only true: anything else is a full SMTP save', async () => {

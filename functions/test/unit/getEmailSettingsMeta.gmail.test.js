@@ -102,6 +102,22 @@ describe('getEmailSettingsMeta: Gmail', () => {
         expect(await meta()).toEqual(expect.objectContaining({ smtpHost: 'legacy.example.test', gmail: NOT_CONNECTED }));
     });
 
+    it('shows mail-server settings kept on the company document beside a document that only Gmail wrote', async () => {
+        const legacy = { smtpHost: 'legacy.example.test', smtpPort: 465, smtpUser: 'old@example.test', smtpPass: 'enc:v1:y', signature: 'Thanks', isVerified: true };
+        mockStore.docs.set('companies/co-1', { companyName: 'Artificial Carrier', emailSettings: legacy });
+        const smtpLess = { smtpHost: undefined, smtpPort: undefined, smtpUser: undefined, smtpPass: undefined, signature: undefined, isVerified: undefined };
+
+        gmailConnected(smtpLess);
+        expect(await meta()).toMatchObject({
+            smtpHost: 'legacy.example.test', smtpPort: 465, smtpUser: 'old@example.test', signature: 'Thanks', isVerified: true, hasPassword: true,
+            gmail: { connected: true, email: 'hiring@example.test' },
+        });
+
+        // After a disconnect only the disconnect fields remain: the server settings are still shown.
+        mockStore.docs.set(EMAIL_CONFIG, { gmailDisconnectedAt: 'then', gmailDisconnectedBy: 'admin-1' });
+        expect(await meta()).toMatchObject({ smtpHost: 'legacy.example.test', hasPassword: true, gmail: NOT_CONNECTED });
+    });
+
     it('stays admin-only', async () => {
         assertCompanyAdminStrict.mockImplementation(async () => {
             throw Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' });

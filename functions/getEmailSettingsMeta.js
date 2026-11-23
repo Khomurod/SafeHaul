@@ -72,16 +72,21 @@ exports.getEmailSettingsMeta = onCall(
 
         if (configDoc.exists) {
             const data = configDoc.data();
+            // A document a Gmail connection created holds no mail-server settings:
+            // those still live on the company document, and are shown from there.
+            const server = data.smtpHost || data.smtpPass
+                ? data
+                : ((await db.collection('companies').doc(companyId).get()).data()?.emailSettings || {});
             return {
                 success: true,
                 settings: {
-                    smtpHost: data.smtpHost || '',
-                    smtpPort: data.smtpPort || 587,
-                    smtpUser: data.smtpUser || '',
-                    signature: data.signature || '',
-                    isVerified: data.isVerified || false,
-                    updatedAt: data.updatedAt || null,
-                    hasPassword: !!data.smtpPass,
+                    smtpHost: server.smtpHost || '',
+                    smtpPort: server.smtpPort || 587,
+                    smtpUser: server.smtpUser || '',
+                    signature: data.signature ?? server.signature ?? '',
+                    isVerified: server.isVerified || false,
+                    updatedAt: data.updatedAt || server.updatedAt || null,
+                    hasPassword: !!server.smtpPass,
                     // NEVER include smtpPass, or gmailRefreshToken
                     gmail: await gmailMeta(data),
                 },

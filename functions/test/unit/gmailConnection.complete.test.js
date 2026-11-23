@@ -36,6 +36,15 @@ const grant = (sub) => mock.docs.get(`gmail_grants/${sub}`);
 const tokenRequests = () => google.requests.filter((request) => request.url === TOKEN_URL);
 const storedStates = () => [...mock.docs.keys()].filter((path) => path.startsWith('oauth_states/'));
 
+/** An emptied grant list kept for the one-minute revoke window, which is also its TTL. */
+function expectRevokeWindow(stored) {
+    expect(stored).toMatchObject({ companyIds: [], updatedAt: '__server_timestamp__' });
+    const until = stored.revokingUntil.toMillis();
+    expect(until).toBeGreaterThan(Date.now() + 50 * 1000);
+    expect(until).toBeLessThanOrEqual(Date.now() + 60 * 1000);
+    expect(stored.expiresAt.toMillis()).toBe(until);
+}
+
 /** co-1 already sends from the Google account `sub`, which `holders` hold. */
 function connectedBefore(sub, holders = ['co-1']) {
     mock.docs.set(EMAIL_CONFIG('co-1'), {
@@ -233,7 +242,7 @@ describe('reconnecting, and the grant list', () => {
         await complete(await startedState());
 
         expect(revokedTokens()).toEqual(['old-refresh-900']);
-        expect(grant('900')).toBeUndefined();
+        expectRevokeWindow(grant('900'));
         expect(grant('1001').companyIds).toEqual(['co-1']);
         expect(config().gmailSub).toBe('1001');
         expect(loggedText()).not.toContain('old-refresh-900');
@@ -252,6 +261,29 @@ describe('reconnecting, and the grant list', () => {
         mock.docs.set('gmail_grants/1001', { companyIds: ['co-2'] });
         await complete(await startedState());
         expect(grant('1001').companyIds).toEqual(['co-2', 'co-1']);
+    });
+
+    it('refuses an account whose last holder let it go less than a minute ago, and stores nothing', async () => {
+        const recently = { toMillis: () => Date.now() + 30 * 1000 };
+        mock.docs.set('gmail_grants/1001', { companyIds: [], revokingUntil: recently, expiresAt: recently });
+        const state = await startedState();
+
+        await expect(complete(state)).rejects.toMatchObject({
+            code: 'failed-precondition',
+            message: 'This Google account was disconnected a moment ago. Try again in a minute.',
+        });
+        expect(config().provider).toBeUndefined();
+        expect(config().gmailRefreshToken).toBeUndefined();
+        expect(grant('1001').companyIds).toEqual([]);
+        expect(revokedTokens()).toEqual([]);
+    });
+
+    it('connects once the revoke window has passed, and clears it', async () => {
+        const passed = { toMillis: () => Date.now() - 1000 };
+        mock.docs.set('gmail_grants/1001', { companyIds: [], revokingUntil: passed, expiresAt: passed });
+
+        await expect(complete(await startedState())).resolves.toEqual({ email: 'hiring@example.test' });
+        expect(grant('1001')).toEqual({ companyIds: ['co-1'], updatedAt: '__server_timestamp__' });
     });
 
     it('stays connected when revoking the old token fails', async () => {

@@ -131,7 +131,7 @@ describe('startGmailConnection', () => {
     });
 });
 
-describe('oauth_states retention', () => {
+describe('oauth_states and gmail_grants retention', () => {
     it('declares the TTL policy that deletes a state once it has expired', () => {
         const fs = require('fs');
         const path = require('path');
@@ -141,5 +141,16 @@ describe('oauth_states retention', () => {
         ));
 
         expect(override).toEqual({ collectionGroup: 'oauth_states', fieldPath: 'expiresAt', ttl: true, indexes: [] });
+    });
+
+    it('declares the TTL policy that deletes an emptied grant list once its revoke window has passed', () => {
+        const fs = require('fs');
+        const path = require('path');
+        const config = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../firestore.indexes.json'), 'utf8'));
+        const override = (config.fieldOverrides || []).find((entry) => (
+            entry.collectionGroup === 'gmail_grants' && entry.fieldPath === 'expiresAt'
+        ));
+
+        expect(override).toEqual({ collectionGroup: 'gmail_grants', fieldPath: 'expiresAt', ttl: true, indexes: [] });
     });
 });

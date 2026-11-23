@@ -16,6 +16,10 @@
  * rule, so every client is refused. `gmail_grants` lists the companies that
  * hold a token for one Google account: revoking at Google ends every grant the
  * account gave SafeHaul, so it happens only when that list becomes empty.
+ * Revoking runs after the transaction, so the emptied list keeps a one-minute
+ * window (`revokingUntil`, also its TTL `expiresAt`) in which finishing a
+ * connection to that account is refused: a token Google issued before the
+ * revoke landed would already be dead when stored.
  *
  * The connection belongs to the company, not to the admin who made it. Logs
  * carry ids and outcome codes only: never an email address or a token.
@@ -29,6 +33,8 @@ const { plainPassword, sealPassword } = require('./shared/smtpSettings');
 const oauth = require('./shared/gmail/oauthClient');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
+/** Longer than a revoke (15 s limit) plus a code exchange (15 s limit) that began before it. */
+const REVOKE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
 const RATE_WINDOW_SECONDS = 600;
 
@@ -42,6 +48,7 @@ const MESSAGES = Object.freeze({
     ADMIN_BLOCKED: 'Your Google Workspace administrator has blocked SafeHaul. Ask them to allow it.',
     UNVERIFIED: "Google has not verified this account's email address, so SafeHaul cannot send from it.",
     UNREACHABLE: 'Google could not be reached. Try again in a moment.',
+    JUST_DISCONNECTED: 'This Google account was disconnected a moment ago. Try again in a minute.',
     FAILED: 'Gmail could not be connected. Start again from Settings → Email.',
     TOO_MANY: 'Too many attempts. Wait a few minutes, then try again.',
 });
@@ -101,16 +108,28 @@ const companyIdsOf = (snap) => {
 /**
  * In a transaction, after its reads: takes `companyId` off the account's
  * grant list. True when no company is left, and so the token may be revoked.
+ * With `revoking`, the emptied list stays as the revoke window instead of
+ * being deleted.
  */
-function releaseGrant(transaction, sub, grantSnap, companyId) {
+function releaseGrant(transaction, sub, grantSnap, companyId, { revoking }) {
     const remaining = companyIdsOf(grantSnap).filter((id) => id !== companyId);
     if (remaining.length) {
         transaction.set(grantRef(sub), { companyIds: remaining, updatedAt: fieldValue().serverTimestamp() });
         return false;
     }
-    transaction.delete(grantRef(sub));
+    if (revoking) {
+        const until = admin.firestore.Timestamp.fromMillis(Date.now() + REVOKE_WINDOW_MS);
+        transaction.set(grantRef(sub), {
+            companyIds: [], revokingUntil: until, expiresAt: until, updatedAt: fieldValue().serverTimestamp(),
+        });
+    } else {
+        transaction.delete(grantRef(sub));
+    }
     return true;
 }
+
+/** A grant list still inside its revoke window: a token issued now may die with that revoke. */
+const revokePending = (grantSnap) => grantSnap?.exists && millisOf(grantSnap.data()?.revokingUntil) > Date.now();
 
 /** Best effort: the token is already gone from SafeHaul, so a failure is logged by code only. */
 async function revokeSealed(sealed, label, companyId) {
@@ -232,6 +251,8 @@ exports.completeGmailConnection = onCall(
                 && stored.gmailSub !== sub ? stored.gmailSub : null;
             const newGrant = await transaction.get(grantRef(sub));
             const oldGrant = previousSub ? await transaction.get(grantRef(previousSub)) : null;
+            if (revokePending(newGrant)) throw new HttpsError('failed-precondition', MESSAGES.JUST_DISCONNECTED);
+            const oldToken = typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null;
 
             const now = fieldValue().serverTimestamp();
             transaction.set(configRef, {
@@ -254,9 +275,11 @@ exports.completeGmailConnection = onCall(
                 updatedAt: now,
             });
             // The same account again: its old token is not revoked, since that would end the new one too.
-            const lastHolder = previousSub ? releaseGrant(transaction, previousSub, oldGrant, companyId) : false;
+            const lastHolder = previousSub
+                ? releaseGrant(transaction, previousSub, oldGrant, companyId, { revoking: Boolean(oldToken) })
+                : false;
             return {
-                replacedSealed: lastHolder && typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null,
+                replacedSealed: lastHolder ? oldToken : null,
                 accountChanged: Boolean(previousSub),
             };
         });
@@ -295,9 +318,10 @@ exports.disconnectGmail = onCall(
                 gmailDisconnectedAt: fieldValue().serverTimestamp(),
                 gmailDisconnectedBy: uid,
             });
-            const lastHolder = sub ? releaseGrant(transaction, sub, grant, companyId) : false;
+            const token = typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null;
+            const lastHolder = sub ? releaseGrant(transaction, sub, grant, companyId, { revoking: Boolean(token) }) : false;
             return {
-                revokeSealedToken: lastHolder && typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null,
+                revokeSealedToken: lastHolder ? token : null,
                 wasConnected: true,
             };
         });

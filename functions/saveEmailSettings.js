@@ -29,8 +29,19 @@ const { isSealed, normalizeSmtpSettings, sealPassword } = require("./shared/smtp
  */
 const GMAIL_CONNECTED = 'Gmail is connected. Disconnect Gmail in Settings → Email to send through your mail server again.';
 
-/** The signature alone, on `email_config` and its copy on the company document. */
+const SIGNATURE_WITH_SERVER = 'Save the signature together with your mail server settings.';
+
+/**
+ * The signature alone, on `email_config` and its copy on the company document.
+ * Only while Gmail is connected: Gmail sends with `email_config`'s signature,
+ * while a company on its mail server may still send with older settings kept
+ * elsewhere, which a signature-only document would hide from the Email tab.
+ */
 async function saveSignature(uid, companyId, emailConfigRef, signature) {
+    const existing = await emailConfigRef.get();
+    if (!existing.exists || existing.data()?.provider !== 'gmail') {
+        throw new HttpsError('failed-precondition', SIGNATURE_WITH_SERVER);
+    }
     const updatedAt = admin.firestore.FieldValue.serverTimestamp();
     await emailConfigRef.set({ signature, updatedAt, updatedBy: uid }, { merge: true });
     await db.collection('companies').doc(companyId).update({ 'emailSettings.signature': signature });

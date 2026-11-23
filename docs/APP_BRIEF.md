@@ -1500,8 +1500,8 @@ the daily count**; refusing is a recorded outcome.
   `{application link}` becomes the company's apply page with the assignee's recruiter link
   (`?r=`), else the plain page (`shared/applicationLink.js`); campaigns' `[Application Link]` too.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
-  `application_drafts`, `application_draft_audit`, `rate_limits` and `oauth_states` at
-  `expiresAt` (activity logs carry one). An unfinished application expires
+  `application_drafts`, `application_draft_audit`, `rate_limits`, `oauth_states` and
+  emptied `gmail_grants` at `expiresAt` (activity logs carry one). An unfinished application expires
   30 days after its last save, its uploads too (`deleteExpiredDraftFiles`).
 
 ### Idempotency
