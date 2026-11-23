@@ -4,7 +4,10 @@
  * `useCompanyReadiness`, each `{ status: 'ok', value }` or `{ status: 'failed' }`.
  *
  * - `email`: `getEmailSettingsMeta`'s settings. Without a verified company email
- *   no email goes out (`emailService.js` sends only through it).
+ *   no email goes out (`emailService.js` sends only through it). A connected
+ *   Gmail (`settings.gmail`) is what sends when there is one: working, the
+ *   email is ready whatever the mail server's state; needing a reconnect, no
+ *   email goes out, since nothing falls back to the mail server.
  * - `sms`: `integrations/sms_provider`. Texting works once it is active with a
  *   line, as Settings → Text messages decides.
  * - `company`: the company document. `contact.email` is where PEV results and
@@ -56,6 +59,17 @@ function emailItem(read) {
     const linkLabel = 'Open email settings';
     if (!ok(read)) return unknown('email', 'Company email', READINESS_LINKS.email, linkLabel);
     const settings = read.value || {};
+    if (settings.gmail?.connected === true) {
+        if (settings.gmail.status !== 'needs_reconnect') return null;
+        return {
+            id: 'email',
+            state: 'todo',
+            title: 'Gmail needs reconnecting',
+            text: 'Google stopped letting SafeHaul send from your company Gmail, so signing links, PEV requests and other emails are not going out until it is reconnected.',
+            href: READINESS_LINKS.email,
+            linkLabel,
+        };
+    }
     if (settings.isVerified) return null;
     return text(settings.smtpHost)
         ? {
