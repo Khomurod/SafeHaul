@@ -1,66 +1,12 @@
 import React, { useEffect, useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
-import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 import { Icon, ArrowLeft, MailWarning } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { LoadingState, PageState } from '@design-system/patterns';
+import { gmailReturnOutcome, readGmailReturn } from '../services/gmailReturn';
 
 const EMAIL_SETTINGS_PATH = '/company/settings?section=email';
-
-const EXPIRED = 'This Gmail connection expired. Start again from Settings → Email.';
-const GOOGLE_REFUSED = 'Google did not connect Gmail. Start again from Settings → Email.';
-
-/** What Google put in the address: the one-time `code` and `state`, or an `error`. */
-function readGmailReturn(search) {
-    const params = new URLSearchParams(search);
-    return {
-        code: params.get('code') || '',
-        state: params.get('state') || '',
-        error: params.get('error') || '',
-    };
-}
-
-/**
- * The one call per return. The code works once, so every mount of this page
- * for the same `state` (StrictMode's rehearsal, a remount) shares the first
- * call and its outcome, which never rejects. Nothing here logs the code or the
- * state: a failure is logged by its code only.
- */
-let finishing = null;
-
-function finish(state, code) {
-    if (finishing?.state === state) return finishing.outcome;
-    const entry = { state, settled: false };
-    entry.outcome = httpsCallable(functions, 'completeGmailConnection')({ state, code })
-        .then(
-            ({ data }) => ({ kind: 'connected', email: typeof data?.email === 'string' ? data.email : '' }),
-            (error) => {
-                console.warn('[GmailReturnScreen] Gmail was not connected:', error?.code || 'error');
-                // The server's refusals are sentences for the admin, its `internal` one too.
-                return { kind: 'failed', message: plainErrorMessage(error, 'Gmail could not be connected.', { trustInternal: true }) };
-            },
-        )
-        .then((outcome) => {
-            entry.settled = true;
-            return outcome;
-        });
-    finishing = entry;
-    return entry.outcome;
-}
-
-/** What this return comes to: connected, cancelled at Google, failed, or nothing to finish. */
-function outcomeOf({ code, state, error }) {
-    if (error === 'access_denied') return Promise.resolve({ kind: 'cancelled' });
-    if (error) return Promise.resolve({ kind: 'failed', message: GOOGLE_REFUSED });
-    if (code && state) return finish(state, code);
-    if (code || state) return Promise.resolve({ kind: 'failed', message: EXPIRED });
-    // An address already cleared (Back, or a remount): a call still running is this return's.
-    if (finishing && !finishing.settled) return finishing.outcome;
-    return Promise.resolve({ kind: 'nothing' });
-}
 
 /**
  * `/oauth/google/callback`: where Google returns a company admin after Connect
@@ -70,10 +16,10 @@ function outcomeOf({ code, state, error }) {
  * The address is read once, as the page opens, and its query is taken off at
  * once, before anything waits, so the code leaves the address bar and the
  * history entry (`/oauth/` is also secret to speed monitoring). The code goes
- * only to `completeGmailConnection`, never to a log or another page. Connected,
- * the page goes to Email settings with "Gmail connected: …"; cancelled, with
- * "Gmail was not connected."; refused, it says the server's reason, with the
- * way back.
+ * only to `completeGmailConnection` (`services/gmailReturn.js`, one call per
+ * `state`), never to a log or another page. Connected, the page goes to Email
+ * settings with "Gmail connected: …"; cancelled, with "Gmail was not
+ * connected."; refused, it says the server's reason, with the way back.
  */
 export function GmailReturnScreen() {
     const navigate = useNavigate();
@@ -86,7 +32,7 @@ export function GmailReturnScreen() {
         // First, before anything waits.
         if (window.location.search) window.history.replaceState(window.history.state, '', window.location.pathname);
         let alive = true;
-        outcomeOf(returned).then((outcome) => {
+        gmailReturnOutcome(returned).then((outcome) => {
             // A mount that is gone (StrictMode's rehearsal) leaves it to the one that is not.
             if (!alive) return;
             if (outcome.kind === 'failed') {
