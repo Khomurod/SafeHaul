@@ -8,8 +8,8 @@
  * token and revoke endpoints and records every request. Every id, address and
  * token is artificial.
  *
- * `commitLate(ms)` makes every later transaction commit that much after its
- * handler ran. `resetGmailHarness()` runs `jest.resetAllMocks()` and then puts back every
+ * `commitLate(ms)` and `stallAfterExchange(ms)` move the clock on at a commit
+ * or after the code exchange. `resetGmailHarness()` runs `jest.resetAllMocks()` and then puts back every
  * default the suites rely on: a signed-in admin passes, the rate limit allows,
  * the OAuth client is configured, Google grants sending.
  */
@@ -126,19 +126,32 @@ function resetGmailHarness() {
     for (const method of ['log', 'warn', 'error']) jest.spyOn(console, method).mockImplementation(() => {});
 }
 
-/**
- * From now on every transaction commits `ms` after its handler ran: the clock
- * (`Date.now`) moves on by that much at each commit. `afterEach` restores both.
- */
-function commitLate(ms) {
+/** A clock (`Date.now`) that `jump(ms)` moves on. `afterEach` restores it. */
+function movableClock() {
     const realNow = Date.now.bind(Date);
     let offset = 0;
     jest.spyOn(Date, 'now').mockImplementation(() => realNow() + offset);
+    return (ms) => { offset += ms; };
+}
+
+/** From now on every transaction commits `ms` after its handler ran: the clock moves on by that much. */
+function commitLate(ms) {
+    const jump = movableClock();
     const run = mock.db.runTransaction;
     jest.spyOn(mock.db, 'runTransaction').mockImplementation(async (handler) => {
         const result = await run(handler);
-        offset += ms;
+        jump(ms);
         return result;
+    });
+}
+
+/** The clock moves on by `ms` once Google's token endpoint answers: a stall after the code exchange. */
+function stallAfterExchange(ms) {
+    const jump = movableClock();
+    globalThis.fetch.mockImplementation(async (url, init) => {
+        const answer = await googleFetch(url, init);
+        if (url.endsWith('/token')) jump(ms);
+        return answer;
     });
 }
 
@@ -162,4 +175,5 @@ module.exports = {
     mock,
     resetGmailHarness,
     revokedTokens,
+    stallAfterExchange,
 };

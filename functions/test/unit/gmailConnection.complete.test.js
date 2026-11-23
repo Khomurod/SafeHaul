@@ -17,6 +17,7 @@ const { plainPassword, sealPassword } = require('../../shared/smtpSettings');
 const {
     ADMIN, CLIENT_ID, CLIENT_SECRET, EMAIL_CONFIG, SEND_SCOPE,
     callFrom, commitLate, google, grantSending, idTokenFor, loggedText, mock, resetGmailHarness, revokedTokens,
+    stallAfterExchange,
 } = require('./gmailConnection.support');
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -296,6 +297,28 @@ describe('reconnecting, and the grant list', () => {
         expect(revokedTokens()).toEqual([]);
         expect(config().gmailSub).toBe('1001');
         expect(loggedText()).toContain('committed too late');
+    });
+
+    it('stores nothing when more than 30 seconds passed since the code exchange began, and revokes nothing', async () => {
+        connectedBefore('900');
+        grantSending({ sub: '1001' });
+        const state = await startedState();
+        stallAfterExchange(31 * 1000);
+
+        await expect(complete(state)).rejects.toMatchObject({
+            code: 'deadline-exceeded',
+            message: 'Connecting Gmail took too long. Start again from Settings → Email.',
+        });
+        expect(config().gmailSub).toBe('900');
+        expect(grant('1001')).toBeUndefined();
+        expect(revokedTokens()).toEqual([]);
+    });
+
+    it('stores the token after a slower exchange still inside those 30 seconds', async () => {
+        const state = await startedState();
+        stallAfterExchange(25 * 1000);
+        await expect(complete(state)).resolves.toEqual({ email: 'hiring@example.test' });
+        expect(grant('1001').companyIds).toEqual(['co-1']);
     });
 
     it('stays connected when revoking the old token fails', async () => {

@@ -21,7 +21,9 @@
  * connection to that account is refused: a token Google issued before the
  * revoke landed would already be dead when stored. The revoke starts only while
  * 45 seconds of the window are left, so it ends, at its 15-second limit, half a
- * minute before the window does; after a late commit it is skipped instead.
+ * minute before the window does; after a late commit it is skipped instead. A
+ * connection stores its token only within that half minute of starting the code
+ * exchange, so a token issued before a revoke never outlives its window.
  *
  * The connection belongs to the company, not to the admin who made it. Logs
  * carry ids and outcome codes only: never an email address or a token.
@@ -36,12 +38,14 @@ const oauth = require('./shared/gmail/oauthClient');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 const REVOKE_WINDOW_MS = 60 * 1000;
+/** The longest a connection may take from starting its code exchange to storing the token. */
+const EXCHANGE_TO_STORE_MS = 30 * 1000;
 /**
  * What must be left of the window when a revoke starts: its own request limit,
- * then time for a connection whose code exchange ended just before the revoke
- * landed to reach its transaction, inside the window, and be refused.
+ * then the time a connection whose token Google issued just before the revoke
+ * landed has to store it, so that it reaches its transaction inside the window.
  */
-const REVOKE_START_MARGIN_MS = oauth.TIMEOUT_MS + 30 * 1000;
+const REVOKE_START_MARGIN_MS = oauth.TIMEOUT_MS + EXCHANGE_TO_STORE_MS;
 const RATE_LIMIT = 10;
 const RATE_WINDOW_SECONDS = 600;
 
@@ -56,6 +60,7 @@ const MESSAGES = Object.freeze({
     UNVERIFIED: "Google has not verified this account's email address, so SafeHaul cannot send from it.",
     UNREACHABLE: 'Google could not be reached. Try again in a moment.',
     JUST_DISCONNECTED: 'This Google account was disconnected a moment ago. Try again in a minute.',
+    TOO_SLOW: 'Connecting Gmail took too long. Start again from Settings → Email.',
     FAILED: 'Gmail could not be connected. Start again from Settings → Email.',
     TOO_MANY: 'Too many attempts. Wait a few minutes, then try again.',
 });
@@ -242,8 +247,10 @@ exports.completeGmailConnection = onCall(
         await requireSwitchOn(await assertCompanyAdminStrict(uid, companyId), companyId);
 
         let granted;
+        let exchangeStartedAt;
         try {
             const { clientId } = await oauth.readGmailClient();
+            exchangeStartedAt = Date.now();
             const tokens = await oauth.exchangeCode({
                 code, codeVerifier: pending.codeVerifier, redirectUri: pending.redirectUri,
             });
@@ -266,6 +273,12 @@ exports.completeGmailConnection = onCall(
             const newGrant = await transaction.get(grantRef(sub));
             const oldGrant = previousSub ? await transaction.get(grantRef(previousSub)) : null;
             if (revokePending(newGrant)) throw new HttpsError('failed-precondition', MESSAGES.JUST_DISCONNECTED);
+            // Issued too long ago, the token may have died in a revoke whose window has closed
+            // since. It is not revoked: other companies may hold that account.
+            if (Date.now() - exchangeStartedAt > EXCHANGE_TO_STORE_MS) {
+                console.warn(`[completeGmailConnection] Company ${companyId}: too long since the code exchange; nothing stored.`);
+                throw new HttpsError('deadline-exceeded', MESSAGES.TOO_SLOW);
+            }
             const oldToken = typeof stored.gmailRefreshToken === 'string' ? stored.gmailRefreshToken : null;
             const revokeBy = oldToken ? Date.now() + REVOKE_WINDOW_MS : null;
 
