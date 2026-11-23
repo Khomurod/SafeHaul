@@ -45,6 +45,7 @@ async function runSendLoop({
     senderId,
     adapter,
     emailTransporter,
+    emailFrom = null,
 }) {
     // A function replacer, so a "$&" in a name is text and not a replacement pattern.
     // The lead's name can come from a public form: it goes out as plain text without
@@ -187,7 +188,7 @@ async function runSendLoop({
                                 const finalBody = fillPlaceholders(config.message, leadData, plainGuestText, applicationLink);
 
                                 await emailTransporter.sendMail({
-                                    from: `"${companyName}" <${emailTransporter.transporter.options.auth.user}>`,
+                                    from: `"${companyName}" <${emailFrom}>`,
                                     to: recipientIdentity,
                                     // The composer offers the placeholders in the subject too.
                                     subject: config.subject ? fillPlaceholders(config.subject, leadData, plainGuestText, applicationLink) : `Update from ${companyName}`,

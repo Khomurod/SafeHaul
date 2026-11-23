@@ -3,7 +3,8 @@
 // Builds the sender a batch will use: the per-line SMS adapter (which
 // decrypts provider credentials, so SMS_ENCRYPTION_KEY must be bound on the
 // CALLING function's options — see the comment above processBulkBatch), or
-// the company's SMTP transporter, whose stored password may be encrypted too.
+// the company's SMTP transporter, whose stored password may be encrypted too, or
+// its connected Gmail (`shared/gmail/gmailTransport.js`), whose token is sealed.
 // Extracted from `batchWorker.js`. The adapter-failure branch used to send the
 // HTTP response directly; it now marks the session failed exactly as before
 // and returns `{ failed }` for the worker to send.
@@ -12,11 +13,17 @@ const { admin } = require("../../firebaseAdmin");
 const nodemailer = require("nodemailer");
 const SMSAdapterFactory = require("../../integrations/factory");
 const { readSmtpSettings, smtpTransportOptions } = require("../../shared/smtpSettings");
+const { createGmailTransporter } = require("../../shared/gmail/gmailTransport");
 
-/** Returns `{ adapter, emailTransporter, failed }`; `failed` is a message when the session was marked failed. */
+/**
+ * Returns `{ adapter, emailTransporter, emailFrom, failed }`: `emailFrom` is the
+ * address the emails go out from; `failed` is a message when the session was
+ * marked failed.
+ */
 async function setupSender({ companyId, sessionRef, config, senderId }) {
     let adapter = null;
     let emailTransporter = null;
+    let emailFrom = null;
 
         if (config.method === 'sms') {
             try {
@@ -36,18 +43,21 @@ async function setupSender({ companyId, sessionRef, config, senderId }) {
                     error: `SMS adapter initialization failed: ${e.message}`,
                     failedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
-                return { adapter: null, emailTransporter: null, failed: `SMS adapter failed to initialize: ${e.message}. Session marked as failed.` };
+                return { adapter: null, emailTransporter: null, emailFrom: null, failed: `SMS adapter failed to initialize: ${e.message}. Session marked as failed.` };
             }
         } else if (config.method === 'email') {
             // The company's settings, read as its own emails read them (shared/smtpSettings.js).
             // A setup that cannot be read leaves no transporter, and each email fails as "Email Settings Invalid".
+            // A connected Gmail is used instead of SMTP; one that needs reconnecting stops the campaign at its first email.
             try {
                 const { settings } = await readSmtpSettings(companyId);
-                if (settings) emailTransporter = nodemailer.createTransport(smtpTransportOptions(settings));
+                if (settings?.kind === 'gmail') emailTransporter = createGmailTransporter({ companyId, settings });
+                else if (settings) emailTransporter = nodemailer.createTransport(smtpTransportOptions(settings));
+                if (emailTransporter) emailFrom = settings.user;
             } catch (e) { console.error("Failed to load Email Transporter:", e); }
         }
 
-    return { adapter, emailTransporter, failed: null };
+    return { adapter, emailTransporter, emailFrom, failed: null };
 }
 
 module.exports = { setupSender };

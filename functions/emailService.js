@@ -1,15 +1,27 @@
 const nodemailer = require('nodemailer');
 const { readSmtpSettings, smtpTransportOptions, smtpFingerprint } = require('./shared/smtpSettings');
+const { createGmailTransporter } = require('./shared/gmail/gmailTransport');
 
 /**
  * Dynamic Email Service for SafeHaul
- * Sends emails using company-specific SMTP credentials stored in Firestore
+ * Sends emails using company-specific SMTP credentials stored in Firestore,
+ * or through the company's connected Gmail (`shared/gmail/gmailTransport.js`).
  */
 
 // --- Transporter cache: one pooled connection per company, while its settings stay the same ---
 const transporterCache = new Map();
 
 function getCachedTransporter(companyId, settings) {
+    if (settings.kind === 'gmail') {
+        // The company sends through Gmail now: its SMTP connection, if one is open, is not used again.
+        const replaced = transporterCache.get(companyId);
+        if (replaced) {
+            replaced.transporter.close();
+            transporterCache.delete(companyId);
+        }
+        // A new one for each email: it holds no connection, and carries the Gmail status this send read.
+        return createGmailTransporter({ companyId, settings });
+    }
     const fingerprint = smtpFingerprint(settings);
     const cached = transporterCache.get(companyId);
     if (cached && cached.fingerprint === fingerprint) return cached.transporter;
@@ -27,7 +39,8 @@ function getCachedTransporter(companyId, settings) {
 }
 
 /**
- * Send email using company's own SMTP credentials
+ * Send email using company's own SMTP credentials, or its connected Gmail
+ * (never the one in place of the other)
  * @param {string} companyId - Firestore company document ID
  * @param {string|string[]} to - Recipient email address(es)
  * @param {string} subject - Email subject line
@@ -48,7 +61,8 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
             ), { code: 'not-configured' });
         }
 
-        // Reuse the company's pooled Nodemailer transporter while its settings stay the same
+        // Reuse the company's pooled Nodemailer transporter while its settings stay the same.
+        // A Gmail that needs reconnecting sends nothing and fails with the reconnect message.
         const transporter = getCachedTransporter(companyId, emailSettings);
 
         // Prepare email options

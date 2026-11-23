@@ -60,7 +60,7 @@ async function pauseForSilentProvider(sessionRef, workerGeneration) {
 }
 
 // SMS_ENCRYPTION_KEY: this worker decrypts the company's SMS provider credentials /
-// per-line JWTs (via SMSAdapterFactory) and SMTP passwords for bulk campaigns. Without the
+// per-line JWTs (via SMSAdapterFactory) and SMTP passwords or Gmail tokens for bulk campaigns. Without the
 // secret bound here, process.env.SMS_ENCRYPTION_KEY is undefined inside this function and
 // every decrypt throws "SMS_ENCRYPTION_KEY ... is not set", so the adapter fails to load and
 // the whole campaign session is marked failed -- i.e. campaigns silently don't send even when
@@ -226,7 +226,7 @@ exports.processBulkBatch = onRequest({
         if (setup.failed) {
             return res.status(200).send(setup.failed);
         }
-        const { adapter, emailTransporter } = setup;
+        const { adapter, emailTransporter, emailFrom } = setup;
 
 
         // --- SEQUENTIAL LOOP ---
@@ -245,6 +245,7 @@ exports.processBulkBatch = onRequest({
             senderId,
             adapter,
             emailTransporter,
+            emailFrom,
         });
         // Texts RingCentral accepted get checked for delivery a few minutes from now.
         if (config.method === 'sms' && loopResult.batchSuccessCount > 0) {
