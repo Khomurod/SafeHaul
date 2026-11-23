@@ -7,7 +7,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, IconButton, Notice } from '@/design-system/components';
-import { campaignStatusPresentation, deliveryCheckMessage } from '../constants/campaignConstants';
+import { campaignPauseReason, campaignStatusPresentation, deliveryCheckMessage } from '../constants/campaignConstants';
 import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 import { formatDate } from '@shared/utils/helpers';
 
@@ -226,6 +226,7 @@ export function CampaignDetails({ campaign, onClose }) {
     const recipients = (count) => `${count} ${count === 1 ? 'recipient' : 'recipients'}`;
     const canCheckDelivery = String(campaign.messageConfig?.method || '').toLowerCase() === 'sms' && campaign.progress?.processedCount > 0;
     const { tone, label } = campaignStatusPresentation(campaign.status);
+    const pausedBecause = isPaused ? campaignPauseReason(campaign.pauseReason) : null;
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-ds-surface-subtle">
@@ -307,6 +308,13 @@ export function CampaignDetails({ campaign, onClose }) {
                            `[overflow-wrap:anywhere]` goes with it. */
                         <Notice tone="danger" title="Why this campaign failed">
                             {campaign.error || campaign.failureReason}
+                        </Notice>
+                    )}
+
+                    {/* Why the send worker paused it; a campaign a person paused has no reason. */}
+                    {pausedBecause && (
+                        <Notice tone="warning" title="Why this campaign paused">
+                            {pausedBecause}
                         </Notice>
                     )}
 

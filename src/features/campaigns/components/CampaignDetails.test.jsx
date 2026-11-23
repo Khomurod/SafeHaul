@@ -142,6 +142,26 @@ describe('CampaignDetails — rendering', () => {
     });
 
     it.each([
+        ['gmail_reconnect', 'Gmail needs reconnecting, so no email is being sent. A company admin can reconnect it in Settings → Email; then press Resume.'],
+        ['gmail_limit', "Gmail's sending limit was reached, so sending stopped. Nobody was skipped: press Resume later to send to the rest."],
+        ['sms_silent', 'The text provider did not answer three texts in a row, so sending stopped. Check Settings → Text messages, then press Resume.'],
+    ])('says why the worker paused a campaign (%s), beside Resume', (pauseReason, words) => {
+        renderDetails(makeCampaign({ status: 'paused', pauseReason }));
+        expect(screen.getByText('Why this campaign paused')).toBeInTheDocument();
+        expect(screen.getByText(words)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Resume' })).toBeInTheDocument();
+    });
+
+    it('gives no reason for a campaign a person paused, or one no longer paused', () => {
+        const { unmount } = renderDetails(makeCampaign({ status: 'paused' }));
+        expect(screen.queryByText('Why this campaign paused')).not.toBeInTheDocument();
+        unmount();
+        // A reason left on a campaign that runs again is not shown.
+        renderDetails(makeCampaign({ status: 'active', pauseReason: 'gmail_limit' }));
+        expect(screen.queryByText('Why this campaign paused')).not.toBeInTheDocument();
+    });
+
+    it.each([
         ['failed', 'Failed', 'danger'],
         ['active', 'Active', 'success'],
         ['queued', 'Queued', 'accent'],

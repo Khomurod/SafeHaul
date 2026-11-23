@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { campaignStatusPresentation } from './campaignConstants';
+import { campaignPauseReason, campaignStatusPresentation } from './campaignConstants';
 
 /**
  * K2: the campaign cards and the campaign report read a status through this one
@@ -29,5 +29,20 @@ describe('campaignStatusPresentation', () => {
         expect(campaignStatusPresentation('')).toEqual({ tone: 'neutral', label: 'Unknown' });
         // An inherited key is not a status.
         expect(campaignStatusPresentation('toString').tone).toBe('neutral');
+    });
+});
+
+describe('campaignPauseReason', () => {
+    it.each([
+        ['sms_silent', /text provider did not answer three texts/],
+        ['gmail_limit', /Gmail's sending limit was reached/],
+        ['gmail_reconnect', /Gmail needs reconnecting.*Settings → Email/],
+    ])('says in plain words why the worker paused a campaign (%s)', (reason, words) => {
+        expect(campaignPauseReason(reason)).toMatch(words);
+        expect(campaignPauseReason(reason)).toMatch(/Resume/);
+    });
+
+    it.each([undefined, null, '', 'mystery', 'toString'])('says nothing for %s: a person paused it, or the reason is unknown', (reason) => {
+        expect(campaignPauseReason(reason)).toBeNull();
     });
 });
