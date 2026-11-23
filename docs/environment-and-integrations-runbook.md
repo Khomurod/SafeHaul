@@ -132,9 +132,11 @@ The two `GMAIL_OAUTH_*` rows are Send from Gmail's Google OAuth client. They are
 ([`functions/shared/gmail/oauthClient.js`](../functions/shared/gmail/oauthClient.js)):
 a new version takes effect within ten minutes, with no deploy, and the vault
 cannot read them back. Both Functions runtime accounts (the table below) need
-`roles/secretmanager.secretAccessor` on each. While either secret is missing or
-unreadable only Gmail stops: connecting answers "Sending from Gmail is not set up
-yet." and the function log says `gmail-not-configured`.
+`roles/secretmanager.secretAccessor` on each: every email sender reads them for a
+company that connected Gmail, `notifySigner` (1st generation) included. While
+either secret is missing or unreadable only Gmail stops: connecting, and every
+email of a company that connected Gmail, answers "Sending from Gmail is not set up
+yet.", and the function log says `gmail-not-configured`.
 
 #### Binding a secret from a new function generation needs an IAM grant first
 

@@ -20,11 +20,11 @@
  *    releases the claim (`sendClaimedEmail`);
  *  - nothing here logs the link, the token or the address.
  *
- * The email goes through the company's own SMTP settings (`emailService.js`),
- * whose password is decrypted in the calling function, so each callable that
- * delivers binds SMS_ENCRYPTION_KEY (`smsSecretBindings.test.js`). Being the
- * company's own account, its mailbox may keep the sent email, link included,
- * as it does for every signing email.
+ * The email goes through the company's own SMTP settings or its connected
+ * Gmail (`emailService.js`), whose password or token is decrypted in the
+ * calling function, so each callable that delivers binds SMS_ENCRYPTION_KEY
+ * (`smsSecretBindings.test.js`). Being the company's own account, its mailbox
+ * may keep the sent email, link included, as it does for every signing email.
  */
 const { trustedAppBaseUrl } = require('./appOrigin');
 const crypto = require('crypto');
@@ -32,6 +32,8 @@ const { HttpsError } = require('firebase-functions/v2/https');
 const { db } = require('../firebaseAdmin');
 const { sendDynamicEmail } = require('../emailService');
 const { readSmtpSettings } = require('./smtpSettings');
+const { gmailNeedsReconnect } = require('./gmail/gmailStatus');
+const { GMAIL_SEND_FAILURES } = require('./gmail/sendErrors');
 const { checkRateLimit } = require('./rateLimiter');
 const { isValidEmail } = require('./isValidEmail');
 const { isPlaceholderEmail } = require('./placeholderDomains');
@@ -83,6 +85,8 @@ const REFUSALS = Object.freeze({
     'email-not-configured': ['failed-precondition',
         'Email is not set up for your company, so nothing was sent. A Company Admin can set it up in '
         + 'Company Settings → Email. Until then, copy the link.'],
+    'gmail-reconnect': ['failed-precondition',
+        `Nothing was sent. ${GMAIL_SEND_FAILURES.GMAIL_RECONNECT_NEEDED} Until then, copy the link.`],
     'just-sent': ['failed-precondition',
         'A link was emailed to this driver less than a minute ago. Wait a minute before sending another.'],
     'rate-limited': ['resource-exhausted',
@@ -99,18 +103,38 @@ function refusal(reason) {
 }
 
 /**
+ * `email-failed`, with Gmail's own plain message when the company sends through
+ * Gmail. When Gmail did not answer, it may have accepted the email before the
+ * answer was lost, so the message does not say that nobody received the link.
+ */
+function emailFailed(error) {
+    const code = error?.code;
+    if (typeof code !== 'string' || !Object.prototype.hasOwnProperty.call(GMAIL_SEND_FAILURES, code)) return refusal('email-failed');
+    if (code === 'GMAIL_UNAVAILABLE') {
+        return new HttpsError('unavailable', 'Gmail did not answer, so the email may or may not have gone out. Ask the '
+            + 'driver whether it arrived before you send another, or copy a link instead.', { reason: 'email-failed' });
+    }
+    return new HttpsError('unavailable', `The email could not be sent. ${GMAIL_SEND_FAILURES[code]} Nobody received `
+        + 'the new link. Try again, or copy a link instead.', { reason: 'email-failed' });
+}
+
+/**
  * The company's name, when it has email set up; null when it does not, or its
  * settings cannot be read. Asked before anything is minted, so a company without
  * email does not retire the driver's live link for an email it cannot send.
+ * Throws `gmail-reconnect` for a connected Gmail that needs reconnecting, which
+ * sends nothing.
  */
 async function emailSenderFor(companyId) {
+    let read;
     try {
-        const { settings, companyName } = await readSmtpSettings(companyId);
-        return settings?.user ? { companyName: companyName || 'SafeHaul' } : null;
+        read = await readSmtpSettings(companyId);
     } catch {
         console.warn(`[linkDelivery] company ${companyId}: its email settings could not be read`);
         return null;
     }
+    if (gmailNeedsReconnect(read.settings)) throw refusal('gmail-reconnect');
+    return read.settings?.user ? { companyName: read.companyName || 'SafeHaul' } : null;
 }
 
 /** Refuses once this team member, or this record, has had its emails for the hour. */
@@ -168,11 +192,11 @@ async function settleClaim(ref, field, claim, patch, label) {
 async function sendClaimedEmail({ companyId, ref, field, claim, to, subject, html, label }) {
     try {
         await sendDynamicEmail(companyId, to, subject, html);
-    } catch {
-        // Not the error's text: an SMTP server's reply is not ours to vouch for.
-        console.error(`[${label}] company ${companyId}: the email was not sent`);
+    } catch (error) {
+        // The code only: an SMTP server's reply is not ours to vouch for.
+        console.error(`[${label}] company ${companyId}: the email was not sent (${error?.code || 'error'})`);
         await settleClaim(ref, field, claim, { status: 'failed', failedAt: new Date() }, label);
-        throw refusal('email-failed');
+        throw emailFailed(error);
     }
     await settleClaim(ref, field, claim, { status: 'sent', sentAt: new Date() }, label);
     return claim.to;

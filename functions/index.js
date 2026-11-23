@@ -176,6 +176,8 @@ function exportFunctions(wanted) {
   if (wanted('startGmailConnection')) exports.startGmailConnection = require('./gmailConnection').startGmailConnection;
   if (wanted('completeGmailConnection')) exports.completeGmailConnection = require('./gmailConnection').completeGmailConnection;
   if (wanted('disconnectGmail')) exports.disconnectGmail = require('./gmailConnection').disconnectGmail;
+  // "Send test email": the company's email, Gmail or SMTP, to the admin's own address
+  if (wanted('sendTestEmail')) exports.sendTestEmail = require('./sendTestEmail').sendTestEmail;
 
   if (wanted('backfillPublicProfiles')) exports.backfillPublicProfiles = require('./companyAdmin').backfillPublicProfiles;
   // Hourly reconciler: rewrites public profiles left behind by a change to the

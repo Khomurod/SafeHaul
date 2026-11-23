@@ -1,5 +1,5 @@
 /**
- * A company's SMTP settings, read one way for every email the platform sends:
+ * A company's email settings, read one way for every email the platform sends:
  * the company's own emails (`emailService.js`) and a bulk campaign
  * (`bulkActions/workers/senderSetup.js`).
  *
@@ -9,6 +9,11 @@
  * `integrations/email_settings`, with other field names and no server for a
  * Gmail account; a password stored before encryption is plain text. Either is
  * read here, so the calling function binds SMS_ENCRYPTION_KEY.
+ *
+ * A company that connected Gmail (`provider: 'gmail'`, `gmailConnection.js`)
+ * sends through it instead, and never falls back to its SMTP settings, which
+ * stay stored for a disconnect: the reader returns `kind: 'gmail'` settings,
+ * the refresh token still sealed (`gmail/gmailAccess.js` opens it).
  */
 const crypto = require('crypto');
 const { db } = require('../firebaseAdmin');
@@ -51,7 +56,34 @@ function effectiveStoredSettings(...candidates) {
     return candidates.find((candidate) => candidate?.smtpPass || candidate?.password) || null;
 }
 
-/** The first settings holding a password, newest place first, and the company's name. */
+/** Changes whenever a company's stored Gmail token does; never the token itself. */
+function gmailTokenFingerprint(sealed) {
+    return crypto.createHash('sha256').update(String(sealed)).digest('hex');
+}
+
+/**
+ * The connected Gmail on `email_config` as the senders use it, or null when none
+ * is. Its signature is the one the Email tab shows (`getEmailSettingsMeta`):
+ * `email_config`'s, else, when that document holds no mail-server settings, the
+ * one kept with them on the company document.
+ */
+function connectedGmail(config, companyEmailSettings) {
+    if (config?.provider !== 'gmail' || typeof config.gmailRefreshToken !== 'string' || !config.gmailRefreshToken) return null;
+    const server = config.smtpHost || config.smtpPass ? config : companyEmailSettings || {};
+    return {
+        kind: 'gmail',
+        user: typeof config.gmailEmail === 'string' ? config.gmailEmail.trim() : '',
+        sealedRefreshToken: config.gmailRefreshToken,
+        tokenFingerprint: gmailTokenFingerprint(config.gmailRefreshToken),
+        status: config.gmailStatus === 'needs_reconnect' ? 'needs_reconnect' : 'active',
+        signature: config.signature ?? server.signature ?? '',
+    };
+}
+
+/**
+ * The company's connected Gmail, else the first settings holding a password,
+ * newest place first; and the company's name.
+ */
 async function readSmtpSettings(companyId) {
     const companyRef = db.collection('companies').doc(companyId);
     const [companySnap, configSnap] = await Promise.all([
@@ -62,7 +94,11 @@ async function readSmtpSettings(companyId) {
     const company = companySnap.data();
     const companyName = company.companyName || 'SafeHaul';
 
-    const stored = effectiveStoredSettings(configSnap.exists ? configSnap.data() : null, company.emailSettings);
+    const config = configSnap.exists ? configSnap.data() : null;
+    const gmail = connectedGmail(config, company.emailSettings);
+    if (gmail) return { settings: gmail, companyName };
+
+    const stored = effectiveStoredSettings(config, company.emailSettings);
     if (stored) return { settings: normalizeSmtpSettings(stored), companyName };
 
     const oldest = await companyRef.collection('integrations').doc('email_settings').get();
@@ -91,5 +127,13 @@ function smtpFingerprint(settings) {
 }
 
 module.exports = {
-    effectiveStoredSettings, isSealed, normalizeSmtpSettings, plainPassword, readSmtpSettings, sealPassword, smtpTransportOptions, smtpFingerprint,
+    effectiveStoredSettings,
+    gmailTokenFingerprint,
+    isSealed,
+    normalizeSmtpSettings,
+    plainPassword,
+    readSmtpSettings,
+    sealPassword,
+    smtpTransportOptions,
+    smtpFingerprint,
 };

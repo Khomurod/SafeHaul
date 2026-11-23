@@ -7,7 +7,8 @@
 //  - a campaign with no one left becomes completed instead of staying active
 //    with no worker;
 //  - the worker it starts carries a new generation, so a worker still holding
-//    the old one stops.
+//    the old one stops;
+//  - why the worker paused it (`pauseReason`) is cleared.
 // All data is artificial.
 
 jest.mock('firebase-functions/v2/https', () => ({
@@ -23,6 +24,7 @@ jest.mock('firebase-functions/v2/https', () => ({
 
 // In-memory sessions and their recipient lists (`meta/targets`).
 const mockSessions = {};
+const MOCK_DELETE = Symbol('FieldValue.delete');
 const mockTargets = {};
 
 function mockTargetsRef(sessionId) {
@@ -42,7 +44,10 @@ function mockSessionRef(sessionId) {
       return { exists: !!data, data: () => data };
     },
     async update(payload) {
-      Object.assign(mockSessions[sessionId], payload);
+      for (const [field, value] of Object.entries(payload)) {
+        if (value === MOCK_DELETE) delete mockSessions[sessionId][field];
+        else mockSessions[sessionId][field] = value;
+      }
     },
     collection: () => ({ doc: () => mockTargetsRef(sessionId) }),
   };
@@ -54,6 +59,7 @@ jest.mock('../../firebaseAdmin', () => ({
       FieldValue: {
         serverTimestamp: () => 'srv-ts',
         increment: (n) => ({ __increment: n }),
+        delete: () => MOCK_DELETE,
       },
     },
   },
@@ -198,6 +204,15 @@ describe('Resume a paused campaign', () => {
 
     expect(mockSessions['session-1']).toMatchObject({ status: 'active', workerGeneration: 4 });
     expect(mockEnqueueWorker).toHaveBeenCalledWith('co-1', 'session-1', 1, 4);
+  });
+
+  it.each(['gmail_limit', 'gmail_reconnect', 'sms_silent'])('clears why the worker paused it (%s)', async (pauseReason) => {
+    mockSessions['session-1'] = stoppedCampaign({ status: 'paused', error: undefined, failedAt: undefined, pauseReason });
+
+    await expect(resume()).resolves.toEqual({ success: true });
+
+    expect(mockSessions['session-1'].status).toBe('active');
+    expect(mockSessions['session-1']).not.toHaveProperty('pauseReason');
   });
 });
 

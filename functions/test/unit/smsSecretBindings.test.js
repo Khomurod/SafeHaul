@@ -40,9 +40,11 @@ const SENDER_FILES = [
 ];
 
 // Every function that reads a company's stored SMTP password (shared/smtpSettings.js),
-// to send through emailService.js or to verify it. A password stored encrypted
-// (`enc:v1:`) is decrypted in the calling function, so each binds the secret on
-// its own trigger options: without it the decrypt throws and nothing is sent.
+// to send through emailService.js or to verify it, or opens its connected Gmail's
+// refresh token to send through Gmail (shared/gmail/gmailAccess.js). A password
+// or token stored encrypted (`enc:v1:`) is decrypted in the calling function, so
+// each binds the secret on its own trigger options: without it the decrypt
+// throws and nothing is sent.
 const SMTP_PASSWORD_READERS = [
     ['notifySigner.js', 'notifySigner'],                                         // signing-request email
     ['resendSignerOnCorrection.js', 'resendSignerOnCorrection'],                 // the same, after a correction
@@ -56,6 +58,8 @@ const SMTP_PASSWORD_READERS = [
     ['saveEmailSettings.js', 'saveEmailSettings'],                               // verifies the settings it saves
     ['companyApplications/invite.js', 'mintApplicationInvite'],                  // "Email to driver": the application link
     ['applicationChanges.js', 'createChangeReview'],                             // "Email review link to driver"
+    ['signedCopyDelivery.js', 'sendSignedDocumentCopy'],                         // a signed copy to the signer
+    ['sendTestEmail.js', 'sendTestEmail'],                                       // "Send test email" to the admin
 ];
 
 // Every function that seals or opens a company's Gmail refresh token

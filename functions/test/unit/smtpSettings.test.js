@@ -9,6 +9,9 @@
  * emails kept a connection for ten minutes by company, so a changed password or
  * server was not used until then, and a replaced connection was never closed.
  *
+ * A company that connected Gmail is read as Gmail, and every other company
+ * exactly as before.
+ *
  * Every address, password and key below is artificial.
  */
 process.env.SMS_ENCRYPTION_KEY = '12345678901234567890123456789012';
@@ -43,6 +46,7 @@ jest.mock('nodemailer', () => ({
 const { encrypt } = require('../../integrations/encryption');
 const { setupSender } = require('../../bulkActions/workers/senderSetup');
 const { sendDynamicEmail } = require('../../emailService');
+const { gmailTokenFingerprint, readSmtpSettings, smtpFingerprint } = require('../../shared/smtpSettings');
 
 const COMPANY = 'companies/co-1';
 const EMAIL_CONFIG = `${COMPANY}/system_settings/email_config`;
@@ -134,5 +138,137 @@ describe("the company's own emails", () => {
         mockDocs.set('companies/co-4', { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, smtpPort: '465' } });
         await send('co-4');
         expect(mockTransports[0].options).toMatchObject({ port: 465, secure: true });
+    });
+});
+
+describe('a company that connected Gmail', () => {
+    // What `completeGmailConnection` writes next to the SMTP settings it keeps.
+    const sealed = () => `enc:v1:${encrypt('artificial-refresh-token')}`;
+    const connected = (overrides = {}) => ({
+        ...SAVED,
+        signature: 'Regards',
+        provider: 'gmail',
+        gmailEmail: 'dispatch@example.com',
+        gmailSub: '1001',
+        gmailRefreshToken: sealed(),
+        gmailStatus: 'active',
+        ...overrides,
+    });
+
+    it('is read as Gmail, its token still sealed, and its SMTP settings are not used', async () => {
+        const stored = connected();
+        mockDocs.set(EMAIL_CONFIG, stored);
+
+        const { settings, companyName } = await readSmtpSettings('co-1');
+
+        expect(companyName).toBe('Artificial Freight LLC');
+        expect(settings).toEqual({
+            kind: 'gmail',
+            user: 'dispatch@example.com',
+            sealedRefreshToken: stored.gmailRefreshToken,
+            tokenFingerprint: gmailTokenFingerprint(stored.gmailRefreshToken),
+            status: 'active',
+            signature: 'Regards',
+        });
+    });
+
+    it('reports a Gmail that needs reconnecting, and reads any other status as active', async () => {
+        mockDocs.set(EMAIL_CONFIG, connected({ gmailStatus: 'needs_reconnect' }));
+        expect((await readSmtpSettings('co-1')).settings.status).toBe('needs_reconnect');
+
+        mockDocs.set(EMAIL_CONFIG, connected({ gmailStatus: undefined }));
+        expect((await readSmtpSettings('co-1')).settings.status).toBe('active');
+    });
+
+    it('is not opened by the reader, so a token this function cannot open fails only when Gmail is asked', async () => {
+        mockDocs.set(EMAIL_CONFIG, connected({ gmailRefreshToken: 'enc:v1:00:00' }));
+        await expect(readSmtpSettings('co-1')).resolves.toMatchObject({ settings: { kind: 'gmail' } });
+    });
+
+    it.each([
+        ['provider gmail without a token', { gmailRefreshToken: undefined }],
+        ['a token without provider gmail', { provider: undefined }],
+        ['provider smtp', { provider: 'smtp' }],
+    ])('needs both the provider and the token: %s reads the SMTP settings as before', async (_label, overrides) => {
+        mockDocs.set(EMAIL_CONFIG, connected(overrides));
+        expect((await readSmtpSettings('co-1')).settings).toEqual({
+            host: 'smtp.example.com', port: 587, user: 'hiring@example.com', pass: 'artificial-password', signature: 'Regards',
+        });
+    });
+
+    it('sends a campaign through Gmail, from the Gmail address', async () => {
+        mockDocs.set(EMAIL_CONFIG, connected());
+        const { emailTransporter, emailFrom } = await setupSender({ companyId: 'co-1', sessionRef: null, config: { method: 'email' }, senderId: 'recruiter-1' });
+
+        expect(emailFrom).toBe('dispatch@example.com');
+        expect(emailTransporter.options).toMatchObject({ name: 'SafeHaulGmail', send: expect.any(Function) });
+        expect(emailTransporter.options).not.toHaveProperty('auth');
+    });
+});
+
+describe('a company that never connected Gmail sees no change', () => {
+    it('reads exactly the settings it read before, with no new field', async () => {
+        mockDocs.set(EMAIL_CONFIG, { ...SAVED, signature: 'Regards' });
+        expect((await readSmtpSettings('co-1')).settings).toEqual({
+            host: 'smtp.example.com', port: 587, user: 'hiring@example.com', pass: 'artificial-password', signature: 'Regards',
+        });
+    });
+
+    it('sends a campaign from its SMTP user, over the same connection', async () => {
+        mockDocs.set(EMAIL_CONFIG, SAVED);
+        const { emailTransporter, emailFrom } = await setupSender({ companyId: 'co-1', sessionRef: null, config: { method: 'email' }, senderId: 'recruiter-1' });
+
+        expect(emailFrom).toBe('hiring@example.com');
+        expect(emailTransporter.options).toEqual({
+            host: 'smtp.example.com',
+            port: 587,
+            secure: false,
+            auth: { user: 'hiring@example.com', pass: 'artificial-password' },
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 30000,
+        });
+    });
+
+    it('has no sender address for a campaign without settings', async () => {
+        await expect(setupSender({ companyId: 'co-1', sessionRef: null, config: { method: 'email' }, senderId: 'recruiter-1' }))
+            .resolves.toEqual({ adapter: null, emailTransporter: null, emailFrom: null, failed: null });
+    });
+
+    it('keeps the fingerprint its pooled connection is kept by', () => {
+        const settings = { host: 'smtp.example.com', port: 587, user: 'hiring@example.com', pass: 'artificial-password', signature: '' };
+        const expected = require('crypto').createHash('sha256')
+            .update(JSON.stringify(['smtp.example.com', 587, 'hiring@example.com', 'artificial-password'])).digest('hex');
+        expect(smtpFingerprint(settings)).toBe(expected);
+    });
+});
+
+describe('the signature a connected Gmail sends with is the one the Email tab shows', () => {
+    const gmailOnly = (overrides = {}) => ({
+        provider: 'gmail',
+        gmailEmail: 'dispatch@example.com',
+        gmailRefreshToken: `enc:v1:${encrypt('artificial-refresh-token')}`,
+        ...overrides,
+    });
+
+    it("is email_config's, also when it was cleared", async () => {
+        mockDocs.set(COMPANY, { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, signature: 'Old regards' } });
+        mockDocs.set(EMAIL_CONFIG, gmailOnly({ signature: 'New regards' }));
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('New regards');
+
+        mockDocs.set(EMAIL_CONFIG, gmailOnly({ signature: '' }));
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('');
+    });
+
+    it('is the one kept with the mail-server settings on the company document, when the connection made email_config', async () => {
+        mockDocs.set(COMPANY, { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, signature: 'Old regards' } });
+        mockDocs.set(EMAIL_CONFIG, gmailOnly());
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('Old regards');
+    });
+
+    it('is none when email_config holds the mail-server settings without one', async () => {
+        mockDocs.set(COMPANY, { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, signature: 'Old regards' } });
+        mockDocs.set(EMAIL_CONFIG, gmailOnly(SAVED));
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('');
     });
 });

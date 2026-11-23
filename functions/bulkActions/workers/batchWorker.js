@@ -33,15 +33,24 @@ async function senderDisplayName(senderId) {
     }
 }
 
+/** Why the send loop stopped a campaign (`pauseReason`), as the worker's log and answer say it. */
+const PAUSES = Object.freeze({
+    sms_silent: 'the SMS provider did not answer 3 texts',
+    gmail_limit: "Gmail's sending limit was reached",
+    gmail_reconnect: 'Gmail needs reconnecting',
+});
+
 /**
- * Pauses a campaign after the SMS provider did not answer three texts in a row
- * (`sendLoop.js`), so the rest of the list waits for the recruiter's Resume
- * instead of being sent into a silent provider. Only a session that is still
- * active, and still this task's worker generation, is paused: a recruiter's
- * Cancel or Pause, or a newer Resume, is never overwritten. It never throws; the
- * caller enqueues no next batch either way.
+ * Pauses a campaign the send loop stopped (`sendLoop.js`): the SMS provider
+ * did not answer three texts in a row, or Gmail refused an email for its
+ * sending limit or for a connection that needs reconnecting. The rest of the
+ * list waits for the recruiter's Resume instead of failing the same way; the
+ * session's `pauseReason` says why. Only a session that is still active, and
+ * still this task's worker generation, is paused: a recruiter's Cancel or
+ * Pause, or a newer Resume, is never overwritten. It never throws; the caller
+ * enqueues no next batch either way.
  */
-async function pauseForSilentProvider(sessionRef, workerGeneration) {
+async function pauseStoppedSession(sessionRef, workerGeneration, reason) {
     try {
         const paused = await db.runTransaction(async (t) => {
             const doc = await t.get(sessionRef);
@@ -49,10 +58,10 @@ async function pauseForSilentProvider(sessionRef, workerGeneration) {
             const sessionGeneration = doc.data().workerGeneration;
             if (typeof workerGeneration === 'number' && typeof sessionGeneration === 'number'
                 && workerGeneration !== sessionGeneration) return false;
-            t.update(sessionRef, { status: 'paused', lastUpdateAt: admin.firestore.FieldValue.serverTimestamp() });
+            t.update(sessionRef, { status: 'paused', pauseReason: reason, lastUpdateAt: admin.firestore.FieldValue.serverTimestamp() });
             return true;
         });
-        if (paused) console.warn(`[BatchWorker] Session ${sessionRef.id} paused: the SMS provider did not answer 3 texts in a row.`);
+        if (paused) console.warn(`[BatchWorker] Session ${sessionRef.id} paused: ${PAUSES[reason]}.`);
         else console.log(`[BatchWorker] Session ${sessionRef.id} was no longer this worker's to pause; left as it is.`);
     } catch (error) {
         console.error(`[BatchWorker] Session ${sessionRef.id} could not be paused, so it stays active with no next batch:`, error.message);
@@ -60,7 +69,7 @@ async function pauseForSilentProvider(sessionRef, workerGeneration) {
 }
 
 // SMS_ENCRYPTION_KEY: this worker decrypts the company's SMS provider credentials /
-// per-line JWTs (via SMSAdapterFactory) and SMTP passwords for bulk campaigns. Without the
+// per-line JWTs (via SMSAdapterFactory) and SMTP passwords or Gmail tokens for bulk campaigns. Without the
 // secret bound here, process.env.SMS_ENCRYPTION_KEY is undefined inside this function and
 // every decrypt throws "SMS_ENCRYPTION_KEY ... is not set", so the adapter fails to load and
 // the whole campaign session is marked failed -- i.e. campaigns silently don't send even when
@@ -226,7 +235,7 @@ exports.processBulkBatch = onRequest({
         if (setup.failed) {
             return res.status(200).send(setup.failed);
         }
-        const { adapter, emailTransporter } = setup;
+        const { adapter, emailTransporter, emailFrom } = setup;
 
 
         // --- SEQUENTIAL LOOP ---
@@ -245,6 +254,7 @@ exports.processBulkBatch = onRequest({
             senderId,
             adapter,
             emailTransporter,
+            emailFrom,
         });
         // Texts RingCentral accepted get checked for delivery a few minutes from now.
         if (config.method === 'sms' && loopResult.batchSuccessCount > 0) {
@@ -272,12 +282,12 @@ exports.processBulkBatch = onRequest({
         const currentPointer = Math.max(persistedPointer, claimedStartPointer + pointerAdvanceCount);
         const isKnownLast = (currentPointer >= totalTargets);
 
-        // The SMS provider did not answer 3 texts in a row: no next batch, even if
+        // The send loop stopped the campaign (`PAUSES`): no next batch, even if
         // the pause cannot be written, and a 200 so Cloud Tasks does not run this
         // task again (a re-run would send from the stored pointer).
-        if (loopResult.silentProvider && !isKnownLast) {
-            await pauseForSilentProvider(sessionRef, workerGeneration);
-            return res.status(200).send('Stopped: the SMS provider did not answer 3 texts.');
+        if (loopResult.pauseReason && !isKnownLast) {
+            await pauseStoppedSession(sessionRef, workerGeneration, loopResult.pauseReason);
+            return res.status(200).send(`Stopped: ${PAUSES[loopResult.pauseReason]}.`);
         }
 
         if (isKnownLast && postBatch.status === 'active') {
