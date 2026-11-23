@@ -61,16 +61,22 @@ function gmailTokenFingerprint(sealed) {
     return crypto.createHash('sha256').update(String(sealed)).digest('hex');
 }
 
-/** The connected Gmail on `email_config` as the senders use it, or null when none is. */
-function connectedGmail(config) {
+/**
+ * The connected Gmail on `email_config` as the senders use it, or null when none
+ * is. Its signature is the one the Email tab shows (`getEmailSettingsMeta`):
+ * `email_config`'s, else, when that document holds no mail-server settings, the
+ * one kept with them on the company document.
+ */
+function connectedGmail(config, companyEmailSettings) {
     if (config?.provider !== 'gmail' || typeof config.gmailRefreshToken !== 'string' || !config.gmailRefreshToken) return null;
+    const server = config.smtpHost || config.smtpPass ? config : companyEmailSettings || {};
     return {
         kind: 'gmail',
         user: typeof config.gmailEmail === 'string' ? config.gmailEmail.trim() : '',
         sealedRefreshToken: config.gmailRefreshToken,
         tokenFingerprint: gmailTokenFingerprint(config.gmailRefreshToken),
         status: config.gmailStatus === 'needs_reconnect' ? 'needs_reconnect' : 'active',
-        signature: config.signature || '',
+        signature: config.signature ?? server.signature ?? '',
     };
 }
 
@@ -89,7 +95,7 @@ async function readSmtpSettings(companyId) {
     const companyName = company.companyName || 'SafeHaul';
 
     const config = configSnap.exists ? configSnap.data() : null;
-    const gmail = connectedGmail(config);
+    const gmail = connectedGmail(config, company.emailSettings);
     if (gmail) return { settings: gmail, companyName };
 
     const stored = effectiveStoredSettings(config, company.emailSettings);

@@ -242,3 +242,33 @@ describe('a company that never connected Gmail sees no change', () => {
         expect(smtpFingerprint(settings)).toBe(expected);
     });
 });
+
+describe('the signature a connected Gmail sends with is the one the Email tab shows', () => {
+    const gmailOnly = (overrides = {}) => ({
+        provider: 'gmail',
+        gmailEmail: 'dispatch@example.com',
+        gmailRefreshToken: `enc:v1:${encrypt('artificial-refresh-token')}`,
+        ...overrides,
+    });
+
+    it("is email_config's, also when it was cleared", async () => {
+        mockDocs.set(COMPANY, { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, signature: 'Old regards' } });
+        mockDocs.set(EMAIL_CONFIG, gmailOnly({ signature: 'New regards' }));
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('New regards');
+
+        mockDocs.set(EMAIL_CONFIG, gmailOnly({ signature: '' }));
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('');
+    });
+
+    it('is the one kept with the mail-server settings on the company document, when the connection made email_config', async () => {
+        mockDocs.set(COMPANY, { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, signature: 'Old regards' } });
+        mockDocs.set(EMAIL_CONFIG, gmailOnly());
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('Old regards');
+    });
+
+    it('is none when email_config holds the mail-server settings without one', async () => {
+        mockDocs.set(COMPANY, { companyName: 'Artificial Freight LLC', emailSettings: { ...SAVED, signature: 'Old regards' } });
+        mockDocs.set(EMAIL_CONFIG, gmailOnly(SAVED));
+        expect((await readSmtpSettings('co-1')).settings.signature).toBe('');
+    });
+});
