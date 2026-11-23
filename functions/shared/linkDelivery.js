@@ -102,6 +102,14 @@ function refusal(reason) {
     return new HttpsError(code, message, { reason });
 }
 
+/** `email-failed`, with Gmail's own plain message when the company sends through Gmail. */
+function emailFailed(error) {
+    const code = error?.code;
+    if (typeof code !== 'string' || !Object.prototype.hasOwnProperty.call(GMAIL_SEND_FAILURES, code)) return refusal('email-failed');
+    return new HttpsError('unavailable', `The email could not be sent. ${GMAIL_SEND_FAILURES[code]} Nobody received `
+        + 'the new link. Try again, or copy a link instead.', { reason: 'email-failed' });
+}
+
 /**
  * The company's name, when it has email set up; null when it does not, or its
  * settings cannot be read. Asked before anything is minted, so a company without
@@ -176,11 +184,11 @@ async function settleClaim(ref, field, claim, patch, label) {
 async function sendClaimedEmail({ companyId, ref, field, claim, to, subject, html, label }) {
     try {
         await sendDynamicEmail(companyId, to, subject, html);
-    } catch {
-        // Not the error's text: an SMTP server's reply is not ours to vouch for.
-        console.error(`[${label}] company ${companyId}: the email was not sent`);
+    } catch (error) {
+        // The code only: an SMTP server's reply is not ours to vouch for.
+        console.error(`[${label}] company ${companyId}: the email was not sent (${error?.code || 'error'})`);
         await settleClaim(ref, field, claim, { status: 'failed', failedAt: new Date() }, label);
-        throw refusal('email-failed');
+        throw emailFailed(error);
     }
     await settleClaim(ref, field, claim, { status: 'sent', sentAt: new Date() }, label);
     return claim.to;
