@@ -184,6 +184,11 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
         expect(about).not.toMatch(/href="\/#/);
         expect(about).toContain('href="/privacy.html"');
         expect(about).toContain('href="https://app.safehaul.io"');
+        // Google's verification requires the home page to say why the app asks
+        // for Google user data, and to state the Limited Use commitment.
+        expect(about).toContain('<section id="google-account-access">');
+        expect(about).toContain('href="https://developers.google.com/terms/api-services-user-data-policy"');
+        expect(about).toContain('href="/privacy.html#google-user-data"');
     });
 
     it.each(PUBLIC_TARGETS)('%s redirects neither static page away', (name) => {
