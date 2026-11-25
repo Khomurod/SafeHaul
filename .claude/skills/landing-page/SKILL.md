@@ -30,11 +30,11 @@ routes" section of `docs/FIREBASE_HOSTING_RUNBOOK.md` before you start.
   request: add `web/index.html` and remove that redirect from both targets.
   Keep both targets' other rewrites and headers as they are, and update the
   runbook section and the brief's public-site row in the same pull request.
-- Shared assets already exist: `web/assets/images/logo.svg` and
-  `logo-mono.svg`, the Archivo and Geist Mono fonts in `web/assets/fonts/`, and
-  the navbar and footer styles in `web/assets/css/`. Reuse them. Load nothing
-  from another site: no font services, CDNs, trackers, chat widgets or
-  embedded videos.
+- Shared assets exist in `web/assets/`: logos, the Archivo and Geist Mono
+  fonts, and the navbar and footer styles. Reuse them, except the logo and
+  colours in §4. Load nothing from another site: no font services, CDNs,
+  trackers, chat widgets or embedded videos; host any font in
+  `web/assets/fonts/`.
 
 ## 2. Every sentence must be true
 
@@ -92,8 +92,13 @@ CDL), not ours (record, tenant, pipeline stage).
 
 ## 4. Look and behaviour
 
-- Follow the design the owner chose. Brand colours: graphite `#14161A` and
-  attention red `#A93226`; keep red for one accent, not for large areas.
+- Follow the design the owner chose, in the app's brand (the owner's
+  decision): the logo exactly as in `src/shared/components/Logo.jsx`, deep teal
+  `#004C68`, mint `#0BE2A4`, the mint gradient `#0CE1A5` to `#077B5A`, and the
+  Inter typeface. `web/assets/images/logo.svg` is an old graphite and red
+  recolour: replace it with the app's colours. Show the logo on a light
+  background so its teal parts stay visible.
+- No stock road or truck scenes: show the product itself.
 - Phone first: check 390 px and 1280 px widths, no sideways scrolling, tap
   targets at least 44 px.
 - The owner wants motion on every screen, each piece explaining the product:
