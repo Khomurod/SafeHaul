@@ -92,12 +92,15 @@ CDL), not ours (record, tenant, pipeline stage).
 
 ## 4. Look and behaviour
 
-- Follow the design the owner chose, in the app's brand (the owner's
-  decision): the logo exactly as in `src/shared/components/Logo.jsx`, deep teal
-  `#004C68`, mint `#0BE2A4`, the mint gradient `#0CE1A5` to `#077B5A`, and the
-  Inter typeface. `web/assets/images/logo.svg` is an old graphite and red
-  recolour: replace it with the app's colours. Show the logo on a light
-  background so its teal parts stay visible.
+- The look is monochrome (the owner's choice): a white page, near-black
+  `#111111` text and buttons, greys for secondary text, hairline borders, and
+  Inter (headings Inter Tight 600). Colour appears only in the logo and in the
+  app screens drawn on the page, which keep the app's own colours. No glows,
+  colour gradients, gradient text or pill buttons: corners 8 px on buttons and
+  12 px on cards.
+- The logo is exactly `src/shared/components/Logo.jsx` (teal `#004C68`, mint
+  `#0BE2A4`, gradient `#0CE1A5` to `#077B5A`) on a light background.
+  `web/assets/images/logo.svg` is an old graphite and red recolour: replace it.
 - No stock road or truck scenes: show the product itself.
 - Phone first: check 390 px and 1280 px widths, no sideways scrolling, tap
   targets at least 44 px.
