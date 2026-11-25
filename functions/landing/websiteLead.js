@@ -113,28 +113,49 @@ function capped(value, field, label) {
 }
 
 /**
+ * A raw answer may run past its limit only by spaces and line breaks that
+ * collapse. One longer than that is refused before it is copied: a request may
+ * carry megabytes, and normalizing them would cost the instance its memory
+ * before any limit ran.
+ */
+const RAW_SLACK = 4;
+
+function bounded(value, field, label) {
+    if (typeof value === 'string' && value.length > MAX_LENGTH[field] * RAW_SLACK) {
+        throw new LeadRefused(400, `Please shorten your ${label}.`, field);
+    }
+    return value;
+}
+
+/** Whether the honeypot holds anything but space, without copying it. */
+function filledIn(value) {
+    return typeof value === 'string' && /\S/.test(value);
+}
+
+/**
  * The answers, checked; refuses the first one that is missing or malformed,
  * naming its field so the page can put the message beside it.
  */
 function readLead(body) {
-    const fullName = capped(oneLine(body.fullName), 'fullName', 'name');
+    const fullName = capped(oneLine(bounded(body.fullName, 'fullName', 'name')), 'fullName', 'name');
     if (!fullName) throw new LeadRefused(400, 'Please enter your name.', 'fullName');
 
-    const workEmail = capped(oneLine(body.workEmail).toLowerCase(), 'workEmail', 'email address');
+    const workEmail = capped(oneLine(bounded(body.workEmail, 'workEmail', 'email address')).toLowerCase(), 'workEmail', 'email address');
     if (!isValidEmail(workEmail)) throw new LeadRefused(400, 'Please enter a valid email address.', 'workEmail');
 
-    const companyName = capped(oneLine(body.companyName), 'companyName', 'company name');
+    const companyName = capped(oneLine(bounded(body.companyName, 'companyName', 'company name')), 'companyName', 'company name');
     if (!companyName) throw new LeadRefused(400, 'Please enter your company name.', 'companyName');
 
-    const phone = capped(oneLine(body.phone), 'phone', 'phone number');
+    const phone = capped(oneLine(bounded(body.phone, 'phone', 'phone number')), 'phone', 'phone number');
     if (phone && (!/^[0-9+().\-\s]+$/.test(phone) || phone.replace(/\D/g, '').length < 7)) {
         throw new LeadRefused(400, 'Please enter a valid phone number, or leave it empty.', 'phone');
     }
 
-    const fleetSize = oneLine(body.fleetSize);
+    // Every choice is a few characters; anything longer is not one of them.
+    const fleetSize = typeof body.fleetSize === 'string' && body.fleetSize.length <= 20 ? oneLine(body.fleetSize) : '';
     if (!FLEET_SIZES.has(fleetSize)) throw new LeadRefused(400, 'Please choose the number of drivers.', 'fleetSize');
 
-    const message = capped(paragraphs(body.message), 'message', 'message');
+    const message = capped(paragraphs(bounded(body.message, 'message', 'message')), 'message', 'message');
 
     return { fullName, workEmail, companyName, phone: phone || null, fleetSize, message: message || null };
 }
@@ -179,6 +200,23 @@ async function notifyOperator(lead, site, deps) {
     }
 }
 
+/**
+ * Once the lead is stored the visitor must get their answer well inside the
+ * function's 30 s, or a retry would store it twice: telling the chat (settings,
+ * the bot token, one send that gives up after 10 s) may take 12 s, and
+ * recording how that went 4 s more. Past either the lead stays as stored.
+ */
+const AFTER_STORE_MS = Object.freeze({ notify: 12000, record: 4000 });
+
+/** `work`'s result, or `late` once `ms` pass first. */
+function withinDeadline(work, ms, late) {
+    let timer;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(late), ms);
+    });
+    return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
 function defaultDeps() {
     return {
         db,
@@ -187,6 +225,7 @@ function defaultDeps() {
         alertSettings,
         telegram,
         telegramDeps: undefined,
+        afterStoreMs: AFTER_STORE_MS,
     };
 }
 
@@ -236,7 +275,7 @@ async function handleWebsiteLead(req, res, overrides = {}) {
     }
 
     // A filled honeypot is a script: answered exactly like a person, so it learns nothing.
-    if (oneLine(body[HONEYPOT])) return answer(res, plainForm, 200, { ok: true });
+    if (filledIn(body[HONEYPOT])) return answer(res, plainForm, 200, { ok: true });
 
     const tooMany = { ok: false, error: 'Too many requests right now. Please email info@safehaul.io instead.' };
     if (!(await deps.checkRateLimit(`website_lead_${addressKey(req)}`, PER_ADDRESS.limit, PER_ADDRESS.windowSeconds, 'closed'))) {
@@ -269,14 +308,20 @@ async function handleWebsiteLead(req, res, overrides = {}) {
         return answer(res, plainForm, 503, { ok: false, error: 'We could not send your request. Please try again, or email info@safehaul.io.' });
     }
 
-    const outcome = await notifyOperator(lead, site, deps);
+    const outcome = await withinDeadline(
+        notifyOperator(lead, site, deps),
+        deps.afterStoreMs.notify,
+        { status: 'failed', code: 'deadline' },
+    );
     if (outcome.status !== 'delivered') console.warn(`[submitWebsiteLead] lead ${ref.id} not delivered: ${outcome.code}`);
-    try {
-        await ref.update({ delivery: { status: outcome.status, code: outcome.code, attempts: 1 } });
-    } catch (error) {
-        // Stored, so the visitor is done; only the delivery badge stays "Pending".
-        console.error(`[submitWebsiteLead] delivery of ${ref.id} not recorded: ${error?.code || 'unknown'}`);
-    }
+    // Stored, so the visitor is done either way; only the delivery badge stays "Pending".
+    const recorded = await withinDeadline(
+        ref.update({ delivery: { status: outcome.status, code: outcome.code, attempts: 1 } })
+            .then(() => null, (error) => error?.code || 'unknown'),
+        deps.afterStoreMs.record,
+        'deadline',
+    );
+    if (recorded) console.error(`[submitWebsiteLead] delivery of ${ref.id} not recorded: ${recorded}`);
     return answer(res, plainForm, 200, { ok: true });
 }
 
@@ -297,6 +342,8 @@ exports.__test = {
     HONEYPOT,
     FLEET_SIZES,
     MAX_LENGTH,
+    RAW_SLACK,
+    AFTER_STORE_MS,
     PER_ADDRESS,
     SITE_WIDE,
 };

@@ -383,7 +383,8 @@ it must keep:
   redirect to a note on the page);
 - checks every field: name, email, company and a listed number of drivers are
   required; phone and message are optional; a value longer than the page allows
-  is refused, not cut;
+  is refused, not cut, and one far longer is refused before any work is done on
+  it, since a request may carry megabytes;
 - quietly drops honeypot spam: a filled hidden field (named so autofill leaves it
   alone) is answered as a success and nothing is stored or sent;
 - enforces two fail-closed limits: 5 an hour per address and 60 an hour for the
@@ -394,7 +395,10 @@ it must keep:
 - stores the lead in `landing_leads` **before** telling anyone, then sends a
   plain-text message through the operator alerts bot to the chat connected in
   Super Admin → System Health; with no chat connected the lead is stored as "Not
-  sent". Super Admin → Website Leads lists every lead either way;
+  sent". Telling the chat and recording how it went each have a deadline, so a
+  stored lead is always answered well inside the function's 30 s and a retry
+  never stores it twice. Super Admin → Website Leads lists every lead either way,
+  the visitor's message on a line under it;
 - logs no lead detail: only codes. A lead from the Testing public site is marked
   as such in the message and in `sourceSite`, so a test is not mistaken for a
   customer.

@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const { __test } = require('../../landing/websiteLead');
 
-const { handleWebsiteLead, readLead, operatorMessage, notifyOperator, MAX_LENGTH, FLEET_SIZES, HONEYPOT } = __test;
+const { handleWebsiteLead, readLead, operatorMessage, notifyOperator, MAX_LENGTH, FLEET_SIZES, HONEYPOT, RAW_SLACK, AFTER_STORE_MS } = __test;
 
 const VALID = Object.freeze({
     fullName: 'Pat Example',
@@ -162,6 +162,35 @@ describe('submitWebsiteLead — a person sends the form', () => {
         expect(res.headers.Location).toBe('/#contact-sent');
     });
 
+    it('answers ok inside the deadline when telling the chat stalls, and records why', async () => {
+        const { deps, ref } = makeDeps();
+        deps.alertSettings.readSettings.mockImplementation(() => new Promise(() => {}));
+        deps.afterStoreMs = { notify: 20, record: 20 };
+        const res = fakeRes();
+        await handleWebsiteLead(request(), res, deps);
+
+        expect(ref.set).toHaveBeenCalledTimes(1);
+        expect(res.body).toEqual({ ok: true });
+        expect(ref.update).toHaveBeenCalledWith({ delivery: { status: 'failed', code: 'deadline', attempts: 1 } });
+    });
+
+    it('answers ok inside the deadline when recording the delivery stalls', async () => {
+        const { deps, ref } = makeDeps();
+        ref.update.mockImplementation(() => new Promise(() => {}));
+        deps.afterStoreMs = { notify: 20, record: 20 };
+        const res = fakeRes();
+        await handleWebsiteLead(request(), res, deps);
+
+        expect(res.body).toEqual({ ok: true });
+        expect(everythingLogged()).toContain('not recorded: deadline');
+    });
+
+    it('leaves the visitor time to hear back well inside the function\'s 30 s', () => {
+        // Telling the chat includes one Telegram send that gives up after 10 s.
+        expect(AFTER_STORE_MS.notify).toBeGreaterThan(10000);
+        expect(AFTER_STORE_MS.notify + AFTER_STORE_MS.record).toBeLessThanOrEqual(16000);
+    });
+
     it('answers 503 and sends nothing when the lead cannot be stored', async () => {
         const { deps, ref } = makeDeps();
         ref.set.mockRejectedValue(Object.assign(new Error('boom Pat Example'), { code: 'unavailable' }));
@@ -207,6 +236,14 @@ describe('submitWebsiteLead — what it refuses', () => {
         expect(res.body).toEqual({ ok: true });
         expect(ref.set).not.toHaveBeenCalled();
         expect(deps.telegram.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('reads a huge honeypot as filled without copying it', async () => {
+        const { deps, ref } = makeDeps();
+        const res = fakeRes();
+        await handleWebsiteLead(request({ body: { ...VALID, [HONEYPOT]: `${' '.repeat(1000000)}x` } }), res, deps);
+        expect(res.body).toEqual({ ok: true });
+        expect(ref.set).not.toHaveBeenCalled();
     });
 
     it('stops at the per-address limit, fail-closed', async () => {
@@ -293,6 +330,16 @@ describe('readLead — the fields', () => {
         expect(refused({ fullName: 'x'.repeat(81) })).toBe('fullName');
         expect(refused({ message: 'x'.repeat(1001) })).toBe('message');
         expect(readLead({ ...VALID, message: 'x'.repeat(1000) }).message).toHaveLength(1000);
+    });
+
+    it('refuses a huge raw value before working on it, but allows space that collapses', () => {
+        // A request may carry megabytes; each field is measured before it is copied.
+        for (const field of ['fullName', 'workEmail', 'companyName', 'phone', 'message']) {
+            expect(refused({ [field]: 'x'.repeat(5000000) })).toBe(field);
+        }
+        expect(refused({ fleetSize: `11-50${' '.repeat(5000000)}` })).toBe('fleetSize');
+        const roomy = ' '.repeat((MAX_LENGTH.fullName * (RAW_SLACK - 1)) / 2);
+        expect(readLead({ ...VALID, fullName: `${roomy}Pat Example${roomy}` }).fullName).toBe('Pat Example');
     });
 
     it('strips control characters and ignores fields it does not know', () => {
