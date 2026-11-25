@@ -109,6 +109,7 @@ rule on this page only when it says so; say what the rule protects first.
 | UI, styling, components, Storybook | `.claude/rules/ui.md` |
 | `.github/`, the CI planner, deploy and release scripts, the secret scan | `.claude/rules/release-pipeline.md` |
 | File size limits, the size of `src/firestore.rules` | `.claude/rules/source-size.md` |
+| The public site `web/`, a landing or marketing page | `.claude/skills/landing-page/SKILL.md` |
 | A library, framework, SDK or CLI question | the Context7 block at the top of this file |
 
 Claude Code loads these files on its own when it opens matching files. Every

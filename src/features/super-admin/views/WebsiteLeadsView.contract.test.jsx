@@ -21,7 +21,7 @@
  * All names, emails and identifiers below are artificial.
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -95,6 +95,32 @@ describe('Website Leads — read-only archive', () => {
         expect(screen.getByText('Contact only')).toBeInTheDocument();
     });
 
+    it('shows the message a visitor wrote, whole, on a line under the lead', async () => {
+        mockLeads([lead({ message: 'We hire ten drivers a month.\nCall after 3 PM.' })]);
+        render(<WebsiteLeadsView />);
+        const row = (await screen.findByText('Dana Fixture')).closest('tr');
+        // No column of its own: one would push Received out of view at 1440px.
+        expect(screen.queryByRole('columnheader', { name: 'Message' })).not.toBeInTheDocument();
+        const detail = row.nextElementSibling;
+        expect(within(detail).getByRole('cell')).toHaveClass('ds-data-table__detail');
+        expect(detail.textContent).toBe('Message: We hire ten drivers a month.\nCall after 3 PM.');
+        // The lead's name cell points at it, so it describes the row.
+        const describedBy = row.querySelector('th').getAttribute('aria-describedby');
+        expect(document.getElementById(describedBy)).toHaveTextContent('We hire ten drivers a month.');
+    });
+
+    it('marks a request from the Testing public site, and adds no line to a plain one', async () => {
+        mockLeads([
+            lead({ id: 'from-testing', fullName: 'Trial Person', sourceSite: 'testing' }),
+            lead({ id: 'from-site', fullName: 'Real Person', sourceSite: 'safehaul.io' }),
+        ]);
+        render(<WebsiteLeadsView />);
+        const trial = (await screen.findByText('Trial Person')).closest('tr');
+        expect(trial.nextElementSibling).toHaveTextContent(/^Sent from the Testing public site\.$/);
+        const real = screen.getByText('Real Person').closest('tr');
+        expect(real.nextElementSibling?.querySelector('.ds-data-table__detail') ?? null).toBeNull();
+    });
+
     it('still reports a delivery that failed', async () => {
         mockLeads([lead({ delivery: { status: 'failed', code: 'telegram_unreachable', attempts: 3 } })]);
         render(<WebsiteLeadsView />);
@@ -118,7 +144,7 @@ describe('Website Leads — read-only archive', () => {
     it('says so plainly when the archive is empty', async () => {
         mockLeads([]);
         render(<WebsiteLeadsView />);
-        await waitFor(() => expect(screen.getByText(/No leads were captured/i)).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText(/No leads yet/i)).toBeInTheDocument());
     });
 
     it('surfaces a load failure instead of rendering an empty table', async () => {
@@ -194,6 +220,8 @@ describe('CSV export — a public field must not become a formula', () => {
         const [header] = csv.split('\r\n');
         expect(header).toContain('"workEmail"');
         expect(header).toContain('"deliveryStatus"');
+        expect(header).toContain('"message"');
+        expect(header).toContain('"sourceSite"');
         expect(csv.split('\r\n')).toHaveLength(2);
     });
 });

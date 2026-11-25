@@ -270,6 +270,11 @@ function exportFunctions(wanted) {
   // decision. The LEADS were kept, so the one that reads them survives. Any rebuilt
   // capture is to be built fresh rather than restored from what is left.
   if (wanted('listLandingLeads')) exports.listLandingLeads = require('./landing/callables').listLandingLeads;
+  // The home page's contact form (`/api/contact` on both public-site targets),
+  // built fresh rather than restored: it stores into the same collection, so
+  // Website Leads lists old and new leads together, and tells the operator's
+  // alert chat. See functions/landing/websiteLead.js.
+  if (wanted('submitWebsiteLead')) exports.submitWebsiteLead = require('./landing/websiteLead').submitWebsiteLead;
 
   // 18. Feature Scheduler
   if (wanted('enforceFeatureSchedules')) exports.enforceFeatureSchedules = require('./featureScheduler').enforceFeatureSchedules;

@@ -66,11 +66,19 @@ spacing:
 > The site is set as engineering documentation for a system that has to be
 > inspected.
 
-**Scope, updated when the marketing site was removed.** This is the design
-contract for the stylesheets in `web/assets/css/`, which dress the two public
-surfaces that remain: the server-rendered blog (`/news`, `/news/{slug}`,
-`/news/feed.xml`) and the standalone static pages (`/privacy.html`,
-`/about.html`). Every rule below binds both.
+**Scope.** This is the design contract for the blog and policy stylesheets in
+`web/assets/css/` (`news-*.css` and `policy.css`), which dress two public
+surfaces: the server-rendered blog (`/news`, `/news/{slug}`, `/news/feed.xml`)
+and the standalone static pages (`/privacy.html`, `/about.html`). Every rule
+below binds both.
+
+**It does not bind the home page.** `web/index.html` was built fresh with its own
+look, chosen by the owner: monochrome (white, near-black `#111111`, greys,
+hairlines, the app's Inter), colour only in the logo and in drawn app screens, and
+motion that follows the visitor's scroll. Its stylesheets are
+`web/assets/css/home.css` (the page) and `home-screens.css` (the drawn app
+screens), its one script `web/assets/js/home.js`, and its rules are in
+`.claude/skills/landing-page/SKILL.md` §4. The lockup below is shared.
 
 **It used to bind a third.** `landing/index.html` was the marketing homepage, and
 `landing/assets/css/styles.css` was one 3447-line file dressing all three. The
@@ -195,8 +203,10 @@ The landing page's motion, figures, FAQ and screenshot exhibits went with it:
 
 ## The lockup
 
-`web/assets/images/logo.svg` — the four original shapes, geometry untouched,
-recoloured from #17130e / #b03a24 to `--graphite` #14161A and `--attend` #A93226.
+`web/assets/images/logo.svg` — the four original shapes, geometry untouched, in
+the app's own colours (`src/shared/components/Logo.jsx`: deep teal #004C68, mint
+#0BE2A4 and the mint gradient #0CE1A5 to #077B5A), so every public page and
+app.safehaul.io show one mark.
 The viewBox carries 2 units of padding so the optical gap beside the wordmark is
 part of the file rather than something every call site has to remember.
 

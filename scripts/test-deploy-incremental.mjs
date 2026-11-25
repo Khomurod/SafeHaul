@@ -134,6 +134,7 @@ section('2. Closure walker');
 const CLIENT_IP_LOADERS = [
   'functions/companyApi/http.js',
   'functions/employmentVerification.js',
+  'functions/landing/websiteLead.js',
   'functions/postApplicationEdocs.js',
   'functions/publicSigning.js',
   'functions/referrals/submitReferralInterest.js',

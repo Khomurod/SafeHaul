@@ -383,10 +383,11 @@ the product, and a plain statement that the article is not legal advice.
 
 ### Rewrite ordering
 
-On both public targets, in order: `/news`, `/news/**`, `/api/news/**`,
-`/sitemap.xml`. `/api/landing-lead` led this list until the page that posted to it
-was removed, and a `**` catch-all followed it until the homepage it pointed at was
-removed too; `/` is now a redirect to `/news`. **If a catch-all is ever added back
+On both public targets, in order: `/api/contact` (the home page's contact form),
+`/news`, `/news/**`, `/api/news/**`, `/sitemap.xml`. `/api/landing-lead` led this
+list until the page that posted to it was removed, and a `**` catch-all followed it
+until the homepage it pointed at was removed too. `/` is the static home page,
+`web/index.html`, with no redirect in front of it. **If a catch-all is ever added back
 it must stay last** or it swallows the specific rules and returns the wrong page —
 `hostingConfig.test.js` keeps that assertion, conditionally, for that reason. Hosting's documented priority is reserved namespaces →
 redirects → exact-match static content → rewrites, and within `rewrites` the

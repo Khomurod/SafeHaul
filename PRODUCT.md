@@ -87,12 +87,12 @@ export; automated instant replies or drip sequences; lead distribution between
 companies; Telegram intake; any guarantee of FMCSA or DOT compliance; legal
 advice; **any named carrier endorsing SafeHaul**.
 
-**There is no marketing site right now.** It was removed by owner decision, and
-is to be rebuilt from scratch rather than revived. What remains public is `web/` —
-hand-written CSS with **no build step and no framework**, dressing the
-server-rendered blog (`/news`, `/news/{slug}`, `/news/feed.xml`) and a standalone
-privacy page, deployed to Firebase Hosting separately from the React app in
-`src/`. `/` redirects to `/news`.
+**The public site is `web/`.** The old marketing site was removed by owner
+decision and the home page was built from scratch (`web/index.html`, its rules in
+`.claude/skills/landing-page/SKILL.md`): hand-written HTML and CSS with **no build
+step and no framework**, which also dresses the server-rendered blog (`/news`,
+`/news/{slug}`, `/news/feed.xml`) and the standalone About and privacy pages,
+deployed to Firebase Hosting separately from the React app in `src/`.
 
 **Constraints a rebuild inherits.** The blog had no styling of its own — it shared
 the marketing site's single 3447-line stylesheet — so removing that site meant

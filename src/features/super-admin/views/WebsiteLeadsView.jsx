@@ -13,11 +13,11 @@ import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
  *
  * ## What this is
  *
- * A **read-only archive** of the leads captured by the marketing site's contact
- * form. That site was removed and lead capture, Telegram delivery, configuration,
- * test-send and delivery retry were all retired by owner decision — but the
- * records were deliberately kept, and this screen is the only way anyone reads
- * them. Any future lead capture is to be built fresh; nothing here writes.
+ * The leads the public site's contact form sends, read only: those from the
+ * home page's form (`functions/landing/websiteLead.js`, which also tells the
+ * operator's alert chat), and those the removed marketing site captured before
+ * its own form was retired, which were deliberately kept. This screen is the
+ * only way anyone reads them, and nothing here writes.
  *
  * It replaced a 536-line Landing Page Settings screen that also managed Telegram
  * credentials. Everything that could change something is gone. What survives is
@@ -32,6 +32,32 @@ import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
  * export beside it.
  */
 
+/**
+ * What a lead says beyond its columns, as the row's detail (`DataTable`
+ * `getRowDetail`), a line of its own under the lead across the table: a mark on
+ * a request sent from the Testing public site, so a trial is never taken for a
+ * customer, and the visitor's message, whole and with its line breaks. A column
+ * of its own would push Received out of view on a 1440px screen. `null` when
+ * there is neither.
+ */
+function leadDetail(lead) {
+    const fromTesting = lead.sourceSite === 'testing';
+    if (!lead.message && !fromTesting) return null;
+    return {
+        tone: 'neutral',
+        content: (
+            <span className="whitespace-pre-line [overflow-wrap:anywhere]">
+                {fromTesting && <span className="font-medium text-ds-content">Sent from the Testing public site. </span>}
+                {lead.message && (
+                    <>
+                        <span className="font-medium text-ds-content">Message:</span> {lead.message}
+                    </>
+                )}
+            </span>
+        ),
+    };
+}
+
 /** Columns, in the order the CSV writes them. One list, so the two cannot drift. */
 const CSV_COLUMNS = [
     ['id', (lead) => lead.id],
@@ -42,6 +68,8 @@ const CSV_COLUMNS = [
     ['companyName', (lead) => lead.companyName],
     ['companySize', (lead) => lead.companySize],
     ['primaryGoal', (lead) => lead.primaryGoal],
+    ['message', (lead) => lead.message],
+    ['sourceSite', (lead) => lead.sourceSite],
     ['stage', (lead) => lead.stage],
     ['sourcePage', (lead) => lead.sourcePage],
     ['utmSource', (lead) => lead.utmSource],
@@ -171,7 +199,7 @@ export function WebsiteLeadsView() {
             <PageHeader
                 level={2}
                 title="Website Leads"
-                description="Leads captured by the SafeHaul marketing site before it was retired. This is a read-only archive — nothing new arrives here, and a rebuilt contact form will collect leads separately."
+                description="Requests from the contact form on the SafeHaul home page, newest first, with the leads the earlier marketing site captured. Each new request is also sent to the operator alert chat when one is connected in System Health."
                 count={loading || loadError ? undefined : leads.length}
                 countLabel={leads.length === 1 ? 'lead' : 'leads'}
                 actions={(
@@ -197,17 +225,18 @@ export function WebsiteLeadsView() {
             )}
 
             <DataTable
-                ariaLabel="Leads captured from the retired marketing site"
+                ariaLabel="Leads from the public site's contact form"
                 density="compact"
                 minWidth="none"
                 mobilePresentation="cards"
                 data={leads}
                 columns={columns}
+                getRowDetail={leadDetail}
                 isLoading={loading}
                 loadingLabel="Loading leads"
                 empty={{
-                    title: 'No leads were captured.',
-                    description: 'The marketing site contact form recorded no submissions before it was retired.',
+                    title: 'No leads yet.',
+                    description: 'Requests sent from the contact form on the home page will appear here.',
                 }}
             />
         </Stack>

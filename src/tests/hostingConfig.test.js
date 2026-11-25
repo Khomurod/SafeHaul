@@ -46,6 +46,7 @@ const publicApi = publicApiFiles.map((file) => readFileSync(file, 'utf8')).join(
 // renamed. The marketing page they were named for is gone; what they serve now
 // is `web/` — the blog's assets and the `serveBlogPublic` rewrites.
 const PUBLIC_TARGETS = ['landing-testing', 'landing-production'];
+const CONTACT_ROUTE = '/api/contact';
 
 function target(name) {
     const found = config.hosting.find((entry) => entry.target === name);
@@ -87,10 +88,18 @@ describe('firebase.json — landing rewrite order', () => {
 
     it.each(PUBLIC_TARGETS)('%s sends the news routes to serveBlogPublic', (name) => {
         for (const rewrite of target(name).rewrites) {
-            if (rewrite.source === '**') continue;
+            if (rewrite.source === '**' || rewrite.source === CONTACT_ROUTE) continue;
             expect(rewrite.function?.functionId).toBe('serveBlogPublic');
             expect(rewrite.function?.region).toBe('us-central1');
         }
+    });
+
+    it.each(PUBLIC_TARGETS)('%s sends the home page contact form to submitWebsiteLead', (name) => {
+        // Built fresh for the home page's form, never the retired
+        // `submitLandingLead`; same origin, so the page needs no CORS.
+        const rewrite = target(name).rewrites.find((entry) => entry.source === CONTACT_ROUTE);
+        expect(rewrite, 'the contact route is missing').toBeDefined();
+        expect(rewrite.function).toEqual({ functionId: 'submitWebsiteLead', region: 'us-central1' });
     });
 
     it.each(PUBLIC_TARGETS)('%s no longer exposes the marketing lead endpoint', (name) => {
@@ -102,12 +111,14 @@ describe('firebase.json — landing rewrite order', () => {
         expect(sources(name)).not.toContain('/api/landing-lead');
     });
 
-    it.each(PUBLIC_TARGETS)('%s sends a bare visit to the articles', (name) => {
-        // Without a homepage, `/` has nothing to serve. Hosting applies redirects
-        // before rewrites, so this is what stops the apex domain 404ing.
+    it.each(PUBLIC_TARGETS)('%s serves the home page at /, not a redirect', (name) => {
+        // Hosting applies redirects before static files, so a `/` redirect left
+        // behind (it sent visitors to /news while there was no home page) would
+        // hide `web/index.html` on that site.
         const redirect = target(name).redirects?.find((entry) => entry.source === '/');
-        expect(redirect, 'the root redirect is missing').toBeDefined();
-        expect(redirect.destination).toBe('/news');
+        expect(redirect, 'a root redirect would hide the home page').toBeUndefined();
+        expect(sources(name)).not.toContain('/');
+        expect(existsSync(resolve(root, 'web/index.html'))).toBe(true);
     });
 
     it('does not add news rewrites to the application targets', () => {
@@ -174,8 +185,8 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
     });
 
     it('ships the About page', () => {
-        // The public home page app reviewers are sent to; `/` still redirects
-        // to /news. Static like the privacy page, and linked to it.
+        // The page app reviewers are sent to. Static like the privacy page, and
+        // linked to it.
         expect(existsSync(resolve(root, 'web/about.html'))).toBe(true);
         const about = readFileSync(resolve(root, 'web/about.html'), 'utf8');
         expect(about).toContain('<title>About SafeHaul</title>');
@@ -191,12 +202,55 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
         expect(about).toContain('href="/privacy.html#google-user-data"');
     });
 
+    it('ships the home page, built only from the site\'s own files', () => {
+        // web/index.html is the one public page with a script. Everything it
+        // loads must deploy with it, nothing may come from another site (no font
+        // service, CDN, tracker or embed), and its form posts to the rewrite
+        // above, so it works with JavaScript off too.
+        const home = readFileSync(resolve(root, 'web/index.html'), 'utf8');
+        expect(home).toMatch(/<title>[^<]*SafeHaul[^<]*<\/title>/);
+        expect(home).toContain('rel="canonical" href="https://safehaul.io/"');
+        expect(home.match(/<h1[\s>]/g)).toHaveLength(1);
+
+        // One script, the page's own; the JSON-LD block is data.
+        const scripts = [...home.matchAll(/<script\b([^>]*)>/gi)].map(([, attributes]) => attributes.trim());
+        expect(scripts.filter((attributes) => attributes !== 'type="application/ld+json"'))
+            .toEqual(['src="/assets/js/home.js?v=1"']);
+
+        const loaded = [
+            ...[...home.matchAll(/\bsrc="([^"]+)"/g)].map(([, url]) => url),
+            ...[...home.matchAll(/<link rel="(?:stylesheet|preload|icon)"[^>]*\bhref="([^"]+)"/g)].map(([, url]) => url),
+        ];
+        expect(loaded.length).toBeGreaterThanOrEqual(6);
+        for (const url of loaded) {
+            expect(url, 'loaded from another site').toMatch(/^\/[^/]/);
+            expect(existsSync(resolve(root, 'web', url.slice(1).split('?')[0])), `${url} is not in web/`).toBe(true);
+        }
+        expect(home).not.toMatch(/<(?:iframe|video|audio)\b/i);
+        for (const sheet of ['home.css', 'home-screens.css']) {
+            const css = readFileSync(resolve(root, 'web/assets/css', sheet), 'utf8');
+            expect(css, sheet).not.toMatch(/@import|url\(\s*["']?(?:https?:)?\/\//i);
+        }
+
+        expect(home).toMatch(/<form [^>]*action="\/api\/contact" method="post"/);
+        // The plain form lands on one of these (submitWebsiteLead answers with them).
+        expect(home).toContain('id="contact-sent"');
+        expect(home).toContain('id="contact-failed"');
+        expect(home).toContain('href="mailto:info@safehaul.io"');
+        expect(home).toContain('href="/privacy.html"');
+        expect(home).toContain('href="/about.html"');
+        expect(home).toContain('href="/news"');
+        expect(home).toContain('href="https://app.safehaul.io"');
+        // No prices: the owner decided visitors learn them by asking.
+        expect(home).not.toMatch(/\$\s?\d/);
+    });
+
     it.each(PUBLIC_TARGETS)('%s redirects neither static page away', (name) => {
         // Redirects run before static files, so a glob or a page's own path here
         // would send reviewers somewhere other than the page they were given.
         for (const { source } of target(name).redirects ?? []) {
             expect(source).not.toContain('*');
-            expect(['/about.html', '/privacy.html']).not.toContain(source);
+            expect(['/', '/index.html', '/about.html', '/privacy.html']).not.toContain(source);
         }
     });
 

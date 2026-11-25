@@ -18,8 +18,10 @@ nothing.
 | Production | `app.safehaul.io` | `safehaul.io`, `www.safehaul.io` | only by explicit promotion of a tested release |
 
 The application builds into `dist/`. The public site is the static `web/` folder
-— the blog's stylesheets and assets plus a standalone privacy page. The marketing
-site that used to live in `landing/` was removed; the Hosting **targets** kept
+— the home page (`index.html`, with its contact form), the blog's stylesheets and
+assets, and the standalone About and privacy pages. The marketing site that used
+to live in `landing/` was removed, and the home page was later built fresh in
+`web/`; the Hosting **targets** kept
 their `landing-*` aliases because a Firebase Hosting site cannot be renamed, and
 because `landing_version_id` is a field in the persisted release record that the
 Production promotion gate reads. **The names are historical; what they serve is
@@ -366,27 +368,53 @@ proves `truckerapp-system.web.app` and `truckerapp-system.firebaseapp.com` (both
 serve the Testing build); deleting or renaming it un-verifies them. `safehaul.io`
 and its subdomains are proven by a TXT record at Dynadot instead.
 
-## Landing lead form security — **retired**
+## Landing lead form security
 
-> **The form and its route are gone.** `landing/assets/js/main.js` posted to
-> `/api/landing-lead`, and both the page and the Hosting rewrite were removed with
-> the marketing site. `submitLandingLead` has since been retired too, **preserving
-> every captured lead** — they are read through `listLandingLeads` from Super Admin
-> → Website Leads. **Any rebuilt lead capture is to be built fresh** — do not
-> revive this endpoint. The properties below are kept as the bar a replacement
-> must clear, and the credential warning below still applies to any token.
+The home page's contact form (`web/index.html`) posts to `/api/contact`, which
+both public targets rewrite to `submitWebsiteLead` (`functions/landing/websiteLead.js`).
+It was **built fresh**: the retired `submitLandingLead` and its `/api/landing-lead`
+route stay retired, and must not be revived. The bar it meets, and any change to
+it must keep:
 
-The retired function:
+- accepts only the public site's own origins (`safehaul.io`, `www.safehaul.io`
+  and the two `safehaul-landing-*` sites on `web.app` and `firebaseapp.com`), and
+  only a POST of JSON (the page's
+  script) or of a plain form (the page with JavaScript off, answered with a
+  redirect to a note on the page);
+- checks every field: name, email, company and a listed number of drivers are
+  required; phone and message are optional; a value longer than the page allows
+  is refused, not cut, and one far longer is refused before any work is done on
+  it, since a request may carry megabytes;
+- quietly drops honeypot spam: a filled hidden field (named so autofill leaves it
+  alone) is answered as a success and nothing is stored or sent;
+- enforces two fail-closed limits: 5 an hour per address and 60 an hour for the
+  whole site. The per-address count is kept under a 20-bit hash that thousands of
+  addresses share, so it cannot be turned back into an address. The site-wide
+  limit is what keeps a flood out of the collection and the chat; while it holds,
+  visitors are told to email info@safehaul.io instead;
+- stores the lead in `landing_leads` **before** telling anyone, then sends a
+  plain-text message through the operator alerts bot to the chat connected in
+  Super Admin → System Health; with no chat connected the lead is stored as "Not
+  sent". Telling the chat and recording how it went each have a deadline,
+  counted from the start of the request, so a stored lead is answered inside
+  the function's 30 s and the visitor has no reason to send it twice. Super Admin → Website Leads lists every lead either way,
+  the visitor's message on a line under it;
+- logs no lead detail: only codes. A lead from the Testing public site is marked
+  as such in the message and in `sourceSite`, so a test is not mistaken for a
+  customer.
 
-- accepts only approved SafeHaul origins and JSON POSTs;
-- validates lengths, email, company-size and goal values;
-- quietly drops honeypot spam;
-- enforces a fail-closed per-IP rate limit;
-- sends a plain-text Telegram message without logging lead details; and
-- read `LANDING_TELEGRAM_BOT_TOKEN` and `LANDING_TELEGRAM_CHAT_ID` only from
-  Google Secret Manager. Both are now unbound and out of the vault registry; the
-  stored ciphertext in `platform_settings/landing_page` was not deleted, so
-  **rotate the bot token through BotFather** if that has not happened yet.
+**After the first release with the form, check one thing live:** send the form
+twice from the Testing public site and confirm both arrive. The per-address limit
+reads the address Hosting forwards to the function; if it ever proves to be shared
+by all visitors, the limit still lets 5 requests an hour through and the page
+tells anyone past it to email `info@safehaul.io`.
+
+The leads the removed marketing site captured are kept in the same collection and
+listed with the new ones. The retired form read `LANDING_TELEGRAM_BOT_TOKEN` and
+`LANDING_TELEGRAM_CHAT_ID`; both are now unbound and out of the vault registry, and
+the stored ciphertext in `platform_settings/landing_page` was not deleted, so
+**rotate that old bot token through BotFather** if that has not happened yet. The
+new form uses only the operator alerts bot.
 
 ### Deleting retired callables from the project
 
@@ -538,20 +566,22 @@ must not own `safehaul.io` or deploy anything.
 
 ## News & Insights routes
 
-The public targets serve the automated blog and the privacy page. Rewrites on
-**both** `landing-testing` and `landing-production` (historical aliases), in this
-order:
+The public targets serve the home page, the automated blog, and the About and
+privacy pages. Rewrites on **both** `landing-testing` and `landing-production`
+(historical aliases), in this order:
 
-1. `/news` -> `serveBlogPublic`
-2. `/news/**` -> `serveBlogPublic`
-3. `/api/news/**` -> `serveBlogPublic`
-4. `/sitemap.xml` -> `serveBlogPublic`
+1. `/api/contact` -> `submitWebsiteLead` (the home page's contact form, above)
+2. `/news` -> `serveBlogPublic`
+3. `/news/**` -> `serveBlogPublic`
+4. `/api/news/**` -> `serveBlogPublic`
+5. `/sitemap.xml` -> `serveBlogPublic`
 
-Plus one **redirect**, which Hosting applies before rewrites: `/` -> `/news`.
-`/api/landing-lead` led this list until the form was removed, and a `**` ->
-`/index.html` catch-all followed it until the homepage it pointed at was removed;
-`web/` contains no `index.html`, so the redirect is what keeps the apex from
-404ing.
+`/` is the static `web/index.html`, and **there must be no redirect for `/`**:
+Hosting applies redirects before static files, so one would hide the home page.
+While `web/` had no `index.html`, a `/` -> `/news` redirect kept the apex from
+404ing; it went when the home page arrived. A `**` -> `/index.html` catch-all
+belonged to the removed marketing site and is not needed: Hosting serves
+`index.html` for `/` on its own.
 
 `/robots.txt` is **not** a rewrite — it is the static `web/robots.txt`, and
 Hosting serves a real file in preference to any rewrite. (An earlier revision of
@@ -578,6 +608,7 @@ Verification after a production deploy:
   before the first article publishes).
 - `https://safehaul.io/sitemap.xml` and `/news/feed.xml` return XML, not HTML.
 - `https://safehaul.io/api/news/latest?limit=3` returns JSON.
-- `https://safehaul.io/` still renders, and the lead form still submits.
+- `https://safehaul.io/` shows the home page, and its contact form sends: the
+  request appears in Super Admin → Website Leads.
 - `https://www.safehaul.io/news` behaves identically.
 - `https://app.safehaul.io` is unchanged.
