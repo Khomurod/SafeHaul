@@ -15,7 +15,10 @@
 
   Every product sentence here comes from an `available` entry in
   functions/ai/knowledge/safehaulCapabilities.js, and `npm run check:public-claims`
-  reads this page. Name nothing that is not live yet.
+  reads this page. Name nothing that is not live yet. The one exception is "Google
+  Account Access": Google's verification requires the home page to say why the app
+  asks for Google user data, so that section restates privacy.html section 5 for
+  the Gmail connection, which each company has switched on separately.
 
   No JavaScript and no build step. The stylesheets, navigation and footer are the
   privacy page's, in the same order; policy.css supplies the page's own classes.
@@ -99,6 +102,23 @@
                     <li>Document links are issued by the server and checked against company membership.</li>
                     <li>SafeHaul keeps activity records for actions taken on a driver record.</li>
                 </ul>
+            </section>
+
+            <section id="google-account-access">
+                <h2>Google Account Access</h2>
+                <p>SafeHaul asks for access to a Google account only when a company admin connects the company's
+                    Gmail or Google Workspace account, so that the emails its team sends through SafeHaul come from
+                    the company's own address. These are application links, signing requests and previous-employment
+                    verification requests, and the reminders SafeHaul schedules for them.</p>
+                <p>SafeHaul asks Google for two things: the account's email address, to show which account is
+                    connected, and permission to send email from it. It does not read, store or index the
+                    mailbox. The admin can disconnect Gmail at any time in SafeHaul's settings, and
+                    SafeHaul then deletes the stored credential.</p>
+                <p>SafeHaul's use and transfer to any other app of information received from Google APIs will
+                    adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy"
+                    rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.
+                    Section 5 of our <a href="/privacy.html#google-user-data">Privacy Policy</a> covers Google user
+                    data in full.</p>
             </section>
 
             <section>
