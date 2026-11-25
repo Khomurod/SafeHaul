@@ -96,11 +96,18 @@ CDL), not ours (record, tenant, pipeline stage).
   attention red `#A93226`; keep red for one accent, not for large areas.
 - Phone first: check 390 px and 1280 px widths, no sideways scrolling, tap
   targets at least 44 px.
-- No JavaScript unless the page cannot work without it; then one small file in
-  `web/assets/js/`, never inline. The About and Privacy pages stay script-free.
-- Motion is optional and small: no parallax, no scroll-jacking, no counting
-  numbers, and nothing hidden until a script reveals it. Respect
-  `prefers-reduced-motion`.
+- The owner wants motion on every screen, each piece explaining the product:
+  scroll that tells a story (a driver's application travelling from the phone
+  to the team's record), product screens demonstrated with a moving cursor,
+  and sections that reveal as they enter. No animation is decoration only.
+- Animation code is one plain JavaScript file in `web/assets/js/`, with no
+  libraries and no inline script. The About and Privacy pages stay
+  script-free.
+- Never take over scrolling: the page moves at the visitor's speed and the
+  animation follows it. With JavaScript off every section shows its finished
+  state; with `prefers-reduced-motion` it shows that state without movement.
+- Animate only `transform` and `opacity`, stop loops that are off screen, and
+  keep the page smooth on a mid-range phone.
 - Accessibility: one `h1`, headings in order, a skip link as in
   `web/about.html`, alt text, a visible focus ring, contrast at least 4.5:1.
 - Speed: inline SVG or compressed images in `web/assets/images/`, width and
