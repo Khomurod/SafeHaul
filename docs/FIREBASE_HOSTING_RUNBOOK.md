@@ -360,6 +360,12 @@ split it into a compatible staged rollout: expand → promote → contract.
 For a new marketing URL, prefer a path (`safehaul.io/example`). Reserve
 subdomains for genuinely separate applications or environments.
 
+Google verifies SafeHaul's sign-in and Gmail access only for domains SafeHaul
+proves it owns in Google Search Console. `public/google79f8492dca742fb3.html`
+proves `truckerapp-system.web.app` and `truckerapp-system.firebaseapp.com` (both
+serve the Testing build); deleting or renaming it un-verifies them. `safehaul.io`
+and its subdomains are proven by a TXT record at Dynadot instead.
+
 ## Landing lead form security — **retired**
 
 > **The form and its route are gone.** `landing/assets/js/main.js` posted to
