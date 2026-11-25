@@ -32,6 +32,32 @@ import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
  * export beside it.
  */
 
+/**
+ * What a lead says beyond its columns, as the row's detail (`DataTable`
+ * `getRowDetail`), a line of its own under the lead across the table: a mark on
+ * a request sent from the Testing public site, so a trial is never taken for a
+ * customer, and the visitor's message, whole and with its line breaks. A column
+ * of its own would push Received out of view on a 1440px screen. `null` when
+ * there is neither.
+ */
+function leadDetail(lead) {
+    const fromTesting = lead.sourceSite === 'testing';
+    if (!lead.message && !fromTesting) return null;
+    return {
+        tone: 'neutral',
+        content: (
+            <span className="whitespace-pre-line [overflow-wrap:anywhere]">
+                {fromTesting && <span className="font-medium text-ds-content">Sent from the Testing public site. </span>}
+                {lead.message && (
+                    <>
+                        <span className="font-medium text-ds-content">Message:</span> {lead.message}
+                    </>
+                )}
+            </span>
+        ),
+    };
+}
+
 /** Columns, in the order the CSV writes them. One list, so the two cannot drift. */
 const CSV_COLUMNS = [
     ['id', (lead) => lead.id],
@@ -134,16 +160,6 @@ export function WebsiteLeadsView() {
                 : <span className="text-ds-sm text-ds-content-muted">—</span>),
         },
         {
-            key: 'message',
-            header: 'Message',
-            width: 'lg',
-            // The visitor's own words, two lines at most; the whole text is in the
-            // CSV and in the operator's alert.
-            render: (lead) => (lead.message
-                ? <span className="line-clamp-2 text-ds-sm text-ds-content [overflow-wrap:anywhere]" title={lead.message}>{lead.message}</span>
-                : <span className="text-ds-sm text-ds-content-muted">—</span>),
-        },
-        {
             key: 'stage',
             header: 'Stage',
             width: 'sm',
@@ -215,6 +231,7 @@ export function WebsiteLeadsView() {
                 mobilePresentation="cards"
                 data={leads}
                 columns={columns}
+                getRowDetail={leadDetail}
                 isLoading={loading}
                 loadingLabel="Loading leads"
                 empty={{

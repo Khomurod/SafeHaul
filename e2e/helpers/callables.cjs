@@ -78,9 +78,10 @@ const SMS_OPT_OUTS = Object.freeze({
 });
 
 /**
- * The website-lead archive as `listLandingLeads` returns it: a qualified lead
- * with long names, a contact-only lead whose delivery failed, and one never
- * sent. Every person, company and address is made up.
+ * The website leads as `listLandingLeads` returns them: a qualified lead with
+ * long names and a message, a contact-only lead whose delivery failed, and one
+ * from the Testing public site never sent. Every person, company and address is
+ * made up.
  */
 const WEBSITE_LEADS = Object.freeze({
   leads: [
@@ -88,7 +89,8 @@ const WEBSITE_LEADS = Object.freeze({
       id: 'lead-1', createdAt: '2026-10-21T15:05:00.000Z', fullName: 'Marisol Quintero-Abernathy',
       workEmail: 'marisol.quintero-abernathy@artificial-freight.example', phone: '(555) 010-2211',
       companyName: 'Artificial Freight Lines of the Southwest', companySize: '51-200', stage: 'qualified',
-      delivery: { status: 'delivered' },
+      message: 'We hire about ten drivers a month. Most start the paper application and never finish it. Can you show us the phone version?',
+      sourceSite: 'safehaul.io', delivery: { status: 'delivered' },
     },
     {
       id: 'lead-2', createdAt: '2026-10-19T09:40:00.000Z', fullName: 'Dev Patel', workEmail: 'dev@example.test',
@@ -96,7 +98,8 @@ const WEBSITE_LEADS = Object.freeze({
     },
     {
       id: 'lead-3', createdAt: '2026-10-02T20:15:00.000Z', fullName: 'Ola Nordmann', workEmail: 'ola@example.test',
-      companyName: 'Fjord Haulage', companySize: '1-10', stage: 'qualified', delivery: { status: 'disabled' },
+      companyName: 'Fjord Haulage', companySize: '1-10', stage: 'qualified', sourceSite: 'testing',
+      delivery: { status: 'disabled' },
     },
   ],
 });
