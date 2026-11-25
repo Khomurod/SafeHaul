@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const { __test } = require('../../landing/websiteLead');
 
-const { handleWebsiteLead, readLead, operatorMessage, notifyOperator, MAX_LENGTH, FLEET_SIZES, HONEYPOT, RAW_SLACK, AFTER_STORE_MS } = __test;
+const { handleWebsiteLead, readLead, operatorMessage, notifyOperator, MAX_LENGTH, FLEET_SIZES, HONEYPOT, RAW_SLACK, TIMING_MS } = __test;
 
 const VALID = Object.freeze({
     fullName: 'Pat Example',
@@ -165,7 +165,7 @@ describe('submitWebsiteLead — a person sends the form', () => {
     it('answers ok inside the deadline when telling the chat stalls, and records why', async () => {
         const { deps, ref } = makeDeps();
         deps.alertSettings.readSettings.mockImplementation(() => new Promise(() => {}));
-        deps.afterStoreMs = { notify: 20, record: 20 };
+        deps.timing = { budget: 1000, notify: 20, record: 20 };
         const res = fakeRes();
         await handleWebsiteLead(request(), res, deps);
 
@@ -177,7 +177,7 @@ describe('submitWebsiteLead — a person sends the form', () => {
     it('answers ok inside the deadline when recording the delivery stalls', async () => {
         const { deps, ref } = makeDeps();
         ref.update.mockImplementation(() => new Promise(() => {}));
-        deps.afterStoreMs = { notify: 20, record: 20 };
+        deps.timing = { budget: 1000, notify: 20, record: 20 };
         const res = fakeRes();
         await handleWebsiteLead(request(), res, deps);
 
@@ -185,10 +185,42 @@ describe('submitWebsiteLead — a person sends the form', () => {
         expect(everythingLogged()).toContain('not recorded: deadline');
     });
 
-    it('leaves the visitor time to hear back well inside the function\'s 30 s', () => {
-        // Telling the chat includes one Telegram send that gives up after 10 s.
-        expect(AFTER_STORE_MS.notify).toBeGreaterThan(10000);
-        expect(AFTER_STORE_MS.notify + AFTER_STORE_MS.record).toBeLessThanOrEqual(16000);
+    it('cuts the wait after storing by the time the limits and the store already took', async () => {
+        const { deps, ref } = makeDeps();
+        let clock = 0;
+        deps.now = () => clock;
+        deps.timing = { budget: 60, notify: 1000, record: 20 };
+        deps.checkRateLimit.mockImplementation(async () => { clock += 15; return true; });
+        deps.alertSettings.readSettings.mockImplementation(() => new Promise(() => {}));
+        const started = Date.now();
+        const res = fakeRes();
+        await handleWebsiteLead(request(), res, deps);
+
+        // 60 - 30 used - 20 kept for recording leaves 10 ms to tell the chat, not 1000.
+        expect(Date.now() - started).toBeLessThan(500);
+        expect(res.body).toEqual({ ok: true });
+        expect(ref.update).toHaveBeenCalledWith({ delivery: { status: 'failed', code: 'deadline', attempts: 1 } });
+    });
+
+    it('skips telling the chat when the store used up the time, and still answers ok', async () => {
+        const { deps, ref } = makeDeps();
+        let clock = 0;
+        deps.now = () => clock;
+        deps.timing = { budget: 60, notify: 1000, record: 20 };
+        ref.set.mockImplementation(async () => { clock += 60; });
+        const res = fakeRes();
+        await handleWebsiteLead(request(), res, deps);
+
+        expect(res.body).toEqual({ ok: true });
+        expect(deps.alertSettings.readSettings).not.toHaveBeenCalled();
+        expect(ref.update).not.toHaveBeenCalled();
+        expect(everythingLogged()).toContain('not recorded: deadline');
+    });
+
+    it('answers inside the function\'s 30 s, leaving the Telegram send its own 10 s', () => {
+        expect(TIMING_MS.budget).toBeLessThanOrEqual(27000);
+        expect(TIMING_MS.notify).toBeGreaterThan(10000);
+        expect(TIMING_MS.notify + TIMING_MS.record).toBeLessThan(TIMING_MS.budget);
     });
 
     it('answers 503 and sends nothing when the lead cannot be stored', async () => {

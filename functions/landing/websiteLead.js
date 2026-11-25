@@ -201,12 +201,15 @@ async function notifyOperator(lead, site, deps) {
 }
 
 /**
- * Once the lead is stored the visitor must get their answer well inside the
- * function's 30 s, or a retry would store it twice: telling the chat (settings,
- * the bot token, one send that gives up after 10 s) may take 12 s, and
- * recording how that went 4 s more. Past either the lead stays as stored.
+ * The visitor must get their answer inside the function's 30 s, or a retry
+ * would store the lead twice. Everything is measured from the request's start:
+ * the answer goes by 26 s (`budget`). Once the lead is stored, telling the chat
+ * (settings, the bot token, one send that gives up after 10 s) gets at most
+ * 12 s, and recording how that went at most 4 s, each cut short by what the
+ * limits and the store already used. Past either the lead stays as stored.
  */
-const AFTER_STORE_MS = Object.freeze({ notify: 12000, record: 4000 });
+const TIMING_MS = Object.freeze({ budget: 26000, notify: 12000, record: 4000 });
+const TOO_LATE = Object.freeze({ status: 'failed', code: 'deadline' });
 
 /** `work`'s result, or `late` once `ms` pass first. */
 function withinDeadline(work, ms, late) {
@@ -225,7 +228,8 @@ function defaultDeps() {
         alertSettings,
         telegram,
         telegramDeps: undefined,
-        afterStoreMs: AFTER_STORE_MS,
+        timing: TIMING_MS,
+        now: () => Date.now(),
     };
 }
 
@@ -250,6 +254,7 @@ function answer(res, plainForm, status, body) {
 
 async function handleWebsiteLead(req, res, overrides = {}) {
     const deps = { ...defaultDeps(), ...overrides };
+    const answerBy = deps.now() + deps.timing.budget;
     res.set('Cache-Control', 'no-store');
     res.set('X-Content-Type-Options', 'nosniff');
 
@@ -308,19 +313,22 @@ async function handleWebsiteLead(req, res, overrides = {}) {
         return answer(res, plainForm, 503, { ok: false, error: 'We could not send your request. Please try again, or email info@safehaul.io.' });
     }
 
-    const outcome = await withinDeadline(
-        notifyOperator(lead, site, deps),
-        deps.afterStoreMs.notify,
-        { status: 'failed', code: 'deadline' },
-    );
+    // Stored, so the visitor hears ok whatever happens next, inside the budget.
+    const notifyMs = Math.min(deps.timing.notify, answerBy - deps.now() - deps.timing.record);
+    const outcome = notifyMs > 0
+        ? await withinDeadline(notifyOperator(lead, site, deps), notifyMs, TOO_LATE)
+        : TOO_LATE;
     if (outcome.status !== 'delivered') console.warn(`[submitWebsiteLead] lead ${ref.id} not delivered: ${outcome.code}`);
-    // Stored, so the visitor is done either way; only the delivery badge stays "Pending".
-    const recorded = await withinDeadline(
-        ref.update({ delivery: { status: outcome.status, code: outcome.code, attempts: 1 } })
-            .then(() => null, (error) => error?.code || 'unknown'),
-        deps.afterStoreMs.record,
-        'deadline',
-    );
+    const recordMs = Math.min(deps.timing.record, answerBy - deps.now());
+    // Not recorded leaves only the delivery badge at "Pending".
+    const recorded = recordMs > 0
+        ? await withinDeadline(
+            ref.update({ delivery: { status: outcome.status, code: outcome.code, attempts: 1 } })
+                .then(() => null, (error) => error?.code || 'unknown'),
+            recordMs,
+            'deadline',
+        )
+        : 'deadline';
     if (recorded) console.error(`[submitWebsiteLead] delivery of ${ref.id} not recorded: ${recorded}`);
     return answer(res, plainForm, 200, { ok: true });
 }
@@ -343,7 +351,7 @@ exports.__test = {
     FLEET_SIZES,
     MAX_LENGTH,
     RAW_SLACK,
-    AFTER_STORE_MS,
+    TIMING_MS,
     PER_ADDRESS,
     SITE_WIDE,
 };

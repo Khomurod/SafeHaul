@@ -395,9 +395,9 @@ it must keep:
 - stores the lead in `landing_leads` **before** telling anyone, then sends a
   plain-text message through the operator alerts bot to the chat connected in
   Super Admin → System Health; with no chat connected the lead is stored as "Not
-  sent". Telling the chat and recording how it went each have a deadline, so a
-  stored lead is always answered well inside the function's 30 s and a retry
-  never stores it twice. Super Admin → Website Leads lists every lead either way,
+  sent". Telling the chat and recording how it went each have a deadline,
+  counted from the start of the request, so a stored lead is answered inside
+  the function's 30 s and the visitor has no reason to send it twice. Super Admin → Website Leads lists every lead either way,
   the visitor's message on a line under it;
 - logs no lead detail: only codes. A lead from the Testing public site is marked
   as such in the message and in `sourceSite`, so a test is not mistaken for a
