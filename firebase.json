@@ -130,6 +130,13 @@
       ],
       "rewrites": [
         {
+          "source": "/api/contact",
+          "function": {
+            "functionId": "submitWebsiteLead",
+            "region": "us-central1"
+          }
+        },
+        {
           "source": "/news",
           "function": {
             "functionId": "serveBlogPublic",
@@ -156,13 +163,6 @@
             "functionId": "serveBlogPublic",
             "region": "us-central1"
           }
-        }
-      ],
-      "redirects": [
-        {
-          "source": "/",
-          "destination": "/news",
-          "type": 302
         }
       ]
     },
@@ -198,6 +198,13 @@
       ],
       "rewrites": [
         {
+          "source": "/api/contact",
+          "function": {
+            "functionId": "submitWebsiteLead",
+            "region": "us-central1"
+          }
+        },
+        {
           "source": "/news",
           "function": {
             "functionId": "serveBlogPublic",
@@ -224,13 +231,6 @@
             "functionId": "serveBlogPublic",
             "region": "us-central1"
           }
-        }
-      ],
-      "redirects": [
-        {
-          "source": "/",
-          "destination": "/news",
-          "type": 302
         }
       ]
     }

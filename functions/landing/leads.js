@@ -1,31 +1,22 @@
 /**
- * Website-lead archive — read only.
+ * Website leads — the read path.
  *
- * ## What this is, and what it used to be
+ * `landing_leads` holds two generations of leads, read together:
  *
- * `landing_leads` holds the leads captured by the marketing site's contact form
- * between 2026-06 and 2026-08. That site has been removed and lead capture
- * retired by owner decision; **the records were deliberately kept**, and this
- * module is the only way anything reads them.
+ * - **from the home page's contact form**, written by `submitWebsiteLead`
+ *   (`./websiteLead.js`) since that form was rebuilt; and
+ * - **from the removed marketing site**, captured between 2026-06 and 2026-08 and
+ *   deliberately kept when that site and its capture were retired.
  *
- * Everything that WROTE to this collection is gone: two-step capture, the
- * completion tokens, Telegram delivery, and the delivery-retry path. What that
- * machinery was for is worth stating once, because a future rebuild will face the
- * same problem. Capture used to forward straight to Telegram, so an outage at
- * Telegram lost the customer; the fix was to **write the lead first and attempt
- * delivery second**, downgrading a failure to a stored lead with
- * `delivery.status = 'failed'` that could be retried. Any rebuilt capture should
- * start from that ordering rather than rediscover it.
- *
- * ## Why the delivery fields are still returned
- *
- * They are historical facts about deliveries that already happened or already
- * failed, and dropping them would quietly rewrite the record. Nothing retries
- * them any more.
+ * The old capture's lesson is the new one's ordering: forwarding straight to
+ * Telegram lost the customer whenever Telegram failed, so a lead is **written
+ * first and delivered second**, and a failed delivery is a stored lead with
+ * `delivery.status = 'failed'`. Nothing retries a delivery; every lead is on the
+ * Website Leads screen whatever its delivery says.
  *
  * `landing_leads` has no Firestore rule match, so it is Admin-SDK only — the
- * documents carry third-party contact details, and the archive screen reaches
- * them through `listLandingLeads`, never directly.
+ * documents carry third-party contact details, and the screen reaches them
+ * through `listLandingLeads`, never directly.
  */
 
 const { db } = require('../firebaseAdmin');
@@ -56,6 +47,8 @@ async function listLeads(limit = 50) {
             companySize: data.companySize || null,
             phone: data.phone || null,
             primaryGoal: data.primaryGoal || null,
+            message: data.message || null,
+            sourceSite: data.sourceSite || null,
             stage: data.stage || null,
             sourcePage: data.sourcePage || null,
             utmSource: data.utmSource || null,

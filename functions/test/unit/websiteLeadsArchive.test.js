@@ -98,6 +98,9 @@ describe('website-lead archive — reading', () => {
             companySize: '25',
             phone: '555-0100',
             primaryGoal: 'hiring',
+            // Written only by the rebuilt home-page form; null on a kept lead.
+            message: null,
+            sourceSite: null,
             stage: 'qualified',
             sourcePage: '/',
             utmSource: null,
@@ -105,6 +108,15 @@ describe('website-lead archive — reading', () => {
             createdAt: 1754136000000,
         });
         expect(Object.keys(row)).not.toContain('referenceHash');
+    });
+
+    it('returns the message and the site of a lead from the home-page form', async () => {
+        seed([{
+            id: 'new', fullName: 'Pat Example', message: 'Line one\nLine two', sourceSite: 'testing', createdAt: null,
+        }]);
+        const [row] = await listLeads();
+        expect(row.message).toBe('Line one\nLine two');
+        expect(row.sourceSite).toBe('testing');
     });
 
     it('survives a lead written before a field existed', async () => {

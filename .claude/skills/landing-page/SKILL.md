@@ -25,16 +25,15 @@ routes" section of `docs/FIREBASE_HOSTING_RUNBOOK.md` before you start.
   keep their licence notice in a comment where you copy their markup or CSS.
 - A merge to `main` deploys `web/` to `safehaul-landing-testing.web.app`, which
   sends `noindex`. `safehaul.io` changes only when the owner promotes a release.
-- `/` redirects to `/news` on both `landing-*` targets in `firebase.json`, and
-  `web/` has no `index.html`. A home page needs both changes in one pull
-  request: add `web/index.html` and remove that redirect from both targets.
-  Keep both targets' other rewrites and headers as they are, and update the
-  runbook section and the brief's public-site row in the same pull request.
-- Shared assets exist in `web/assets/`: logos, the Archivo and Geist Mono
-  fonts, and the navbar and footer styles. Reuse them, except the logo and
-  colours in §4. Load nothing from another site: no font services, CDNs,
-  trackers, chat widgets or embedded videos; host any font in
-  `web/assets/fonts/`.
+- The home page is `web/index.html`, with `web/assets/css/home.css` (the page),
+  `home-screens.css` (the drawn app screens) and one script,
+  `web/assets/js/home.js`. There is no redirect for `/` on either
+  `landing-*` target in `firebase.json`, and there must not be one: it would hide
+  the page. Keep both targets' rewrites and headers as they are.
+- Shared assets are in `web/assets/`: the logo, the app's Inter font
+  (`inter-variable-latin.woff2`), and the blog's Archivo and Geist Mono fonts
+  and styles. Load nothing from another site: no font services, CDNs, trackers,
+  chat widgets or embedded videos; host any font in `web/assets/fonts/`.
 
 ## 2. Every sentence must be true
 
@@ -51,9 +50,9 @@ routes" section of `docs/FIREBASE_HOSTING_RUNBOOK.md` before you start.
   expiry monitoring or renewal reminders, a job board, or "free forever".
 - No testimonials, customer logos, star ratings, customer counts or "hours
   saved" figures unless the owner gives a real, named source in writing.
-- Prices: only the two flat plans in `PRODUCT.md` ($199 and $299 a month), and
-  only if the owner agreed to show them. No checkout or "start free trial":
-  SafeHaul takes no payments online.
+- No prices on the page: the owner decided visitors learn them by asking. If
+  that changes, only the two flat plans in `PRODUCT.md` ($199 and $299 a
+  month). No checkout or "start free trial": SafeHaul takes no payments online.
 - Keep the line that SafeHaul supports the carrier's own compliance process
   and does not give legal advice.
 - The company is Safehaul Technologies LLC; the contact address is
@@ -76,7 +75,7 @@ CDL), not ours (record, tenant, pipeline stage).
    link to a signed and verified file.
 5. **The driver's side**: licence photo auto-fill, weak signal, signing
    without an account.
-6. **Pricing**, only if approved.
+6. **Pricing** is not shown (see §2); the FAQ says how to ask.
 7. **FAQ**: the real objections, including what SafeHaul does not do.
 8. **Final call to action**, then a footer with About, Privacy, News, the
    company name and the contact address.
@@ -85,32 +84,35 @@ CDL), not ours (record, tenant, pipeline stage).
   Avoid "Submit", "Learn more" and "Get started".
 - Avoid filler: "seamless", "revolutionize", "unlock", "leverage", "cutting-
   edge", "all-in-one solution", dashes used as asides, and "not X, but Y".
-- Contact is the email address shown as text, plus a `mailto:` link. A lead
-  form is a separate task the owner must ask for; build it fresh to the bar in
-  the runbook's "Landing lead form security" section, and never revive
-  `submitLandingLead`.
+- Contact is the form in the final section, posted to `/api/contact`
+  (`submitWebsiteLead`), with the email address shown as text and a `mailto:`
+  link beside it. A change to the form keeps the bar in the runbook's "Landing
+  lead form security" section; never revive `submitLandingLead`.
 
 ## 4. Look and behaviour
 
 - The look is monochrome (the owner's choice): a white page, near-black
   `#111111` text and buttons, greys for secondary text, hairline borders, and
-  Inter (headings Inter Tight 600). Colour appears only in the logo and in the
+  the app's Inter (headings at weight 600). Colour appears only in the logo and in the
   app screens drawn on the page, which keep the app's own colours. No glows,
   colour gradients, gradient text or pill buttons: corners 8 px on buttons and
   12 px on cards.
 - The logo is exactly `src/shared/components/Logo.jsx` (teal `#004C68`, mint
   `#0BE2A4`, gradient `#0CE1A5` to `#077B5A`) on a light background.
-  `web/assets/images/logo.svg` is an old graphite and red recolour: replace it.
+  `web/assets/images/logo.svg` carries it with padding; reuse that file.
 - No stock road or truck scenes: show the product itself.
+- A drawn app screen shows the real app: its menu, labels, columns and statuses
+  as they are on app.safehaul.io, with made-up people. Never a view the app does
+  not have, such as a Kanban board.
 - Phone first: check 390 px and 1280 px widths, no sideways scrolling, tap
   targets at least 44 px.
 - The owner wants motion on every screen, each piece explaining the product:
   scroll that tells a story (a driver's application travelling from the phone
   to the team's record), product screens demonstrated with a moving cursor,
   and sections that reveal as they enter. No animation is decoration only.
-- Animation code is one plain JavaScript file in `web/assets/js/`, with no
-  libraries and no inline script. The About and Privacy pages stay
-  script-free.
+- Animation and the form's code are one plain JavaScript file,
+  `web/assets/js/home.js`, with no libraries and no inline script. The About and
+  Privacy pages stay script-free.
 - Never take over scrolling: the page moves at the visitor's speed and the
   animation follows it. With JavaScript off every section shows its finished
   state; with `prefers-reduced-motion` it shows that state without movement.

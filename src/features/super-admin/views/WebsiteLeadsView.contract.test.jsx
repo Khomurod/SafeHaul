@@ -95,6 +95,13 @@ describe('Website Leads — read-only archive', () => {
         expect(screen.getByText('Contact only')).toBeInTheDocument();
     });
 
+    it('shows the message a visitor wrote, in its own cell', async () => {
+        mockLeads([lead({ message: 'We hire ten drivers a month.' })]);
+        render(<WebsiteLeadsView />);
+        const row = (await screen.findByText('Dana Fixture')).closest('tr');
+        expect(row.querySelector('[data-label="Message"]')).toHaveTextContent(/^We hire ten drivers a month\.$/);
+    });
+
     it('still reports a delivery that failed', async () => {
         mockLeads([lead({ delivery: { status: 'failed', code: 'telegram_unreachable', attempts: 3 } })]);
         render(<WebsiteLeadsView />);
@@ -118,7 +125,7 @@ describe('Website Leads — read-only archive', () => {
     it('says so plainly when the archive is empty', async () => {
         mockLeads([]);
         render(<WebsiteLeadsView />);
-        await waitFor(() => expect(screen.getByText(/No leads were captured/i)).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText(/No leads yet/i)).toBeInTheDocument());
     });
 
     it('surfaces a load failure instead of rendering an empty table', async () => {
@@ -194,6 +201,8 @@ describe('CSV export — a public field must not become a formula', () => {
         const [header] = csv.split('\r\n');
         expect(header).toContain('"workEmail"');
         expect(header).toContain('"deliveryStatus"');
+        expect(header).toContain('"message"');
+        expect(header).toContain('"sourceSite"');
         expect(csv.split('\r\n')).toHaveLength(2);
     });
 });

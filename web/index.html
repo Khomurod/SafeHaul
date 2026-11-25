@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SafeHaul: driver hiring software for US trucking carriers</title>
+<meta name="description" content="Drivers apply from their phone and can start with a photo of their CDL. Your team gets the application, the DQ file, signed documents and previous-employment verification in one place.">
+<link rel="canonical" href="https://safehaul.io/">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SafeHaul">
+<meta property="og:url" content="https://safehaul.io/">
+<meta property="og:title" content="SafeHaul: driver applications that arrive complete">
+<meta property="og:description" content="Driver hiring software for US trucking carriers: applications, the DQ file, signed documents and previous-employment verification in one place.">
+<meta name="twitter:card" content="summary">
+<!--
+  THE HOME PAGE. What a carrier owner, recruiter or safety manager reads first:
+  the scroll story of one driver application, the product screens, the FAQ and
+  the contact form. The rules for this page are .claude/skills/landing-page/SKILL.md.
+
+  Every product sentence comes from an `available` entry in
+  functions/ai/knowledge/safehaulCapabilities.js; `npm run check:public-claims`
+  reads this page. The drawn screens copy the real app (labels, columns,
+  statuses) with made-up people. No prices: visitors learn them by asking.
+
+  One script, /assets/js/home.js, loaded here in the head so the first paint
+  already has the right layout. Without it every section shows its finished
+  state and the form posts as a plain form to /api/contact (submitWebsiteLead),
+  which answers with /#contact-sent or /#contact-failed. Nothing is loaded from
+  another site.
+-->
+<link rel="preload" href="/assets/fonts/inter-variable-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/home.css?v=1">
+<link rel="stylesheet" href="/assets/css/home-screens.css?v=1">
+<script src="/assets/js/home.js?v=1"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://safehaul.io/#organization",
+      "name": "SafeHaul",
+      "legalName": "Safehaul Technologies LLC",
+      "url": "https://safehaul.io/",
+      "logo": "https://safehaul.io/assets/images/logo.svg",
+      "email": "info@safehaul.io"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://safehaul.io/#website",
+      "name": "SafeHaul",
+      "url": "https://safehaul.io/",
+      "publisher": { "@id": "https://safehaul.io/#organization" }
+    }
+  ]
+}
+</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<svg class="sprite" aria-hidden="true" focusable="false"><defs>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2"/><circle cx="8.5" cy="12" r="2"/><path d="M13 10.5h5M13 13.5h3.5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.500M16 4.800a3.5 3.5 0 010 6.400M18.5 15c1.7.8 2.7 2.5 3 5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-hour" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/></symbol>
+  <symbol id="i-bldg" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="1.5"/><path d="M9 8V5h6v3M8 12v4M12 12v4M16 12v4"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.800l7.6-4.500M8.2 13.200l7.6 4.5"/></symbol>
+  <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4l11 4V6zM14 9a3.5 3.5 0 010 6M7 15.500V19h3v-2.4"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.5 12h3M18.5 12h3M5.3 5.300l2.1 2.100M16.6 16.600l2.1 2.100M5.3 18.700l2.1-2.100M16.6 7.400l2.1-2.1"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l1.5 2h-15zM10 20.500a2 2 0 004 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3.5 5h17L14 13v6l-4-2v-4z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M10 3l1.8 5.200L17 10l-5.2 1.800L10 17l-1.8-5.200L3 10l5.2-1.800zM18.5 15v5M16 17.500h5"/></symbol>
+  <symbol id="i-circ" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></symbol>
+  <symbol id="i-okc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.300l2.7 2.700L16 9.5"/></symbol>
+  <symbol id="i-xc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.500L12 4l4.5 4.500M4 15v4.500h16V15"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L15 9M13.5 7.500l3 3M17 3v3M15.5 4.500h3M20 9v3M18.5 10.500h3M8 3.500v2M7 4.500h2"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4.500L16.5 4a2.1 2.1 0 013 3L8 18.500zM14.5 6l3 3"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M3 3l18 18M5 12.500a10 10 0 014-2.400M19 12.500a10 10 0 00-5-2.800M8.5 16a5 5 0 017 0M2 9a14.5 14.5 0 014.5-2.900M22 9a14.5 14.5 0 00-9.5-3.600M12 19.500v.1"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.500V12l3 2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.500c0 4.5-3 8-7.5 9.5-4.5-1.5-7.5-5-7.5-9.500V6z"/><path d="M9 12l2.2 2.2 4-4.2"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9.5 16h-19zM12 10v4.500M12 17.500v.1"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L3 10.500l7 3 3 7zM10 13.500L21 3"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><path d="M4 12a8 8 0 108-8 8.5 8.5 0 00-6 2.700L4 8.500M4 4v4.500h4.500M12 8v4.500l3 1.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.5 4.500L19 7.5"/></symbol>
+</defs></svg>
+
+<header class="nav" id="nav"><div class="wrap">
+  <a class="brand" href="#top" aria-label="SafeHaul, back to the top"><img src="/assets/images/logo.svg" alt="" width="30" height="26">SafeHaul</a>
+  <nav class="nav-links" aria-label="Main"><a href="#product">Product</a><a href="#records">Security</a><a href="#faq">FAQ</a></nav>
+  <div class="sp"></div>
+  <a class="login" href="https://app.safehaul.io">Log in</a>
+  <a class="btn btn-primary" href="#contact">Book a walkthrough</a>
+</div></header>
+
+<main id="main" tabindex="-1">
+<section class="hero" id="hero" aria-label="How a driver application reaches your team">
+  <div class="stage" id="stage">
+    <div class="bg-grid" id="grid" aria-hidden="true"></div>
+
+    <div class="intro" id="intro"><div class="wrap">
+      <span class="eyebrow"><i></i>Driver hiring software for US trucking carriers</span>
+      <h1>Driver applications <span class="soft">that arrive complete.</span></h1>
+      <p>Drivers apply from their phone and can start with a photo of their CDL. Your team gets the application, the DQ file, signed documents and previous-employment verification in one place.</p>
+      <div class="cta"><a class="btn btn-primary" href="#contact">Book a walkthrough</a><a class="btn btn-secondary" href="#product">See how it works</a></div>
+    </div></div>
+
+    <div class="preview" id="preview" aria-hidden="true"><div class="pv app" id="pv">
+      <div class="pv-side">
+        <div class="co"><i>C</i><div><b>Cedar Line Carriers</b><span>Company Admin</span></div></div>
+        <div class="it"><svg class="ic"><use href="#i-grid"/></svg>Dashboard</div>
+        <div class="it grp"><svg class="ic"><use href="#i-users"/></svg>Driver Applications &amp; Leads</div>
+        <div class="it sub on"><svg class="ic"><use href="#i-file"/></svg>Applications</div>
+        <div class="it sub"><svg class="ic"><use href="#i-hour"/></svg>Unfinished applications</div>
+        <div class="it sub"><svg class="ic"><use href="#i-bldg"/></svg>Leads</div>
+        <div class="it sub"><svg class="ic"><use href="#i-share"/></svg>Referral Links</div>
+        <hr>
+        <div class="it"><svg class="ic"><use href="#i-mega"/></svg>Campaigns</div>
+        <div class="it"><svg class="ic"><use href="#i-file"/></svg>E-Docs</div>
+        <hr>
+        <div class="it"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+        <div class="it"><svg class="ic"><use href="#i-gear"/></svg>Settings</div>
+      </div>
+      <div class="pv-main">
+        <div class="pv-top"><b>Cedar Line Carriers</b><span class="sp"></span><svg class="ic"><use href="#i-bell"/></svg><span class="usr"><span><b>Dana Cole</b>Company Admin</span><i>D</i></span></div>
+        <div class="pv-body">
+          <div class="a-kick">Driver Applications &amp; Leads</div>
+          <div class="a-title">Applications <span class="a-cnt">8</span></div>
+          <div class="a-tools">
+            <div class="a-seg"><span class="on">All Applications</span><span>New</span><span>In process</span><span>Hired</span><span>Terminated</span><span>Declined</span></div>
+            <div class="a-box grow"><svg class="ic"><use href="#i-search"/></svg>Search name, phone, email...</div>
+            <div class="a-box dark"><i class="a-tog"></i>Assigned to me</div>
+            <div class="a-box dark"><svg class="ic"><use href="#i-filter"/></svg>Filters</div>
+          </div>
+          <div class="a-tbl">
+            <div class="a-tr a-th cols6"><span>Driver</span><span>Status</span><span>Freight · State</span><span>Applied ↓</span><span>Last call</span><span>Assignee</span></div>
+            <div class="a-tr cols6"><div class="a-drv"><span class="a-av">JT</span><div><b>Jake Turner</b><small>(469) 555-0142</small></div></div><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span><span class="a-cell">Dry Van · TX</span><span class="a-cell">Nov 18, 2026</span><span>—</span><span class="a-as"><i></i>Unassigned</span></div>
+            <div class="a-tr cols6"><div class="a-drv"><span class="a-av">SK</span><div><b>Sara Kim</b><small>(615) 555-0117</small></div></div><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span><span class="a-cell">Reefer · TN</span><span class="a-cell">Nov 17, 2026</span><span>—</span><span class="a-as"><i class="p">DC</i>Dana Cole</span></div>
+            <div class="a-tr cols6"><div class="a-drv"><span class="a-av">TB</span><div><b>Tom Becker</b><small>(405) 555-0193</small></div></div><span class="st proc"><svg class="ic"><use href="#i-circ"/></svg>In Process</span><span class="a-cell">Flatbed · OK</span><span class="a-cell">Nov 12, 2026</span><span class="a-cell">Left Voicemail</span><span class="a-as"><i class="p">DC</i>Dana Cole</span></div>
+            <div class="a-tr cols6"><div class="a-drv"><span class="a-av">AD</span><div><b>Ana Delgado</b><small>(713) 555-0126</small></div></div><span class="st ok"><svg class="ic"><use href="#i-okc"/></svg>Hired</span><span class="a-cell">Dry Van · TX</span><span class="a-cell">Nov 5, 2026</span><span>—</span><span class="a-as"><i></i>Unassigned</span></div>
+            <div class="a-tr cols6"><div class="a-drv"><span class="a-av">LO</span><div><b>Lena Ortiz</b><small>(504) 555-0158</small></div></div><span class="st ok"><svg class="ic"><use href="#i-okc"/></svg>Hired</span><span class="a-cell">Tanker · LA</span><span class="a-cell">Oct 29, 2026</span><span>—</span><span class="a-as"><i class="p">DC</i>Dana Cole</span></div>
+            <div class="a-tr cols6"><div class="a-drv"><span class="a-av">CH</span><div><b>Chris Hall</b><small>(501) 555-0171</small></div></div><span class="st bad"><svg class="ic"><use href="#i-xc"/></svg>Declined</span><span class="a-cell">Reefer · AR</span><span class="a-cell">Oct 21, 2026</span><span>—</span><span class="a-as"><i></i>Unassigned</span></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="caps" id="caps">
+      <div class="cap"><div class="k">01 · Your link</div><h2>A driver opens your application link</h2><p>Every company has its own public application link. A driver you invite fills in the same application.</p></div>
+      <div class="cap"><div class="k">02 · The CDL</div><h2>One photo starts the application</h2><p>The driver takes a photo of the CDL and the application is pre-filled from it. The driver reviews every value before submitting.</p></div>
+      <div class="cap"><div class="k">03 · Weak signal</div><h2>No signal, nothing lost</h2><p>The application is saved on the phone and sent when the connection is back. A retry cannot create a duplicate driver.</p></div>
+      <div class="cap"><div class="k">04 · Your list</div><h2>It shows up in Applications</h2><p>Your team gets the complete application in one record, marked New, at the top of the list.</p></div>
+    </div>
+
+    <div class="chip l" data-o="12" data-y="-190" data-f="1.2" aria-hidden="true"><i><svg class="ic"><use href="#i-user"/></svg></i><div><b>Personal Information</b><span>Application step</span></div></div>
+    <div class="chip l" data-o="0" data-y="40" data-f="-.8" aria-hidden="true"><i><svg class="ic"><use href="#i-card"/></svg></i><div><b>License Information</b><span>Application step</span></div></div>
+    <div class="chip l" data-o="18" data-y="210" data-f=".9" aria-hidden="true"><i><svg class="ic"><use href="#i-file"/></svg></i><div><b>Motor Vehicle Record</b><span>Application step</span></div></div>
+    <div class="chip" data-o="0" data-y="-220" data-f="-1" aria-hidden="true"><i><svg class="ic"><use href="#i-hist"/></svg></i><div><b>Employment History</b><span>Application step</span></div></div>
+    <div class="chip" data-o="36" data-y="-40" data-f="1.1" aria-hidden="true"><i><svg class="ic"><use href="#i-shield"/></svg></i><div><b>Qualification Information</b><span>Application step</span></div></div>
+    <div class="chip" data-o="8" data-y="160" data-f="-.7" aria-hidden="true"><i><svg class="ic"><use href="#i-pen"/></svg></i><div><b>Agreements &amp; Signature</b><span>Application step</span></div></div>
+
+    <div class="phone" id="phone" data-v="choice" data-net="on" data-toast="0" aria-hidden="true">
+      <div class="notch"></div>
+      <div class="scr app"><div class="scr-in">
+        <div class="ph-top"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+
+        <div class="v v-c v-choice"><div class="p-card">
+          <b class="p-co">Cedar Line Carriers</b>
+          <p class="p-q">How would you like to start your driver application?</p>
+          <div class="p-opt first"><b><svg class="ic"><use href="#i-wand"/></svg>Upload CDL for Auto-Fill (Fastest)</b><span>Upload one CDL photo and we pre-fill your name, date of birth, address, CDL number, and expiration date.</span></div>
+          <div class="p-opt"><b><svg class="ic"><use href="#i-pen"/></svg>Fill Out Manually</b><span>Start at Step 1 and enter everything by hand, just like the current flow.</span></div>
+          <p class="p-foot">You can review and edit everything before submitting.</p>
+        </div></div>
+
+        <div class="v v-cam"><div class="cam"><div class="cdl"><b>COMMERCIAL DRIVER LICENSE</b><i></i><i></i><i></i><i></i></div></div><div class="shutter"></div><div class="flash"></div></div>
+
+        <div class="v v-c v-read"><div class="p-card">
+          <div class="p-spin"><i></i></div>
+          <b class="p-t">Reading your CDL...</b>
+          <p class="p-d">Our AI is extracting your basic details so you can skip typing.</p>
+        </div><span class="p-btn">Cancel</span></div>
+
+        <div class="v v-form">
+          <div class="p-bar">Cedar Line Carriers</div>
+          <div class="p-step"><b>Step 1 of 9: Personal Information</b><i></i></div>
+          <div class="p-form">
+            <div class="p-h">Personal Information</div>
+            <span class="lab">First Name <em>*</em></span><div class="fld" data-val="MARCUS"><b data-ph="John"></b></div>
+            <span class="lab">Middle Name</span><div class="fld"><b data-ph="M"></b></div>
+            <span class="lab">Last Name <em>*</em></span><div class="fld" data-val="REED"><b data-ph="Doe"></b></div>
+            <span class="lab">Suffix</span><div class="fld"><b data-ph="Jr."></b></div>
+            <div class="p-ck"><i></i>Known by other name(s)?</div>
+            <span class="lab">Social Security Number (SSN) <em>*</em></span><div class="fld"><b data-ph="XXX-XX-XXXX"></b></div>
+            <span class="lab">Date of Birth <em>*</em></span>
+            <div class="p-dob"><div><span>Month</span><div class="fld" data-val="6"><b></b></div></div><div><span>Day</span><div class="fld" data-val="21"><b></b></div></div><div><span>Year</span><div class="fld" data-val="1987"><b></b></div></div></div>
+          </div>
+          <div class="p-toast"><svg class="ic"><use href="#i-okc"/></svg>CDL auto-fill complete. Please review your information.<span>×</span></div>
+        </div>
+
+        <div class="v v-c v-wait"><div class="p-card">
+          <div class="p-ico warn"><svg class="ic"><use href="#i-bldg"/></svg></div>
+          <b class="p-t">Not sent yet</b>
+          <p class="p-d">Your application is saved on this device and will be sent as soon as the connection is back. Keep this page open: your confirmation number will appear here.</p>
+          <p class="p-m">If you close it, open this page again on this device to finish sending.</p>
+          <span class="p-ghost">Go to home</span>
+        </div></div>
+
+        <div class="v v-c v-sent"><div class="p-card">
+          <div class="p-ico ok"><svg class="ic"><use href="#i-bldg"/></svg></div>
+          <b class="p-t">Application Submitted!</b>
+          <p class="p-d">Your application has been received and a recruiter will contact you soon.</p>
+          <div class="p-conf"><small>Confirmation Number</small><b>SAF-2026-MR7KQ</b><span>Save this number for your records.</span></div>
+          <span class="p-ghost">Go to home</span>
+        </div></div>
+
+        <div class="p-off"><svg class="ic"><use href="#i-wifi"/></svg>You're offline</div>
+      </div></div>
+    </div>
+
+    <div class="desk" id="desk" aria-hidden="true"><div class="win app">
+      <div class="win-bar"><i></i><i></i><i></i><span>app.safehaul.io</span></div>
+      <div class="win-body">
+        <div class="a-kick">Driver Applications &amp; Leads</div>
+        <div class="a-title">Applications <span class="a-cnt"><span class="c0">8</span><span class="c1">9</span></span></div>
+        <div class="a-seg"><span class="on">All Applications</span><span>New</span><span>In process</span><span>Hired</span><span>Terminated</span><span>Declined</span></div>
+        <div class="a-tbl">
+          <div class="a-tr a-th colsD"><span>Driver</span><span>Status</span><span>Applied ↓</span></div>
+          <div class="a-rows">
+            <div class="a-tr colsD new"><div class="a-drv"><span class="a-av">MR</span><div><b>Marcus Reed</b><small>(214) 555-0164</small></div></div><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span><span class="a-cell">Nov 25, 2026</span></div>
+            <div class="a-tr colsD"><div class="a-drv"><span class="a-av">JT</span><div><b>Jake Turner</b><small>(469) 555-0142</small></div></div><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span><span class="a-cell">Nov 18, 2026</span></div>
+            <div class="a-tr colsD"><div class="a-drv"><span class="a-av">TB</span><div><b>Tom Becker</b><small>(405) 555-0193</small></div></div><span class="st proc"><svg class="ic"><use href="#i-circ"/></svg>In Process</span><span class="a-cell">Nov 12, 2026</span></div>
+            <div class="a-tr colsD"><div class="a-drv"><span class="a-av">AD</span><div><b>Ana Delgado</b><small>(713) 555-0126</small></div></div><span class="st ok"><svg class="ic"><use href="#i-okc"/></svg>Hired</span><span class="a-cell">Nov 5, 2026</span></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="rail" aria-hidden="true"><i id="rail"></i></div>
+  </div>
+</section>
+
+<div class="proof"><div class="wrap">
+  <p class="rv">Built for carrier owners, recruiters and safety managers who are done chasing paper.</p>
+  <div class="stat rv d1"><b data-count="1">1</b><span>photo of the CDL to start it</span></div>
+  <div class="stat rv d2"><b data-count="30">30</b><span>days ahead, the DQ file marks a CDL, medical card or MVR as expiring soon</span></div>
+  <div class="stat rv d3"><b data-count="0">0</b><span>accounts a driver needs to sign a document</span></div>
+</div></div>
+
+<section class="sec" id="product"><div class="wrap">
+  <div class="kick rv">After the application</div>
+  <h2 class="words" data-words>The rest of the hire happens in the same place.</h2>
+  <p class="lede rv">Leads, the DQ file, signatures and previous-employment verification sit next to the driver's application.</p>
+  <div class="wf-grid">
+    <div class="wf-steps" id="wfSteps">
+      <div class="wf-step" data-i="0"><div class="wf-copy"><div class="n">01 · LEADS</div><h3>All your leads in one list</h3><p>Add a lead by hand, import a spreadsheet, or receive leads from Facebook Lead Ads. They all land in the same list.</p><ul><li>Add one lead at a time</li><li>Import leads from a spreadsheet</li><li>Receive leads from Facebook Lead Ads</li></ul></div>
+        <div class="wc app" data-card="0" aria-hidden="true">
+          <div class="a-head"><div><div class="a-kick">Driver Applications &amp; Leads</div><div class="a-title">Leads <span class="a-cnt">5</span></div></div>
+            <div class="a-btns"><span class="a-btn"><svg class="ic"><use href="#i-up"/></svg>Import leads</span><span class="a-btn pri" data-target><svg class="ic"><use href="#i-plus"/></svg>Add lead</span></div></div>
+          <div class="a-tools"><div class="a-seg"><span class="on">All</span><span>Assigned to me</span><span>Unassigned</span></div></div>
+          <div class="a-tbl">
+            <div class="a-chips"><span class="on">All Leads</span><span>New</span><span>Attempting to Contact</span><span>In Process</span><span>Interested</span><span>Declined</span></div>
+            <div class="a-tr a-th colsL"><span>Driver</span><span>Status</span><span>Freight · State</span><span>Added ↓</span></div>
+            <div class="a-tr colsL lead late"><div class="a-drv"><span class="a-av">NB</span><div><b>Nate Brooks</b><small>(918) 555-0136</small></div></div><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span><span class="a-cell">Flatbed · OK</span><span class="a-cell">Nov 25, 2026</span></div>
+            <div class="a-tr colsL lead"><div class="a-drv"><span class="a-av">PN</span><div><b>Priya Nair</b><small>(404) 555-0122</small></div></div><span class="st proc"><svg class="ic"><use href="#i-circ"/></svg>Contact Attempt 1</span><span class="a-cell">Reefer · GA</span><span class="a-cell">Nov 23, 2026</span></div>
+            <div class="a-tr colsL lead"><div class="a-drv"><span class="a-av">SW</span><div><b>Sam Whitaker</b><small>(806) 555-0109</small></div></div><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span><span class="a-cell">Dry Van · TX</span><span class="a-cell">Nov 21, 2026</span></div>
+            <div class="a-tr colsL lead"><div class="a-drv"><span class="a-av">RG</span><div><b>Rosa Guzman</b><small>(915) 555-0147</small></div></div><span class="st proc"><svg class="ic"><use href="#i-circ"/></svg>In Process</span><span class="a-cell">Tanker · TX</span><span class="a-cell">Nov 19, 2026</span></div>
+            <div class="a-tr colsL lead"><div class="a-drv"><span class="a-av">DW</span><div><b>Darnell Webb</b><small>(901) 555-0118</small></div></div><span class="st proc"><svg class="ic"><use href="#i-circ"/></svg>Interested</span><span class="a-cell">Reefer · TN</span><span class="a-cell">Nov 16, 2026</span></div>
+          </div>
+          <div class="cursor cA"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 1.6L9.5 20z" fill="#0d1f27" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+        </div>
+      </div>
+      <div class="wf-step" data-i="1"><div class="wf-copy"><div class="n">02 · DQ FILE</div><h3>See what is in the DQ file and what is missing</h3><p>Each driver's DQ file lists which documents it holds and which are missing. A CDL, medical card or MVR can carry a valid-until date, and the file shows when it has expired or expires within 30 days.</p><ul><li>Upload a missing document from the list</li><li>Once a day, a notice in the app when a hired driver's earliest valid-until date is within 30 days or has passed. In the app only: SafeHaul sends no emails or texts about it.</li><li>The list shows what the file holds. It is not a compliance check.</li></ul></div>
+        <div class="wc app" data-card="1" aria-hidden="true">
+          <div class="a-rec"><span class="a-av">TB</span><div><b>Tom Becker</b><span class="st ok"><svg class="ic"><use href="#i-okc"/></svg>Hired</span></div><span class="tab"><svg class="ic"><use href="#i-shield"/></svg>DQ File <span class="st bad">Incomplete</span></span></div>
+          <div class="a-tbl">
+            <div class="dq-h"><b>What's in the file</b><span>1 missing.</span></div>
+            <div class="dq"><div><b>Application for employment</b></div><div class="r"><span class="st ok">In file</span></div></div>
+            <div class="dq"><div><b>CDL</b><small>Valid until Mar 14, 2028</small></div><div class="r"><span class="st ok">In file</span></div></div>
+            <div class="dq"><div><b>Medical card</b><small>Expires on Dec 7, 2026, in 12 days</small></div><div class="r"><span class="st warn"><svg class="ic"><use href="#i-clock"/></svg>Expiring soon</span></div></div>
+            <div class="dq"><div><b>MVR</b></div><div class="r"><span class="up" data-target>Upload</span><span class="st warn">Missing</span></div></div>
+            <div class="dq"><div><b>Previous employers, last 3 years</b></div><div class="r"><span class="st ok">All done</span></div></div>
+            <div class="dq"><div><b>Road test certificate</b></div><div class="r"><span class="st ok">In file</span></div></div>
+            <div class="dq"><div><b>Clearinghouse report (full)</b></div><div class="r"><span class="st ok">In file</span></div></div>
+            <div class="dq-f">What this file holds, item by item. It is not a compliance check.</div>
+          </div>
+          <div class="cursor cB"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 1.6L9.5 20z" fill="#0d1f27" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+        </div>
+      </div>
+      <div class="wf-step" data-i="2"><div class="wf-copy"><div class="n">03 · SIGNATURES</div><h3>Send a form. Get it back signed and sealed.</h3><p>Upload a form and SafeHaul suggests where the signer fields belong. A person reviews every suggestion before it takes effect. The driver signs in a browser, without an account.</p><ul><li>Suggested fields that you accept or reject</li><li>A completed document is sealed, so a later change is detectable</li><li>A signing link cannot be submitted twice</li></ul></div>
+        <div class="wc app" data-card="2" aria-hidden="true">
+          <div class="wc-h"><b>Driver Employment Agreement</b><span class="sw"><span class="st info sA"><svg class="ic"><use href="#i-clock"/></svg>Awaiting signature</span><span class="st ok sB"><svg class="ic"><use href="#i-okc"/></svg>Completed</span></span></div>
+          <div class="doc"><div class="t">Driver Employment Agreement</div><div class="l" style="width:94%"></div><div class="l" style="width:86%"></div><div class="l" style="width:90%"></div><div class="l" style="width:62%"></div><div class="l gap" style="width:88%"></div><div class="l" style="width:74%"></div>
+            <div class="rule"></div><div class="dcap">Driver signature</div><div class="rule r2"></div><div class="dcap c2">Date</div>
+            <div class="fbox f1" data-target><svg class="ic k1"><use href="#i-spark"/></svg>Signature<svg class="ic okm"><use href="#i-check"/></svg></div>
+            <div class="fbox f2"><svg class="ic k1"><use href="#i-spark"/></svg>Date<svg class="ic okm"><use href="#i-check"/></svg></div>
+            <svg class="sigpath" viewBox="0 0 170 56" fill="none"><path d="M6 40c10-22 18-30 22-20s-8 26 2 20 12-28 20-22-4 24 6 20 12-16 18-14 0 14 10 11 16-16 26-13 8 9 16 7 22-6 36-8" stroke="#1E293B" stroke-width="2.4" stroke-linecap="round"/></svg>
+            <span class="sdate">11/25/2026</span>
+            <div class="seal"><svg class="ic"><use href="#i-shield"/></svg>Signed and sealed</div>
+          </div>
+          <div class="legend"><span><i></i>AI suggestion</span><span><i class="g"></i>Accepted by a person</span></div>
+          <div class="cursor cC"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 1.6L9.5 20z" fill="#0d1f27" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+        </div>
+      </div>
+      <div class="wf-step" data-i="3"><div class="wf-copy"><div class="n">04 · VERIFICATION</div><h3>Ask previous employers. Keep their answers.</h3><p>SafeHaul sends previous-employment verification requests and records the responses. Each employer answers on a web page, and you see a status for every one.</p><ul><li>Requests sent from the driver's file</li><li>A status on every previous employer</li><li>Result files open only through a link checked against your company's team</li></ul></div>
+        <div class="wc app" data-card="3" aria-hidden="true">
+          <div class="a-rec"><span class="a-av">MR</span><div><b>Marcus Reed</b><span class="st new"><svg class="ic"><use href="#i-spark"/></svg>New</span></div><span class="tab"><svg class="ic"><use href="#i-hist"/></svg>Previous Employment</span></div>
+          <div class="emp"><div><b>Lone Star Freight</b><small>Mar 2021 to Aug 2024</small></div><div class="r"><span class="st ok"><svg class="ic"><use href="#i-okc"/></svg>Completed</span></div></div>
+          <div class="emp"><div><b>Gulf Coast Haulers</b><small>Jan 2019 to Feb 2021</small></div><div class="r"><span class="st info stat-r"><svg class="ic"><use href="#i-clock"/></svg>Sent</span><span class="snd" data-target><svg class="ic"><use href="#i-send"/></svg></span></div></div>
+          <div class="emp"><div><b>Red River Transport</b><small>May 2016 to Dec 2018</small></div><div class="r"><span class="st warn"><svg class="ic"><use href="#i-warn"/></svg>No Response (Good Faith Documented)</span></div></div>
+          <div class="pev"><div class="pt"><svg class="ic"><use href="#i-shield"/></svg>Previous Employment Verification</div><div class="pn">The page Gulf Coast Haulers opens</div><div class="pq">Was this individual employed by your company? <em>*</em></div><div class="po"><span><i class="y"></i>Yes</span><span><i></i>No / No Record Found</span></div></div>
+          <div class="cursor cD"><svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 1.6L9.5 20z" fill="#0d1f27" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+          <div class="toast"><svg class="ic"><use href="#i-okc"/></svg>Verification request sent to Gulf Coast Haulers</div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-stage" id="wfStage" aria-hidden="true"></div>
+  </div>
+</div></section>
+
+<section class="sec" id="records"><div class="wrap vault-grid">
+  <div>
+    <div class="kick rv">Your records</div>
+    <h2 class="words" data-words>Your drivers stay with your company.</h2>
+    <div class="bullets">
+      <div class="bullet rv"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></i><div><b>Kept apart by rule</b><span>Each company's records are isolated by database access rules.</span></div></div>
+      <div class="bullet rv d1"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14l-2 2a3 3 0 01-4-4l3-3a3 3 0 014 0"/><path d="M14 10l2-2a3 3 0 014 4l-3 3a3 3 0 01-4 0"/></svg></i><div><b>Links that check who is asking</b><span>Document links are issued by the server and checked against company membership.</span></div></div>
+      <div class="bullet rv d2"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h10l4 4v12H5z"/><path d="M9 12h6M9 16h4"/></svg></i><div><b>A record of who did what</b><span>SafeHaul keeps activity records for actions taken on a driver record.</span></div></div>
+    </div>
+  </div>
+  <div class="vaults rv" id="vaults" data-loop aria-hidden="true">
+    <div class="vault"><h3>Cedar Line <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></h3><div class="vr">M. Reed</div><div class="vr">A. Delgado</div><div class="vr">T. Becker</div><div class="vr">L. Ortiz</div></div>
+    <div class="vault"><h3>Bluewater <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></h3><div class="vr">J. Park</div><div class="vr">R. Diaz</div><div class="vr">S. Moore</div></div>
+    <div class="vault"><h3>Northfork <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></h3><div class="vr">K. Wells</div><div class="vr">D. Fox</div><div class="vr">P. Lane</div><div class="vr">E. Cole</div></div>
+    <div class="wall w1"><b><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></b></div>
+    <div class="wall w2"><b><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></b></div>
+    <div class="probe">Bluewater → Cedar Line<span class="pf"> file</span></div>
+  </div>
+</div></section>
+
+<section class="sec" id="faq"><div class="wrap faq-grid">
+  <div><div class="kick rv">FAQ</div><h2 class="words" data-words>Questions carriers ask.</h2></div>
+  <div>
+    <details class="qa" open><summary>Do drivers need an account?<i aria-hidden="true"></i></summary><p>No. A driver applies in a browser from the link your company shares, and signs documents in a browser without an account.</p></details>
+    <details class="qa"><summary>What does SafeHaul cost?<i aria-hidden="true"></i></summary><p>SafeHaul is a flat monthly subscription. Send us a request and we reply with the plans and prices.</p></details>
+    <details class="qa"><summary>Does SafeHaul order background checks?<i aria-hidden="true"></i></summary><p>No. SafeHaul does not order or receive background checks. You can keep an MVR in the driver's DQ file with its valid-until date.</p></details>
+    <details class="qa"><summary>Can other companies see our drivers?<i aria-hidden="true"></i></summary><p>No. Each company's records are isolated by database access rules, and every company has its own team, roles and application link.</p></details>
+    <details class="qa"><summary>Can we message drivers in bulk?<i aria-hidden="true"></i></summary><p>Recruiters can message a filtered list of candidates in bulk, by SMS and email. Each company connects its own messaging provider, and that provider bills the carrier charges. SafeHaul does not capture opt-out replies, and it has no two-way conversations.</p></details>
+    <details class="qa"><summary>Is SafeHaul a compliance service?<i aria-hidden="true"></i></summary><p>SafeHaul supports your own compliance process. It does not give legal advice.</p></details>
+  </div>
+</div></section>
+
+<section class="closing" id="contact" aria-labelledby="contactTitle">
+  <div class="wrap contact-grid">
+    <div>
+      <h2 class="words" data-words id="contactTitle">Book a walkthrough with your own hiring process.</h2>
+      <p class="lede rv">Tell us how you hire drivers today. We will show you the same steps in SafeHaul and send you the plans and prices.</p>
+      <p class="c-alt rv">Prefer email? Write to <a href="mailto:info@safehaul.io">info@safehaul.io</a><br>Already a customer? <a href="https://app.safehaul.io">Log in</a></p>
+    </div>
+    <div class="rv">
+      <p class="c-plain" id="contact-sent">Request sent. Thank you: we will reply to your work email to set a time for the walkthrough.</p>
+      <p class="c-plain" id="contact-failed">We could not send your request. Please fill in the form again, or email info@safehaul.io.</p>
+      <form class="cform" id="contactForm" action="/api/contact" method="post">
+        <p class="c-error" id="contactError" role="alert" hidden></p>
+        <div class="fr">
+          <div class="cf"><label for="cfName">Full name</label><input id="cfName" name="fullName" type="text" required maxlength="80" autocomplete="name" aria-describedby="err-fullName"><p class="f-err" id="err-fullName" hidden>Enter your full name.</p></div>
+          <div class="cf"><label for="cfEmail">Work email</label><input id="cfEmail" name="workEmail" type="email" required maxlength="120" autocomplete="email" aria-describedby="err-workEmail"><p class="f-err" id="err-workEmail" hidden>Enter a work email, like name@company.com.</p></div>
+          <div class="cf"><label for="cfCompany">Company</label><input id="cfCompany" name="companyName" type="text" required maxlength="120" autocomplete="organization" aria-describedby="err-companyName"><p class="f-err" id="err-companyName" hidden>Enter your company name.</p></div>
+          <div class="cf"><label for="cfPhone">Phone <small>(optional)</small></label><input id="cfPhone" name="phone" type="tel" maxlength="30" autocomplete="tel" aria-describedby="err-phone"><p class="f-err" id="err-phone" hidden>Enter a phone number, or leave it empty.</p></div>
+        </div>
+        <div class="cf"><label for="cfFleet">Number of drivers</label><select id="cfFleet" name="fleetSize" required aria-describedby="err-fleetSize"><option value="">Choose a range</option><option value="1-10">1 to 10</option><option value="11-50">11 to 50</option><option value="51-200">51 to 200</option><option value="200+">More than 200</option></select><p class="f-err" id="err-fleetSize" hidden>Choose how many drivers you have.</p></div>
+        <div class="cf"><label for="cfMsg">Anything we should know? <small>(optional)</small></label><textarea id="cfMsg" name="message" maxlength="1000" rows="3"></textarea></div>
+        <div class="hp" aria-hidden="true"><label for="cfLeave">Leave this empty</label><input id="cfLeave" name="leave_this_empty" type="text" tabindex="-1" autocomplete="off"></div>
+        <button class="btn btn-primary" type="submit">Book a walkthrough</button>
+        <p class="c-note">We use these details only to reply to you. <a href="/privacy.html">Privacy policy</a></p>
+      </form>
+      <div class="csent" id="contactSent" role="status" tabindex="-1" hidden><h3>Request sent.</h3><p>Thank you. We will reply to your work email to set a time for the walkthrough.</p></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap">
+  <a class="brand" href="#top" aria-label="SafeHaul, back to the top"><img src="/assets/images/logo.svg" alt="" width="24" height="21">SafeHaul</a>
+  <span>© 2026 Safehaul Technologies LLC</span>
+  <a class="ml" href="mailto:info@safehaul.io">info@safehaul.io</a>
+  <nav class="lk" aria-label="Site"><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/news">News</a><a href="https://app.safehaul.io">Log in</a></nav>
+</div></footer>
+
+
+</body>
+</html>

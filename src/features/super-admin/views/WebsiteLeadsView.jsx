@@ -13,11 +13,11 @@ import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
  *
  * ## What this is
  *
- * A **read-only archive** of the leads captured by the marketing site's contact
- * form. That site was removed and lead capture, Telegram delivery, configuration,
- * test-send and delivery retry were all retired by owner decision — but the
- * records were deliberately kept, and this screen is the only way anyone reads
- * them. Any future lead capture is to be built fresh; nothing here writes.
+ * The leads the public site's contact form sends, read only: those from the
+ * home page's form (`functions/landing/websiteLead.js`, which also tells the
+ * operator's alert chat), and those the removed marketing site captured before
+ * its own form was retired, which were deliberately kept. This screen is the
+ * only way anyone reads them, and nothing here writes.
  *
  * It replaced a 536-line Landing Page Settings screen that also managed Telegram
  * credentials. Everything that could change something is gone. What survives is
@@ -42,6 +42,8 @@ const CSV_COLUMNS = [
     ['companyName', (lead) => lead.companyName],
     ['companySize', (lead) => lead.companySize],
     ['primaryGoal', (lead) => lead.primaryGoal],
+    ['message', (lead) => lead.message],
+    ['sourceSite', (lead) => lead.sourceSite],
     ['stage', (lead) => lead.stage],
     ['sourcePage', (lead) => lead.sourcePage],
     ['utmSource', (lead) => lead.utmSource],
@@ -132,6 +134,16 @@ export function WebsiteLeadsView() {
                 : <span className="text-ds-sm text-ds-content-muted">—</span>),
         },
         {
+            key: 'message',
+            header: 'Message',
+            width: 'lg',
+            // The visitor's own words, two lines at most; the whole text is in the
+            // CSV and in the operator's alert.
+            render: (lead) => (lead.message
+                ? <span className="line-clamp-2 text-ds-sm text-ds-content [overflow-wrap:anywhere]" title={lead.message}>{lead.message}</span>
+                : <span className="text-ds-sm text-ds-content-muted">—</span>),
+        },
+        {
             key: 'stage',
             header: 'Stage',
             width: 'sm',
@@ -171,7 +183,7 @@ export function WebsiteLeadsView() {
             <PageHeader
                 level={2}
                 title="Website Leads"
-                description="Leads captured by the SafeHaul marketing site before it was retired. This is a read-only archive — nothing new arrives here, and a rebuilt contact form will collect leads separately."
+                description="Requests from the contact form on the SafeHaul home page, newest first, with the leads the earlier marketing site captured. Each new request is also sent to the operator alert chat when one is connected in System Health."
                 count={loading || loadError ? undefined : leads.length}
                 countLabel={leads.length === 1 ? 'lead' : 'leads'}
                 actions={(
@@ -197,7 +209,7 @@ export function WebsiteLeadsView() {
             )}
 
             <DataTable
-                ariaLabel="Leads captured from the retired marketing site"
+                ariaLabel="Leads from the public site's contact form"
                 density="compact"
                 minWidth="none"
                 mobilePresentation="cards"
@@ -206,8 +218,8 @@ export function WebsiteLeadsView() {
                 isLoading={loading}
                 loadingLabel="Loading leads"
                 empty={{
-                    title: 'No leads were captured.',
-                    description: 'The marketing site contact form recorded no submissions before it was retired.',
+                    title: 'No leads yet.',
+                    description: 'Requests sent from the contact form on the home page will appear here.',
                 }}
             />
         </Stack>

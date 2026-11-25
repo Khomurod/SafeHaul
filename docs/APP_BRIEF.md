@@ -78,7 +78,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 22, **mixed v1 and v2** |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and the standalone public pages, and redirects `/` to `/news`. |
+| Public site | `web/` | Hand-written HTML, CSS and one script, **no build step, no framework**. Serves the home page at `/` (its contact form posts to `/api/contact` → `submitWebsiteLead`), the server-rendered blog's assets and the standalone public pages. |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**: (1) **direct Firestore
@@ -1350,7 +1350,7 @@ deactivation): a switch shows or hides its menu entry and pages without a reload
 | **Per-company email: SMTP or Gmail** (Nodemailer) | All outbound email (logs omit the recipient); no platform-wide fallback sender. A company that connected Gmail (`provider: 'gmail'`) sends it all through the Gmail API (`gmail.send`; `functions/shared/gmail/`), Nodemailer building the message | `companies/{id}/system_settings/email_config` (server only); SMTP password and Gmail refresh token encrypted (`enc:v1:`), the password shown only by the vault's reveal, the token never; Gmail access tokens in memory only; the Gmail OAuth client read at run time from Secret Manager (`GMAIL_OAUTH_CLIENT_*`). Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog, an applicant's own PSP/MVR read into *suggestions* where enabled (`extractApplicationReport`), and a recruiter's attached paperwork (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | Operator alerts (`watchAiAndBlog`) and release offers (`offerProductionRelease`) in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |
+| **Telegram** | Operator alerts (`watchAiAndBlog`), release offers (`offerProductionRelease`) and each home-page contact request (`submitWebsiteLead`: stored in `landing_leads` first, shown in Super Admin → Website Leads, then sent; with no chat it is stored as "Not sent") in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`). Reads and token minting give up after 15 s (shown as GitHub unreachable); the dispatch that starts a release has no limit of its own | GitHub App credential, server-only |
@@ -1698,8 +1698,16 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   store the 404 (or SPA fallback) an open tab gets for a chunk a release removed,
   failing that browser even after a rollback. Everything stays on the one-hour default.
 - **The public site stays dependency-free**: no framework, no build step, no
-  application or design-system imports. The privacy and About pages ship no `<script>`
-  at all, asserted by `src/tests/hostingConfig.test.js`.
+  application or design-system imports, and nothing loaded from another site. The
+  home page has one script of its own (`web/assets/js/home.js`: scroll animation and
+  the contact form, and the page is complete without it); the privacy and About
+  pages ship no `<script>` at all, asserted by `src/tests/hostingConfig.test.js`.
+- **The contact form is not the retired lead capture.** `submitWebsiteLead` was
+  built fresh to the bar in the hosting runbook ("Landing lead form security"):
+  the public site's origins only, checked fields, a honeypot, fail-closed limits
+  per address (counted under a short shared hash, never the address) and
+  site-wide, no lead detail in logs, and the lead stored before the operator is
+  told. Never revive `submitLandingLead`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth;
   `npm run check:public-claims` enforces it in the `callable-contract` CI job,

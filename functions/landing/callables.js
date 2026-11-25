@@ -12,8 +12,10 @@
  * **The leads themselves were kept**, so one callable survives: the archive
  * screen has to be able to read them. Anything that wrote, delivered or
  * configured is gone, which means this file can no longer touch a credential at
- * all — the strongest form of the rule the old header spent a paragraph on. Any
- * rebuilt lead capture is to be **built fresh**, not restored from here.
+ * all — the strongest form of the rule the old header spent a paragraph on. Lead
+ * capture was later rebuilt fresh, apart from this file: the home page's form
+ * writes through `./websiteLead.js`, and this callable lists those leads with the
+ * kept ones.
  *
  * ## Security contract, unchanged
  *
